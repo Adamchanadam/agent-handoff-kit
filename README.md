@@ -91,6 +91,7 @@ The npm package is intentionally small. It contains the CLI, installable runtime
 The source repository also contains design and review documents that explain the product direction but are not needed by installed projects:
 
 - `problem-definition.md`, `preservation-map.md`, `core-contract.md`, and `architecture.md` explain the design.
+- `docs/qa/` contains source-repository QA plans and is not included in the npm package.
 - `pack-loading-contract.md`, `coding-continuity-model.md`, and `scenario-dry-runs.md` explain runtime behavior.
 - `installer-design.md` and `migration-plan.md` explain installer and migration design.
 - `scripts/` contains source-repository QA checks and is not part of the installable runtime.
