@@ -52,14 +52,17 @@ Implemented:
 4. `doctor`
 5. template mapping from `runtime-core/*` and `packs/*.md`, including `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and the safety pack
 6. create missing files only
-7. skip existing files without modification
-8. migration report generation
+7. preserve existing files by default
+8. initial `AGENTS.md` managed-core merge for upgrade
+9. backup before merged file writes
+10. conflict reporting for unsafe existing bridge files
+11. migration report generation
 
 Pending:
 
-1. section-aware merge
-2. backup before modifying existing files
-3. conflict report for unsafe existing content
+1. richer section-aware merge beyond the initial `AGENTS.md` managed-core block
+2. schema-aware session / index / registry field merge
+3. richer conflict classification for unsafe existing content
 4. richer doctor schema checks
 
 ## Continuity Template Behavior

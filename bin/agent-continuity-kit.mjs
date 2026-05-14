@@ -29,6 +29,8 @@ const mappings = [
 ];
 
 const requiredTargets = mappings.map(([, target]) => target);
+const managedCoreStart = "<!-- BEGIN Agent Continuity Kit managed core -->";
+const managedCoreEnd = "<!-- END Agent Continuity Kit managed core -->";
 
 const requiredAnchors = [
   {
@@ -186,11 +188,12 @@ function parseArgs(args) {
 
 async function runInstall(command, root, options, version) {
   const mode = await detectMode(root);
-  const plan = await buildPlan(root);
+  const plan = await buildPlan(root, command);
   printPlan(command, root, mode, plan, version);
 
   if (options.dryRun) {
     console.log("\ndry-run: no files written");
+    if (plan.some((item) => item.action === "conflict")) process.exitCode = 1;
     return;
   }
 
@@ -203,6 +206,12 @@ async function runInstall(command, root, options, version) {
   }
 
   const created = [];
+  const merged = [];
+  const conflicts = plan.filter((item) => item.action === "conflict");
+  const stamp = migrationStamp();
+  const migrationDir = path.join(root, "dev/governance_migrations", stamp);
+  const backupDir = path.join(migrationDir, "backup");
+
   for (const item of plan) {
     if (item.action !== "create") continue;
     await mkdir(path.dirname(item.targetAbs), { recursive: true });
@@ -210,12 +219,25 @@ async function runInstall(command, root, options, version) {
     created.push(item.targetRel);
   }
 
-  const report = await writeMigrationReport(root, command, mode, plan, created);
+  for (const item of plan) {
+    if (item.action !== "merge") continue;
+    const backupPath = path.join(backupDir, item.targetRel);
+    await mkdir(path.dirname(backupPath), { recursive: true });
+    await copyFile(item.targetAbs, backupPath);
+    await writeFile(item.targetAbs, item.mergedText, "utf8");
+    merged.push(item.targetRel);
+  }
+
+  const report = await writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir);
   console.log(`\ncreated: ${created.length}`);
+  console.log(`merged: ${merged.length}`);
   console.log(`skipped existing: ${plan.filter((item) => item.action === "skip").length}`);
+  console.log(`conflict: ${conflicts.length}`);
+  if (merged.length > 0) console.log(`backup: ${path.relative(root, backupDir)}`);
   console.log(`migration report: ${path.relative(root, report)}`);
   console.log("next: Follow AGENTS.md");
   console.log("tip: Describe your task directly; the AI will choose the working mode and relevant rule packs.");
+  if (conflicts.length > 0) process.exitCode = 1;
 }
 
 async function runDoctor(root, version) {
@@ -275,20 +297,62 @@ async function checkRequiredAnchors(root) {
   return rows;
 }
 
-async function buildPlan(root) {
+async function buildPlan(root, command) {
   const plan = [];
   for (const [sourceRel, targetRel] of mappings) {
     const sourceAbs = path.join(packageRoot, sourceRel);
     const targetAbs = path.join(root, targetRel);
+    const sourceText = await readFile(sourceAbs, "utf8");
+    if (await exists(targetAbs)) {
+      const targetText = await readFile(targetAbs, "utf8");
+      plan.push(classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText));
+      continue;
+    }
     plan.push({
       sourceRel,
       targetRel,
       sourceAbs,
       targetAbs,
-      action: (await exists(targetAbs)) ? "skip" : "create"
+      action: "create"
     });
   }
   return plan;
+}
+
+function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText) {
+  const base = { sourceRel, targetRel, sourceAbs, targetAbs };
+  if (targetText === sourceText) return { ...base, action: "skip", reason: "already current" };
+  if (command !== "upgrade") return { ...base, action: "skip", reason: "init preserves existing files" };
+  if (targetRel === "AGENTS.md") {
+    if (hasRequiredAnchor(targetRel, targetText)) return { ...base, action: "skip", reason: "required anchors already present" };
+    return {
+      ...base,
+      action: "merge",
+      reason: "append managed core while preserving existing AGENTS.md content",
+      mergedText: mergeManagedBlock(targetText, sourceText)
+    };
+  }
+  if ((targetRel === "CLAUDE.md" || targetRel === "GEMINI.md") && !targetText.includes("AGENTS.md")) {
+    return { ...base, action: "conflict", reason: "existing bridge does not route to AGENTS.md" };
+  }
+  return { ...base, action: "skip", reason: "preserve existing file" };
+}
+
+function mergeManagedBlock(targetText, sourceText) {
+  const block = `${managedCoreStart}\n${sourceText.trim()}\n${managedCoreEnd}`;
+  const existingBlock = new RegExp(`${escapeRegExp(managedCoreStart)}[\\s\\S]*?${escapeRegExp(managedCoreEnd)}`);
+  if (existingBlock.test(targetText)) return `${targetText.replace(existingBlock, block).trimEnd()}\n`;
+  return `${targetText.trimEnd()}\n\n${block}\n`;
+}
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hasRequiredAnchor(targetRel, text) {
+  return requiredAnchors
+    .filter((rule) => rule.target === targetRel)
+    .every((rule) => rule.snippets.every((snippet) => text.includes(snippet)));
 }
 
 async function detectMode(root) {
@@ -311,13 +375,12 @@ function printPlan(command, root, mode, plan, version) {
   console.log(`selected root: ${root}`);
   console.log(`mode: ${mode}`);
   console.log("");
-  for (const action of ["create", "skip"]) {
+  for (const action of ["create", "merge", "skip", "conflict"]) {
     const items = plan.filter((item) => item.action === action);
     console.log(`${action}: ${items.length}`);
-    for (const item of items) console.log(`  ${item.targetRel}`);
+    for (const item of items) console.log(`  ${item.targetRel}${item.reason ? ` - ${item.reason}` : ""}`);
   }
-  console.log("\nbackup: 0 (prototype does not modify existing files)");
-  console.log("conflict: 0");
+  console.log(`\nbackup: ${plan.filter((item) => item.action === "merge").length}`);
 }
 
 async function confirmWrite() {
@@ -330,11 +393,9 @@ async function confirmWrite() {
   }
 }
 
-async function writeMigrationReport(root, command, mode, plan, created) {
-  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-  const reportDir = path.join(root, "dev/governance_migrations");
-  const reportPath = path.join(reportDir, `${stamp}.md`);
-  await mkdir(reportDir, { recursive: true });
+async function writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir) {
+  const reportPath = path.join(migrationDir, "migration-report.md");
+  await mkdir(migrationDir, { recursive: true });
   const skipped = plan.filter((item) => item.action === "skip").map((item) => item.targetRel);
   const text = [
     "# Agent Continuity Kit Migration Report",
@@ -347,15 +408,28 @@ async function writeMigrationReport(root, command, mode, plan, created) {
     "## Created",
     ...listOrNone(created),
     "",
+    "## Merged",
+    ...listOrNone(merged),
+    "",
     "## Skipped Existing",
     ...listOrNone(skipped),
     "",
+    "## Conflicts",
+    ...listOrNone(conflicts.map((item) => `${item.targetRel} - ${item.reason}`)),
+    "",
+    "## Backup",
+    merged.length > 0 ? `- ${path.relative(root, backupDir)}` : "- none",
+    "",
     "## Notes",
-    "- Prototype installer only creates missing files and does not modify existing files.",
-    "- Section-aware merge and backup of modified files remain future upgrade work."
+    "- Existing files are preserved unless the installer can perform a bounded merge.",
+    "- Files that cannot be safely merged are reported as conflicts and are not overwritten."
   ].join("\n");
   await writeFile(reportPath, `${text}\n`, "utf8");
   return reportPath;
+}
+
+function migrationStamp() {
+  return new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
 
 async function readPackageVersion() {

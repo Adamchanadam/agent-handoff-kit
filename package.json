@@ -17,7 +17,8 @@
     "doctor": "node bin/agent-continuity-kit.mjs doctor --root .",
     "dry-run": "node bin/agent-continuity-kit.mjs init --dry-run --root .",
     "qa:prototype": "node scripts/check-public-prototype.mjs",
-    "qa:packs": "node scripts/check-pack-scenarios.mjs"
+    "qa:packs": "node scripts/check-pack-scenarios.mjs",
+    "qa:upgrade": "node scripts/check-upgrade-safety.mjs"
   },
   "engines": {
     "node": ">=18"

@@ -12,7 +12,7 @@ This plan defines the checks required before Agent Continuity Kit can move from 
 |---|---|---|---|
 | Prototype QA | `npm run qa:prototype` | Template install, `doctor`, package dry-run, stale wording, and contamination markers. | Yes |
 | Pack Scenario QA | `npm run qa:packs` | Coding, research, writing, knowledge, release, safety, governance, communication, and mixed-scenario pack routing. | Yes |
-| Upgrade Safety QA | Planned: `npm run qa:upgrade` | Existing-project upgrade, backup, merge, and conflict behavior. | Yes |
+| Upgrade Safety QA | `npm run qa:upgrade` | Existing-project upgrade, backup, merge, and conflict behavior. | Yes |
 | Release QA | Planned: `npm run qa:release` | Full pre-release gate, version, package contents, docs consistency, tag/release/npm readiness. | Yes |
 | User Flow QA | Planned as part of release QA | Install, start a session, do a small task, close out, and resume from handoff. | Yes |
 
@@ -48,8 +48,9 @@ The npm package is controlled by `package.json` `files`:
 
 - `npm run qa:prototype` exists and passes.
 - `npm run qa:packs` exists and checks static pack routing, safety escalation, and mixed-scenario phased loading.
+- `npm run qa:upgrade` exists and passes. It checks initial safe `AGENTS.md` merge, backup creation, conflict reporting, and `doctor` after upgrade.
 - The package dry-run currently reports 20 package files.
-- Installer merge, backup, conflict reporting, richer `doctor` schema checks, upgrade QA, and release QA are still pending.
+- Richer section-aware merge, richer `doctor` schema checks, release QA, and user flow QA are still pending.
 
 ## Release Blockers
 

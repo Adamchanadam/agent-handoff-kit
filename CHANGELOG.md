@@ -9,6 +9,7 @@ Status: prototype checkpoint. This is not a release, GitHub Release, npm publish
 - Prototype `agent-continuity-kit` CLI scaffold with `init`, `upgrade`, and `doctor` commands.
 - Source-repository `npm run qa:prototype` check for install, doctor, package dry-run, stale wording, and public-output contamination markers.
 - Source-repository `npm run qa:packs` check for pack routing, safety escalation, and mixed-scenario phased loading.
+- Source-repository `npm run qa:upgrade` check for upgrade merge, backup, and conflict behavior.
 - Source-repository release-grade QA plan under `docs/qa/`.
 - Lightweight runtime core templates for startup, closeout, project index, doc sync registry, session handoff, session log, and rule-pack routing.
 - Thin cross-tool entry templates for `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md`.
@@ -24,8 +25,8 @@ Status: prototype checkpoint. This is not a release, GitHub Release, npm publish
 
 ### Not Release Ready
 
-- Section-aware merge is pending.
-- Backup before modifying existing files is pending.
-- Conflict reporting for unsafe existing governance content is pending.
+- Richer section-aware merge remains pending beyond the initial safe `AGENTS.md` managed-core merge.
+- Backup before modifying merged files has an initial implementation.
+- Conflict reporting for unsafe bridge files has an initial implementation.
 - Richer `doctor` schema checks are pending.
 - GitHub Release, tags, npm publish, and installer hardening are intentionally not done.
