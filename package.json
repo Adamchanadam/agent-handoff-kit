@@ -1,0 +1,24 @@
+{
+  "name": "agent-continuity-kit",
+  "version": "0.1.0",
+  "description": "Lightweight agent harness for project memory, handoff, and multi-session continuity.",
+  "type": "module",
+  "bin": {
+    "agent-continuity-kit": "bin/agent-continuity-kit.mjs"
+  },
+  "files": [
+    "bin/",
+    "runtime-core/",
+    "packs/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "doctor": "node bin/agent-continuity-kit.mjs doctor --root .",
+    "dry-run": "node bin/agent-continuity-kit.mjs init --dry-run --root ."
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
