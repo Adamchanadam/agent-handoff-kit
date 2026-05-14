@@ -26,6 +26,14 @@ npx agent-continuity-kit doctor
 
 Current prototype status: the CLI can plan installs, create missing files, skip existing files, run doctor checks, and write migration reports. This is enough to validate package shape and template mapping. Section-aware merge and release hardening are intentionally pending while requirements are still open.
 
+Source repo prototype QA:
+
+```bash
+npm run qa:prototype
+```
+
+This checks install, doctor, package dry-run, stale wording, and public-output contamination markers. It is a source-repository check, not an npm package runtime command.
+
 To end a session, type `收工`, `wrap up`, or `handoff`. The AI will show a short handoff card, update the handoff files, and give you a next-session opening message inside a fenced `text` code block with clear copy/paste markers.
 
 Startup and closeout use a small text card with the full product name and low-key version display:
@@ -85,6 +93,7 @@ The source repository also contains design and review documents that explain the
 - `problem-definition.md`, `preservation-map.md`, `core-contract.md`, and `architecture.md` explain the design.
 - `pack-loading-contract.md`, `coding-continuity-model.md`, and `scenario-dry-runs.md` explain runtime behavior.
 - `installer-design.md` and `migration-plan.md` explain installer and migration design.
+- `scripts/` contains source-repository QA checks and is not part of the installable runtime.
 - `health-checks.md`, `complexity-budget.schema.md`, `auditor-rubric.md`, and `stop-rules.md` help prevent Agent Continuity Kit from growing into another monolith.
 
 ## Non-Destructive Rule
