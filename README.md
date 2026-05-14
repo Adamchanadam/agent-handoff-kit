@@ -30,9 +30,10 @@ Source repo prototype QA:
 
 ```bash
 npm run qa:prototype
+npm run qa:packs
 ```
 
-This checks install, doctor, package dry-run, stale wording, and public-output contamination markers. It is a source-repository check, not an npm package runtime command.
+These source-repository checks cover install, doctor, package dry-run, stale wording, public-output contamination markers, and pack scenario routing. They are not npm package runtime commands.
 
 To end a session, type `收工`, `wrap up`, or `handoff`. The AI will show a short handoff card, update the handoff files, and give you a next-session opening message inside a fenced `text` code block with clear copy/paste markers.
 

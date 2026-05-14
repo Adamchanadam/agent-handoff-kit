@@ -8,6 +8,7 @@ Status: prototype checkpoint. This is not a release, GitHub Release, npm publish
 
 - Prototype `agent-continuity-kit` CLI scaffold with `init`, `upgrade`, and `doctor` commands.
 - Source-repository `npm run qa:prototype` check for install, doctor, package dry-run, stale wording, and public-output contamination markers.
+- Source-repository `npm run qa:packs` check for pack routing, safety escalation, and mixed-scenario phased loading.
 - Source-repository release-grade QA plan under `docs/qa/`.
 - Lightweight runtime core templates for startup, closeout, project index, doc sync registry, session handoff, session log, and rule-pack routing.
 - Thin cross-tool entry templates for `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md`.
