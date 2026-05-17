@@ -34,9 +34,8 @@ function main() {
   assert(!existsSync(path.join(root, "agent-handoff-kit-0.1.0.tgz")), "npm dry-run left a tarball behind");
 
   assertIncludes("README.md", [
-    "狀態：候選發佈準備中",
-    "尚未正式發佈",
-    "候選發佈目標版本為 `0.1.0`",
+    "狀態：`v0.1.0` 已正式發佈",
+    "目前正式公開版本為 `0.1.0`",
     "## 它解決甚麼問題",
     "## 日常使用",
     "## 工作模式與規則包",
@@ -52,10 +51,10 @@ function main() {
   ]);
 
   assertIncludes("CHANGELOG.md", [
-    "狀態：prototype checkpoint",
-    "不是正式發佈",
+    "## v0.1.0 — 2026-05-17",
+    "早期正式發佈版本",
     "原始碼倉庫專用 `npm run qa:release`",
-    "GitHub Release、tag、npm publish"
+    "Installer hardening 仍未完成"
   ]);
 
   assertIncludes("docs/qa/release-grade-qa.md", [
@@ -63,9 +62,9 @@ function main() {
     "用戶流程驗收",
     "任務入口",
     "不屬於 npm package",
-    "候選發佈準備狀態",
-    "不得 tag",
-    "npm publish"
+    "v0.1.0 發佈狀態",
+    "發佈後仍需驗證",
+    "不得因 `v0.1.0` 已發佈而宣稱"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [

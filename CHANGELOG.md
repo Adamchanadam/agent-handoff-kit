@@ -1,8 +1,8 @@
 # 變更紀錄
 
-## 尚未發佈
+## v0.1.0 — 2026-05-17
 
-狀態：prototype checkpoint。這不是正式發佈、GitHub Release、npm publish 或需求完整版本。
+狀態：早期正式發佈版本。這是可安裝的 `0.1.0` 版本，但仍未宣稱 requirements-complete。
 
 ### 新增
 
@@ -35,10 +35,10 @@
 - 非簡單任務的必讀事實入口已放入 runtime 模板；可達不等於已讀入，未讀來源不得當成沒有資料。
 - 交接筆記不再硬性依賴英文段名；英文是預設模板語言，結構驗收改以 `ack:section:*` 與 `ack:field:*` 語義標記為準。
 
-### 尚未達可發佈狀態
+### 已知限制
 
 - 完整 section-aware merge 仍待補，現在只有 `AGENTS.md` managed-core merge 的初步安全合併。
 - 修改 merged files 前的 backup 已有初步實作。
 - Unsafe bridge files 的 conflict reporting 已有初步實作。
-- 非空既有專案 upgrade trial 已通過；正式發佈前仍須重跑或以等效臨時專案重驗。
-- GitHub Release、tag、npm publish 與 installer hardening 均尚未執行。
+- 非空既有專案 upgrade trial 已通過；如 installer 後續有改動，需以等效臨時專案重驗。
+- Installer hardening 仍未完成；此版本只作早期可用版本，不宣稱穩定版完整能力。

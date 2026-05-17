@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：候選發佈準備中，包含 prototype CLI scaffold；尚未正式發佈，亦未達 requirements-complete。
+狀態：`v0.1.0` 已正式發佈。這是早期可用版本，仍未達 requirements-complete。
 
 Agent Handoff Kit 是一套輕量 AI 專案延續工具。它幫助 AI 在多個 session 之間保留專案狀態、交接訊息、檔案地圖與工作邊界，避免下一次開工時重新猜測背景。
 
@@ -18,7 +18,7 @@ Agent Handoff Kit 讓 AI 有一套固定、可重複的專案記憶流程：
 
 ## 安裝
 
-候選發佈目標版本為 `0.1.0`。正式公開入口規劃如下，須等使用者批准發佈且 npm package 發佈後才可作一般安裝路徑：
+目前正式公開版本為 `0.1.0`。新專案可使用：
 
 ```bash
 npx agent-handoff-kit init
@@ -36,7 +36,7 @@ npx agent-handoff-kit upgrade
 npx agent-handoff-kit doctor
 ```
 
-目前 npm package 尚未正式發佈。發佈前若要使用本倉庫的候選版本，請從原始碼倉庫執行：
+如要從原始碼倉庫本機測試，可使用：
 
 ```bash
 node bin/agent-handoff-kit.mjs init --yes --root <your-project>

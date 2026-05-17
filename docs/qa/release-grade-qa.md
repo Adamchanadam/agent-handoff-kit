@@ -4,7 +4,7 @@
 
 ## 用途
 
-本文件定義 Agent Handoff Kit 從 prototype checkpoint 進入候選發佈前必須通過的檢查。可安裝套件必須保持輕量；驗收文件與原始碼倉庫專用腳本除非未來明確改變 `package.json` `files` 白名單，否則不得進入 npm package。
+本文件定義 Agent Handoff Kit 發佈前與發佈後必須通過的檢查。可安裝套件必須保持輕量；驗收文件與原始碼倉庫專用腳本除非未來明確改變 `package.json` `files` 白名單，否則不得進入 npm package。
 
 ## 驗收分層
 
@@ -66,8 +66,8 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 尚未取得使用者明確批准 tag、GitHub Release 或 npm publish。 | 阻擋 |
-| 版本口徑 | 候選發佈目標版本採 `0.1.0`，與 `package.json` 目前版本一致。 | 已準備，發佈前需最終確認 |
+| 發佈授權 | 使用者已明確要求正式發佈。 | 通過 |
+| 版本口徑 | 發佈版本採 `0.1.0`，與 `package.json` 目前版本一致。 | 通過 |
 | 公開名稱 | GitHub repo、npm package、CLI command 與 public docs 已改為 `agent-handoff-kit`；`npm view agent-handoff-kit` 於 2026-05-17 回傳 E404，代表當時 registry 未見同名套件。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 僅包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
@@ -77,18 +77,18 @@ npm package 由 `package.json` 的 `files` 控制：
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬與本地化 handoff 標題。 | 通過，但需人工確認語意無誤 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已可作 release notes draft；tag、GitHub Release 與 npm publish 尚未執行。 | 阻擋實際發佈，等待使用者批准 |
-| 用戶安裝路徑 | README 已區分「正式 `npx` 路徑須等 npm 發佈後使用」與「發佈前從原始碼倉庫執行」。 | 已準備，npm 發佈後需終讀 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已轉為 `v0.1.0` release notes。 | 通過，發佈後需驗證 |
+| 用戶安裝路徑 | README 已改為正式 `npx` 安裝路徑，並保留原始碼倉庫本機測試指令。 | 通過 |
 
-## 候選發佈準備狀態
+## v0.1.0 發佈狀態
 
-- 候選版本：`0.1.0`。
-- release notes draft：`CHANGELOG.md` 的「尚未發佈」段落。
+- 發佈版本：`0.1.0`。
+- release notes：`CHANGELOG.md` 的 `v0.1.0` 段落。
 - public package / CLI：`agent-handoff-kit`。
 - 非空既有專案升級重驗：已通過，臨時根目錄為 `C:\tmp\ack_release_candidate_upgrade_trial_20260517_171753`。
 - 最近發佈前驗收：`npm run qa:prototype`、`npm run qa:packs`、`npm run qa:upgrade`、`npm run qa:release` 已在新名稱下通過；公開文件補齊後 `npm run qa:release` 已再次通過。
-- 仍未執行：tag、GitHub Release、npm publish、release closeout。
+- 發佈後仍需驗證：GitHub Release、npm package metadata、`npx agent-handoff-kit --help`、`npx agent-handoff-kit doctor` 的實際可用性。
 
 ## 發佈阻擋項
 
-在所有發佈前必須通過的層級通過，且使用者明確批准發佈動作前，不得 tag、建立 GitHub Release、npm publish，亦不得宣稱 Agent Handoff Kit 已需求完整。
+未來任何新版本仍必須先通過本文件列出的發佈前驗收；不得因 `v0.1.0` 已發佈而宣稱 Agent Handoff Kit 已需求完整。
