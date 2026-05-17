@@ -68,7 +68,7 @@ npm package 由 `package.json` 的 `files` 控制：
 |---|---|---|
 | 發佈授權 | 使用者已明確要求正式發佈。 | 通過 |
 | 版本口徑 | 發佈版本採 `0.1.0`，與 `package.json` 目前版本一致。 | 通過 |
-| 公開名稱 | GitHub repo、npm package、CLI command 與 public docs 已改為 `agent-handoff-kit`；`npm view agent-handoff-kit` 於 2026-05-17 回傳 E404，代表當時 registry 未見同名套件。 | 已準備，publish 前須即時重驗 npm 名稱 |
+| 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 僅包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
@@ -84,10 +84,10 @@ npm package 由 `package.json` 的 `files` 控制：
 
 - 發佈版本：`0.1.0`。
 - release notes：`CHANGELOG.md` 的 `v0.1.0` 段落。
-- public package / CLI：`agent-handoff-kit`。
+- public package / CLI：`@adamchanadam/agent-handoff-kit` package，`agent-handoff-kit` CLI。
 - 非空既有專案升級重驗：已通過，臨時根目錄為 `C:\tmp\ack_release_candidate_upgrade_trial_20260517_171753`。
 - 最近發佈前驗收：`npm run qa:prototype`、`npm run qa:packs`、`npm run qa:upgrade`、`npm run qa:release` 已在新名稱下通過；公開文件補齊後 `npm run qa:release` 已再次通過。
-- 發佈後仍需驗證：GitHub Release、npm package metadata、`npx agent-handoff-kit --help`、`npx agent-handoff-kit doctor` 的實際可用性。
+- 發佈後仍需驗證：GitHub Release、npm package metadata、`npx @adamchanadam/agent-handoff-kit --help`、`npx @adamchanadam/agent-handoff-kit doctor` 的實際可用性。
 
 ## 發佈阻擋項
 

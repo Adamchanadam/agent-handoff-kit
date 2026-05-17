@@ -14,7 +14,7 @@ main();
 
 function main() {
   const packageJson = JSON.parse(read("package.json"));
-  assert(packageJson.name === "agent-handoff-kit", "package name drifted");
+  assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
   assert(packageJson.version === "0.1.0", "package version drifted from current prototype baseline");
   assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "LICENSE"]), "npm package files boundary changed");
   assert(packageJson.scripts["qa:prototype"], "qa:prototype script is missing");
@@ -31,7 +31,7 @@ function main() {
   assert(packText.includes("total files: 20"), "npm dry-run did not report expected 20 package files");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
-  assert(!existsSync(path.join(root, "agent-handoff-kit-0.1.0.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.0.tgz")), "npm dry-run left a tarball behind");
 
   assertIncludes("README.md", [
     "狀態：`v0.1.0` 已正式發佈",

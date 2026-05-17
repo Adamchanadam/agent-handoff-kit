@@ -18,22 +18,22 @@ Agent Handoff Kit 讓 AI 有一套固定、可重複的專案記憶流程：
 
 ## 安裝
 
-目前正式公開版本為 `0.1.0`。新專案可使用：
+目前正式公開版本為 `0.1.0`。npm package 名稱是 `@adamchanadam/agent-handoff-kit`，安裝後提供的 CLI 指令仍是 `agent-handoff-kit`。新專案可使用：
 
 ```bash
-npx agent-handoff-kit init
+npx @adamchanadam/agent-handoff-kit init
 ```
 
 既有專案升級會使用：
 
 ```bash
-npx agent-handoff-kit upgrade
+npx @adamchanadam/agent-handoff-kit upgrade
 ```
 
 健康檢查：
 
 ```bash
-npx agent-handoff-kit doctor
+npx @adamchanadam/agent-handoff-kit doctor
 ```
 
 如要從原始碼倉庫本機測試，可使用：

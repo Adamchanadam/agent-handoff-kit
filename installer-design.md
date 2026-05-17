@@ -7,9 +7,9 @@ Installer 的目標，是讓使用者能把 Agent Handoff Kit 安全放進新專
 公開入口規劃：
 
 ```bash
-npx agent-handoff-kit init
-npx agent-handoff-kit upgrade
-npx agent-handoff-kit doctor
+npx @adamchanadam/agent-handoff-kit init
+npx @adamchanadam/agent-handoff-kit upgrade
+npx @adamchanadam/agent-handoff-kit doctor
 ```
 
 目前 prototype 可用本地指令執行：
