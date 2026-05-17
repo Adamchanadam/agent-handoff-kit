@@ -1,68 +1,57 @@
-# Agent Continuity Kit Core Contract
+# 核心合約
 
-The core runtime is not a shortened copy of v1. It is a narrow interface. It answers exactly five questions.
+## 目的
 
-## 1. What Must AI Read At Session Start?
+核心合約定義 AI 每次 session 必須遵守的最小行為。它要短、穩定、可安裝，避免回到大型 monolithic prompt。
 
-After the core contract is loaded, always read in order:
+## 啟動合約
 
-1. `dev/SESSION_HANDOFF.md`
-2. latest entry in `dev/SESSION_LOG.md`
-3. `dev/PROJECT_INDEX.md`
-4. `dev/RULE_PACKS.md`
+AI 開工時應讀：
 
-Then classify the user's task and load only the required rule pack(s).
+1. `AGENTS.md`
+2. `dev/SESSION_HANDOFF.md`
+3. `dev/SESSION_LOG.md`
+4. `dev/PROJECT_INDEX.md`
+5. `dev/RULE_PACKS.md`
 
-If the user did not paste the previous opening message but the current project root is clear, read `AGENTS.md` first as fallback entry, then use this read order. If the root is unclear or mismatched, stop and ask for the intended project root before reading or editing project state.
+若目前根目錄與 handoff 記錄不一致，AI 必須停止並要求使用者確認。
 
-## 2. How Must AI Think And Execute Work?
+## 工作合約
 
-Default loop:
+AI 應先確認：
 
-1. PLAN: restate intent, scope, risks, acceptance criteria.
-2. READ: inspect relevant files from `PROJECT_INDEX.md` before editing.
-3. CHANGE: make minimal focused changes.
-4. QC: run or state checks, with actual results.
-5. PERSIST: update handoff/log and any affected index or registry.
+1. 目前目標；
+2. 相關檔案；
+3. 應載入的 rule packs；
+4. 驗收方式；
+5. 風險與禁止事項。
 
-## 3. What Must AI Not Do?
+AI 不應在未理解專案狀態時直接修改長期文件。
 
-Core prohibitions:
+## 安全合約
 
-- Do not delete, reset, overwrite, or bulk-move user files without explicit approval.
-- Do not guess external API, CLI, SDK, or deployment commands when official or project docs are needed.
-- Do not edit files unrelated to the current task.
-- Do not claim tests, builds, releases, or syncs passed without evidence.
-- Do not add a permanent rule when a registry row, note, or troubleshooting entry is enough.
+高風險操作必須先載入 `dev/rules/safety.md`，包括：
 
-## 4. How Must AI Hand Over Work?
+- 刪除、覆寫、移動、重命名；
+- Git history 變更；
+- package manager、installer、deploy、release；
+- external API、SDK、CLI；
+- credentials、permission error、locked files。
 
-Detect end-of-session or handoff intent in natural language, such as "收工", "wrap up", or "handoff". If the intent is ambiguous, ask one concise confirmation question.
+## 收工合約
 
-At full closeout:
+使用者輸入 `收工`、`wrap up`、`handoff` 或其他明確交接意圖時，AI 應：
 
-1. Update `dev/SESSION_HANDOFF.md` with current state, next priorities, risks, validation, and workspace identity.
-2. Add a concise entry to `dev/SESSION_LOG.md` with work actually completed this session and the exact next-session opening message.
-3. Update `dev/PROJECT_INDEX.md` if files, stack, commands, entry points, workspace identity, or durable document map changed.
-4. Check `dev/DOC_SYNC_REGISTRY.md` and record required sync status.
-5. Record unresolved drift risk, active worktree, parallel workspace, uncommitted changes, or blocked verification.
-6. Run the handoff sufficiency check: the next AI should be able to continue from `AGENTS.md`, `dev/SESSION_HANDOFF.md`, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history.
-7. If the check fails, fix `dev/SESSION_HANDOFF.md` first; do not push current-state responsibility into `dev/SESSION_LOG.md`.
-8. Provide a copy-paste-ready next-session opening message.
+1. 更新 `dev/SESSION_HANDOFF.md`；
+2. 更新 `dev/SESSION_LOG.md`；
+3. 檢查 `dev/PROJECT_INDEX.md` 是否需要更新；
+4. 檢查 `dev/DOC_SYNC_REGISTRY.md` 是否需要同步狀態；
+5. 輸出下一次 session 可直接貼上的 opening message。
 
-`dev/SESSION_HANDOFF.md` carries continuity. `dev/SESSION_LOG.md` carries recent evidence. Archive old detail only when needed; do not create an archive directory by default.
+## 驗收合約
 
-## 5. When Must AI Load A Pack?
+`doctor` 至少應檢查：
 
-Use `dev/RULE_PACKS.md` as the routing table. A pack can add task-specific rules, but cannot expand the core by default.
-
-Pack loading must be explicit, minimal, bounded, and persisted only through durable records.
-
-## Core Anti-Bloat Rule
-
-A new rule enters core only if all are true:
-
-1. It applies to most sessions.
-2. It protects against meaningful safety, correctness, continuity, or data loss risk.
-3. It cannot be handled by a pack, registry, troubleshooting note, or one-time fix.
-4. It keeps the core within the complexity budget.
+- 必備檔案；
+- 啟動與收工錨點；
+- handoff / log / project index / sync registry / rule router 基本結構。

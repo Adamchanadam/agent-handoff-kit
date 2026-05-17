@@ -16,7 +16,7 @@ const forbiddenPatterns = [
   { label: "old external API SDK safety mapping", pattern: /External API \/ SDK safety\s*\|\s*Split to coding pack/i },
   { label: "local absolute path leak", pattern: /C:\\Users\\adam/i },
   { label: "local workspace name leak", pattern: /_claude_desktop|ai-session-governance_v2_WORK/i },
-  { label: "private WORK repo leak", pattern: /agent-continuity-kit_WORK/i },
+  { label: "private WORK repo leak", pattern: /agent-handoff-kit_WORK/i },
   { label: "WORK session title leak", pattern: /Session Handoff — v2 WORK/i },
   { label: "common secret assignment", pattern: /(?:SECRET|TOKEN|PASSWORD|API_KEY)\s*[:=]|BEGIN .*PRIVATE/i }
 ];
@@ -29,20 +29,20 @@ main();
 function main() {
   mkdirSync(tempRoot, { recursive: true });
 
-  run(process.execPath, ["bin/agent-continuity-kit.mjs", "init", "--yes", "--root", tempRoot], "install templates");
-  const doctor = run(process.execPath, ["bin/agent-continuity-kit.mjs", "doctor", "--root", tempRoot], "doctor installed templates");
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "install templates");
+  const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor installed templates");
   assert(doctor.stdout.includes("status: passed"), "doctor output did not include status: passed");
   assert(!existsSync(path.join(tempRoot, "archive")), "installer created archive directory by default");
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
   assert(outputText(pack).includes("total files: 20"), "npm dry-run did not report expected 20 package files");
-  assert(!existsSync(path.join(root, "agent-continuity-kit-0.1.0.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, "agent-handoff-kit-0.1.0.tgz")), "npm dry-run left a tarball behind");
 
   const hits = scanForbiddenText(root);
   assert(hits.length === 0, formatHits(hits));
 
   console.log("");
-  console.log("Agent Continuity Kit prototype QA passed");
+  console.log("Agent Handoff Kit prototype QA passed");
   console.log(`temp install root: ${tempRoot}`);
 }
 

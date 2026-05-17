@@ -16,12 +16,14 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 3. Keep public runtime rules generic; project-specific incidents belong in logs, runbooks, or project index.
 4. Do not let development-only workspace rules enter public runtime.
 5. Check complexity budget before adding default-core behavior.
+6. Before creating durable workflow, runbook, or instruction files, first verify whether `dev/SESSION_HANDOFF.md`, `dev/PROJECT_INDEX.md`, `dev/DOC_SYNC_REGISTRY.md`, or existing rule packs can carry the need without a new file.
 
 ## Checks
 
 - Verify affected files are indexed or intentionally installed templates.
 - Check `dev/DOC_SYNC_REGISTRY.md` for governance, closeout/startup, and README sync rows.
 - Confirm old overlapping wording was retired or marked legacy.
+- Confirm any new durable file is reachable from `dev/PROJECT_INDEX.md` and does not rely only on a one-session handoff note.
 
 ## Closeout
 

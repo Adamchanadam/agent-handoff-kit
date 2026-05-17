@@ -1,46 +1,48 @@
-# Agent Continuity Kit Coding Continuity Model
+# 程式開發接力模型
 
-## Problem
+## 用途
 
-Coding projects often have many directories, tools, tests, docs, runbooks, and changing requirements. A stateless AI must not rediscover the whole repository every session, but it also must not rely on stale memory.
+本文件說明 Agent Handoff Kit 如何支援 coding 任務的跨 session 接力。
 
-## Core Answer
+## 程式開發任務開工
 
-Use `PROJECT_INDEX.md` as the compact project map and update it whenever the map changes. Use `DOC_SYNC_REGISTRY.md` to decide which docs or runbooks need updates after code changes.
+AI 應先讀：
 
-## When User Provides Technical Stack
+1. `AGENTS.md`
+2. `dev/SESSION_HANDOFF.md`
+3. `dev/PROJECT_INDEX.md`
+4. `dev/RULE_PACKS.md`
+5. 需要時讀 `dev/rules/coding.md`
 
-If the user states stack details such as framework, package manager, runtime, database, deployment target, or test command:
+涉及檔案刪除、Git、package manager、SDK、API、deploy 或 credential 時，必須同時讀 `dev/rules/safety.md`。
 
-1. Treat the statement as user-provided but verify against project files when possible.
-2. Update `PROJECT_INDEX.md` Stack and Build/Test sections at closeout if confirmed.
-3. If unconfirmed, record as pending verification in handoff, not as fact.
+## 程式開發任務中
 
-## When User Requests Development Work
+AI 應：
 
-1. Read `PROJECT_INDEX.md` to identify likely directories and commands.
-2. Load `dev/rules/coding.md`.
-3. Read relevant source, tests, configs, and docs before editing.
-4. Make scoped changes.
-5. Run checks from `PROJECT_INDEX.md` and coding pack.
-6. Consult `DOC_SYNC_REGISTRY.md` for docs/runbook impact.
-7. Update `SESSION_HANDOFF.md`, `SESSION_LOG.md`, and `PROJECT_INDEX.md` if the project map changed.
+- 先找相關檔案，不作無關重構；
+- 優先使用專案既有測試與工具；
+- 修改後記錄驗收結果；
+- 若測試不能跑，說明原因；
+- 不把未驗證內容寫成已通過。
 
-## When User Modifies Requirements
+## 程式開發任務收工
 
-Durable requirements belong in one of these places:
+收工時應更新：
 
-- `PROJECT_INDEX.md` for stack, commands, directory map, entry points;
-- `PROJECT_MASTER_SPEC.md` if the project uses a long-term spec;
-- `RUNBOOK.md` for operational procedure;
-- `SESSION_HANDOFF.md` for short-term implementation state.
+- 已改動檔案；
+- 測試結果；
+- 未解風險；
+- 下一步；
+- workspace identity；
+- opening message。
 
-Do not bury durable requirements only in `SESSION_LOG.md`.
+## 成功標準
 
-## PROJECT_INDEX Maintenance Triggers
+下一個 AI 只讀 handoff、project index 與需要的 packs，就能知道：
 
-Update `PROJECT_INDEX.md` when stack, test/build command, app entry point, config path, directory role, generated artifact policy, docs/runbook location, or external service integration location changes.
-
-## Why This Works
-
-New sessions read a small map first, then inspect only relevant files. The index prevents blind scanning, while verification prevents stale memory from becoming false fact.
+1. 哪些改動已完成；
+2. 哪些檢查已跑；
+3. 哪些檢查未跑；
+4. 哪裡不能亂碰；
+5. 下一步應做甚麼。

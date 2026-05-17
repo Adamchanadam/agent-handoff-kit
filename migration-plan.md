@@ -1,50 +1,48 @@
-# Migration Plan From Monolith To Agent Continuity Kit
+# 遷移計劃
 
-## Migration Goals
+## 目標
 
-- Preserve user custom rules.
-- Preserve current session state.
-- Avoid duplicate rules.
-- Move specialized rules into packs.
-- Keep a fallback path to full mode.
+本文件說明如何從舊式單檔或未治理專案，遷移到 Agent Handoff Kit。
 
-## Migration Inputs
+## 遷移路徑
 
-Existing projects may have `AGENTS.md`, bridge files, session state files, codebase context, doc sync checklist, wizards, templates, runbooks, specs, or external KB files.
+| 情況 | 建議指令 | 說明 |
+|---|---|---|
+| 全新空專案 | `init` | 建立完整 runtime |
+| 既有專案 | `upgrade --dry-run` | 先查看 create / merge / skip / conflict |
+| 已有 `AGENTS.md` | `upgrade` | 只在安全範圍內加入 managed core |
+| 已有工具記憶檔 | `upgrade` | 無法安全判斷時報 conflict |
 
-## Migration Steps
+## 必須保留的資料
 
-1. Back up all governance files.
-2. Parse existing `AGENTS.md` by headings.
-3. Map v1 core-equivalent sections into the Agent Continuity Kit core.
-4. Move specialized sections into packs.
-5. Convert `CODEBASE_CONTEXT.md` into `PROJECT_INDEX.md` where possible.
-6. Convert `DOC_SYNC_CHECKLIST.md` into `DOC_SYNC_REGISTRY.md` rows.
-7. Preserve user-only sections under `User Local Rules` or a user pack.
-8. Write migration report listing moved, kept, skipped, and unresolved sections.
+- 使用者原有規則；
+- 專案既有 README / docs；
+- 現有 handoff / log；
+- 未知自訂段落；
+- credentials 或 local-only 設定。
 
-## Section Mapping
+## 安全邊界
 
-| Original area | Agent Continuity Kit destination |
-|---|---|
-| startup | core |
-| source-of-truth priority | core, shortened |
-| workflow | core, shortened |
-| closeout | core, shortened |
-| file safety | core |
-| external API / SDK / CLI safety | safety pack |
-| release gate | release pack |
-| wizard system | onboarding/agent-governance pack |
-| external KB | knowledge pack |
-| reply format details | communication pack |
-| patch-only details | coding or change-delivery pack |
-| doc sync matrix | registry |
-| tooling output formats | communication or task-specific pack |
+遷移不得：
 
-## Duplicate Prevention
+1. 靜默覆寫既有檔案；
+2. 刪除未知檔案；
+3. 重置 Git history；
+4. 自動 tag、publish、deploy；
+5. 把 WORK session state 放入 public runtime。
 
-A migrated rule must have exactly one active home: core, pack, registry, project index, runbook/spec, or session log.
+## 驗收
 
-## Rollback
+遷移後必須跑：
 
-Keep backup folder and migration report. If the Agent Continuity Kit install causes problems, restore prior governance files from backup or switch to full mode.
+```bash
+agent-handoff-kit doctor --root <project>
+```
+
+Prototype 階段可用：
+
+```bash
+node bin/agent-handoff-kit.mjs doctor --root <project>
+```
+
+若 `doctor` 未通過，應先處理缺失檔案、錨點或 schema 問題，再進行下一輪工作。

@@ -6,7 +6,7 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 
 | Field | Value | Last verified |
 |---|---|---|
-| Agent Continuity Kit template version | 0.1.0 | package prototype |
+| Agent Handoff Kit template version | 0.1.0 | package prototype |
 | Runtime | TBD | TBD |
 | Framework | TBD | TBD |
 | Package manager | TBD | TBD |
@@ -18,13 +18,15 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 
 | Path | Role | Read when |
 |---|---|---|
-| `AGENTS.md` | primary Agent Continuity Kit entry and startup contract | session startup |
+| `AGENTS.md` | primary Agent Handoff Kit entry and startup contract | session startup |
 | `CLAUDE.md` | Claude Code bridge to the same startup path | Claude Code startup |
 | `GEMINI.md` | Gemini CLI bridge to the same startup path | Gemini CLI startup |
 | `src/` | application source | coding task |
 | `tests/` | tests | coding/QC |
 | `docs/` | user or product docs | doc/public behavior change |
 | `dev/` | governance state | startup/closeout |
+| `TBD` | local source-of-truth files | before tasks that depend on project facts |
+| `TBD` | external-source indexes or mirrors | before research, writing, or knowledge-sync tasks |
 
 ## Entry Points
 
@@ -35,6 +37,27 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 | Test suite | TBD | TBD |
 | Runbook | TBD | TBD |
 | Public docs | TBD | TBD |
+
+## Fact Base
+
+Reachable means the source can be found. It does not mean the source has been read in this session.
+
+| Source | Role | Required before | Access method | Last verified |
+|---|---|---|---|---|
+| TBD | local source of truth / reference / draft / archive | TBD | path or instruction | TBD |
+
+## External Sources
+
+| Source | Role | Required before | Access method | Write-back rule | Last verified |
+|---|---|---|---|---|---|
+| TBD | source of truth / mirror / index / attachment store | TBD | URL, connector, or manual packet | read-back required / manual only / no write | TBD |
+
+## Local QC Commands
+
+| Check | Command | Run before | Last verified |
+|---|---|---|---|
+| Agent Handoff Kit doctor | TBD | closeout / governance changes | TBD |
+| Project governance check | TBD | closeout / durable file changes | TBD |
 
 ## Workspace Identity
 

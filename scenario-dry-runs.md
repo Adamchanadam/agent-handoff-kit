@@ -1,57 +1,25 @@
-# Scenario Dry-Runs
+# 場景預演摘要
 
-These dry-runs test whether Agent Continuity Kit preserves original value without loading irrelevant rules.
+## 用途
 
-## Scenario 1: Writing Project
+本文件保存場景設定檔的公開摘要。詳細 WORK 設計與歷史紀錄不放入公開 runtime。
 
-User asks: revise a long article draft and preserve tone.
+## 已驗證方向
 
-Expected reads: core, handoff/latest log, project index, rule packs router, writing pack.
+五類預演支持同一結論：場景設定檔應是薄路由層，而不是另一套大型規則。
 
-Should not read: coding pack, release pack, external knowledge pack unless external notes are referenced.
+| 場景 | 結論 |
+|---|---|
+| 市場研究 → 商業分析 → 網站文案 | 可分階段載入 `research`、`writing`、`communication` |
+| Notion / Drive 外部資料研究 | 需要先判斷外部資料是真源、索引、附件還是輸出地 |
+| coding → docs → release prep | 可分階段載入 `coding`、`writing`、`release`；實際發佈前才加 `safety` |
+| 代理工作流 → 知識庫同步 → closeout | 可用 `agent-governance`、`knowledge`、`communication` |
+| 資料分類 → 真源標記 → 同步包 | 可用 `knowledge`、`writing`，需要查證時加 `research` |
 
-Expected persistence: update handoff/log; update project index only if document locations or workflow changed.
+## 公開輸出判斷
 
-## Scenario 2: Research Project
+目前不新增 `profiles.md` 或 `profiles/*.md`。README 與指令說明只需要告訴用戶：AI 會按任務選擇工作模式，並載入最少必要規則包。
 
-User asks: compare sources and produce a conclusion with uncertainty labels.
+## 驗收
 
-Expected reads: core, project index, research pack, knowledge pack only if external KB is referenced.
-
-Expected checks: source list captured; unverified claims marked; handoff records open questions.
-
-## Scenario 3: Coding Feature
-
-User asks: add login to a Next.js + Supabase app and update runbook.
-
-Expected reads: core, handoff/latest log, project index, rule packs router, coding pack, doc sync registry, runbook if listed or requested.
-
-Expected persistence: update project index if stack/commands/entry points changed; update doc sync registry only if new change type appears; update handoff/log with files changed and tests run.
-
-## Scenario 4: Agent Governance Change
-
-User asks: adjust AI handoff rules for a multi-agent project.
-
-Expected reads: core, agent-governance pack, communication pack if reply behavior changes, doc sync registry.
-
-Expected checks: no public runtime pollution from repository-only rules; old overlapping wording retired.
-
-## Scenario 5: Release
-
-User asks: publish a new Agent Continuity Kit version.
-
-Expected reads: core, release pack, coding pack if build/tests are involved, doc sync registry.
-
-Expected checks: version docs updated; release evidence recorded; post-release observation captured in handoff.
-
-## Scenario 6: External Knowledge Base
-
-User asks: use my Notion project notes as source of truth.
-
-Expected reads: core, knowledge pack, project index.
-
-Expected checks: access mode recorded; destructive cloud writes require confirmation; sync status recorded at closeout.
-
-## Pass Criteria
-
-Each scenario loads only relevant packs; core stays unchanged; project index carries durable project facts; registry carries sync mappings; handoff/log carry session state and evidence.
+`npm run qa:packs` 檢查這些路由原則沒有漂移。

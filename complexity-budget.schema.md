@@ -1,50 +1,28 @@
-# Complexity Budget Schema
+# 複雜度預算 schema
 
-```yaml
-version: 0.1
-scope: agent-continuity-kit
-core:
-  max_lines_target: 350
-  max_lines_hard: 450
-  max_utf8_bytes_target: 24576
-  max_utf8_bytes_hard: 32768
-  max_mandatory_terms_target: 15
-  max_mandatory_terms_hard: 25
-  max_must_terms_target: 40
-  max_must_terms_hard: 60
-  max_trigger_terms_target: 15
-  max_trigger_terms_hard: 25
-  required_contract_sections:
-    - startup_reads
-    - execution_loop
-    - safety_boundaries
-    - closeout_handoff
-    - pack_loading
-always_read:
-  max_files_target: 4
-  max_files_hard: 5
-packs:
-  max_pack_count_target: 8
-  max_pack_count_hard: 10
-  max_pack_lines_target: 180
-  max_pack_lines_hard: 250
-  required_pack_sections:
-    - scope
-    - load_when
-    - rules
-    - checks
-    - closeout
-registries:
-  doc_sync_max_prose_paragraphs: 5
-  project_index_required_tables:
-    - stack
-    - directory_map
-    - entry_points
-    - checks
-stop_rules:
-  single_low_risk_incident_can_enter_core: false
-  release_only_rule_can_enter_core: false
-  project_specific_rule_can_enter_core: false
-```
+## 用途
 
-Target breach means review and simplify before release. Hard breach blocks lightweight release claim.
+本文件定義 Agent Handoff Kit 的複雜度預算，用來避免 runtime 變重。
+
+## 預算項目
+
+| 項目 | 原則 |
+|---|---|
+| Always-read files | 只保留啟動與接力必需內容 |
+| Rule packs | 按任務載入，不預設全讀 |
+| Session log | 保存證據，不承擔 current state |
+| Handoff | 保存目前狀態與下一步 |
+| Public package | 只包含 CLI、runtime-core、packs、README、LICENSE |
+| QA docs / scripts | 留在 source repo，不進 package |
+
+## 超標訊號
+
+1. README 無法讓用戶快速入手。
+2. AI 每次需要讀太多舊 log。
+3. 同一規則出現在多個真源。
+4. 新增文件沒有對應驗收。
+5. Package boundary 意外擴大。
+
+## 驗收
+
+使用 `npm pack --dry-run`、`doctor` 與 source QA 指令檢查。

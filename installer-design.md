@@ -1,98 +1,65 @@
-# Installer Design
+# 安裝工具設計
 
-## Goal
+## 目標
 
-The public installer should install Agent Continuity Kit as a lightweight governance harness without embedding the entire runtime manual in one monolithic prompt.
+Installer 的目標，是讓使用者能把 Agent Handoff Kit 安全放進新專案或既有專案。
 
-## Public Entry
-
-Keep one default public entry:
+公開入口規劃：
 
 ```bash
-npx agent-continuity-kit init
+npx agent-handoff-kit init
+npx agent-handoff-kit upgrade
+npx agent-handoff-kit doctor
 ```
 
-Existing projects use:
+目前 prototype 可用本地指令執行：
 
 ```bash
-npx agent-continuity-kit upgrade
+node bin/agent-handoff-kit.mjs init --yes --root <project>
+node bin/agent-handoff-kit.mjs upgrade --dry-run --root <project>
+node bin/agent-handoff-kit.mjs doctor --root <project>
 ```
 
-Health checks use:
+## 設計原則
 
-```bash
-npx agent-continuity-kit doctor
-```
+1. 新專案可直接建立缺失檔案。
+2. 既有專案不可靜默覆寫。
+3. 修改既有檔案前要有 backup。
+4. 能安全 merge 才 merge；不能安全 merge 就報 conflict。
+5. 每次 install / upgrade 後都能用 `doctor` 驗證。
 
-The default installer installs the lightweight core. A full or legacy fallback can exist for maintainers or emergency use, but it must not compete with the `npx` path in public onboarding.
+## 模式判斷
 
-## Installer Responsibilities
+| 模式 | 條件 | 行為 |
+|---|---|---|
+| first-install | 沒有核心檔案 | 建立 runtime files |
+| upgrade-existing | 已有核心檔案 | 補缺失、保留既有內容 |
+| migrate-monolith | 已有舊式單檔治理內容 | 只做安全範圍內的合併 |
+| partial | 部分檔案存在 | 建立缺失檔，保留既有檔 |
+| conflict | 既有檔案無法判斷安全合併 | 報 conflict，不覆寫 |
 
-The installer does only these jobs:
+## Upgrade 策略
 
-1. Confirm root path.
-2. Show create/merge/skip plan.
-3. Back up existing governance files.
-4. Merge or create core files.
-5. Install rule packs as separate files.
-6. Run post-install verification.
-7. Print quick start.
+目前已實作的安全範圍：
 
-The installer does not make every rule always-loaded.
+- `AGENTS.md` 可加入 managed core block。
+- 合併前建立 backup。
+- `CLAUDE.md` / `GEMINI.md` 若已有自訂內容且未導向 `AGENTS.md`，報 conflict。
+- 其他既有檔案預設 preserve。
 
-## Current Prototype Status
+完整 section-aware merge 仍待補。
 
-The current CLI is a scaffold for validating command shape and template mapping. It is not release-ready and should not be hardened further until remaining product requirements are collected.
+## Migration report
 
-Implemented:
+每次寫入後，installer 會建立 migration report，記錄：
 
-1. `init --dry-run`
-2. `init --yes`
-3. `upgrade --dry-run`
-4. `doctor`
-5. template mapping from `runtime-core/*` and `packs/*.md`, including `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and the safety pack
-6. create missing files only
-7. preserve existing files by default
-8. initial `AGENTS.md` managed-core merge for upgrade
-9. backup before merged file writes
-10. conflict reporting for unsafe existing bridge files
-11. migration report generation
+- created；
+- merged；
+- skipped existing；
+- conflicts；
+- backup path；
+- notes。
 
-Pending:
+## 不做事項
 
-1. richer section-aware merge beyond the initial `AGENTS.md` managed-core block
-2. schema-aware session / index / registry field merge
-3. richer conflict classification for unsafe existing content
-4. richer doctor schema checks
-
-## Continuity Template Behavior
-
-The installed templates keep continuity in `dev/SESSION_HANDOFF.md` and recent evidence in `dev/SESSION_LOG.md`. The installer must not create an archive directory by default. Archive support is only needed later if a project has long validation output, research trails, or audit detail that should not stay in the startup path.
-
-## Upgrade Behavior
-
-| File type | Behavior |
-|---|---|
-| `AGENTS.md` | section-aware merge into lightweight core, preserving user custom sections |
-| `CLAUDE.md` / `GEMINI.md` | create or preserve thin bridges that route to `AGENTS.md` without duplicating core rules |
-| `dev/rules/safety.md` | install as the conditional safety pack for high-risk file, shell, Git, API, install, deploy, release, credential, and permission work |
-| session files | keep existing, add missing schema fields only if safe |
-| `PROJECT_INDEX.md` | create if missing; merge stack/commands if present |
-| `DOC_SYNC_REGISTRY.md` | preserve custom rows; add missing universal rows |
-| rule packs | install versioned pack files; preserve user-local additions |
-
-## Thin Scenario Wrappers
-
-Do not create full duplicated `INIT_WRITING.md`, `INIT_RESEARCH.md`, etc. If scenario wrappers are needed, they should only select default packs or profile defaults and then call the same core installer.
-
-## Legacy / Full Mode
-
-An `INIT_FULL.md` or equivalent fallback may exist for maintainers or advanced governance projects. It must be labeled as full/advanced or legacy, not recommended default.
-
-## Installer Success Output
-
-The final output should be brief: confirmed root, files created/merged/skipped, backup location, packs installed, verification result, and next command: `Follow AGENTS.md`.
-
-It should also tell users they can describe their task directly. The AI will choose a working mode for coding, research, writing, knowledge sync, release, or mixed tasks and load only the relevant rule packs.
-
-Startup and closeout output should use the small Agent Continuity Kit ASCII card with full product name and low-key version display. Closeout output should place the next-session opening message inside a fenced `text` code block, with a clear copy/paste marker before the block and no extra end marker after the block.
+Installer 不負責 tag、GitHub Release、npm publish。這些行為必須由使用者明確批准，並先通過 release QA。

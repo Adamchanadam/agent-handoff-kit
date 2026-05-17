@@ -1,43 +1,43 @@
-# Agent Continuity Kit Problem Definition
+# 問題定義
 
-## Problem
+## 背景
 
-The original public installer successfully creates a durable AI governance harness, but the installed runtime can become too large for routine sessions. The issue is not only line count. It is the mix of installer logic, always-on rules, rare release procedures, optional wizards, external knowledge integration, output formatting rules, and development-only safeguards in one mental surface.
+AI 長期協作最常見的失敗，不是單次回答錯誤，而是跨 session 後失去上下文。下一個 AI 往往不知道目前目標、最近決策、哪些檔案是權威來源、哪些檢查已跑、哪些操作不可做。
 
-A stateless AI needs enough structure to continue work safely, but not a full governance encyclopedia on every task.
+Agent Handoff Kit 的目標，是用小型、可安裝、可驗收的 runtime，讓 AI 在不同 session 之間維持專案延續性。
 
-## Confirmed Signals From v1
+## 核心問題
 
-- The public `INIT.md` is a single large installer plus embedded runtime template.
-- Installed `AGENTS.md` contains the full operating system for every session.
-- Public documentation already warns that startup reads add overhead and are only worthwhile for projects that continue across sessions.
-- Earlier wizard work proved that cold, form-like governance can overload users and AI; it was replaced by draft-and-iterate behavior.
-- The same pattern now appears at the overall runtime level.
+1. AI 只靠聊天記憶，下一輪很容易失去現況。
+2. 專案文件、handoff、log、README、外部知識庫容易口徑漂移。
+3. 舊式大型 prompt 把所有規則塞進每次啟動，會令 AI 讀入過多不相關內容。
+4. 既有專案通常已有自己的 `AGENTS.md`、docs 或規則，installer 不能粗暴覆寫。
+5. 使用者不應需要記住冗長收工指令；AI 應能偵測 `收工`、`wrap up`、`handoff` 等自然語言意圖。
 
-## Overload Definition
+## 產品判斷
 
-Overload exists when any of these happen:
+Agent Handoff Kit 不做大型 agent platform。它只提供一套輕量專案延續層：
 
-1. AI spends more attention interpreting governance than doing the user's task.
-2. A routine task triggers rules intended only for rare scenarios.
-3. Startup requires reading large sections that do not apply to the current task.
-4. The user must choose between many installer variants before seeing value.
-5. New rules keep accumulating because there is no stop rule.
-6. The active runtime exceeds common tool context limits or slows every session.
+- 啟動入口；
+- session handoff；
+- session log；
+- project index；
+- doc sync registry；
+- 按需載入的 rule packs；
+- 安全安裝與健康檢查。
 
-## Root Cause
+## 成功條件
 
-The core issue is role mixing: installer instructions, runtime core, conditional packs, data registries, public-user rules, repository-development rules, and exceptional recovery procedures are all compressed into one surface.
+1. 新專案可安裝 runtime。
+2. 既有專案可 dry-run upgrade，並保留使用者已有內容。
+3. AI 能從 handoff 與 project index 安全接力。
+4. Rule packs 能按任務載入，不需每次讀全部規則。
+5. `doctor` 能檢查必備檔案、關鍵錨點與基本結構。
+6. 收工後能輸出下一次 session 可直接貼上的 opening message。
 
-## Non-Goals
+## 不做的事
 
-- Do not remove governance continuity.
-- Do not remove file index or doc sync capability.
-- Do not create many full `INIT_X.md` files that duplicate the same rules.
-- Do not move this repo's internal development rules into public runtime.
-- Do not optimize only for line count while losing safety.
-- Do not make the user manually manage complex rule loading.
-
-## Success Definition
-
-Agent Continuity Kit succeeds if a new session can read a short core, understand the project map, load only relevant packs, complete work safely, update handoff records, and avoid expanding the default runtime without passing a complexity gate.
+1. 不把所有治理規則塞入單一巨大 prompt。
+2. 不預設綁定某一 AI 工具。
+3. 不在沒有明確批准時 tag、建立 GitHub Release 或 npm publish。
+4. 不把 WORK session state 放入 public runtime。

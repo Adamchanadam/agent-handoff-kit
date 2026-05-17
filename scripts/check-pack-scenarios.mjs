@@ -43,7 +43,7 @@ const scenarios = [
     name: "knowledge",
     route: ["External notes", "dev/rules/knowledge.md"],
     pack: "knowledge",
-    snippets: ["source of truth", "external surface", "ready-to-paste sync packet"],
+    snippets: ["source of truth", "external surface", "ready-to-paste sync packet", "read back the written record", "Do not treat unread sources as absent"],
     safetyEscalators: ["cloud tools", "external APIs", "data loss"]
   },
   {
@@ -63,7 +63,7 @@ const scenarios = [
     name: "agent governance",
     route: ["Governance, prompts, agents", "dev/rules/agent-governance.md"],
     pack: "agent-governance",
-    snippets: ["source of truth", "append-only", "public runtime"]
+    snippets: ["source of truth", "append-only", "public runtime", "Before creating durable workflow", "dev/PROJECT_INDEX.md"]
   },
   {
     name: "communication",
@@ -125,7 +125,7 @@ function main() {
   }
 
   console.log("");
-  console.log("Agent Continuity Kit pack scenario QA passed");
+  console.log("Agent Handoff Kit pack scenario QA passed");
 }
 
 function read(relativePath) {

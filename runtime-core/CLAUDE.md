@@ -1,6 +1,6 @@
 # Claude Entry Bridge
 
-This file exists so Claude Code can find the Agent Continuity Kit startup path.
+This file exists so Claude Code can find the Agent Handoff Kit startup path.
 
 Authoritative operating rules remain in `AGENTS.md`. Do not duplicate or fork the rules here.
 

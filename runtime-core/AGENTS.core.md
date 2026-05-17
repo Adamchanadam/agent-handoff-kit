@@ -1,4 +1,4 @@
-# Agent Continuity Kit Core Runtime
+# Agent Handoff Kit Core Runtime
 
 This is the lightweight core. It is the always-read contract for AI sessions.
 
@@ -17,10 +17,12 @@ If the user did not paste the previous opening message but the current project r
 
 If a required file is missing, create the smallest useful version only after confirming the target project root.
 
+Before acting on a non-trivial task, identify required local source-of-truth files and external sources from the handoff, project index, user request, and sync registry. Read them or mark them blocked. Reachable is not the same as ingested. Do not treat unread sources as absent.
+
 After startup reads are complete, show a short startup card:
 
 ```text
-   /\_/\   Agent Continuity Kit v<version>
+   /\_/\   Agent Handoff Kit v<version>
   ( o.o )  continuity ready
    > ^ <
 
@@ -60,19 +62,22 @@ Detect end-of-session or handoff intent in natural language, such as "收工", "
 
 At full closeout:
 
-1. Update `dev/SESSION_HANDOFF.md` with current state, next priorities, risks, validation, and workspace identity.
+1. Reconcile `dev/SESSION_HANDOFF.md`. Do not append a new state snapshot under old state. Verify `Durable Anchors`, then rewrite or explicitly confirm every section under `Closeout-Reconciled State`.
 2. Add a concise entry to `dev/SESSION_LOG.md` with work actually completed this session and the exact next-session opening message.
 3. Update `dev/PROJECT_INDEX.md` if files, stack, commands, entry points, workspace identity, or durable document map changed.
 4. Check `dev/DOC_SYNC_REGISTRY.md` and record required sync status.
 5. Record unresolved drift risk, active worktree, parallel workspace, uncommitted changes, or blocked verification.
-6. Run the handoff sufficiency check: the next AI should be able to continue from `AGENTS.md`, `dev/SESSION_HANDOFF.md`, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history.
-7. If the check fails, fix `dev/SESSION_HANDOFF.md` first; do not push current-state responsibility into `dev/SESSION_LOG.md`.
-8. Show a short closeout card, then provide a copy-paste-ready next-session opening message inside a fenced `text` code block, so the user can clearly copy and paste it into the next session.
+6. Complete the `State Reconciliation Check`: it must state when reconciliation happened, which state sections were rewritten or confirmed current, whether stale snapshots remain, and whether the opening message matches current state.
+7. Run the handoff sufficiency check: the next AI should be able to continue from `AGENTS.md`, `dev/SESSION_HANDOFF.md`, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history.
+8. If either check fails, fix `dev/SESSION_HANDOFF.md` first; do not push current-state responsibility into `dev/SESSION_LOG.md`.
+9. Show a short closeout card, then provide a copy-paste-ready next-session opening message inside a fenced `text` code block, so the user can clearly copy and paste it into the next session.
+
+Installed handoff templates use English headings by default for cross-tool stability, but project teams may translate `dev/SESSION_HANDOFF.md` section headings and visible field labels into the project's working language. Keep the `ack:section:*` and `ack:field:*` semantic markers intact; `doctor` validates those markers so localized handoff notes remain supported.
 
 Use this closeout card:
 
 ```text
-   /\_/\   Agent Continuity Kit v<version>
+   /\_/\   Agent Handoff Kit v<version>
   ( -.- )  handoff saved
    > ^ <
 
@@ -90,6 +95,7 @@ Immediately before the fenced opening message, write:
 
 Record only work actually performed in the current session. Do not copy old completed work forward as new work.
 `dev/SESSION_HANDOFF.md` carries continuity. `dev/SESSION_LOG.md` carries recent evidence. Archive old detail only when needed; do not create an archive directory by default.
+Do not declare handoff ready if `dev/SESSION_HANDOFF.md` still contains stale state, unreconciled placeholders in current-state sections, or an opening message that no longer matches the reconciled state.
 
 ## 5. Pack Loading
 

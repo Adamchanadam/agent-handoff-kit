@@ -1,35 +1,33 @@
-# Stop Rules
+# 停止規則
 
-These rules define when to stop expanding governance.
+## 用途
 
-## Do Not Add To Core When
+停止規則用來避免 Agent Handoff Kit 從輕量 continuity tool 膨脹成另一套大型治理框架。
 
-1. The issue happened once and caused no meaningful risk.
-2. The rule only applies to release, external services, coding, writing, or research.
-3. The behavior is already covered by a broader safety rule.
-4. A registry row would solve the routing problem.
-5. A project index entry would solve the memory problem.
-6. A runbook would solve the procedure problem.
-7. The rule exists because AI failed to follow an existing rule.
-8. The new wording mainly explains examples rather than changing behavior.
-9. Adding it breaches complexity budget.
-10. It requires duplicating the same standard across multiple installers.
+## 應停止的情況
 
-## Move Out Of Core When
+出現以下情況時，應先停止新增內容：
 
-1. A rule has not applied in ordinary sessions.
-2. It only triggers under one task class.
-3. It contains long examples.
-4. It names specific tools, vendors, or platforms beyond a routing pointer.
-5. It is mostly release, deployment, or repository maintenance detail.
+1. 同一規則已有真源，只是想再寫一次。
+2. 新文件只解釋既有文件，沒有新的驗收價值。
+3. 每次開工必讀內容變長，但沒有減少其他負擔。
+4. Public runtime 開始混入 WORK session state。
+5. 設計文件取代了可執行 QA。
+6. 沒有使用者需求，卻新增工具或外部同步層。
 
-## Retire Or Merge When
+## 收口方式
 
-1. Two rules protect the same outcome.
-2. One rule is a narrower version of another.
-3. A newer rule supersedes an older incident-specific patch.
-4. A rule tells AI to remember something that belongs in project index.
+1. 合併重複段落。
+2. 把 current state 放回 handoff。
+3. 把歷史證據降到 log。
+4. 把按需規則放入 packs。
+5. 用 QA 驗證，不用更多說明替代驗證。
 
-## Expansion Budget Rule
+## 發佈前停止線
 
-Any addition over 10 lines must be paired with a removal, a move from core to pack, a conversion from prose to registry row, or a documented exception with hard budget still passing.
+未通過 release-required QA 前，不得：
+
+- tag；
+- 建立 GitHub Release；
+- npm publish；
+- 宣稱 requirements-complete。

@@ -1,34 +1,36 @@
-# Pack Loading Contract
+# 規則包載入合約
 
-## Purpose
+## 目的
 
-Rule packs let Agent Continuity Kit support specialized work without making every session pay the cost of every rule.
+Rule packs 用來讓 AI 按任務切換工作模式。它們不是給用戶逐行閱讀的說明書，也不是每次 session 都要全部讀取的規則堆。
 
-## Trigger Model
+## 基本原則
 
-| Pack | Trigger examples |
-|---|---|
-| `coding.md` | code changes, tests, build, package manager, API/SDK/CLI work |
-| `writing.md` | drafting, editing, style, publication text |
-| `research.md` | source gathering, evidence comparison, fact synthesis |
-| `agent-governance.md` | modifying governance, prompts, skills, handoff systems |
-| `release.md` | publish, deploy, tag, release note, GA, hotfix |
-| `knowledge.md` | external notes, knowledge base, Notion, Obsidian, Drive |
-| `communication.md` | reply style, output schema, language behavior |
+1. 先判斷任務類型。
+2. 只載入最少必要 packs。
+3. 若任務涉及安全風險，才加載 `safety`。
+4. Packs 可以增加限制，但不可削弱 core safety 或 closeout requirements。
 
-## Loading Rules
+## 常見對應
 
-1. Load the minimum pack set.
-2. State which pack was loaded and why.
-3. Pack rules apply only to the current task unless persisted into project files.
-4. A pack may require reading more files, but must not force all packs to load.
-5. A pack may not redefine core safety rules; it can only add stricter task-specific rules.
-6. If two packs conflict, choose the stricter safety/verifiability rule and record the conflict in closeout.
+| 任務訊號 | Pack | 用途 |
+|---|---|---|
+| code、tests、build | `coding` | 開發流程與驗證 |
+| writing、README、copy、docs | `writing` | 寫作、結構、語氣 |
+| user-facing response | `communication` | 回覆格式與可讀性 |
+| sources、evidence、comparison | `research` | 來源與不確定性 |
+| Notion、Drive、knowledge base | `knowledge` | 真源與同步 |
+| release、publish、tag | `release` | 發佈前檢查 |
+| destructive operation、Git、API、deploy、credential | `safety` | 高風險操作保護 |
 
-## Pack Exit
+## 混合任務
 
-After task completion, do not carry pack context forward implicitly. Persist only durable facts: changed files, updated commands, new risks, new docs to sync, next steps, and check evidence.
+混合任務應先拆階段。例如「市場研究 → 商業分析 → 網站文案」不應一次載入全部 packs，而應分階段載入：
 
-## Anti-Bloat Rule
+1. research；
+2. research + writing；
+3. writing + communication。
 
-If a proposed pack rule applies to fewer than two task classes, it must remain in a pack. If it applies to one project only, it belongs in `PROJECT_INDEX.md`, a runbook, or troubleshooting notes, not in reusable governance.
+## 驗收
+
+`npm run qa:packs` 應檢查 pack routing、safety escalation 與 mixed-scenario phased loading。

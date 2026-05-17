@@ -29,8 +29,8 @@ const mappings = [
 ];
 
 const requiredTargets = mappings.map(([, target]) => target);
-const managedCoreStart = "<!-- BEGIN Agent Continuity Kit managed core -->";
-const managedCoreEnd = "<!-- END Agent Continuity Kit managed core -->";
+const managedCoreStart = "<!-- BEGIN Agent Handoff Kit managed core -->";
+const managedCoreEnd = "<!-- END Agent Handoff Kit managed core -->";
 
 const requiredAnchors = [
   {
@@ -42,8 +42,10 @@ const requiredAnchors = [
       "dev/SESSION_LOG.md",
       "dev/PROJECT_INDEX.md",
       "dev/RULE_PACKS.md",
-      "Agent Continuity Kit v<version>",
-      "continuity ready"
+      "Agent Handoff Kit v<version>",
+      "continuity ready",
+      "Reachable is not the same as ingested",
+      "Do not treat unread sources as absent"
     ]
   },
   {
@@ -54,26 +56,33 @@ const requiredAnchors = [
       "收工",
       "wrap up",
       "handoff",
-      "Update `dev/SESSION_HANDOFF.md`",
+      "Reconcile `dev/SESSION_HANDOFF.md`",
       "Add a concise entry to `dev/SESSION_LOG.md`",
       "next-session opening message",
       "fenced `text` code block",
       "handoff saved",
-      "📋 Next session: copy and paste the whole block below"
+      "📋 Next session: copy and paste the whole block below",
+      "State Reconciliation Check",
+      "Do not append a new state snapshot"
     ]
   },
   {
     target: "dev/SESSION_HANDOFF.md",
     label: "handoff workspace and opening message schema",
     snippets: [
-      "## Current Baseline",
-      "## Active Objective",
-      "## Next Priorities",
-      "## Risks / Blockers",
-      "## Validation / QC",
-      "## Workspace Identity",
-      "## Sync Status",
-      "## Next Session Opening Message",
+      "ack:section:current-baseline",
+      "ack:section:durable-anchors",
+      "ack:section:closeout-reconciled-state",
+      "ack:section:task-understanding-summary",
+      "ack:section:active-objective",
+      "ack:section:next-priorities",
+      "ack:section:risks-blockers",
+      "ack:section:validation-qc",
+      "ack:section:workspace-identity",
+      "ack:section:sync-status",
+      "ack:section:next-task-required-reading",
+      "ack:section:state-reconciliation-check",
+      "ack:section:next-session-opening-message",
       "📋 Next session: copy and paste the whole block below",
       "```text",
       "Read in order:",
@@ -100,7 +109,10 @@ const requiredAnchors = [
     target: "dev/SESSION_HANDOFF.md",
     label: "handoff log archive continuity",
     snippets: [
-      "## Handoff Sufficiency Check",
+      "ack:section:handoff-sufficiency-check",
+      "ack:section:state-reconciliation-check",
+      "ack:field:stale-snapshots-left",
+      "ack:field:opening-message-matches-current-state",
       "without searching old log history",
       "SESSION_LOG.md` carries recent evidence",
       "do not create an archive directory by default"
@@ -120,7 +132,7 @@ const requiredAnchors = [
     target: "dev/PROJECT_INDEX.md",
     label: "template version metadata",
     snippets: [
-      "Agent Continuity Kit template version",
+      "Agent Handoff Kit template version",
       "0.1.0"
     ]
   },
@@ -138,8 +150,110 @@ const requiredAnchors = [
   }
 ];
 
+const schemaChecks = [
+  {
+    target: "dev/SESSION_HANDOFF.md",
+    label: "handoff required sections",
+    checks: [
+      section("current-baseline", "Current Baseline"),
+      section("durable-anchors", "Durable Anchors"),
+      section("closeout-reconciled-state", "Closeout-Reconciled State"),
+      section("task-understanding-summary", "Task Understanding Summary"),
+      section("active-objective", "Active Objective"),
+      section("next-priorities", "Next Priorities"),
+      section("next-task-required-reading", "Next Task Required Reading"),
+      section("risks-blockers", "Risks / Blockers"),
+      section("validation-qc", "Validation / QC"),
+      section("workspace-identity", "Workspace Identity"),
+      section("sync-status", "Sync Status"),
+      section("state-reconciliation-check", "State Reconciliation Check"),
+      section("handoff-sufficiency-check", "Handoff Sufficiency Check"),
+      section("next-session-opening-message", "Next Session Opening Message"),
+      marker("field", "stale-snapshots-left", "Stale snapshots left in this handoff"),
+      marker("field", "opening-message-matches-current-state", "Opening message matches current state"),
+      marker("field", "state-sections-rewritten-or-confirmed", "State sections rewritten or confirmed current"),
+      marker("field", "user-intent", "User intent:"),
+      marker("field", "task-essence", "Task essence:"),
+      marker("field", "success-criteria", "Success criteria:")
+    ]
+  },
+  {
+    target: "dev/SESSION_HANDOFF.md",
+    label: "handoff opening message structure",
+    checks: [
+      includes("📋 Next session: copy and paste the whole block below"),
+      includes("```text"),
+      includes("Work in "),
+      includes("Read in order:"),
+      includes("If this root does not match the expected project root")
+    ]
+  },
+  {
+    target: "dev/SESSION_LOG.md",
+    label: "session log entry fields",
+    checks: [
+      heading("Entry Template"),
+      includes("- **ID:**"),
+      includes("- **Summary:**"),
+      includes("- **Changed:**"),
+      includes("- **Done:**"),
+      includes("- **QC:**"),
+      includes("- **Sync:**"),
+      includes("- **Pending:**"),
+      includes("- **Risks:**"),
+      includes("- **Log maintenance:**")
+    ]
+  },
+  {
+    target: "dev/PROJECT_INDEX.md",
+    label: "project index tables",
+    checks: [
+      heading("Stack"),
+      heading("Directory Map"),
+      heading("Entry Points"),
+      heading("Fact Base"),
+      heading("External Sources"),
+      heading("Local QC Commands"),
+      heading("Workspace Identity"),
+      heading("Change Hotspots"),
+      heading("Maintenance Rule"),
+      tableHeader("Path", "Role", "Read when"),
+      tableHeader("Source", "Role", "Required before", "Access method", "Last verified"),
+      tableHeader("Source", "Role", "Required before", "Access method", "Write-back rule", "Last verified"),
+      tableHeader("Check", "Command", "Run before", "Last verified"),
+      tableHeader("Change type", "Likely files", "Required checks")
+    ]
+  },
+  {
+    target: "dev/DOC_SYNC_REGISTRY.md",
+    label: "doc sync registry status vocabulary",
+    checks: [
+      heading("Status Vocabulary"),
+      includes("confirmed"),
+      includes("unverified"),
+      includes("pending"),
+      includes("blocked"),
+      includes("not_applicable"),
+      tableHeader("Change type", "Also check/update", "Verification")
+    ]
+  },
+  {
+    target: "dev/RULE_PACKS.md",
+    label: "rule pack router coverage",
+    checks: [
+      heading("Routing Rule"),
+      includes("Load the minimum set"),
+      includes("cannot weaken core safety"),
+      includes("dev/rules/safety.md"),
+      includes("dev/rules/coding.md"),
+      includes("dev/rules/research.md"),
+      includes("dev/rules/release.md")
+    ]
+  }
+];
+
 main().catch((error) => {
-  console.error(`agent-continuity-kit: ${error.message}`);
+  console.error(`agent-handoff-kit: ${error.message}`);
   process.exitCode = 1;
 });
 
@@ -273,6 +387,22 @@ async function runDoctor(root, version) {
     return;
   }
 
+  const schemaRows = await checkSchema(root);
+  const schemaFailures = schemaRows.filter((row) => !row.ok);
+  console.log(`\nschema checks: ${schemaRows.length}`);
+  for (const row of schemaRows) {
+    console.log(`${row.ok ? "ok" : "missing"}  ${row.target} (${row.label})`);
+    if (!row.ok && row.missing.length > 0) {
+      console.log(`  missing: ${row.missing.join("; ")}`);
+    }
+  }
+
+  if (schemaFailures.length > 0) {
+    console.log(`\nstatus: failed (${schemaFailures.length} schema checks failed)`);
+    process.exitCode = 1;
+    return;
+  }
+
   console.log("\nstatus: passed");
 }
 
@@ -295,6 +425,68 @@ async function checkRequiredAnchors(root) {
     });
   }
   return rows;
+}
+
+async function checkSchema(root) {
+  const rows = [];
+  for (const rule of schemaChecks) {
+    const filePath = path.join(root, rule.target);
+    let text = "";
+    try {
+      text = await readFile(filePath, "utf8");
+    } catch {
+      rows.push({ target: rule.target, label: rule.label, ok: false, missing: ["file unreadable"] });
+      continue;
+    }
+    const missing = rule.checks
+      .filter((check) => !check.test(text))
+      .map((check) => check.label);
+    rows.push({
+      target: rule.target,
+      label: rule.label,
+      ok: missing.length === 0,
+      missing
+    });
+  }
+  return rows;
+}
+
+function includes(snippet) {
+  return {
+    label: snippet,
+    test: (text) => text.includes(snippet)
+  };
+}
+
+function heading(title) {
+  return {
+    label: `heading: ${title}`,
+    test: (text) => new RegExp(`^## ${escapeRegExp(title)}\\s*$`, "m").test(text)
+  };
+}
+
+function marker(type, id, legacyText) {
+  const semanticMarker = `ack:${type}:${id}`;
+  return {
+    label: `${type}: ${id}`,
+    test: (text) => text.includes(semanticMarker) || (legacyText ? text.includes(legacyText) : false)
+  };
+}
+
+function section(id, legacyHeading) {
+  const check = marker("section", id, null);
+  return {
+    label: `section: ${id}`,
+    test: (text) => check.test(text) || heading(legacyHeading).test(text)
+  };
+}
+
+function tableHeader(...cells) {
+  const line = `| ${cells.join(" | ")} |`;
+  return {
+    label: `table: ${cells.join(" / ")}`,
+    test: (text) => text.includes(line)
+  };
 }
 
 async function buildPlan(root, command) {
@@ -386,7 +578,7 @@ function printPlan(command, root, mode, plan, version) {
 async function confirmWrite() {
   const rl = createInterface({ input, output });
   try {
-    const answer = await rl.question("Write missing Agent Continuity Kit files? Type yes to continue: ");
+    const answer = await rl.question("Write missing Agent Handoff Kit files? Type yes to continue: ");
     return answer.trim().toLowerCase() === "yes";
   } finally {
     rl.close();
@@ -398,7 +590,7 @@ async function writeMigrationReport(root, command, mode, plan, created, merged, 
   await mkdir(migrationDir, { recursive: true });
   const skipped = plan.filter((item) => item.action === "skip").map((item) => item.targetRel);
   const text = [
-    "# Agent Continuity Kit Migration Report",
+    "# Agent Handoff Kit Migration Report",
     "",
     `Command: ${command}`,
     `Mode: ${mode}`,
@@ -442,7 +634,7 @@ async function readPackageVersion() {
 }
 
 function printCard(version, status, eyes) {
-  console.log(`   /\\_/\\   Agent Continuity Kit v${version}`);
+  console.log(`   /\\_/\\   Agent Handoff Kit v${version}`);
   console.log(`  ( ${eyes} )  ${status}`);
   console.log("   > ^ <");
   console.log("");
@@ -464,16 +656,16 @@ async function exists(filePath) {
 
 function printHelp(version) {
   printCard(version, "continuity ready", "o.o");
-  console.log(`Agent Continuity Kit
+  console.log(`Agent Handoff Kit
 
 Usage:
-  agent-continuity-kit init [--dry-run] [--yes] [--root <path>]
-  agent-continuity-kit upgrade [--dry-run] [--yes] [--root <path>]
-  agent-continuity-kit doctor [--root <path>]
+  agent-handoff-kit init [--dry-run] [--yes] [--root <path>]
+  agent-handoff-kit upgrade [--dry-run] [--yes] [--root <path>]
+  agent-handoff-kit doctor [--root <path>]
 
 Commands:
   init      Plan or install missing core files and rule packs.
-  upgrade   Same safe create-missing behavior for existing projects.
+  upgrade   Preserve existing files; merge safe core updates or report conflicts.
   doctor    Check required installed files.
 
 Working modes:

@@ -16,15 +16,15 @@ function main() {
   mkdirSync(mergeRoot, { recursive: true });
   writeFileSync(path.join(mergeRoot, "AGENTS.md"), "# Existing Project\n\n## User Local Rules\n\nKeep this local rule.\n", "utf8");
 
-  const upgrade = run(process.execPath, ["bin/agent-continuity-kit.mjs", "upgrade", "--yes", "--root", mergeRoot], "upgrade existing AGENTS.md");
+  const upgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", mergeRoot], "upgrade existing AGENTS.md");
   assert(upgrade.stdout.includes("merged: 1"), "upgrade did not report one merged file");
   assert(upgrade.stdout.includes("backup:"), "upgrade did not report backup path");
 
   const mergedAgents = read(path.join(mergeRoot, "AGENTS.md"));
   assert(mergedAgents.includes("## User Local Rules"), "user local rules were not preserved");
   assert(mergedAgents.includes("Keep this local rule."), "user local rule text was not preserved");
-  assert(mergedAgents.includes("BEGIN Agent Continuity Kit managed core"), "managed core block was not added");
-  assert(mergedAgents.includes("Agent Continuity Kit Core Runtime"), "core runtime text was not merged");
+  assert(mergedAgents.includes("BEGIN Agent Handoff Kit managed core"), "managed core block was not added");
+  assert(mergedAgents.includes("Agent Handoff Kit Core Runtime"), "core runtime text was not merged");
 
   const mergeReport = latestReport(mergeRoot);
   assert(read(mergeReport).includes("## Merged"), "migration report missing merged section");
@@ -33,14 +33,14 @@ function main() {
   assert(backupAgents, "backup AGENTS.md was not created");
   assert(read(backupAgents).includes("Keep this local rule."), "backup did not preserve original AGENTS.md");
 
-  const doctor = run(process.execPath, ["bin/agent-continuity-kit.mjs", "doctor", "--root", mergeRoot], "doctor after upgrade");
+  const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", mergeRoot], "doctor after upgrade");
   assert(doctor.stdout.includes("status: passed"), "doctor did not pass after safe upgrade");
 
   const conflictRoot = path.join(tmpdir(), `ack-upgrade-conflict-${Date.now()}`);
   mkdirSync(conflictRoot, { recursive: true });
   writeFileSync(path.join(conflictRoot, "CLAUDE.md"), "# Existing Claude Memory\n\nDo not replace this custom bridge.\n", "utf8");
 
-  const conflict = run(process.execPath, ["bin/agent-continuity-kit.mjs", "upgrade", "--yes", "--root", conflictRoot], "upgrade conflict scenario", { allowFailure: true });
+  const conflict = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", conflictRoot], "upgrade conflict scenario", { allowFailure: true });
   assert(conflict.status !== 0, "conflict scenario should return non-zero status");
   assert(outputText(conflict).includes("conflict: 1"), "conflict scenario did not report one conflict");
   assert(read(path.join(conflictRoot, "CLAUDE.md")).includes("Do not replace this custom bridge."), "conflict file was overwritten");
@@ -50,7 +50,7 @@ function main() {
   assert(conflictText.includes("CLAUDE.md"), "conflict report missing CLAUDE.md");
 
   console.log("");
-  console.log("Agent Continuity Kit upgrade safety QA passed");
+  console.log("Agent Handoff Kit upgrade safety QA passed");
   console.log(`merge root: ${mergeRoot}`);
   console.log(`conflict root: ${conflictRoot}`);
 }
