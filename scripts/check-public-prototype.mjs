@@ -26,15 +26,19 @@ const forbiddenPatterns = [
 const ignoredDirs = new Set([".git", "node_modules", "coverage", "dist"]);
 const ignoredFiles = new Set(["package-lock.json"]);
 
-main();
+main().catch((error) => {
+  console.error(error.message);
+  process.exitCode = 1;
+});
 
-function main() {
+async function main() {
   mkdirSync(tempRoot, { recursive: true });
 
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "install templates");
   const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor installed templates");
   assert(doctor.stdout.includes("status: passed"), "doctor output did not include status: passed");
   assert(!existsSync(path.join(tempRoot, "archive")), "installer created archive directory by default");
+  await checkUpdateNotice();
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
   assert(outputText(pack).includes("total files: 20"), "npm dry-run did not report expected 20 package files");
@@ -48,10 +52,37 @@ function main() {
   console.log(`temp install root: ${tempRoot}`);
 }
 
-function run(command, args, label) {
+async function checkUpdateNotice() {
+  const update = run(
+    process.execPath,
+    ["bin/agent-handoff-kit.mjs", "--help"],
+    "update notice with mock registry",
+    {
+      AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE: "1",
+      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.3"
+    }
+  );
+  assert(update.stdout.includes("Update available! 0.1.2 -> 0.1.3"), "update notice did not show newer version");
+  assert(update.stdout.includes("https://github.com/Adamchanadam/agent-handoff-kit/releases/latest"), "update notice did not include release notes URL");
+
+  const skipped = run(
+    process.execPath,
+    ["bin/agent-handoff-kit.mjs", "--help"],
+    "update notice disabled",
+    {
+      AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE: "1",
+      AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1",
+      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.3"
+    }
+  );
+  assert(!skipped.stdout.includes("Update available!"), "disabled update check still printed an update notice");
+}
+
+function run(command, args, label, env = {}) {
   const result = spawnSync(command, args, {
     cwd: root,
-    encoding: "utf8"
+    encoding: "utf8",
+    env: { ...process.env, ...env }
   });
 
   if (result.error || result.status !== 0) {

@@ -258,6 +258,7 @@ main().catch((error) => {
 
 async function main() {
   const version = await readPackageVersion();
+  await maybePrintUpdateNotice(version);
   const { command, options } = parseArgs(process.argv.slice(2));
   if (!command || options.help) {
     printHelp(version);
@@ -629,6 +630,89 @@ async function readPackageVersion() {
   } catch {
     return "version unverified";
   }
+}
+
+async function maybePrintUpdateNotice(currentVersion) {
+  if (shouldSkipUpdateCheck()) return;
+  if (!isStableSemver(currentVersion)) return;
+
+  const latestVersion = await fetchLatestVersion();
+  if (!latestVersion || !isStableSemver(latestVersion)) return;
+  if (compareSemver(latestVersion, currentVersion) <= 0) return;
+
+  printUpdateNotice(currentVersion, latestVersion);
+}
+
+function shouldSkipUpdateCheck() {
+  if (process.env.AGENT_HANDOFF_KIT_NO_UPDATE_CHECK === "1") return true;
+  if (process.env.AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE === "1") return false;
+  if (process.env.CI) return true;
+  if ((process.env.npm_lifecycle_event ?? "").startsWith("qa:")) return true;
+  return false;
+}
+
+async function fetchLatestVersion() {
+  if (process.env.AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST) {
+    return process.env.AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST;
+  }
+  const url = process.env.AGENT_HANDOFF_KIT_UPDATE_REGISTRY_URL
+    ?? "https://registry.npmjs.org/@adamchanadam%2Fagent-handoff-kit/latest";
+  const timeoutMs = Number.parseInt(process.env.AGENT_HANDOFF_KIT_UPDATE_TIMEOUT_MS ?? "1200", 10);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Number.isFinite(timeoutMs) ? timeoutMs : 1200);
+  try {
+    const response = await fetch(url, {
+      headers: { accept: "application/vnd.npm.install-v1+json, application/json" },
+      signal: controller.signal
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return typeof data.version === "string" ? data.version : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isStableSemver(version) {
+  return /^\d+\.\d+\.\d+$/.test(version);
+}
+
+function compareSemver(left, right) {
+  const leftParts = left.split(".").map((part) => Number.parseInt(part, 10));
+  const rightParts = right.split(".").map((part) => Number.parseInt(part, 10));
+  for (let i = 0; i < 3; i += 1) {
+    if (leftParts[i] > rightParts[i]) return 1;
+    if (leftParts[i] < rightParts[i]) return -1;
+  }
+  return 0;
+}
+
+function printUpdateNotice(currentVersion, latestVersion) {
+  const releaseUrl = "https://github.com/Adamchanadam/agent-handoff-kit/releases/latest";
+  const command = "npx @adamchanadam/agent-handoff-kit@latest <command>";
+  const lines = [
+    `✨ Update available! ${currentVersion} -> ${latestVersion}`,
+    `Run ${command} to use the latest version.`,
+    "",
+    "For global installs:",
+    "npm install -g @adamchanadam/agent-handoff-kit",
+    "",
+    "See full release notes:",
+    releaseUrl
+  ];
+  const width = Math.max(...lines.map((line) => visibleLength(line))) + 2;
+  console.log(`╭${"─".repeat(width)}╮`);
+  for (const line of lines) {
+    console.log(`│ ${line}${" ".repeat(width - visibleLength(line) - 1)}│`);
+  }
+  console.log(`╰${"─".repeat(width)}╯`);
+  console.log("");
+}
+
+function visibleLength(text) {
+  return [...text].length;
 }
 
 function printCard(version, status, eyes) {

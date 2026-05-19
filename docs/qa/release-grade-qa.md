@@ -10,7 +10,7 @@
 
 | 層級 | 指令 | 範圍 | 發佈前是否必須通過 |
 |---|---|---|---|
-| 原型驗收 | `npm run qa:prototype` | 範本安裝、`doctor`、套件預演、過時字串與污染標記。 | 是 |
+| 原型驗收 | `npm run qa:prototype` | 範本安裝、`doctor`、CLI 版本自檢 mock、套件預演、過時字串與污染標記。 | 是 |
 | 規則包場景驗收 | `npm run qa:packs` | coding、research、writing、knowledge、release、safety、governance、communication 與 mixed-scenario 規則包路由。 | 是 |
 | 升級安全驗收 | `npm run qa:upgrade` | 既有專案升級、備份、合併與衝突行為。 | 是 |
 | 發佈前驗收 | `npm run qa:release` | 發佈前關卡、版本、套件內容、文件一致性、較完整的 `doctor` schema 檢查，以及 tag / release / npm 準備度。 | 是 |
