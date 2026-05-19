@@ -1,8 +1,8 @@
 # 變更紀錄
 
-## 未發佈
+## v0.1.3 — 2026-05-19
 
-狀態：原始碼倉庫改善，尚未發佈新版本。
+狀態：GitHub source release。此版本已建立 tag 與 GitHub Release；未 npm publish，npm latest 仍是 `v0.1.2`。
 
 ### 已改善
 

@@ -42,7 +42,7 @@ async function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
   assert(outputText(pack).includes("total files: 20"), "npm dry-run did not report expected 20 package files");
-  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.2.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.3.tgz")), "npm dry-run left a tarball behind");
 
   const hits = scanForbiddenText(root);
   assert(hits.length === 0, formatHits(hits));
@@ -59,10 +59,10 @@ async function checkUpdateNotice() {
     "update notice with mock registry",
     {
       AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE: "1",
-      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.3"
+      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.4"
     }
   );
-  assert(update.stdout.includes("Update available! 0.1.2 -> 0.1.3"), "update notice did not show newer version");
+  assert(update.stdout.includes("Update available! 0.1.3 -> 0.1.4"), "update notice did not show newer version");
   assert(update.stdout.includes("https://github.com/Adamchanadam/agent-handoff-kit/releases/latest"), "update notice did not include release notes URL");
 
   const skipped = run(
@@ -72,7 +72,7 @@ async function checkUpdateNotice() {
     {
       AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE: "1",
       AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1",
-      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.3"
+      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.4"
     }
   );
   assert(!skipped.stdout.includes("Update available!"), "disabled update check still printed an update notice");
