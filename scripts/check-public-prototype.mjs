@@ -18,6 +18,8 @@ const forbiddenPatterns = [
   { label: "local workspace name leak", pattern: /_claude_desktop|ai-session-governance_v2_WORK/i },
   { label: "private WORK repo leak", pattern: /agent-handoff-kit_WORK/i },
   { label: "WORK session title leak", pattern: /Session Handoff — v2 WORK/i },
+  { label: "misleading old post-install next line", pattern: /next:\s*Follow AGENTS\.md/i },
+  { label: "misleading old post-install tip", pattern: /tip:\s*Describe your task directly/i },
   { label: "common secret assignment", pattern: /(?:SECRET|TOKEN|PASSWORD|API_KEY)\s*[:=]|BEGIN .*PRIVATE/i }
 ];
 
@@ -36,7 +38,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
   assert(outputText(pack).includes("total files: 20"), "npm dry-run did not report expected 20 package files");
-  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.0.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.1.tgz")), "npm dry-run left a tarball behind");
 
   const hits = scanForbiddenText(root);
   assert(hits.length === 0, formatHits(hits));
@@ -77,6 +79,7 @@ function scanForbiddenText(startDir) {
     const relative = path.relative(root, filePath).replaceAll(path.sep, "/");
     if (ignoredFiles.has(relative)) continue;
     if (relative === "scripts/check-public-prototype.mjs") continue;
+    if (relative === "scripts/check-release-readiness.mjs") continue;
     const text = readFileSync(filePath, "utf8");
     for (const rule of forbiddenPatterns) {
       if (rule.pattern.test(text)) hits.push({ file: relative, label: rule.label });

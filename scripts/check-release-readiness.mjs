@@ -15,7 +15,7 @@ main();
 function main() {
   const packageJson = JSON.parse(read("package.json"));
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
-  assert(packageJson.version === "0.1.0", "package version drifted from current prototype baseline");
+  assert(packageJson.version === "0.1.1", "package version drifted from current candidate baseline");
   assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "LICENSE"]), "npm package files boundary changed");
   assert(packageJson.scripts["qa:prototype"], "qa:prototype script is missing");
   assert(packageJson.scripts["qa:packs"], "qa:packs script is missing");
@@ -31,15 +31,17 @@ function main() {
   assert(packText.includes("total files: 20"), "npm dry-run did not report expected 20 package files");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
-  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.0.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.1.tgz")), "npm dry-run left a tarball behind");
 
   assertIncludes("README.md", [
-    "狀態：`v0.1.0` 已正式發佈",
-    "目前正式公開版本為 `0.1.0`",
+    "狀態：原始碼倉庫正在準備 `v0.1.1` 候選版",
+    "## 安裝後第一步",
+    "不要在 Terminal 輸入 `Follow AGENTS.md`",
+    "請特別留意：那一段不是給 Terminal 的指令",
     "## 它解決甚麼問題",
     "## 日常使用",
-    "## 工作模式與規則包",
-    "必讀事實",
+    "## 工作規則怎樣運作",
+    "必讀資料",
     "npm run qa:prototype",
     "npm run qa:packs",
     "npm run qa:upgrade",
@@ -51,6 +53,8 @@ function main() {
   ]);
 
   assertIncludes("CHANGELOG.md", [
+    "## v0.1.1 — 2026-05-19",
+    "候選版準備",
     "## v0.1.0 — 2026-05-17",
     "早期正式發佈版本",
     "原始碼倉庫專用 `npm run qa:release`",
@@ -62,9 +66,14 @@ function main() {
     "用戶流程驗收",
     "任務入口",
     "不屬於 npm package",
-    "v0.1.0 發佈狀態",
+    "v0.1.1 候選狀態",
+    "v0.1.0 已發佈狀態",
     "發佈後仍需驗證",
-    "不得因 `v0.1.0` 已發佈而宣稱"
+    "不得因 `v0.1.0` 已發佈而宣稱",
+    "安裝後指示驗收",
+    "不是在 Terminal 繼續輸入",
+    "治理 QA 缺口矩陣",
+    "執行落差"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -78,7 +87,10 @@ function main() {
     "Do not append a new state snapshot"
   ]);
 
-  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");
+  const install = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");
+  assert(install.stdout.includes("安裝完成：下一步請在 AI 對話中操作"), "install output missing AI-chat next-step heading");
+  assert(install.stdout.includes("請注意：下面文字不是 Terminal 指令。"), "install output does not warn that next text is not a Terminal command");
+  assert(!install.stdout.includes("next: Follow AGENTS.md"), "install output still contains misleading old next line");
   const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow doctor");
   assert(doctor.stdout.includes("status: passed"), "doctor did not pass in release user-flow check");
   assert(doctor.stdout.includes("schema checks:"), "doctor did not run schema checks");

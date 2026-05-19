@@ -1,140 +1,101 @@
 # Agent Handoff Kit
 
-狀態：`v0.1.0` 已正式發佈。這是早期可用版本，仍未達 requirements-complete。
+狀態：原始碼倉庫正在準備 `v0.1.1` 候選版；npm 已正式發佈版本仍是 `v0.1.0`。這仍是早期可用版本，尚未宣稱所有需求已完成。
 
-Agent Handoff Kit 是一套輕量 AI 專案延續工具。它幫助 AI 在多個 session 之間保留專案狀態、交接訊息、檔案地圖與工作邊界，避免下一次開工時重新猜測背景。
+Agent Handoff Kit 是一套給 AI 專案使用的交接工具。它會在你的專案中放入一組固定文件，讓 AI 在下一次工作時知道：目前做到哪裡、哪些資料要先讀、哪些檔案不可亂動、收工時要留下甚麼。
+
+它不是聊天機器人，也不是另一個開發框架。它的作用比較像一本固定放在專案內的交接簿，讓不同 AI 工具和不同工作階段都能接上同一條線。
 
 ## 它解決甚麼問題
 
-Agent Handoff Kit 讓 AI 有一套固定、可重複的專案記憶流程：
+AI 很容易在新工作階段失去前文。它可能不知道上次改了甚麼、哪些文件才是最新、哪些資料只是參考、哪些操作需要先問你。
 
-- 開工時，AI 讀同一組入口檔，不靠聊天記憶猜測現況。
-- 工作時，AI 只載入當前任務需要的規則包，例如 coding、writing、research、knowledge sync、release 或 safety。
-- 複雜任務開始前，AI 先確認本次必讀事實來源；找得到資料不等於已讀入，未讀來源不能當成沒有資料。
-- 收工時，AI 不是只追加紀錄；它要對賬 handoff 內的當前狀態，確認沒有過時快照，再輸出下一次 session 可直接貼上的 opening message。
-- 下一次 session 即使換了 AI，也能從專案檔案接續，而不是依賴上一段對話。
+Agent Handoff Kit 把這些事情寫進專案文件：開工先讀哪裡、任務前要確認哪些必讀資料、收工要留下哪些交接內容、下次要貼哪段文字重新開始。
 
-適合用於長期專案、跨 session AI 協作、需要穩定交接的 coding / writing / research / knowledge 管理工作。
+## 適合誰使用
+
+適合以下情況：
+
+- 你會隔幾天才回到同一個 AI 專案。
+- 你會在 Codex、Claude Code、Gemini CLI 等工具之間切換。
+- 你希望 AI 每次開始前先讀專案狀態，而不是重新猜背景。
+- 你希望收工時留下下一次可直接貼上的開工文字。
+- 你不是開發人員，但想讓 AI 在長期專案中穩定接力。
+
+不適合以下情況：
+
+- 只問一次性問題，不需要保存專案狀態。
+- 不想在專案內新增任何交接文件。
+- 需要已完全成熟的穩定版安裝工具。
 
 ## 安裝
 
-目前正式公開版本為 `0.1.0`。npm package 名稱是 `@adamchanadam/agent-handoff-kit`，安裝後提供的 CLI 指令仍是 `agent-handoff-kit`。新專案可使用：
+在你的專案資料夾打開 Terminal，執行：
 
 ```bash
 npx @adamchanadam/agent-handoff-kit init
 ```
 
-既有專案升級會使用：
-
-```bash
-npx @adamchanadam/agent-handoff-kit upgrade
-```
-
-健康檢查：
-
-```bash
-npx @adamchanadam/agent-handoff-kit doctor
-```
-
-如要從原始碼倉庫本機測試，可使用：
-
-```bash
-node bin/agent-handoff-kit.mjs init --yes --root <your-project>
-node bin/agent-handoff-kit.mjs doctor --root <your-project>
-```
-
-既有專案請先預演：
-
-```bash
-node bin/agent-handoff-kit.mjs upgrade --dry-run --root <your-project>
-node bin/agent-handoff-kit.mjs upgrade --yes --root <your-project>
-```
-
-installer 預設保留既有檔案；不能安全合併時會報 conflict，不會靜默覆寫。
-
-## 會安裝甚麼
-
-installer 會在你的專案中建立：
-
-- `AGENTS.md`：主要 AI 入口。
-- `CLAUDE.md`、`GEMINI.md`：給 Claude Code 與 Gemini CLI 的薄橋接入口。
-- `dev/SESSION_HANDOFF.md`：保存耐久錨點、每次收尾必對賬的當前狀態、任務理解摘要、下一步、風險、驗收與工作區身份。
-- `dev/SESSION_LOG.md`：保存近期實際發生過的工作證據。
-- `dev/PROJECT_INDEX.md`：記錄專案檔案、必讀事實來源、外部來源、指令、入口與變更熱點。
-- `dev/DOC_SYNC_REGISTRY.md`：記錄文件或外部索引需要同步的情況。
-- `dev/RULE_PACKS.md`：告訴 AI 不同任務應載入哪些規則包。
-- `dev/rules/*.md`：按需載入的工作模式規則包。
-
-你不需要每次自己讀完所有檔案。AI 應讀啟動檔，判斷任務，載入需要的規則包，並告訴你目前使用甚麼工作模式。
-
-## 日常使用
-
-開新 session 時，貼上 `dev/SESSION_HANDOFF.md` 內的 opening message。也可以對 AI 說：
+出現確認問題時，輸入：
 
 ```text
-Work in <your-project>.
-Read AGENTS.md, dev/SESSION_HANDOFF.md, dev/SESSION_LOG.md, dev/PROJECT_INDEX.md, and dev/RULE_PACKS.md.
+y
 ```
 
-然後直接描述任務：
+若工具列出即將建立的文件，並詢問是否寫入，請輸入：
 
 ```text
-更新 README，並確認 handoff 仍然準確。
+yes
 ```
 
-AI 應該：
+安裝完成後，你會看到一個「下一步」區塊。請特別留意：那一段不是給 Terminal 的指令，而是給 AI 對話使用的文字。
 
-1. 確認目前目標與工作區。
-2. 說明本次會使用哪些規則包。
-3. 對非簡單任務，先列出本次必讀事實來源，讀取或標記 blocked。
-4. 完成任務並執行必要檢查。
-5. 收工時對賬 handoff 的當前狀態，更新 handoff / log。
+## 安裝後第一步
 
-要結束 session，只需輸入：
+安裝完成後，不要在 Terminal 輸入 `Follow AGENTS.md`。
+
+正確做法是：
+
+1. 打開你要使用的 AI 工具。
+2. 新增一段對話。
+3. 貼上安裝工具顯示的 `Work in ...` 文字。
+4. 要求 AI 先讀 `AGENTS.md`，並在改檔前說明它讀到的目前狀態。
+5. 然後直接描述你要完成的任務。
+
+你可以貼上類似以下文字：
 
 ```text
-收工
+Work in <你的專案資料夾>.
+Read AGENTS.md first. Tell me what you understand before changing files.
+```
+
+接著再寫你的任務，例如：
+
+```text
+整理這個專案，先告訴我目前狀態、下一步、風險，暫時不要改檔。
 ```
 
 或：
 
 ```text
-wrap up
-handoff
+更新 README，完成後檢查交接文件是否仍然準確。
 ```
 
-AI 會更新交接檔，並輸出下一次 session 可直接貼上的 fenced `text` code block。
+## 檢查是否安裝完整
 
-## 工作模式與規則包
-
-規則包是 AI 的工作模式守則，不是要求用戶閱讀的額外說明書。
-
-| 你的任務 | 預期使用的 packs |
-|---|---|
-| 修 code、跑 tests、處理 build | `coding`；涉及檔案、Git、package manager、API、deploy 風險時加 `safety` |
-| 寫作、改 README、整理文案 | `writing`，通常再加 `communication` |
-| 查證資料、比較來源 | `research` |
-| 整理 Notion、Drive、知識庫 | `knowledge` |
-| 準備 release note | `release`；真正 tag、publish、upload、deploy 前加 `safety` |
-
-原則是載入最少必要 packs，不是每次讀全部規則。
-
-## 原始碼 repo 驗收
-
-本倉庫有原始碼專用驗收；這些指令用來驗證 prototype，不會安裝到使用者專案：
+如要檢查安裝是否完整，可在 Terminal 執行：
 
 ```bash
-npm run qa:prototype
-npm run qa:packs
-npm run qa:upgrade
-npm run qa:release
+npx @adamchanadam/agent-handoff-kit doctor
 ```
 
-這些檢查涵蓋安裝、`doctor`、套件預演、過時字串、公開輸出污染標記、規則包路由、升級安全、發佈前準備度，以及從安裝到收工再到接力開工的用戶流程模擬。
+看到 `status: passed`，代表必要文件與基本結構存在。
 
-## 安裝後形態
+這個檢查只能確認文件結構，不代表 AI 已理解你的專案。真正開始工作前，仍應要求 AI 先讀入口文件並說明目前狀態。
 
-安裝後的核心結構如下：
+## 會安裝甚麼
+
+安裝工具會在你的專案中建立以下文件：
 
 ```text
 AGENTS.md
@@ -148,29 +109,127 @@ dev/RULE_PACKS.md
 dev/rules/*.md
 ```
 
-`AGENTS.md` 是主要入口。`CLAUDE.md` 與 `GEMINI.md` 只做橋接，導向同一套啟動流程，不複製完整規則。
+每個文件的用途如下：
 
-## 跨語言項目
+| 文件 | 用途 |
+|---|---|
+| `AGENTS.md` | AI 開工時最先讀的入口文件。 |
+| `CLAUDE.md` | 讓 Claude Code 找到同一套入口。 |
+| `GEMINI.md` | 讓 Gemini CLI 找到同一套入口。 |
+| `dev/SESSION_HANDOFF.md` | 保存目前狀態、下一步、風險、驗收結果與下一次開工文字。 |
+| `dev/SESSION_LOG.md` | 保存近期實際做過的事與檢查結果。 |
+| `dev/PROJECT_INDEX.md` | 記錄專案檔案、必讀資料、外部來源與常用檢查。 |
+| `dev/DOC_SYNC_REGISTRY.md` | 記錄哪些文件改動後需要同步。 |
+| `dev/RULE_PACKS.md` | 告訴 AI 不同任務應讀哪些工作規則。 |
+| `dev/rules/*.md` | 按任務載入的細分工作規則。 |
 
-Agent Handoff Kit 的 runtime instruction 預設使用英文，是為了跨工具穩定與降低 token 成本，不是限制用戶項目的工作語言。你的專案可以用中文、日文或其他語言撰寫 `dev/SESSION_HANDOFF.md` 的段落標題與可見欄位名稱。
+你不需要自己逐一閱讀全部文件。你的工作是描述目標；AI 的工作是讀入口文件、判斷要讀哪些資料，再告訴你它準備怎樣做。
 
-做法是保留模板內的 `ack:section:*` 與 `ack:field:*` 語義標記，然後翻譯標題與欄位文字。`doctor` 會驗這些語義標記，而不是要求每個交接段名必須維持英文。
+## 日常使用方式
 
-## 倉庫與套件邊界
+每次開始新的 AI 工作階段時，建議先貼上上一輪收工產生的開工文字。若沒有那段文字，可以貼：
 
-npm package 只保留安裝所需 runtime：
+```text
+Work in <你的專案資料夾>.
+Read AGENTS.md, dev/SESSION_HANDOFF.md, dev/SESSION_LOG.md, dev/PROJECT_INDEX.md, and dev/RULE_PACKS.md.
+Tell me the current objective, pending work, risks, and your recommended next action before changing files.
+```
 
-- `bin/`：prototype CLI。
-- `runtime-core/`：安裝到專案內的核心模板。
-- `packs/`：安裝到 `dev/rules/*.md` 的規則包。
-- `README.md`、`LICENSE`、`package.json`。
+然後直接描述任務。
 
-原始碼倉庫另外包含設計與驗收文件，供維護者審核，不會進入安裝後的 runtime：
+對簡單任務，可以這樣寫：
 
-- `docs/qa/`：發佈級驗收計劃。
-- `scripts/`：原始碼倉庫專用驗收腳本。
-- root 層設計文件：問題定義、架構、遷移、保留價值、複雜度與停止規則等。
+```text
+幫我檢查 README 是否清楚，先只提出問題，不要改檔。
+```
 
-## 非破壞性原則
+對需要改檔的任務，可以這樣寫：
 
-本公開草案不修改舊版 `ai-session-governance` repo。`INIT.md` 不是 Agent Handoff Kit 的主要安裝路徑。
+```text
+請更新 README 的安裝後說明，完成後執行必要檢查，並告訴我改了甚麼。
+```
+
+對需要收工的情況，只需輸入：
+
+```text
+收工
+```
+
+也可以輸入：
+
+```text
+wrap up
+handoff
+```
+
+AI 應更新交接文件，並輸出下一次可直接貼上的開工文字。那段文字會放在 fenced `text` code block 內，方便完整複製。
+
+## 工作規則怎樣運作
+
+Agent Handoff Kit 會把任務分成不同工作模式。例如：
+
+| 你的任務 | AI 應使用的工作規則 |
+|---|---|
+| 修改程式、檢查錯誤、執行測試 | `coding`；涉及刪除、覆寫、Git、套件管理或外部服務時加 `safety` |
+| 改 README、寫說明、整理文案 | `writing`，通常再加 `communication` |
+| 查證資料、比較來源、整理證據 | `research` |
+| 整理 Notion、Google Drive 或知識庫 | `knowledge` |
+| 準備發佈說明 | `release`；真正發佈、上傳或建立版本前必須加 `safety` |
+
+原則是只讀當前任務需要的規則，不是每次讀全部文件。
+
+## 既有專案升級
+
+若你的專案已經有 `AGENTS.md` 或其他 AI 記憶文件，請先預演，不要直接覆寫：
+
+```bash
+npx @adamchanadam/agent-handoff-kit upgrade --dry-run
+```
+
+確認計劃後再執行：
+
+```bash
+npx @adamchanadam/agent-handoff-kit upgrade
+```
+
+升級工具會保留既有檔案。能安全合併時才合併；不能安全合併時會報 conflict，不會靜默覆寫。
+
+## 語言使用
+
+安裝後的核心指令文件預設使用英文，原因是不同 AI 工具對英文結構較穩定。這不是限制你的專案必須用英文。
+
+你的交接筆記、任務說明和文件內容可以使用中文或其他語言。需要機器檢查的結構，會由模板內的 `ack:section:*` 與 `ack:field:*` 標記承擔。
+
+## 原始碼倉庫驗收
+
+以下指令供維護者檢查原始碼倉庫，不是一般用戶日常必須執行的步驟：
+
+```bash
+npm run qa:prototype
+npm run qa:packs
+npm run qa:upgrade
+npm run qa:release
+```
+
+這些檢查涵蓋安裝、`doctor`、套件預演、過時字串、公開輸出污染標記、工作規則路由、升級安全，以及從安裝到收工再到下一次開工的流程模擬。
+
+## 套件邊界
+
+npm package 只包含安裝所需內容：
+
+- `bin/`
+- `runtime-core/`
+- `packs/`
+- `README.md`
+- `LICENSE`
+- `package.json`
+
+原始碼倉庫中的驗收文件與腳本供維護者使用，不會安裝到你的專案。
+
+## 目前限制
+
+- `v0.1.1` 目前只是候選版準備；npm 已正式發佈版本仍是 `v0.1.0`。
+- 這仍是早期可用版本，尚未宣稱完整穩定。
+- 升級合併仍是窄範圍策略，不是完整的複雜合併工具。
+- `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。
+- 未取得明確批准前，不應因安裝成功而自動建立新版本、發佈或上傳任何內容。

@@ -133,7 +133,7 @@ const requiredAnchors = [
     label: "template version metadata",
     snippets: [
       "Agent Handoff Kit template version",
-      "0.1.0"
+      "0.1.1"
     ]
   },
   {
@@ -349,8 +349,7 @@ async function runInstall(command, root, options, version) {
   console.log(`conflict: ${conflicts.length}`);
   if (merged.length > 0) console.log(`backup: ${path.relative(root, backupDir)}`);
   console.log(`migration report: ${path.relative(root, report)}`);
-  console.log("next: Follow AGENTS.md");
-  console.log("tip: Describe your task directly; the AI will choose the working mode and relevant rule packs.");
+  printInstallNextSteps(root, conflicts.length);
   if (conflicts.length > 0) process.exitCode = 1;
 }
 
@@ -640,6 +639,31 @@ function printCard(version, status, eyes) {
   console.log("");
 }
 
+function printInstallNextSteps(root, conflictCount) {
+  console.log("");
+  console.log("============================================================");
+  console.log("安裝完成：下一步請在 AI 對話中操作");
+  console.log("============================================================");
+  if (conflictCount > 0) {
+    console.log("狀態：有檔案需要你先處理，詳情見 migration report。");
+    console.log("請不要忽略 conflict，也不要直接覆寫既有檔案。");
+    console.log("");
+  }
+  console.log("請注意：下面文字不是 Terminal 指令。");
+  console.log("請打開你要使用的 AI 工具，新增一段對話，貼上：");
+  console.log("------------------------------------------------------------");
+  console.log(`Work in ${root}.`);
+  console.log("Read AGENTS.md first. Tell me what you understand before changing files.");
+  console.log("------------------------------------------------------------");
+  console.log("");
+  console.log("然後直接描述你的任務，例如：");
+  console.log("整理這個專案，先告訴我你讀到的目前狀態與下一步。");
+  console.log("");
+  console.log("如要檢查安裝是否完整，可在 Terminal 執行：");
+  console.log("npx @adamchanadam/agent-handoff-kit doctor");
+  console.log("============================================================");
+}
+
 function listOrNone(items) {
   if (items.length === 0) return ["- none"];
   return items.map((item) => `- ${item}`);
@@ -668,8 +692,9 @@ Commands:
   upgrade   Preserve existing files; merge safe core updates or report conflicts.
   doctor    Check required installed files.
 
-Working modes:
-  Describe your task directly. The AI chooses relevant rule packs for coding,
-  research, writing, knowledge sync, release, or mixed tasks.
+After install:
+  Do not type "Follow AGENTS.md" into Terminal.
+  Open your AI tool, start a new chat, paste the shown Work in ... message,
+  then describe your task in normal language.
 `);
 }
