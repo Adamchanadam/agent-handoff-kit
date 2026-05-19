@@ -34,8 +34,7 @@ function main() {
   assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.3.tgz")), "npm dry-run left a tarball behind");
 
   assertIncludes("README.md", [
-    "GitHub source release `v0.1.3` 已正式發佈",
-    "npm latest 仍是 `v0.1.2`",
+    "`v0.1.3` 已正式發佈到 GitHub 與 npm",
     "## 安裝後第一步",
     "不要在 Terminal 輸入 `Follow AGENTS.md`",
     "請特別留意：那一段不是給 Terminal 的指令",
@@ -55,7 +54,7 @@ function main() {
 
   assertIncludes("CHANGELOG.md", [
     "## v0.1.3 — 2026-05-19",
-    "未 npm publish",
+    "已 npm publish",
     "## v0.1.2 — 2026-05-19",
     "修正 `v0.1.1` package README",
     "## v0.1.1 — 2026-05-19",
@@ -72,8 +71,8 @@ function main() {
     "任務入口",
     "不屬於 npm package",
     "v0.1.2 發佈狀態",
-    "v0.1.3 GitHub source release 狀態",
-    "npm latest 仍是 `v0.1.2`",
+    "v0.1.3 發佈狀態",
+    "npm latest 為 `0.1.3`",
     "v0.1.1 發佈狀態",
     "v0.1.0 已發佈狀態",
     "發佈後仍需驗證",

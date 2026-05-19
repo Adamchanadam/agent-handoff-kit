@@ -2,7 +2,7 @@
 
 ## v0.1.3 — 2026-05-19
 
-狀態：GitHub source release。此版本已建立 tag 與 GitHub Release；未 npm publish，npm latest 仍是 `v0.1.2`。
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。
 
 ### 已改善
 

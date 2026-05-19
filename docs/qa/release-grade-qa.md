@@ -81,28 +81,28 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 使用者已明確批准 tag、GitHub Release 與 push；未明確批准 npm publish。 | 通過 |
-| 版本口徑 | GitHub source release 採 `0.1.3`，與 `package.json` 目前版本一致；npm latest 仍是 `0.1.2`。 | 通過 |
+| 發佈授權 | 使用者已明確批准 tag、GitHub Release、push 與 npm publish，並要求 GitHub 與 npm 同版本。 | 通過 |
+| 版本口徑 | 發佈版本採 `0.1.3`，GitHub 與 npm 同版本。 | 通過 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 僅包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、CHANGELOG、發佈級 QA、package metadata 與 CLI help 已對齊 `v0.1.3` GitHub source release 口徑，並明示 npm latest 仍是 `v0.1.2`。 | 通過 |
+| 公開文件一致性 | README、CHANGELOG、發佈級 QA、package metadata 與 CLI help 已對齊 `v0.1.3` GitHub 與 npm 正式發佈口徑。 | 通過 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬與本地化 handoff 標題。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補 Terminal 成功提示與 README，用戶可分清 Terminal 檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.3` source release 變更說明，並保留 `v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
-| 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 npm latest 仍是 `v0.1.2`。 | 通過 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.3` 正式發佈變更說明，並保留 `v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
+| 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.3` 已發佈。 | 通過 |
 
-## v0.1.3 GitHub source release 狀態
+## v0.1.3 發佈狀態
 
 - 發佈版本：`0.1.3`。
 - release notes：`CHANGELOG.md` 的 `v0.1.3` 段落。
 - 發佈內容：R-016 doctor 版本錨點修復、R-017 emoji / 精簡開工 prompt、R-018 CLI 非阻塞版本自檢。
-- 發佈前驗收：完整四條 QA、版本號確認、package boundary、GitHub Release 材料。
-- npm 狀態：未 npm publish；npm latest 仍是 `0.1.2`。
+- 發佈前驗收：完整四條 QA、版本號確認、package boundary、GitHub Release 材料、npm package metadata。
+- npm 狀態：已 npm publish；npm latest 為 `0.1.3`。
 
 ## v0.1.2 發佈狀態
 
