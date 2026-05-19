@@ -133,7 +133,7 @@ const requiredAnchors = [
     label: "template version metadata",
     snippets: [
       "Agent Handoff Kit template version",
-      "0.1.1"
+      "0.1.2"
     ]
   },
   {

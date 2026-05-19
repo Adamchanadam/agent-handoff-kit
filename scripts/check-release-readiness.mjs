@@ -15,7 +15,7 @@ main();
 function main() {
   const packageJson = JSON.parse(read("package.json"));
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
-  assert(packageJson.version === "0.1.1", "package version drifted from current candidate baseline");
+  assert(packageJson.version === "0.1.2", "package version drifted from current release baseline");
   assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "LICENSE"]), "npm package files boundary changed");
   assert(packageJson.scripts["qa:prototype"], "qa:prototype script is missing");
   assert(packageJson.scripts["qa:packs"], "qa:packs script is missing");
@@ -31,10 +31,10 @@ function main() {
   assert(packText.includes("total files: 20"), "npm dry-run did not report expected 20 package files");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
-  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.1.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.2.tgz")), "npm dry-run left a tarball behind");
 
   assertIncludes("README.md", [
-    "狀態：原始碼倉庫正在準備 `v0.1.1` 候選版",
+    "狀態：`v0.1.2` 已正式發佈",
     "## 安裝後第一步",
     "不要在 Terminal 輸入 `Follow AGENTS.md`",
     "請特別留意：那一段不是給 Terminal 的指令",
@@ -53,8 +53,10 @@ function main() {
   ]);
 
   assertIncludes("CHANGELOG.md", [
+    "## v0.1.2 — 2026-05-19",
+    "修正 `v0.1.1` package README",
     "## v0.1.1 — 2026-05-19",
-    "候選版準備",
+    "正式發佈版本",
     "## v0.1.0 — 2026-05-17",
     "早期正式發佈版本",
     "原始碼倉庫專用 `npm run qa:release`",
@@ -66,7 +68,8 @@ function main() {
     "用戶流程驗收",
     "任務入口",
     "不屬於 npm package",
-    "v0.1.1 候選狀態",
+    "v0.1.2 發佈狀態",
+    "v0.1.1 發佈狀態",
     "v0.1.0 已發佈狀態",
     "發佈後仍需驗證",
     "不得因 `v0.1.0` 已發佈而宣稱",

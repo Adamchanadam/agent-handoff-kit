@@ -38,7 +38,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
   assert(outputText(pack).includes("total files: 20"), "npm dry-run did not report expected 20 package files");
-  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.1.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.2.tgz")), "npm dry-run left a tarball behind");
 
   const hits = scanForbiddenText(root);
   assert(hits.length === 0, formatHits(hits));

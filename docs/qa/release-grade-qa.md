@@ -81,28 +81,34 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 使用者已批准準備下一個候選版，但未批准建立 tag、GitHub Release 或 npm publish。 | 阻擋正式發佈；可做候選準備 |
-| 版本口徑 | 下一候選版本採 `0.1.1`，與 `package.json` 目前版本一致。 | 候選通過；正式發佈前須再確認 |
+| 發佈授權 | 使用者已明確批准 commit、tag、GitHub Release 與 npm publish。 | 通過 |
+| 版本口徑 | 發佈版本採 `0.1.2`，與 `package.json` 目前版本一致。 | 通過 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 僅包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、CHANGELOG、發佈級 QA、package metadata 與 CLI help 已對齊 `0.1.1` 候選口徑；README 明示 npm 已發佈版本仍為 `0.1.0`。 | 已準備，發佈前需人工終讀 |
+| 公開文件一致性 | README、CHANGELOG、發佈級 QA、package metadata 與 CLI help 已對齊 `0.1.2` 正式發佈口徑。 | 通過 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬與本地化 handoff 標題。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補 Terminal 成功提示與 README，用戶可分清 Terminal 檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.1` 候選版變更說明，並保留 `v0.1.0` 已發佈紀錄。 | 候選通過；正式發佈前須轉為 release notes |
-| 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，同時明示目前 npm 已發佈版本仍是 `v0.1.0`。 | 通過 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.2` 修正版變更說明，並保留 `v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
+| 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.2` 已正式發佈。 | 通過 |
 
-## v0.1.1 候選狀態
+## v0.1.2 發佈狀態
 
-- 候選版本：`0.1.1`。
-- release notes 候選來源：`CHANGELOG.md` 的 `v0.1.1` 段落。
-- 候選內容：安裝後新手指示、README 用戶向重整、治理 QA 缺口矩陣、舊誤導提示負面檢查。
-- 發佈邊界：未建立 tag、未建立 GitHub Release、未 npm publish；正式發佈前仍須使用者另行明確批准。
-- 發佈前仍需驗證：完整四條 QA、人工終讀、版本號確認、npm package metadata、`npx` 實際安裝與 `doctor`。
+- 發佈版本：`0.1.2`。
+- release notes：`CHANGELOG.md` 的 `v0.1.2` 段落。
+- 發佈內容：修正 `v0.1.1` package README 仍顯示候選狀態的文件事實錯誤。
+- 發佈前驗收：完整四條 QA、版本號確認、npm package metadata、`npx` 實際安裝與 `doctor`。
+
+## v0.1.1 發佈狀態
+
+- 發佈版本：`0.1.1`。
+- release notes：`CHANGELOG.md` 的 `v0.1.1` 段落。
+- 發佈內容：安裝後新手指示、README 用戶向重整、治理 QA 缺口矩陣、舊誤導提示負面檢查。
+- 已知補救：`v0.1.2` 修正 `v0.1.1` package README 的發佈狀態文字。
 
 ## v0.1.0 已發佈狀態
 

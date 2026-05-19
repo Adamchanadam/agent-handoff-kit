@@ -1,8 +1,17 @@
 # 變更紀錄
 
+## v0.1.2 — 2026-05-19
+
+狀態：正式發佈版本。此版本修正 `v0.1.1` package README 仍顯示候選狀態的文件事實錯誤。
+
+### 已修正
+
+- README、發佈級 QA、版本 metadata 與 QA 腳本已對齊正式發佈狀態。
+- 保留 `v0.1.1` 的功能改善，同時避免 npm package 頁面誤導用戶以為最新版本仍是候選版。
+
 ## v0.1.1 — 2026-05-19
 
-狀態：候選版準備。此版本尚未建立 tag、尚未建立 GitHub Release、尚未 npm publish。
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish；`v0.1.2` 修正其 README 發佈狀態文字。
 
 ### 已改善
 
