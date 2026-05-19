@@ -65,8 +65,7 @@ yes
 你可以貼上類似以下文字：
 
 ```text
-Work in <你的專案資料夾>.
-Read AGENTS.md first. Tell me what you understand before changing files.
+Work in <你的專案資料夾>. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.
 ```
 
 接著再寫你的任務，例如：
@@ -127,13 +126,18 @@ dev/rules/*.md
 
 ## 日常使用方式
 
-每次開始新的 AI 工作階段時，建議先貼上上一輪收工產生的開工文字。若沒有那段文字，可以貼：
+每次開始新的 AI 工作階段，有兩種做法：
+
+1. 最佳：貼上上一輪收工產生的開工文字。那段文字內容最完整、最準確。
+2. 沒有那段文字時，貼上這一句就夠：
 
 ```text
-Work in <你的專案資料夾>.
-Read AGENTS.md, dev/SESSION_HANDOFF.md, dev/SESSION_LOG.md, dev/PROJECT_INDEX.md, and dev/RULE_PACKS.md.
-Tell me the current objective, pending work, risks, and your recommended next action before changing files.
+Work in <你的專案資料夾>. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.
 ```
+
+你不需要在提示內逐一列出檔案。`AGENTS.md` 本身已包含開工讀序，AI 讀它就會自行讀入交接、紀錄與索引。
+
+備用（只在你的 AI 工具沒有依 `AGENTS.md` 讀時才需要）：在上面那句後面加一句 `Also read dev/SESSION_HANDOFF.md and dev/SESSION_LOG.md.`。
 
 然後直接描述任務。
 

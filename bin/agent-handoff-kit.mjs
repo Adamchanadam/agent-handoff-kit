@@ -132,8 +132,7 @@ const requiredAnchors = [
     target: "dev/PROJECT_INDEX.md",
     label: "template version metadata",
     snippets: [
-      "Agent Handoff Kit template version",
-      "0.1.2"
+      "Agent Handoff Kit template version"
     ]
   },
   {
@@ -343,12 +342,12 @@ async function runInstall(command, root, options, version) {
   }
 
   const report = await writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir);
-  console.log(`\ncreated: ${created.length}`);
-  console.log(`merged: ${merged.length}`);
-  console.log(`skipped existing: ${plan.filter((item) => item.action === "skip").length}`);
-  console.log(`conflict: ${conflicts.length}`);
-  if (merged.length > 0) console.log(`backup: ${path.relative(root, backupDir)}`);
-  console.log(`migration report: ${path.relative(root, report)}`);
+  console.log(`\n✅ created: ${created.length}`);
+  console.log(`🔀 merged: ${merged.length}`);
+  console.log(`⏭️  skipped existing: ${plan.filter((item) => item.action === "skip").length}`);
+  console.log(`${conflicts.length > 0 ? "⚠️ " : "✅ "}conflict: ${conflicts.length}`);
+  if (merged.length > 0) console.log(`💾 backup: ${path.relative(root, backupDir)}`);
+  console.log(`📄 migration report: ${path.relative(root, report)}`);
   printInstallNextSteps(root, conflicts.length);
   if (conflicts.length > 0) process.exitCode = 1;
 }
@@ -642,25 +641,24 @@ function printCard(version, status, eyes) {
 function printInstallNextSteps(root, conflictCount) {
   console.log("");
   console.log("============================================================");
-  console.log("安裝完成：下一步請在 AI 對話中操作");
+  console.log("✅ 安裝完成：下一步請在 AI 對話中操作");
   console.log("============================================================");
   if (conflictCount > 0) {
-    console.log("狀態：有檔案需要你先處理，詳情見 migration report。");
-    console.log("請不要忽略 conflict，也不要直接覆寫既有檔案。");
+    console.log("⚠️  狀態：有檔案需要你先處理，詳情見 migration report。");
+    console.log("⚠️  請不要忽略 conflict，也不要直接覆寫既有檔案。");
     console.log("");
   }
-  console.log("請注意：下面文字不是 Terminal 指令。");
-  console.log("請打開你要使用的 AI 工具，新增一段對話，貼上：");
+  console.log("⚠️  請注意：下面文字不是 Terminal 指令。");
+  console.log("📋 請打開你要使用的 AI 工具，新增一段對話，貼上下面一句：");
   console.log("------------------------------------------------------------");
-  console.log(`Work in ${root}.`);
-  console.log("Read AGENTS.md first. Tell me what you understand before changing files.");
+  console.log(`Work in ${root}. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.`);
   console.log("------------------------------------------------------------");
   console.log("");
-  console.log("然後直接描述你的任務，例如：");
-  console.log("整理這個專案，先告訴我你讀到的目前狀態與下一步。");
+  console.log("🚀 然後直接描述你的任務，例如：");
+  console.log("   整理這個專案，先告訴我你讀到的目前狀態與下一步。");
   console.log("");
-  console.log("如要檢查安裝是否完整，可在 Terminal 執行：");
-  console.log("npx @adamchanadam/agent-handoff-kit doctor");
+  console.log("🩺 如要檢查安裝是否完整，可在 Terminal 執行：");
+  console.log("   npx @adamchanadam/agent-handoff-kit doctor");
   console.log("============================================================");
 }
 

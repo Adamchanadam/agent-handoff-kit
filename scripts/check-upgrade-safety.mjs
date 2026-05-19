@@ -49,10 +49,31 @@ function main() {
   assert(conflictText.includes("## Conflicts"), "conflict report missing conflicts section");
   assert(conflictText.includes("CLAUDE.md"), "conflict report missing CLAUDE.md");
 
+  // Regression guard for R-016: doctor must not fail just because the
+  // dev/PROJECT_INDEX.md template version row is older than the CLI version.
+  // Upgrade preserves PROJECT_INDEX (user-owned), so an older install must
+  // still pass doctor after upgrade.
+  const staleRoot = path.join(tmpdir(), `ack-upgrade-stalever-${Date.now()}`);
+  mkdirSync(staleRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", staleRoot], "init for stale-version scenario");
+  const staleIndexPath = path.join(staleRoot, "dev/PROJECT_INDEX.md");
+  const staleIndex = read(staleIndexPath).replace(
+    /\| Agent Handoff Kit template version \| [^|]*\|/,
+    "| Agent Handoff Kit template version | 0.1.0 |"
+  );
+  writeFileSync(staleIndexPath, staleIndex, "utf8");
+  assert(read(staleIndexPath).includes("| Agent Handoff Kit template version | 0.1.0 |"), "stale version row was not written");
+  const staleUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", staleRoot], "upgrade with stale version row");
+  assert(staleUpgrade.stdout.includes("dev/PROJECT_INDEX.md"), "upgrade did not mention PROJECT_INDEX handling");
+  assert(read(staleIndexPath).includes("| Agent Handoff Kit template version | 0.1.0 |"), "upgrade must preserve the user PROJECT_INDEX version row");
+  const staleDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", staleRoot], "doctor after stale-version upgrade");
+  assert(staleDoctor.stdout.includes("status: passed"), "doctor must pass even when PROJECT_INDEX version row is older than the CLI (R-016)");
+
   console.log("");
   console.log("Agent Handoff Kit upgrade safety QA passed");
   console.log(`merge root: ${mergeRoot}`);
   console.log(`conflict root: ${conflictRoot}`);
+  console.log(`stale-version root: ${staleRoot}`);
 }
 
 function run(command, args, label, options = {}) {
