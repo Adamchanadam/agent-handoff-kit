@@ -128,6 +128,8 @@ Continuity rule: this file carries current state and next action. `dev/SESSION_L
 <!-- ack:section:next-session-opening-message -->
 ## Next Session Opening Message
 
+This fenced block is the authoritative startup prompt. At closeout, regenerate `START_NEXT_SESSION_PROMPT.txt` from this block. If the two differ, trust this block and rewrite the convenience copy.
+
 📋 Next session: copy and paste the whole block below
 
 ```text

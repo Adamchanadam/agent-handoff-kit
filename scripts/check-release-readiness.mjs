@@ -15,7 +15,7 @@ main();
 function main() {
   const packageJson = JSON.parse(read("package.json"));
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
-  assert(packageJson.version === "0.1.3", "package version drifted from current release baseline");
+  assert(packageJson.version === "0.1.4", "package version drifted from current release baseline");
   assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "LICENSE"]), "npm package files boundary changed");
   assert(packageJson.scripts["qa:prototype"], "qa:prototype script is missing");
   assert(packageJson.scripts["qa:packs"], "qa:packs script is missing");
@@ -28,19 +28,22 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 20"), "npm dry-run did not report expected 20 package files");
+  assert(packText.includes("total files: 21"), "npm dry-run did not report expected 21 package files");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
-  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.3.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.4.tgz")), "npm dry-run left a tarball behind");
 
   assertIncludes("README.md", [
-    "`v0.1.3` 已正式發佈到 GitHub 與 npm",
-    "## 安裝後第一步",
-    "不要在 Terminal 輸入 `Follow AGENTS.md`",
+    "`v0.1.4` 已正式發佈到 GitHub 與 npm",
+    "AI Session 之間的接力棒",
+    "AI 跨對話失憶",
+    "agent-handoff-kit-intro.html",
     "請特別留意：那一段不是給 Terminal 的指令",
+    "START_NEXT_SESSION_PROMPT.txt",
+    "看到 `conflict` 不代表檔案壞掉",
     "## 它解決甚麼問題",
-    "## 日常使用",
-    "## 工作規則怎樣運作",
+    "## 三步上手",
+    "## 工作模式",
     "必讀資料",
     "npm run qa:prototype",
     "npm run qa:packs",
@@ -53,8 +56,9 @@ function main() {
   ]);
 
   assertIncludes("CHANGELOG.md", [
-    "## v0.1.3 — 2026-05-19",
+    "## v0.1.4 — 2026-05-20",
     "已 npm publish",
+    "## v0.1.3 — 2026-05-19",
     "## v0.1.2 — 2026-05-19",
     "修正 `v0.1.1` package README",
     "## v0.1.1 — 2026-05-19",
@@ -71,8 +75,9 @@ function main() {
     "任務入口",
     "不屬於 npm package",
     "v0.1.2 發佈狀態",
+    "v0.1.4 發佈狀態",
+    "npm latest 為 `0.1.4`",
     "v0.1.3 發佈狀態",
-    "npm latest 為 `0.1.3`",
     "v0.1.1 發佈狀態",
     "v0.1.0 已發佈狀態",
     "發佈後仍需驗證",
@@ -80,7 +85,9 @@ function main() {
     "安裝後指示驗收",
     "不是在 Terminal 繼續輸入",
     "治理 QA 缺口矩陣",
-    "執行落差"
+    "執行落差",
+    "技能／子代理流程仲裁驗收",
+    "技能流程覆蓋"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -89,6 +96,9 @@ function main() {
     "dev/RULE_PACKS.md",
     "Reachable is not the same as ingested",
     "Do not treat unread sources as absent",
+    "External skill flows, subagents, task plans",
+    "do not replace this loop",
+    "active project root",
     "ack:section:*",
     "State Reconciliation Check",
     "Do not append a new state snapshot"
@@ -100,6 +110,7 @@ function main() {
   assert(!install.stdout.includes("next: Follow AGENTS.md"), "install output still contains misleading old next line");
   const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow doctor");
   assert(doctor.stdout.includes("status: passed"), "doctor did not pass in release user-flow check");
+  assert(doctor.stdout.includes("✅ 檢查通過"), "doctor output missing beginner-friendly passed message");
   assert(doctor.stdout.includes("schema checks:"), "doctor did not run schema checks");
   assert(doctor.stdout.includes("dev/SESSION_HANDOFF.md (handoff required sections)"), "doctor did not check handoff schema");
   assert(doctor.stdout.includes("dev/PROJECT_INDEX.md (project index tables)"), "doctor did not check project index schema");
@@ -107,8 +118,10 @@ function main() {
 
   const installedHandoff = readAt(tempRoot, "dev/SESSION_HANDOFF.md");
   const installedLog = readAt(tempRoot, "dev/SESSION_LOG.md");
+  const installedPrompt = readAt(tempRoot, "START_NEXT_SESSION_PROMPT.txt");
   assert(installedHandoff.includes("📋 Next session: copy and paste the whole block below"), "installed handoff missing copy marker");
   assert(installedHandoff.includes("```text"), "installed handoff missing fenced text block");
+  assert(normalizePrompt(installedPrompt) === normalizePrompt(extractOpeningMessage(installedHandoff)), "installed START_NEXT_SESSION_PROMPT.txt does not match handoff opening message");
   assertHandoffMarker(installedHandoff, "section", "next-task-required-reading");
   assertHandoffMarker(installedHandoff, "section", "durable-anchors");
   assertHandoffMarker(installedHandoff, "section", "closeout-reconciled-state");
@@ -171,6 +184,7 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
 
   writeFileSync(path.join(tempRoot, "dev/SESSION_HANDOFF.md"), closedHandoff, "utf8");
   writeFileSync(path.join(tempRoot, "dev/SESSION_LOG.md"), logEntry, "utf8");
+  writeFileSync(path.join(tempRoot, "START_NEXT_SESSION_PROMPT.txt"), `${openingMessage}\n`, "utf8");
 
   const resumedDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow resumed doctor");
   assert(resumedDoctor.stdout.includes("status: passed"), "doctor did not pass after simulated closeout");
@@ -226,6 +240,10 @@ function extractOpeningMessage(text) {
   const fenceEnd = text.indexOf("```", contentStart + 1);
   assert(contentStart >= 0 && fenceEnd >= 0, "opening message text fence is not closed");
   return text.slice(contentStart + 1, fenceEnd).trim();
+}
+
+function normalizePrompt(text) {
+  return text.replace(/\r\n/g, "\n").trim();
 }
 
 function runQaScript(scriptName, label) {

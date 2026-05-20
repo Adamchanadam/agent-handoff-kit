@@ -43,6 +43,8 @@ function main() {
   const conflict = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", conflictRoot], "upgrade conflict scenario", { allowFailure: true });
   assert(conflict.status !== 0, "conflict scenario should return non-zero status");
   assert(outputText(conflict).includes("conflict: 1"), "conflict scenario did not report one conflict");
+  assert(outputText(conflict).includes("需要人工確認"), "conflict scenario did not explain the conflict in plain language");
+  assert(outputText(conflict).includes("這不是檔案壞掉"), "conflict scenario did not reassure that files are not broken");
   assert(read(path.join(conflictRoot, "CLAUDE.md")).includes("Do not replace this custom bridge."), "conflict file was overwritten");
   const conflictReport = latestReport(conflictRoot);
   const conflictText = read(conflictReport);

@@ -1,34 +1,31 @@
 # Agent Handoff Kit
 
-狀態：`v0.1.3` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
+狀態：`v0.1.4` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
 
-Agent Handoff Kit 是一套給 AI 專案使用的交接工具。它會在你的專案中放入一組固定文件，讓 AI 在下一次工作時知道：目前做到哪裡、哪些資料要先讀、哪些檔案不可亂動、收工時要留下甚麼。
+![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
-它不是聊天機器人，也不是另一個開發框架。它的作用比較像一本固定放在專案內的交接簿，讓不同 AI 工具和不同工作階段都能接上同一條線。
+Agent Handoff Kit 是 **AI Session 之間的接力棒**。
+
+它只處理一件狹窄但重要的事：AI 跨對話失憶。每次開新對話，AI 往往不記得你上次做到哪裡，也認不出中途新建的文件、你引入的參考資料、哪些檔案是真源。這套工具把進度、下一步、風險、檔案登記與下次開工提示寫進固定文件，讓下一個 AI 工具能接得上上一棒。
+
+想先看非技術版介紹，可打開 GitHub repo 內的 [`agent-handoff-kit-intro.html`](agent-handoff-kit-intro.html)。那一頁是新手 60 秒入門，README 則保留安裝、日常使用與限制。
 
 ## 它解決甚麼問題
 
-AI 很容易在新工作階段失去前文。它可能不知道上次改了甚麼、哪些文件才是最新、哪些資料只是參考、哪些操作需要先問你。
+用 AI 做長期項目，常見四個問題：
 
-Agent Handoff Kit 把這些事情寫進專案文件：開工先讀哪裡、任務前要確認哪些必讀資料、收工要留下哪些交接內容、下次要貼哪段文字重新開始。
+| 問題 | Agent Handoff Kit 怎樣處理 |
+|---|---|
+| 新 AI 不知做到哪 | 用 `dev/SESSION_HANDOFF.md` 保存目前狀態、下一步、風險與驗收。 |
+| 新建檔案、參考資料變孤兒 | 用 `dev/PROJECT_INDEX.md` 與 `dev/DOC_SYNC_REGISTRY.md` 登記檔案角色、真源與同步責任。 |
+| 不同 AI 工具入口不同 | 同時安裝 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，全部指向同一套開工流程。 |
+| AI 可能亂改、亂刪或誤發佈 | 內置 safety 工作模式；高風險操作必須先講計劃，破壞性指令與未批准發佈一律禁止。 |
 
-## 適合誰使用
+它不是聊天機器人，也不是開發框架。它比較像一本固定放在專案內的交接簿。
 
-適合以下情況：
+## 三步上手
 
-- 你會隔幾天才回到同一個 AI 專案。
-- 你會在 Codex、Claude Code、Gemini CLI 等工具之間切換。
-- 你希望 AI 每次開始前先讀專案狀態，而不是重新猜背景。
-- 你希望收工時留下下一次可直接貼上的開工文字。
-- 你不是開發人員，但想讓 AI 在長期專案中穩定接力。
-
-不適合以下情況：
-
-- 只問一次性問題，不需要保存專案狀態。
-- 不想在專案內新增任何交接文件。
-- 需要已完全成熟的穩定版安裝工具。
-
-## 安裝
+### 一、安裝
 
 在你的專案資料夾打開 Terminal，執行：
 
@@ -36,134 +33,23 @@ Agent Handoff Kit 把這些事情寫進專案文件：開工先讀哪裡、任�
 npx @adamchanadam/agent-handoff-kit init
 ```
 
-出現確認問題時，輸入：
+出現確認問題時，輸入 `yes`。
 
-```text
-y
-```
+安裝完成後，你會看到一段 `Work in ...` 文字。請特別留意：那一段不是給 Terminal 的指令，而是要貼到 AI 對話。
 
-若工具列出即將建立的文件，並詢問是否寫入，請輸入：
+### 二、開工
 
-```text
-yes
-```
-
-安裝完成後，你會看到一個「下一步」區塊。請特別留意：那一段不是給 Terminal 的指令，而是給 AI 對話使用的文字。
-
-## 安裝後第一步
-
-安裝完成後，不要在 Terminal 輸入 `Follow AGENTS.md`。
-
-正確做法是：
-
-1. 打開你要使用的 AI 工具。
-2. 新增一段對話。
-3. 貼上安裝工具顯示的 `Work in ...` 文字。
-4. 要求 AI 先讀 `AGENTS.md`，並在改檔前說明它讀到的目前狀態。
-5. 然後直接描述你要完成的任務。
-
-你可以貼上類似以下文字：
+打開你想用的 AI 工具，在新對話貼上安裝工具顯示的文字。沒有那段文字時，可貼這句：
 
 ```text
 Work in <你的專案資料夾>. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.
 ```
 
-接著再寫你的任務，例如：
+然後用日常話描述你要完成的任務。AI 應先讀交接文件，說明目前狀態、下一步與風險，再開始工作。
 
-```text
-整理這個專案，先告訴我目前狀態、下一步、風險，暫時不要改檔。
-```
+### 三、收工
 
-或：
-
-```text
-更新 README，完成後檢查交接文件是否仍然準確。
-```
-
-## 檢查是否安裝完整
-
-如要檢查安裝是否完整，可在 Terminal 執行：
-
-```bash
-npx @adamchanadam/agent-handoff-kit doctor
-```
-
-看到 `status: passed`，代表必要文件與基本結構存在。
-
-這個檢查只能確認文件結構，不代表 AI 已理解你的專案。真正開始工作前，仍應要求 AI 先讀入口文件並說明目前狀態。
-
-## 版本提示
-
-CLI 執行時會短暫檢查 npm 上是否有更新版本。若有新版，會顯示更新提示與 release notes 連結；若離線、網路逾時或檢查失敗，原本的 `init`、`upgrade`、`doctor` 仍會照常執行。
-
-若你不想檢查更新，可設定：
-
-```bash
-AGENT_HANDOFF_KIT_NO_UPDATE_CHECK=1
-```
-
-## 會安裝甚麼
-
-安裝工具會在你的專案中建立以下文件：
-
-```text
-AGENTS.md
-CLAUDE.md
-GEMINI.md
-dev/SESSION_HANDOFF.md
-dev/SESSION_LOG.md
-dev/PROJECT_INDEX.md
-dev/DOC_SYNC_REGISTRY.md
-dev/RULE_PACKS.md
-dev/rules/*.md
-```
-
-每個文件的用途如下：
-
-| 文件 | 用途 |
-|---|---|
-| `AGENTS.md` | AI 開工時最先讀的入口文件。 |
-| `CLAUDE.md` | 讓 Claude Code 找到同一套入口。 |
-| `GEMINI.md` | 讓 Gemini CLI 找到同一套入口。 |
-| `dev/SESSION_HANDOFF.md` | 保存目前狀態、下一步、風險、驗收結果與下一次開工文字。 |
-| `dev/SESSION_LOG.md` | 保存近期實際做過的事與檢查結果。 |
-| `dev/PROJECT_INDEX.md` | 記錄專案檔案、必讀資料、外部來源與常用檢查。 |
-| `dev/DOC_SYNC_REGISTRY.md` | 記錄哪些文件改動後需要同步。 |
-| `dev/RULE_PACKS.md` | 告訴 AI 不同任務應讀哪些工作規則。 |
-| `dev/rules/*.md` | 按任務載入的細分工作規則。 |
-
-你不需要自己逐一閱讀全部文件。你的工作是描述目標；AI 的工作是讀入口文件、判斷要讀哪些資料，再告訴你它準備怎樣做。
-
-## 日常使用方式
-
-每次開始新的 AI 工作階段，有兩種做法：
-
-1. 最佳：貼上上一輪收工產生的開工文字。那段文字內容最完整、最準確。
-2. 沒有那段文字時，貼上這一句就夠：
-
-```text
-Work in <你的專案資料夾>. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.
-```
-
-你不需要在提示內逐一列出檔案。`AGENTS.md` 本身已包含開工讀序，AI 讀它就會自行讀入交接、紀錄與索引。
-
-備用（只在你的 AI 工具沒有依 `AGENTS.md` 讀時才需要）：在上面那句後面加一句 `Also read dev/SESSION_HANDOFF.md and dev/SESSION_LOG.md.`。
-
-然後直接描述任務。
-
-對簡單任務，可以這樣寫：
-
-```text
-幫我檢查 README 是否清楚，先只提出問題，不要改檔。
-```
-
-對需要改檔的任務，可以這樣寫：
-
-```text
-請更新 README 的安裝後說明，完成後執行必要檢查，並告訴我改了甚麼。
-```
-
-對需要收工的情況，只需輸入：
+工作完成想結束時，只需輸入：
 
 ```text
 收工
@@ -176,37 +62,110 @@ wrap up
 handoff
 ```
 
-AI 應更新交接文件，並輸出下一次可直接貼上的開工文字。那段文字會放在 fenced `text` code block 內，方便完整複製。
+AI 應更新交接文件，並輸出下一次可直接貼上的開工文字。最終回覆會把那段文字放在 fenced `text` code block 內，方便完整複製。安裝後也會有一個更直覺的副本檔：
 
-## 工作規則怎樣運作
+```text
+START_NEXT_SESSION_PROMPT.txt
+```
 
-Agent Handoff Kit 會把任務分成不同工作模式。例如：
+這個檔案只是方便你複製下次開工提示；真正權威來源仍是 `dev/SESSION_HANDOFF.md` 裡的 `Next Session Opening Message`。若兩者不同，永遠以 `dev/SESSION_HANDOFF.md` 為準重生副本。
+
+## 檢查是否安裝完整
+
+如要檢查安裝是否完整，可在 Terminal 執行：
+
+```bash
+npx @adamchanadam/agent-handoff-kit doctor
+```
+
+看到 `status: passed`，代表必要文件、基本結構與 `START_NEXT_SESSION_PROMPT.txt` 副本一致性通過檢查。
+
+這個檢查只能確認文件結構，不代表 AI 已理解你的專案。真正開始工作前，仍應要求 AI 先讀入口文件並說明目前狀態。
+
+## 會安裝甚麼
+
+安裝工具會在你的專案中建立：
+
+```text
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+START_NEXT_SESSION_PROMPT.txt
+dev/SESSION_HANDOFF.md
+dev/SESSION_LOG.md
+dev/PROJECT_INDEX.md
+dev/DOC_SYNC_REGISTRY.md
+dev/RULE_PACKS.md
+dev/rules/*.md
+```
+
+| 文件 | 用途 |
+|---|---|
+| `AGENTS.md` | AI 開工時最先讀的入口文件。 |
+| `CLAUDE.md` | 讓 Claude Code 找到同一套入口。 |
+| `GEMINI.md` | 讓 Gemini CLI 找到同一套入口。 |
+| `START_NEXT_SESSION_PROMPT.txt` | 下次開工時可直接貼上的便利副本；由 handoff 產生。 |
+| `dev/SESSION_HANDOFF.md` | 保存目前狀態、下一步、風險、驗收結果與下一次開工文字。 |
+| `dev/SESSION_LOG.md` | 保存近期實際做過的事與檢查結果。 |
+| `dev/PROJECT_INDEX.md` | 記錄專案檔案、必讀資料、外部來源與常用檢查。 |
+| `dev/DOC_SYNC_REGISTRY.md` | 記錄哪些文件改動後需要同步。 |
+| `dev/RULE_PACKS.md` | 告訴 AI 不同任務應讀哪些工作規則。 |
+| `dev/rules/*.md` | 按任務載入的細分工作規則。 |
+
+你不需要自己逐一閱讀全部文件。你的工作是描述目標；AI 的工作是讀入口文件、判斷要讀哪些資料，再告訴你它準備怎樣做。
+
+## 工作模式
+
+你不需要記規則包名稱，只要描述任務。AI 會按任務切換工作模式。
 
 | 你的任務 | AI 應使用的工作規則 |
 |---|---|
-| 修改程式、檢查錯誤、執行測試 | `coding`；涉及刪除、覆寫、Git、套件管理或外部服務時加 `safety` |
+| 寫或改代碼、檢查錯誤、執行測試 | `coding`；涉及刪除、覆寫、Git、套件管理或外部服務時加 `safety` |
+| 查資料、比較來源、整理證據 | `research` |
 | 改 README、寫說明、整理文案 | `writing`，通常再加 `communication` |
-| 查證資料、比較來源、整理證據 | `research` |
 | 整理 Notion、Google Drive 或知識庫 | `knowledge` |
 | 準備發佈說明 | `release`；真正發佈、上傳或建立版本前必須加 `safety` |
+| 改規則、改流程、整理交接 | `agent-governance`；先找既有真源，不盲目新增規則 |
 
 原則是只讀當前任務需要的規則，不是每次讀全部文件。
 
-## 既有專案升級
+## 安全護欄
 
-若你的專案已經有 `AGENTS.md` 或其他 AI 記憶文件，請先預演，不要直接覆寫：
+就算你不懂代碼，這套工具也會要求 AI 在高風險操作前停下來講清楚。
+
+- 禁止破壞性指令：例如 `rm -rf`、`git reset --hard`、強制推送、系統根路徑操作。
+- 機密保護：`.env`、API key、token 不可印出、不可 commit、不可上傳。
+- 查證不猜：用第三方 API、CLI、SDK 前先查官方文件；查不到就標示未核實。
+- 權限不足就停手：檔案被鎖或沒有權限時，輸出手動操作清單，不嘗試繞過。
+- 發佈需明確批准：tag、GitHub Release、npm publish、部署或上傳都不能因「準備好了」而自動執行。
+
+## 已安裝舊版，或已有 AI 記憶文件？
+
+如果你的專案已經裝過舊版 Agent Handoff Kit，或本來已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 等 AI 記憶文件，先用最新版 CLI dry-run  預演會發生甚麼：
 
 ```bash
-npx @adamchanadam/agent-handoff-kit upgrade --dry-run
+npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
 ```
 
-確認計劃後再執行：
+確認沒有問題後，再執行：
 
 ```bash
-npx @adamchanadam/agent-handoff-kit upgrade
+npx @adamchanadam/agent-handoff-kit@latest upgrade
 ```
 
-升級工具會保留既有檔案。能安全合併時才合併；不能安全合併時會報 conflict，不會靜默覆寫。
+`@latest` 代表使用 npm 上最新的 Agent Handoff Kit CLI。`upgrade` 則負責把專案內已安裝的 Kit 文件、規則與檢查結構安全更新。升級工具會保留既有檔案；能安全合併時才合併，不能安全合併時會報 conflict，不會靜默覆寫。
+
+看到 `conflict` 不代表檔案壞掉。它只代表工具不能安全判斷怎樣合併，所以先停手，等你或 AI 判斷下一步。最簡單做法是把 dry-run 輸出貼給 AI，請它幫你判斷要保留、合併，還是手動修改。
+
+## 版本提示
+
+CLI 執行時會短暫檢查 npm 上是否有更新版本。若有新版，會顯示更新提示與 release notes 連結；若離線、網路逾時或檢查失敗，原本的 `init`、`upgrade`、`doctor` 仍會照常執行。
+
+若你不想檢查更新，可設定：
+
+```bash
+AGENT_HANDOFF_KIT_NO_UPDATE_CHECK=1
+```
 
 ## 語言使用
 
@@ -238,11 +197,11 @@ npm package 只包含安裝所需內容：
 - `LICENSE`
 - `package.json`
 
-原始碼倉庫中的驗收文件與腳本供維護者使用，不會安裝到你的專案。
+GitHub repo 內的新手介紹頁 `agent-handoff-kit-intro.html` 與 `images/` 是原始碼倉庫資產，不會安裝到你的專案。
 
 ## 目前限制
 
-- `v0.1.3` 是 GitHub 與 npm 同步發佈版本。
+- `v0.1.4` 是 GitHub 與 npm 同步發佈版本。
 - 這是早期可用版本，尚未宣稱完整穩定。
 - 升級合併仍是窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

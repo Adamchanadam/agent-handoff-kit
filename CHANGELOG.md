@@ -1,5 +1,16 @@
 # 變更紀錄
 
+## v0.1.4 — 2026-05-20
+
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。
+
+### 已改善
+
+- 新增 `START_NEXT_SESSION_PROMPT.txt` 作為下次開工可直接貼上的便利副本；`dev/SESSION_HANDOFF.md` 仍是權威真源，`doctor` 會檢查副本與 handoff opening message 是否一致。
+- 新增 public GitHub 新手介紹頁 `agent-handoff-kit-intro.html` 與品牌圖片；README 首屏、三步上手、工作模式與安全說明已跟隨該頁的 onboarding message。
+- `init`、`upgrade --dry-run`、`doctor`、help 與版本提示輸出補上中文人話解讀與功能性 emoji，讓新手知道 conflict、dry-run、doctor failed 下一步應怎樣做。
+- 外部技能流程、子代理計劃、demo workspace 或其他工具的 closeout 不再可被視為取代目前根目錄的 Agent Handoff Kit 持久化；核心規則、治理規則包與 QA 錨點已補防線。
+
 ## v0.1.3 — 2026-05-19
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。

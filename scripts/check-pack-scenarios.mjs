@@ -63,7 +63,7 @@ const scenarios = [
     name: "agent governance",
     route: ["Governance, prompts, agents", "dev/rules/agent-governance.md"],
     pack: "agent-governance",
-    snippets: ["source of truth", "append-only", "public runtime", "Before creating durable workflow", "dev/PROJECT_INDEX.md"]
+    snippets: ["source of truth", "append-only", "public runtime", "Before creating durable workflow", "dev/PROJECT_INDEX.md", "external skills", "subagents", "active root's Agent Handoff Kit governance"]
   },
   {
     name: "communication",

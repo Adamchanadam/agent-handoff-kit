@@ -13,6 +13,7 @@ const mappings = [
   ["runtime-core/AGENTS.core.md", "AGENTS.md"],
   ["runtime-core/CLAUDE.md", "CLAUDE.md"],
   ["runtime-core/GEMINI.md", "GEMINI.md"],
+  ["runtime-core/START_NEXT_SESSION_PROMPT.txt", "START_NEXT_SESSION_PROMPT.txt"],
   ["runtime-core/SESSION_HANDOFF.md", "dev/SESSION_HANDOFF.md"],
   ["runtime-core/SESSION_LOG.md", "dev/SESSION_LOG.md"],
   ["runtime-core/PROJECT_INDEX.md", "dev/PROJECT_INDEX.md"],
@@ -63,7 +64,18 @@ const requiredAnchors = [
       "handoff saved",
       "📋 Next session: copy and paste the whole block below",
       "State Reconciliation Check",
-      "Do not append a new state snapshot"
+      "Do not append a new state snapshot",
+      "START_NEXT_SESSION_PROMPT.txt"
+    ]
+  },
+  {
+    target: "START_NEXT_SESSION_PROMPT.txt",
+    label: "next-session prompt convenience copy",
+    snippets: [
+      "Work in ",
+      "Read in order:",
+      "dev/PROJECT_INDEX.md",
+      "If this root does not match the expected project root"
     ]
   },
   {
@@ -307,6 +319,7 @@ async function runInstall(command, root, options, version) {
 
   if (options.dryRun) {
     console.log("\ndry-run: no files written");
+    printDryRunExplanation(plan);
     if (plan.some((item) => item.action === "conflict")) process.exitCode = 1;
     return;
   }
@@ -369,6 +382,8 @@ async function runDoctor(root, version) {
 
   if (missing.length > 0) {
     console.log(`\nstatus: failed (${missing.length} missing)`);
+    console.log("⚠️  檢查未通過：有必要檔案不存在。");
+    console.log("下一步：先確認你是否在正確專案資料夾；如是，執行 init 或 upgrade 補回缺少檔案。");
     process.exitCode = 1;
     return;
   }
@@ -382,6 +397,8 @@ async function runDoctor(root, version) {
 
   if (anchorFailures.length > 0) {
     console.log(`\nstatus: failed (${anchorFailures.length} anchor checks failed)`);
+    console.log("⚠️  檢查未通過：有檔案存在，但內容缺少必要段落。");
+    console.log("下一步：執行 upgrade --dry-run 查看可否安全補齊；不要手動覆寫既有檔案。");
     process.exitCode = 1;
     return;
   }
@@ -398,11 +415,69 @@ async function runDoctor(root, version) {
 
   if (schemaFailures.length > 0) {
     console.log(`\nstatus: failed (${schemaFailures.length} schema checks failed)`);
+    console.log("⚠️  檢查未通過：交接或索引文件結構不完整。");
+    console.log("下一步：把這段 doctor 輸出貼給 AI，請它先修交接結構，不要直接重裝覆蓋。");
+    process.exitCode = 1;
+    return;
+  }
+
+  const mirrorRows = await checkPromptMirror(root);
+  const mirrorFailures = mirrorRows.filter((row) => !row.ok);
+  console.log(`\nprompt mirror checks: ${mirrorRows.length}`);
+  for (const row of mirrorRows) {
+    console.log(`${row.ok ? "ok" : "missing"}  ${row.target} (${row.label})`);
+    if (!row.ok && row.reason) console.log(`  reason: ${row.reason}`);
+  }
+
+  if (mirrorFailures.length > 0) {
+    console.log(`\nstatus: failed (${mirrorFailures.length} prompt mirror checks failed)`);
+    console.log("⚠️  檢查未通過：下次開工提示副本與 handoff 真源不同。");
+    console.log("下一步：以 dev/SESSION_HANDOFF.md 的 Next Session Opening Message 為準，重生 START_NEXT_SESSION_PROMPT.txt。");
     process.exitCode = 1;
     return;
   }
 
   console.log("\nstatus: passed");
+  console.log("✅ 檢查通過：必要文件存在，基本結構完整，下次開工提示副本也與 handoff 一致。");
+}
+
+async function checkPromptMirror(root) {
+  const handoffPath = path.join(root, "dev/SESSION_HANDOFF.md");
+  const promptPath = path.join(root, "START_NEXT_SESSION_PROMPT.txt");
+  let handoffText = "";
+  let promptText = "";
+  try {
+    handoffText = await readFile(handoffPath, "utf8");
+  } catch {
+    return [{ target: "START_NEXT_SESSION_PROMPT.txt", label: "matches handoff opening message", ok: false, reason: "handoff unreadable" }];
+  }
+  try {
+    promptText = await readFile(promptPath, "utf8");
+  } catch {
+    return [{ target: "START_NEXT_SESSION_PROMPT.txt", label: "matches handoff opening message", ok: false, reason: "prompt copy unreadable" }];
+  }
+  const openingMessage = extractOpeningMessage(handoffText);
+  if (!openingMessage) {
+    return [{ target: "START_NEXT_SESSION_PROMPT.txt", label: "matches handoff opening message", ok: false, reason: "handoff opening message missing" }];
+  }
+  const ok = normalizePrompt(promptText) === normalizePrompt(openingMessage);
+  return [{ target: "START_NEXT_SESSION_PROMPT.txt", label: "matches handoff opening message", ok, reason: ok ? "" : "convenience copy differs from dev/SESSION_HANDOFF.md" }];
+}
+
+function extractOpeningMessage(text) {
+  const marker = "📋 Next session: copy and paste the whole block below";
+  const markerIndex = text.indexOf(marker);
+  if (markerIndex < 0) return null;
+  const fenceStart = text.indexOf("```text", markerIndex);
+  if (fenceStart < 0) return null;
+  const contentStart = text.indexOf("\n", fenceStart);
+  const fenceEnd = text.indexOf("```", contentStart + 1);
+  if (contentStart < 0 || fenceEnd < 0) return null;
+  return text.slice(contentStart + 1, fenceEnd).trim();
+}
+
+function normalizePrompt(text) {
+  return text.replace(/\r\n/g, "\n").trim();
 }
 
 async function checkRequiredAnchors(root) {
@@ -566,12 +641,26 @@ function printPlan(command, root, mode, plan, version) {
   console.log(`selected root: ${root}`);
   console.log(`mode: ${mode}`);
   console.log("");
+  console.log("📋 人話解讀：下面只是計劃。create 會新增缺少檔案，merge 會在備份後安全合併，skip 會保留既有檔案，conflict 代表工具停手等你確認。");
+  console.log("");
   for (const action of ["create", "merge", "skip", "conflict"]) {
     const items = plan.filter((item) => item.action === action);
     console.log(`${action}: ${items.length}`);
     for (const item of items) console.log(`  ${item.targetRel}${item.reason ? ` - ${item.reason}` : ""}`);
   }
   console.log(`\nbackup: ${plan.filter((item) => item.action === "merge").length}`);
+}
+
+function printDryRunExplanation(plan) {
+  const conflicts = plan.filter((item) => item.action === "conflict");
+  console.log("✅ 這次沒有改動任何檔案。");
+  if (conflicts.length === 0) {
+    console.log("✅ 沒有發現 conflict。你仍應先看清楚 create / merge / skip 清單，再決定是否執行正式 upgrade。");
+    return;
+  }
+  console.log(`⚠️  需要人工確認：有 ${conflicts.length} 個既有檔案，工具不能安全判斷怎樣合併。`);
+  console.log("⚠️  這不是檔案壞掉，也沒有覆寫你的檔案。");
+  console.log("📋 下一步：把這段輸出貼給 AI，叫它幫你判斷要保留、合併，還是手動修改。");
 }
 
 async function confirmWrite() {
@@ -693,13 +782,13 @@ function printUpdateNotice(currentVersion, latestVersion) {
   const releaseUrl = "https://github.com/Adamchanadam/agent-handoff-kit/releases/latest";
   const command = "npx @adamchanadam/agent-handoff-kit@latest <command>";
   const lines = [
-    `✨ Update available! ${currentVersion} -> ${latestVersion}`,
-    `Run ${command} to use the latest version.`,
+    `✨ 有新版可用：${currentVersion} -> ${latestVersion}`,
+    `如要使用最新版，執行：${command}`,
     "",
-    "For global installs:",
+    "如果你是全域安裝：",
     "npm install -g @adamchanadam/agent-handoff-kit",
     "",
-    "See full release notes:",
+    "完整 release notes：",
     releaseUrl
   ];
   const width = Math.max(...lines.map((line) => visibleLength(line))) + 2;
@@ -728,8 +817,9 @@ function printInstallNextSteps(root, conflictCount) {
   console.log("✅ 安裝完成：下一步請在 AI 對話中操作");
   console.log("============================================================");
   if (conflictCount > 0) {
-    console.log("⚠️  狀態：有檔案需要你先處理，詳情見 migration report。");
-    console.log("⚠️  請不要忽略 conflict，也不要直接覆寫既有檔案。");
+    console.log("⚠️  狀態：有既有檔案需要人工確認，詳情見 migration report。");
+    console.log("⚠️  這不是檔案壞掉；工具已停手，沒有覆寫 conflict 檔案。");
+    console.log("📋 下一步：把 migration report 或這段輸出貼給 AI，請它幫你判斷怎樣合併。");
     console.log("");
   }
   console.log("⚠️  請注意：下面文字不是 Terminal 指令。");
@@ -773,6 +863,11 @@ Commands:
   init      Plan or install missing core files and rule packs.
   upgrade   Preserve existing files; merge safe core updates or report conflicts.
   doctor    Check required installed files.
+
+中文速讀：
+  ✅ init      第一次安裝 Kit 文件。
+  🔄 upgrade   升級既有 Kit 文件；先用 --dry-run 預演。
+  🩺 doctor    檢查必要文件與交接結構是否完整。
 
 After install:
   Do not type "Follow AGENTS.md" into Terminal.

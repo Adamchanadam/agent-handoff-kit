@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Handoff Kit — 新手 60 秒入門</title>
+  <meta name="description" content="一套讓 AI 在不同對話、不同工具之間記得專案進度的輕量交接工具。給完全 AI 新手的入門介紹。" />
+
+  <!-- 字體:Bauhaus 復興常用嘅幾何 sans + 等寬 mono,離線時退回系統字體 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ───── Bauhaus 設計 Token ───── */
+    :root {
+      --red:      #E63946;
+      --yellow:   #FFD60A;
+      --blue:     #2E5BFF;
+      --ink:      #0A0A0A;
+      --paper:    #F7F4EE;
+      --paper-2:  #EFEAE0;
+      --green:    #06A77D;
+
+      --font-sans: "Space Grotesk", "Inter", "Helvetica Neue", Helvetica, Arial,
+                   "PingFang TC", "Microsoft JhengHei", sans-serif;
+      --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+
+      --grid-base: 8px;
+      --max-width: 1180px;
+      --rule:      4px solid var(--ink);
+      --rule-thin: 2px solid var(--ink);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { animation: none !important; transition: none !important; }
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 17px;
+      line-height: 1.55;
+      letter-spacing: 0.005em;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* 段落寬度受控,長閱讀友善 */
+    p { max-width: 62ch; margin: 0 0 1em; }
+
+    /* 通用容器 */
+    .wrap {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ───── 頂部 banner:Bauhaus 經典三色長條 ───── */
+    .top-banner {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.5fr;
+      height: 14px;
+      border-bottom: var(--rule);
+    }
+    .top-banner > div:nth-child(1) { background: var(--red); }
+    .top-banner > div:nth-child(2) { background: var(--yellow); }
+    .top-banner > div:nth-child(3) { background: var(--blue); }
+
+    /* ───── 導航 ───── */
+    nav.bar {
+      border-bottom: var(--rule);
+      background: var(--paper);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    nav.bar .wrap {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 14px;
+      padding-bottom: 14px;
+      gap: 24px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      display: inline-block;
+      object-fit: contain;
+      vertical-align: middle;
+    }
+    nav.bar a {
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 6px 10px;
+      border: 2px solid transparent;
+    }
+    nav.bar a:hover,
+    nav.bar a:focus-visible {
+      border-color: var(--ink);
+      outline: none;
+    }
+    nav.links { display: flex; gap: 4px; flex-wrap: wrap; }
+
+    /* ───── Hero ───── */
+    .hero {
+      position: relative;
+      border-bottom: var(--rule);
+      overflow: hidden;
+    }
+    .hero .wrap {
+      padding-top: 80px;
+      padding-bottom: 80px;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 56px;
+      align-items: center;
+    }
+    .hero h1 {
+      font-size: clamp(48px, 7.5vw, 104px);
+      font-weight: 700;
+      line-height: 0.95;
+      margin: 0 0 20px;
+      letter-spacing: -0.02em;
+    }
+    .hero h1 .accent { color: var(--red); }
+    .hero h1 .accent2 { color: var(--blue); }
+    .hero .kicker {
+      display: inline-block;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 6px 10px;
+      letter-spacing: 0.05em;
+      margin-bottom: 24px;
+    }
+    .hero .lede {
+      font-size: clamp(18px, 1.7vw, 22px);
+      max-width: 36ch;
+      margin-bottom: 28px;
+    }
+    .hero .cta-row { display: flex; gap: 16px; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 22px;
+      border: 3px solid var(--ink);
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--ink);
+      background: var(--paper);
+      cursor: pointer;
+      transition: transform 120ms ease-out;
+      min-height: 44px;
+    }
+    .btn:hover, .btn:focus-visible { transform: translate(-2px, -2px); outline: none; }
+    .btn.primary { background: var(--blue); color: var(--paper); }
+    .btn.secondary { background: var(--yellow); }
+
+    /* Hero 右側 main visual */
+    .hero-art {
+      max-width: 520px;
+      justify-self: end;
+      width: 100%;
+    }
+    .hero-art img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* ───── 通用區塊 ───── */
+    section {
+      border-bottom: var(--rule);
+      padding: 80px 0;
+    }
+    section h2 {
+      font-size: clamp(32px, 4.5vw, 56px);
+      line-height: 1.02;
+      margin: 0 0 12px;
+      letter-spacing: -0.015em;
+    }
+    section .eyebrow {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 5px 10px;
+      letter-spacing: 0.06em;
+      margin-bottom: 18px;
+    }
+    section .intro {
+      font-size: 18px;
+      max-width: 64ch;
+      margin-bottom: 48px;
+    }
+
+    /* ───── 一句講清楚 ───── */
+    #what {
+      background: var(--paper-2);
+    }
+    .what-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border: var(--rule);
+    }
+    .what-cell {
+      padding: 36px;
+      min-height: 280px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .what-cell.before {
+      background: var(--paper);
+      border-right: var(--rule);
+    }
+    .what-cell.after {
+      background: var(--yellow);
+    }
+    .what-cell h3 {
+      margin: 0 0 16px;
+      font-size: 22px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .what-cell .glyph {
+      width: 64px; height: 64px;
+      margin-top: 16px;
+      border: 3px solid var(--ink);
+    }
+    .what-cell.before .glyph {
+      background: var(--paper-2);
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+    }
+    .what-cell.before .glyph::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 8px);
+      opacity: 0.55;
+    }
+    .what-cell.after .glyph {
+      background: var(--red);
+      border-radius: 50%;
+    }
+    .what-cell p { margin: 0; font-size: 16px; }
+
+    /* ───── 痛點卡 ───── */
+    .pain-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0;
+      border: var(--rule);
+    }
+    .pain-card {
+      padding: 32px;
+      border-right: var(--rule);
+      border-bottom: var(--rule);
+      background: var(--paper);
+      display: flex;
+      flex-direction: column;
+      min-height: 320px;
+    }
+    .pain-card:nth-child(2n) { border-right: none; }
+    .pain-card:nth-last-child(-n+2) { border-bottom: none; }
+    .pain-card.c1 { background: var(--paper); }
+    .pain-card.c2 { background: var(--paper-2); }
+    .pain-card.c3 { background: var(--paper-2); }
+    .pain-card.c4 { background: var(--paper); }
+    .pain-num {
+      font-family: var(--font-mono);
+      font-size: 56px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 18px;
+    }
+    .pain-card.c1 .pain-num { color: var(--red); }
+    .pain-card.c2 .pain-num { color: var(--blue); }
+    .pain-card.c3 .pain-num { color: var(--ink); }
+    .pain-card.c4 .pain-num { color: var(--green); }
+    .pain-card h3 {
+      font-size: 22px;
+      margin: 0 0 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .pain-card .kit-line {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: var(--rule-thin);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .pain-card .kit-line::before { content: "✓ "; color: var(--green); font-weight: 700; }
+
+    /* ───── 收工三魔法詞 ───── */
+    #magic {
+      background: var(--ink);
+      color: var(--paper);
+      position: relative;
+      overflow: hidden;
+    }
+    #magic .eyebrow {
+      background: var(--paper);
+      color: var(--ink);
+    }
+    #magic h2 { color: var(--paper); }
+    #magic .intro { color: var(--paper); opacity: 0.9; }
+
+    .magic-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 32px;
+    }
+    .magic-word {
+      padding: 36px 24px;
+      border: 3px solid var(--paper);
+      text-align: center;
+    }
+    .magic-word .word {
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: clamp(40px, 5vw, 64px);
+      line-height: 1;
+      margin: 0 0 12px;
+    }
+    .magic-word .lang {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      opacity: 0.65;
+    }
+    .magic-word.w1 { background: var(--red);    color: var(--paper); }
+    .magic-word.w2 { background: var(--yellow); color: var(--ink); border-color: var(--ink); }
+    .magic-word.w3 { background: var(--blue);   color: var(--paper); }
+    .magic-word.w2 .lang { opacity: 0.7; }
+
+    .magic-aftermath {
+      margin-top: 40px;
+      padding: 24px;
+      border: 3px solid var(--paper);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.65;
+      background: rgba(255,255,255,0.04);
+      white-space: pre-wrap;
+    }
+    .magic-aftermath .label {
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--yellow);
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    /* ───── 工作模式 8 格 ───── */
+    .modes-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: var(--rule);
+    }
+    .mode-cell {
+      padding: 24px;
+      border-right: var(--rule);
+      border-bottom: var(--rule);
+      background: var(--paper);
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .mode-cell:nth-child(4n) { border-right: none; }
+    .mode-cell:nth-last-child(-n+4) { border-bottom: none; }
+    .mode-cell h3 {
+      margin: 0;
+      font-size: 18px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .mode-cell p { margin: 0; font-size: 14px; max-width: none; }
+    .mode-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 3px 6px;
+      align-self: flex-start;
+      border: 1.5px solid var(--ink);
+    }
+    .mode-icon {
+      width: 36px; height: 36px;
+      border: 2.5px solid var(--ink);
+      margin-bottom: 4px;
+    }
+    .mode-cell.m1 .mode-icon { background: var(--red); }
+    .mode-cell.m2 .mode-icon { background: var(--yellow); border-radius: 50%; }
+    .mode-cell.m3 .mode-icon { background: var(--blue); clip-path: polygon(50% 0, 100% 100%, 0 100%); border: none; outline: 2.5px solid var(--ink); outline-offset: -2px; }
+    .mode-cell.m4 .mode-icon { background: var(--ink); }
+    .mode-cell.m5 .mode-icon { background: var(--green); border-radius: 50%; }
+    .mode-cell.m6 .mode-icon { background: var(--red); border-radius: 50%; }
+    .mode-cell.m7 .mode-icon { background: var(--yellow); }
+    .mode-cell.m8 .mode-icon { background: var(--blue); }
+
+    /* ───── 三步上手 ───── */
+    #howto { background: var(--paper-2); }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 32px;
+    }
+    .step {
+      background: var(--paper);
+      border: 3px solid var(--ink);
+      padding: 28px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .step-num {
+      position: absolute;
+      top: -3px; left: -3px;
+      width: 56px; height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--paper);
+      border: 3px solid var(--ink);
+    }
+    .step.s1 .step-num { background: var(--red); }
+    .step.s2 .step-num { background: var(--blue); }
+    .step.s3 .step-num { background: var(--ink); }
+    .step h3 {
+      margin: 64px 0 12px;
+      font-size: 22px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .step p { font-size: 15px; }
+    .step pre {
+      margin: 12px 0 0;
+      padding: 14px 16px;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.55;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: none;
+    }
+    .step pre .hl { color: var(--yellow); }
+
+    /* ───── 安全護欄 ───── */
+    .safety-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 0;
+      border: var(--rule);
+    }
+    .safety-text {
+      padding: 36px;
+      background: var(--paper);
+      border-right: var(--rule);
+    }
+    .safety-list {
+      list-style: none;
+      padding: 0;
+      margin: 16px 0 0;
+    }
+    .safety-list li {
+      padding: 12px 0 12px 36px;
+      position: relative;
+      font-size: 16px;
+      border-bottom: var(--rule-thin);
+    }
+    .safety-list li:last-child { border-bottom: none; }
+    .safety-list li::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 14px;
+      width: 22px; height: 22px;
+      background: var(--red);
+      border: 2px solid var(--ink);
+    }
+    .safety-list li:nth-child(2)::before { background: var(--yellow); border-radius: 50%; }
+    .safety-list li:nth-child(3)::before { background: var(--blue); clip-path: polygon(50% 0, 100% 100%, 0 100%); border: none; outline: 2px solid var(--ink); outline-offset: -2px; }
+    .safety-list li:nth-child(4)::before { background: var(--ink); }
+
+    .safety-callout {
+      padding: 36px;
+      background: var(--blue);
+      color: var(--paper);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .safety-callout .big {
+      font-size: clamp(32px, 4vw, 48px);
+      font-weight: 700;
+      line-height: 1.05;
+      margin: 0 0 16px;
+    }
+    .safety-callout p { color: var(--paper); margin: 0; }
+
+    /* ───── 一目了然方塊(下方總結) ───── */
+    #recap {
+      background: var(--yellow);
+    }
+    .recap-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border: var(--rule);
+      background: var(--paper);
+    }
+    .recap-cell {
+      padding: 28px;
+      border-right: var(--rule);
+      text-align: left;
+    }
+    .recap-cell:last-child { border-right: none; }
+    .recap-cell .big {
+      font-family: var(--font-mono);
+      font-size: 52px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+    .recap-cell:nth-child(1) .big { color: var(--red); }
+    .recap-cell:nth-child(2) .big { color: var(--blue); }
+    .recap-cell:nth-child(3) .big { color: var(--ink); }
+    .recap-cell h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .recap-cell p { font-size: 14px; margin: 0; }
+
+    /* ───── Footer ───── */
+    footer {
+      padding: 56px 0 40px;
+      background: var(--ink);
+      color: var(--paper);
+    }
+    footer .wrap {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+    footer h4 {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin: 0 0 12px;
+      color: var(--yellow);
+    }
+    footer a {
+      color: var(--paper);
+      text-decoration: none;
+      display: inline-block;
+      padding: 4px 0;
+      border-bottom: 2px solid transparent;
+    }
+    footer a:hover, footer a:focus-visible {
+      border-bottom-color: var(--yellow);
+      outline: none;
+    }
+    footer .meta {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      opacity: 0.7;
+      grid-column: 1 / -1;
+      border-top: 2px solid rgba(247,244,238,0.2);
+      padding-top: 24px;
+      margin-top: 24px;
+    }
+
+    /* ───── 響應式:平板與手機 ───── */
+    @media (max-width: 960px) {
+      .hero .wrap { grid-template-columns: 1fr; padding-top: 56px; padding-bottom: 56px; }
+      .hero-art { justify-self: start; max-width: 320px; }
+      .what-grid { grid-template-columns: 1fr; }
+      .what-cell.before { border-right: none; border-bottom: var(--rule); }
+      .pain-grid { grid-template-columns: 1fr; }
+      .pain-card { border-right: none; border-bottom: var(--rule); }
+      .pain-card:nth-last-child(-n+2) { border-bottom: var(--rule); }
+      .pain-card:last-child { border-bottom: none; }
+      .modes-grid { grid-template-columns: repeat(2, 1fr); }
+      .mode-cell:nth-child(4n) { border-right: var(--rule); }
+      .mode-cell:nth-child(2n) { border-right: none; }
+      .mode-cell:nth-last-child(-n+4) { border-bottom: var(--rule); }
+      .mode-cell:nth-last-child(-n+2) { border-bottom: none; }
+      .magic-row { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .safety-grid { grid-template-columns: 1fr; }
+      .safety-text { border-right: none; border-bottom: var(--rule); }
+      .recap-row { grid-template-columns: 1fr; }
+      .recap-cell { border-right: none; border-bottom: var(--rule); }
+      .recap-cell:last-child { border-bottom: none; }
+      footer .wrap { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      body { font-size: 16px; }
+      section { padding: 56px 0; }
+      .wrap { padding: 0 16px; }
+      .what-cell, .pain-card, .safety-text, .safety-callout, .step { padding: 24px; }
+      .top-banner { height: 10px; }
+      nav.links { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ───── 頂部 Bauhaus 三色長條 ───── -->
+  <div class="top-banner" aria-hidden="true">
+    <div></div><div></div><div></div>
+  </div>
+
+  <!-- ───── 導航 ───── -->
+  <nav class="bar" aria-label="主導航">
+    <div class="wrap">
+      <div class="logo">
+        <img class="logo-mark" src="images/agent-handoff-kit-logo2-256.png" alt="Agent Handoff Kit logo" width="36" height="36" />
+        <span>Agent Handoff Kit</span>
+      </div>
+      <div class="links">
+        <a href="#what">為何需要</a>
+        <a href="#pain">四類問題</a>
+        <a href="#magic">收工</a>
+        <a href="#modes">工作模式</a>
+        <a href="#howto">三步上手</a>
+        <a href="#safety">安全</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ───── Hero ───── -->
+  <header class="hero">
+    <div class="wrap">
+      <div>
+        <span class="kicker">v0.1.3 · 60 秒新手入門</span>
+        <h1><span class="accent">AI Session</span><br/>之間的<br/><span class="accent2">接力棒</span></h1>
+        <p class="lede">AI 每次開新對話都是從零開始,不記得你上次和它做過甚麼,也認不出中途新建的文檔和你引入的參考資料。這套工具的作用,是把進度、下一步、要留神之處,連同一份檔案登記,寫進幾份固定文件;下一次任何 AI 工具開啟,你只要貼一段提示,它就接得上上一棒。</p>
+        <div class="cta-row">
+          <a class="btn primary" href="#howto">看三步上手 →</a>
+          <a class="btn secondary" href="https://github.com/Adamchanadam/agent-handoff-kit" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </div>
+      <div class="hero-art">
+        <img src="images/agent-handoff-kit-main-visual2.png" alt="Agent Handoff Kit 主視覺:紅方、黃圓、藍三角 Bauhaus 幾何構成" />
+      </div>
+    </div>
+  </header>
+
+  <!-- ───── 一句講清楚 ───── -->
+  <section id="what">
+    <div class="wrap">
+      <span class="eyebrow">01 / 一句講清楚</span>
+      <h2>它只處理一件事:<br/>AI 跨對話失憶。</h2>
+      <p class="intro">這套工具的工作很窄,只是一件事:跨對話失憶。失憶不只是「上次做到哪」,還包括中途新建的文檔、你引入的參考資料。它的作用,是把進度、下一步、檔案登記寫進幾份固定文件,讓下一輪能自動接得回去。</p>
+
+      <div class="what-grid">
+        <div class="what-cell before">
+          <div>
+            <h3>未用這套工具</h3>
+            <p>每次開新對話都要重新交代背景、貼舊文件、列哪些檔案是真源、哪些只是參考,然後再講上次做到哪。一旦交代得不齊,AI 就會憑空推斷,把參考檔當真源,或者把你已做完的事重做一遍。</p>
+          </div>
+          <div class="glyph" role="img" aria-label="混亂、重複"></div>
+        </div>
+        <div class="what-cell after">
+          <div>
+            <h3>用了之後</h3>
+            <p>說一聲「收工」,AI 自動更新交接文件與檔案登記表,輸出一段「下次開工用的提示」。新對話開始時把那段字貼回去,下一個 AI 立即讀齊狀態:做到哪、下一步是甚麼、哪些檔案是真源、哪些只是參考。</p>
+          </div>
+          <div class="glyph" role="img" aria-label="清晰、連續"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 三大痛點 ───── -->
+  <section id="pain">
+    <div class="wrap">
+      <span class="eyebrow">02 / 解決四類常見問題</span>
+      <h2>用 AI 做長期項目,<br/>常見的四件事。</h2>
+      <p class="intro">如果你曾經和 AI 講了一個小時,隔日回來它甚麼都不記得;又或者你建過好幾份新文檔、貼過幾份 PDF 給它做參考,下次它卻分不清哪份是真源——你已經遇上以下其中一個情況。</p>
+
+      <div class="pain-grid">
+        <div class="pain-card c1">
+          <div class="pain-num">01</div>
+          <h3>新 AI 不知做到哪</h3>
+          <p>一個項目做幾天,中間試過 Codex、Claude Code、Gemini 不同工具。每次開新對話都要重新交代;到後來,連你自己都不肯定哪個版本是最新。</p>
+          <div class="kit-line">這套工具用 SESSION_HANDOFF 文件記住「當前狀態 + 下一步」</div>
+        </div>
+        <div class="pain-card c2">
+          <div class="pain-num">02</div>
+          <h3>新建檔案、引入資料變孤兒</h3>
+          <p>AI 過程中會建立新文檔,你也會引入 PDF、Notion 連結、研究筆記作參考。這些檔案當下 AI 都記得,但新 session 一開,它就分不清哪份是真源、哪份只是草稿,甚至不知道有這些檔案存在。</p>
+          <div class="kit-line">這套工具用 PROJECT_INDEX 加 DOC_SYNC_REGISTRY 登記每份檔案的角色與同步責任</div>
+        </div>
+        <div class="pain-card c3">
+          <div class="pain-num">03</div>
+          <h3>每個 AI 工具入口都不同</h3>
+          <p>Codex 讀 AGENTS.md,Claude Code 讀 CLAUDE.md,Gemini CLI 讀 GEMINI.md。換一個工具就像換一種語言,規矩不互通。</p>
+          <div class="kit-line">這套工具同時放置三個入口檔,全部指向同一套規則,工具之間沒有漂移</div>
+        </div>
+        <div class="pain-card c4">
+          <div class="pain-num">04</div>
+          <h3>AI 會亂改、亂刪</h3>
+          <p>AI 一旦放手做事,可能執行 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">rm -rf</code> 或 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">git reset --hard</code> 一類指令;你當下不在電腦前,根本察覺不到。</p>
+          <div class="kit-line">這套工具內置安全規則,危險指令一律禁止;改檔之前必須先報告計劃</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 收工三魔法詞 ───── -->
+  <section id="magic">
+    <div class="wrap">
+      <span class="eyebrow">03 / 只需記住三個字</span>
+      <h2>說一句,<br/>AI 自動收工。</h2>
+      <p class="intro">你不需要記住任何長指令,也不需要知道要更新哪份檔案。打一個自然短語,AI 會自己更新交接文件,並輸出一段下次貼回去就能接續的提示。</p>
+
+      <div class="magic-row">
+        <div class="magic-word w1">
+          <div class="word">收工</div>
+          <div class="lang">CANTONESE / CHINESE</div>
+        </div>
+        <div class="magic-word w2">
+          <div class="word">wrap up</div>
+          <div class="lang">ENGLISH</div>
+        </div>
+        <div class="magic-word w3">
+          <div class="word">handoff</div>
+          <div class="lang">ENGLISH · TECHNICAL</div>
+        </div>
+      </div>
+
+      <div class="magic-aftermath">
+<span class="label">AI 收到這個指令之後會做的事:</span>
+01 · 逐段對賬交接文件:更新「當前狀態」、「下一步」、「風險」、「驗收」
+02 · 把本次實際做過的事,寫進工作日誌
+03 · 更新檔案登記:專案索引、同步登錄表
+04 · 接力自測:下一個 AI 能否只憑交接文件接得回去
+05 · 輸出一段 fenced text,你下次開新對話貼回去就能接續
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 工作模式 ───── -->
+  <section id="modes">
+    <div class="wrap">
+      <span class="eyebrow">04 / 八個常見任務情境</span>
+      <h2>你描述任務,<br/>AI 自動切換工作模式。</h2>
+      <p class="intro">你不需要懂得任何規則包名稱,只要用日常話講你要做甚麼,AI 會宣告它正在用哪個工作模式、原因是甚麼。每個模式都是 AI 的守則,不是要你逐句閱讀的說明書。</p>
+
+      <div class="modes-grid">
+        <div class="mode-cell m1">
+          <div class="mode-icon" aria-hidden="true"></div>
+          <span class="mode-tag">coding</span>
+          <h3>寫 / 改代碼</h3>
+          <p>AI 會先讀項目索引、找測試指令、看相關檔案,再動手;不會一上來就亂改。</p>
+        </div>
+        <div class="mode-cell m2">
+          <div class="mode-icon" aria-hidden="true"></div>
+          <span class="mode-tag">research</span>
+          <h3>查資料 / 做研究</h3>
+          <p>AI 會分清來源、日期、事實、推論、未核實的內容,不把估算當作結論。</p>
+        </div>
+        <div class="mode-cell m3">
+          <div class="mode-icon" aria-hidden="true"></div>
+          <span class="mode-tag">writing</span>
+          <h3>寫文案 / 改 README</h3>
+          <p>AI 會先看受眾、用途、語氣、格式,不會只做漂亮但不準確的文字。</p>
+        </div>
+        <div class="mode-cell m4">
+          <div class="mode-icon" aria-hidden="true"></div>
+          <span class="mode-tag">knowledge</span>
+          <h3>整理 Notion / Google Drive</h3>
+          <p>AI 會先判斷外部文件是真源、索引、附件還是輸出地;寫入之後必定回讀核對。</p>
+        </div>
+        <div class="mode-cell m5">
+          <div class="mode-icon" aria-hidden="true"></div>
+          <span class="mode-tag">communication</span>
+          <h3>輸出格式 / 報告</h3>
+          <p>AI 會先講結論、再交代背景;標清未核實的內容;指令可直接複製使用。</p>
+        </div>
+        <div class="mode-cell m6">
+          <div class="mode-icon" aria-hidden="true"></div>
+          <span class="mode-tag">safety</span>
+          <h3>刪檔 / Git / 外部 API</h3>
+          <p>所有危險指令(rm -rf、git reset --hard、強制推送)一律禁止;改動之前要列出目標、做好備份。</p>
+        </div>
+        <div class="mode-cell m7">
+          <div class="mode-icon" aria-hidden="true"></div>
+          <span class="mode-tag">release</span>
+          <h3>準備發佈 / 出版</h3>
+          <p>AI 會把「準備 release note」和「真正 publish / push / tag」分開處理,不會誤發佈。</p>
+        </div>
+        <div class="mode-cell m8">
+          <div class="mode-icon" aria-hidden="true"></div>
+          <span class="mode-tag">agent-governance</span>
+          <h3>改規則 / 改流程</h3>
+          <p>AI 會先檢查既有規則能否擴充,以合併為先,不盲目新增,避免規則越疊越亂。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 三步上手 ───── -->
+  <section id="howto">
+    <div class="wrap">
+      <span class="eyebrow">05 / 三步上手</span>
+      <h2>由零到第一次成功交接,<br/>大約五分鐘。</h2>
+      <p class="intro">你只需要一部裝了 Node.js 的電腦,以及你慣用的 AI 工具(Codex、Claude Code、Gemini CLI 任何一個皆可)。</p>
+
+      <div class="steps">
+        <div class="step s1">
+          <div class="step-num">1</div>
+          <h3>安裝</h3>
+          <p>在你的項目資料夾打開 Terminal,執行:</p>
+          <pre>npx <span class="hl">@adamchanadam/agent-handoff-kit</span> init</pre>
+          <p style="margin-top:12px;">工具會在項目內建立 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">CLAUDE.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">GEMINI.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">dev/</code> 一系列固定文件。</p>
+        </div>
+
+        <div class="step s2">
+          <div class="step-num">2</div>
+          <h3>開工</h3>
+          <p>打開你想用的 AI 工具,在新對話貼以下一段:</p>
+          <pre>Work in <span class="hl">&lt;你的資料夾&gt;</span>. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.</pre>
+          <p style="margin-top:12px;">然後用日常話描述你要做甚麼。AI 會自行讀齊交接文件,先報告當前狀態,然後才動手。</p>
+        </div>
+
+        <div class="step s3">
+          <div class="step-num">3</div>
+          <h3>收工</h3>
+          <p>工作完成想結束,只需打:</p>
+          <pre><span class="hl">收工</span>
+或
+<span class="hl">wrap up</span>
+或
+<span class="hl">handoff</span></pre>
+          <p style="margin-top:12px;">AI 會自動更新交接文件,輸出一段「下次開工用的提示」。複製、保存,下一輪開新對話時貼回去,接力即可完成。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 安全護欄 ───── -->
+  <section id="safety">
+    <div class="wrap">
+      <span class="eyebrow">06 / 為新手而設的安全護欄</span>
+      <h2>就算你不懂代碼,<br/>項目也不會被 AI 弄壞。</h2>
+      <p class="intro">這套工具內置一個叫 safety 的工作模式。任何時候涉及刪檔、Git、雲端寫入、發佈,AI 都會強制加載這個模式,並遵守以下硬性禁區:</p>
+
+      <div class="safety-grid">
+        <div class="safety-text">
+          <ul class="safety-list">
+            <li><strong>禁破壞性指令</strong>:<code style="font-family:var(--font-mono);font-size:14px;background:var(--paper-2);padding:2px 6px;">rm -rf</code> / <code style="font-family:var(--font-mono);font-size:14px;background:var(--paper-2);padding:2px 6px;">git reset --hard</code> / 強制推送 / 系統根路徑操作,一律拒絕。</li>
+            <li><strong>機密保護</strong>:`.env`、API key、token 一類敏感值,不會被印出、不會被 commit、也不會被上傳。</li>
+            <li><strong>查證不猜</strong>:用第三方 API、CLI、SDK 之前要先查官方文件;查不到就標「未核實」,不憑印象亂寫。</li>
+            <li><strong>權限不足就停手</strong>:檔案被鎖或沒有權限時,AI 會列出「手動操作清單」交給你,不會嘗試強行繞過。</li>
+          </ul>
+        </div>
+        <div class="safety-callout">
+          <div class="big">改檔之前,<br/>先講計劃。</div>
+          <p>高風險的工作,例如影響多檔、涉及外部系統、牽涉刪除或重命名,AI 必須先報告完整計劃,等你確認才動手,不會悄悄改動。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 一目了然總結 ───── -->
+  <section id="recap">
+    <div class="wrap">
+      <span class="eyebrow">07 / 一目了然</span>
+      <h2>記住三件事,就夠。</h2>
+
+      <div class="recap-row">
+        <div class="recap-cell">
+          <div class="big">01</div>
+          <h3>開新對話,貼一段字</h3>
+          <p>"Work in &lt;資料夾&gt;. Read AGENTS.md and follow it." 之後再講你要做甚麼。</p>
+        </div>
+        <div class="recap-cell">
+          <div class="big">02</div>
+          <h3>用日常話描述任務</h3>
+          <p>AI 會自行宣告它載入了哪個工作模式、原因是甚麼;新手不用記任何規則包名稱。</p>
+        </div>
+        <div class="recap-cell">
+          <div class="big">03</div>
+          <h3>完成時講「收工」</h3>
+          <p>AI 會輸出下次開工用的提示;複製、保存,下一輪貼回去就接得回。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── Footer ───── -->
+  <footer>
+    <div class="wrap">
+      <div>
+        <h4>Agent Handoff Kit</h4>
+        <p style="max-width:42ch;font-size:15px;">給 AI 用的輕量交接工具。設計目標是薄、可裝入任何項目、跨工具穩定。</p>
+      </div>
+      <div>
+        <h4>取得</h4>
+        <p style="font-family:var(--font-mono);font-size:13px;line-height:1.8;">
+          <a href="https://github.com/Adamchanadam/agent-handoff-kit" target="_blank" rel="noopener">GitHub</a><br/>
+          <a href="https://www.npmjs.com/package/@adamchanadam/agent-handoff-kit" target="_blank" rel="noopener">npm</a>
+        </p>
+      </div>
+      <div>
+        <h4>安裝指令</h4>
+        <p style="font-family:var(--font-mono);font-size:13px;line-height:1.65;">
+          npx @adamchanadam/<br/>agent-handoff-kit init
+        </p>
+      </div>
+      <div>
+        <h4>作者</h4>
+        <p style="font-family:var(--font-mono);font-size:13px;line-height:1.8;">
+          Adam Chan<br/>
+          <a href="https://www.facebook.com/chan.adam" target="_blank" rel="noopener">Facebook</a>
+        </p>
+      </div>
+      <div class="meta">
+        v0.1.3 · MIT License · 本頁是新手入門介紹,實際細節以官方 README 為準。
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

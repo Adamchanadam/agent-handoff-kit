@@ -44,6 +44,8 @@ Use this loop for every task:
 4. QC: run available checks or state why they cannot run.
 5. PERSIST: update handoff/log and any affected project index or sync registry.
 
+External skill flows, subagents, task plans, or another tool's "finish" step do not replace this loop. If you use any of them, the PLAN must include a final Agent Handoff Kit persistence step for the active project root, and completion cannot be claimed until that root's `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md`, and `dev/DOC_SYNC_REGISTRY.md` have been inspected and updated or explicitly marked not applicable.
+
 For high-risk work, pause after PLAN. High-risk means destructive operations, ambiguous target, external systems, release/publish, or broad multi-file change.
 
 ## 3. Safety Boundaries
@@ -71,6 +73,7 @@ At full closeout:
 7. Run the handoff sufficiency check: the next AI should be able to continue from `AGENTS.md`, `dev/SESSION_HANDOFF.md`, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history.
 8. If either check fails, fix `dev/SESSION_HANDOFF.md` first; do not push current-state responsibility into `dev/SESSION_LOG.md`.
 9. Show a short closeout card, then provide a copy-paste-ready next-session opening message inside a fenced `text` code block, so the user can clearly copy and paste it into the next session.
+10. Regenerate `START_NEXT_SESSION_PROMPT.txt` from the fenced opening message in `dev/SESSION_HANDOFF.md`. `dev/SESSION_HANDOFF.md` is authoritative; `START_NEXT_SESSION_PROMPT.txt` is only a convenience copy for the user to paste at the next startup.
 
 Installed handoff templates use English headings by default for cross-tool stability, but project teams may translate `dev/SESSION_HANDOFF.md` section headings and visible field labels into the project's working language. Keep the `ack:section:*` and `ack:field:*` semantic markers intact; `doctor` validates those markers so localized handoff notes remain supported.
 
@@ -104,6 +107,8 @@ Use `dev/RULE_PACKS.md` to decide which pack to read.
 A pack may add task-specific requirements. A pack cannot weaken core safety. If two packs conflict, choose the safer and more verifiable path, then record the conflict in closeout.
 
 After the task, persist durable facts into handoff/log/index/registry. Do not assume the next session remembers pack context unless it is recorded.
+
+If a pack, skill, subagent plan, demo workspace, or external workflow produces its own closeout, treat it as subordinate evidence. The active project root still needs Agent Handoff Kit persistence before the task is complete.
 
 ## Core Complexity Rule
 

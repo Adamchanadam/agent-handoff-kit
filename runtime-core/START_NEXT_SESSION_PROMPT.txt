@@ -1,0 +1,14 @@
+Work in <absolute project root>.
+
+Read in order:
+1. AGENTS.md
+2. dev/SESSION_HANDOFF.md
+3. dev/SESSION_LOG.md
+4. dev/PROJECT_INDEX.md
+5. dev/RULE_PACKS.md
+
+Read dev/DOC_SYNC_REGISTRY.md before file changes or closeout.
+
+If this root does not match the expected project root, stop and ask for confirmation.
+
+After reading, summarize current objective, task understanding, confirmed decisions, pending work, risks, and the next recommended action.

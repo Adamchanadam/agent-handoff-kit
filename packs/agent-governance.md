@@ -17,6 +17,7 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 4. Do not let development-only workspace rules enter public runtime.
 5. Check complexity budget before adding default-core behavior.
 6. Before creating durable workflow, runbook, or instruction files, first verify whether `dev/SESSION_HANDOFF.md`, `dev/PROJECT_INDEX.md`, `dev/DOC_SYNC_REGISTRY.md`, or existing rule packs can carry the need without a new file.
+7. When a task uses external skills, subagents, demo workspaces, or another tool's closeout, treat those flows as subordinate to the active root's Agent Handoff Kit governance. The active root still needs its own handoff/log/index/registry persistence.
 
 ## Checks
 
@@ -24,6 +25,7 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 - Check `dev/DOC_SYNC_REGISTRY.md` for governance, closeout/startup, and README sync rows.
 - Confirm old overlapping wording was retired or marked legacy.
 - Confirm any new durable file is reachable from `dev/PROJECT_INDEX.md` and does not rely only on a one-session handoff note.
+- Before claiming completion, inspect the active root's `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md`, and `dev/DOC_SYNC_REGISTRY.md`; do not assume child or demo workspaces cover the parent/root workspace.
 
 ## Closeout
 

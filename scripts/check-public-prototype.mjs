@@ -37,12 +37,13 @@ async function main() {
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "install templates");
   const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor installed templates");
   assert(doctor.stdout.includes("status: passed"), "doctor output did not include status: passed");
+  assert(doctor.stdout.includes("✅ 檢查通過"), "doctor output missing beginner-friendly passed message");
   assert(!existsSync(path.join(tempRoot, "archive")), "installer created archive directory by default");
   await checkUpdateNotice();
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
-  assert(outputText(pack).includes("total files: 20"), "npm dry-run did not report expected 20 package files");
-  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.3.tgz")), "npm dry-run left a tarball behind");
+  assert(outputText(pack).includes("total files: 21"), "npm dry-run did not report expected 21 package files");
+  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.4.tgz")), "npm dry-run left a tarball behind");
 
   const hits = scanForbiddenText(root);
   assert(hits.length === 0, formatHits(hits));
@@ -59,10 +60,10 @@ async function checkUpdateNotice() {
     "update notice with mock registry",
     {
       AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE: "1",
-      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.4"
+      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.5"
     }
   );
-  assert(update.stdout.includes("Update available! 0.1.3 -> 0.1.4"), "update notice did not show newer version");
+  assert(update.stdout.includes("有新版可用：0.1.4 -> 0.1.5"), "update notice did not show newer version");
   assert(update.stdout.includes("https://github.com/Adamchanadam/agent-handoff-kit/releases/latest"), "update notice did not include release notes URL");
 
   const skipped = run(
@@ -72,7 +73,7 @@ async function checkUpdateNotice() {
     {
       AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE: "1",
       AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1",
-      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.4"
+      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.5"
     }
   );
   assert(!skipped.stdout.includes("Update available!"), "disabled update check still printed an update notice");
@@ -133,6 +134,7 @@ function* walk(dir) {
 
 function isTextCandidate(filePath) {
   const ext = path.extname(filePath).toLowerCase();
+  if ([".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico"].includes(ext)) return false;
   if ([".md", ".json", ".mjs", ".js", ".txt", ".html", ".gitignore"].includes(ext)) return true;
   return statSync(filePath).size < 1024 * 1024;
 }
