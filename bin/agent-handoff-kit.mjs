@@ -167,16 +167,8 @@ const schemaChecks = [
     label: "core runtime uniqueness",
     checks: [
       {
-        label: "exactly one Agent Handoff Kit Core Runtime heading",
-        test: (text) => countOccurrences(text, "# Agent Handoff Kit Core Runtime") === 1
-      },
-      {
-        label: "managed core markers are paired and not duplicated",
-        test: (text) => {
-          const starts = countOccurrences(text, managedCoreStart);
-          const ends = countOccurrences(text, managedCoreEnd);
-          return starts === ends && starts <= 1;
-        }
+        label: "AGENTS.md health state is clean (single managed core, no unmarked dup, paired markers)",
+        test: (text) => assessAgentsMdHealth(text).state === "clean"
       }
     ]
   },
@@ -374,18 +366,38 @@ async function runInstall(command, root, options, version) {
   }
 
   const report = await writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir);
-  console.log(`\n✅ created: ${created.length}`);
-  console.log(`🔀 merged: ${merged.length}`);
-  console.log(`⏭️  skipped existing: ${plan.filter((item) => item.action === "skip").length}`);
-  console.log(`${conflicts.length > 0 ? "⚠️ " : "✅ "}conflict: ${conflicts.length}`);
-  if (merged.length > 0) console.log(`💾 backup: ${path.relative(root, backupDir)}`);
-  console.log(`📄 migration report: ${path.relative(root, report)}`);
+  const skippedCount = plan.filter((item) => item.action === "skip").length;
+  printInstallSummary(version, command, mode, root, {
+    created: created.length,
+    merged: merged.length,
+    skipped: skippedCount,
+    conflicts: conflicts.length,
+    backupRel: merged.length > 0 ? path.relative(root, backupDir) : null,
+    reportRel: path.relative(root, report)
+  });
   printInstallNextSteps(root, conflicts.length);
+
+  // R-024 upgrade.done self-check: after upgrade writes, run doctor automatically.
+  // The user must see whether the merged state actually reaches a clean health state.
+  if (command === "upgrade" && conflicts.length === 0) {
+    console.log("");
+    console.log("------------------------------------------------------------");
+    console.log("🩺 upgrade self-check: running doctor against the upgraded root");
+    console.log("------------------------------------------------------------");
+    const doctorStatus = await runDoctor(root, version, { silentCard: true });
+    if (doctorStatus !== "passed") {
+      console.log("");
+      console.log("⚠️  upgrade self-check did not pass; see doctor output above.");
+      console.log("📋 下一步：把上面 doctor 輸出貼給 AI，請它先按提示修補後再宣稱 upgrade 完成。");
+      process.exitCode = 1;
+    }
+  }
+
   if (conflicts.length > 0) process.exitCode = 1;
 }
 
-async function runDoctor(root, version) {
-  printCard(version, "doctor ready", "o.o");
+async function runDoctor(root, version, options = {}) {
+  if (!options.silentCard) printCard(version, "doctor ready", "o.o");
   const rows = [];
   for (const target of requiredTargets) {
     rows.push({ target, ok: await exists(path.join(root, target)) });
@@ -399,11 +411,14 @@ async function runDoctor(root, version) {
   }
 
   if (missing.length > 0) {
-    console.log(`\nstatus: failed (${missing.length} missing)`);
-    console.log("⚠️  檢查未通過：有必要檔案不存在。");
-    console.log("下一步：先確認你是否在正確專案資料夾；如是，執行 init 或 upgrade 補回缺少檔案。");
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length,
+      failedKind: "missing files",
+      failedCount: missing.length,
+      nextStep: "先確認你是否在正確專案資料夾；如是，執行 init 或 upgrade 補回缺少檔案。"
+    });
     process.exitCode = 1;
-    return;
+    return "failed";
   }
 
   const anchorRows = await checkRequiredAnchors(root);
@@ -414,11 +429,14 @@ async function runDoctor(root, version) {
   }
 
   if (anchorFailures.length > 0) {
-    console.log(`\nstatus: failed (${anchorFailures.length} anchor checks failed)`);
-    console.log("⚠️  檢查未通過：有檔案存在，但內容缺少必要段落。");
-    console.log("下一步：執行 upgrade --dry-run 查看可否安全補齊；不要手動覆寫既有檔案。");
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + anchorRows.length,
+      failedKind: "anchor checks",
+      failedCount: anchorFailures.length,
+      nextStep: "執行 upgrade --dry-run 查看可否安全補齊；不要手動覆寫既有檔案。"
+    });
     process.exitCode = 1;
-    return;
+    return "failed";
   }
 
   const schemaRows = await checkSchema(root);
@@ -432,11 +450,14 @@ async function runDoctor(root, version) {
   }
 
   if (schemaFailures.length > 0) {
-    console.log(`\nstatus: failed (${schemaFailures.length} schema checks failed)`);
-    console.log("⚠️  檢查未通過：交接或索引文件結構不完整。");
-    console.log("下一步：把這段 doctor 輸出貼給 AI，請它先修交接結構，不要直接重裝覆蓋。");
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + anchorRows.length + schemaRows.length,
+      failedKind: "schema checks",
+      failedCount: schemaFailures.length,
+      nextStep: "把這段 doctor 輸出貼給 AI，請它先修交接結構，不要直接重裝覆蓋。"
+    });
     process.exitCode = 1;
-    return;
+    return "failed";
   }
 
   const mirrorRows = await checkPromptMirror(root);
@@ -448,15 +469,40 @@ async function runDoctor(root, version) {
   }
 
   if (mirrorFailures.length > 0) {
-    console.log(`\nstatus: failed (${mirrorFailures.length} prompt mirror checks failed)`);
-    console.log("⚠️  檢查未通過：下次開工提示副本與 handoff 真源不同。");
-    console.log("下一步：以 dev/SESSION_HANDOFF.md 的 Next Session Opening Message 為準，重生 START_NEXT_SESSION_PROMPT.txt。");
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + anchorRows.length + schemaRows.length + mirrorRows.length,
+      failedKind: "prompt mirror checks",
+      failedCount: mirrorFailures.length,
+      nextStep: "以 dev/SESSION_HANDOFF.md 的 Next Session Opening Message 為準，重生 START_NEXT_SESSION_PROMPT.txt。"
+    });
     process.exitCode = 1;
-    return;
+    return "failed";
   }
 
-  console.log("\nstatus: passed");
-  console.log("✅ 檢查通過：必要文件存在，基本結構完整，下次開工提示副本也與 handoff 一致。");
+  printDoctorSummary(version, root, "healthy", {
+    checked: rows.length + anchorRows.length + schemaRows.length + mirrorRows.length,
+    failedKind: null,
+    failedCount: 0,
+    nextStep: "繼續日常使用；如要升級到較新版，執行 npx @adamchanadam/agent-handoff-kit@latest upgrade。"
+  });
+  return "passed";
+}
+
+// R-026 CLI Output Contract: doctor 完成必含四項（版本／模式／剛做咗乜／下一步）。
+function printDoctorSummary(version, root, mode, details) {
+  console.log("");
+  if (mode === "healthy") {
+    console.log("status: passed");
+    console.log("✅ 檢查通過：必要文件存在，基本結構完整，下次開工提示副本也與 handoff 一致。");
+  } else {
+    console.log(`status: failed (${details.failedCount} ${details.failedKind} failed)`);
+    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : "下次開工提示副本與 handoff 真源不同。"}`);
+  }
+  console.log("");
+  console.log(`📦 版本：v${version}`);
+  console.log(`🩺 模式：${mode}`);
+  console.log(`🔎 剛做咗：檢查 ${details.checked} 項；${mode === "healthy" ? "全部通過" : `${details.failedCount} 項未通過（${details.failedKind}）`}。`);
+  console.log(`🚀 下一步：${details.nextStep}`);
 }
 
 async function checkPromptMirror(root) {
@@ -608,11 +654,42 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   if (targetText === sourceText) return { ...base, action: "skip", reason: "already current" };
   if (command !== "upgrade") return { ...base, action: "skip", reason: "init preserves existing files" };
   if (targetRel === "AGENTS.md") {
-    if (hasRequiredAnchor(targetRel, targetText)) return { ...base, action: "skip", reason: "required anchors already present" };
+    const health = assessAgentsMdHealth(targetText);
+    if (health.state === "conflict") {
+      return {
+        ...base,
+        action: "conflict",
+        reason: `AGENTS.md managed-core markers are unpaired or duplicated (starts=${health.evidence.managedStart}, ends=${health.evidence.managedEnd})`
+      };
+    }
+    if (health.state === "needs-merge") {
+      return {
+        ...base,
+        action: "merge",
+        reason: health.evidence.reason === "sandwich: managed marker + unmarked stale core"
+          ? "replace sandwich dup core (managed marker + unmarked stale core present)"
+          : health.evidence.reason === "legacy duplicate cores"
+            ? "replace duplicated legacy Agent Handoff Kit cores"
+            : "add managed core while preserving existing AGENTS.md content",
+        mergedText: mergeManagedBlock(targetText, sourceText)
+      };
+    }
+    // state === "clean": may still need legacy-core replacement or anchor catch-up
+    if (health.evidence?.upgradeable === "legacy-core") {
+      return {
+        ...base,
+        action: "merge",
+        reason: "replace unmarked legacy Agent Handoff Kit core with managed-marker block",
+        mergedText: mergeManagedBlock(targetText, sourceText)
+      };
+    }
+    if (hasRequiredAnchor(targetRel, targetText)) {
+      return { ...base, action: "skip", reason: "managed core clean and required anchors present" };
+    }
     return {
       ...base,
       action: "merge",
-      reason: "replace stale Agent Handoff Kit core or add managed core while preserving existing AGENTS.md content",
+      reason: "add managed core while preserving existing AGENTS.md content",
       mergedText: mergeManagedBlock(targetText, sourceText)
     };
   }
@@ -622,27 +699,167 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   return { ...base, action: "skip", reason: "preserve existing file" };
 }
 
-function mergeManagedBlock(targetText, sourceText) {
-  const block = `${managedCoreStart}\n${sourceText.trim()}\n${managedCoreEnd}`;
-  const existingBlock = new RegExp(`${escapeRegExp(managedCoreStart)}[\\s\\S]*?${escapeRegExp(managedCoreEnd)}`);
-  if (existingBlock.test(targetText)) return `${targetText.replace(existingBlock, block).trimEnd()}\n`;
-  const unmarkedCore = findUnmarkedCoreRange(targetText);
-  if (unmarkedCore) {
-    return `${targetText.slice(0, unmarkedCore.start).trimEnd()}${targetText.slice(0, unmarkedCore.start).trimEnd() ? "\n\n" : ""}${block}${targetText.slice(unmarkedCore.end).trimStart() ? `\n\n${targetText.slice(unmarkedCore.end).trimStart()}` : ""}\n`;
+// R-024 唯一真源：AGENTS.md 健康判斷合三為一函數。
+// Returns { state, evidence } where state ∈ { clean, needs-merge, conflict }.
+// - clean: structurally healthy
+//   * exactly one paired managed-core marker block with no unmarked title outside it, OR
+//   * no managed marker and exactly one core title (fresh-init legacy form)
+// - needs-merge: stale state that upgrade must replace
+//   * managed marker pair plus unmarked title outside it (sandwich), or
+//   * no managed marker with two or more title duplicates, or
+//   * no managed marker and no title at all (file exists but Kit core absent)
+// - conflict: structural breakage
+//   * managed-core markers unpaired or duplicated
+function assessAgentsMdHealth(text) {
+  const managedStartCount = countOccurrences(text, managedCoreStart);
+  const managedEndCount = countOccurrences(text, managedCoreEnd);
+
+  if (managedStartCount !== managedEndCount || managedStartCount > 1) {
+    return {
+      state: "conflict",
+      evidence: {
+        managedStart: managedStartCount,
+        managedEnd: managedEndCount,
+        reason: "managed-core markers unpaired or duplicated"
+      }
+    };
   }
-  return `${targetText.trimEnd()}\n\n${block}\n`;
+
+  let managedRange = null;
+  if (managedStartCount === 1) {
+    const start = text.indexOf(managedCoreStart);
+    const endStart = text.indexOf(managedCoreEnd, start);
+    if (endStart < 0 || endStart < start) {
+      return {
+        state: "conflict",
+        evidence: {
+          managedStart: managedStartCount,
+          managedEnd: managedEndCount,
+          reason: "managed-core end marker missing or before start"
+        }
+      };
+    }
+    managedRange = { start, end: endStart + managedCoreEnd.length };
+  }
+
+  // Only count real top-level headings (line-anchored), not inline mentions inside backticks.
+  const titlePositions = locateCoreTitlePositions(text);
+
+  const titlesOutsideManaged = titlePositions.filter((pos) =>
+    !managedRange || pos < managedRange.start || pos >= managedRange.end
+  );
+
+  // Case A: managed marker pair present
+  if (managedStartCount === 1) {
+    if (titlesOutsideManaged.length > 0) {
+      const unmarkedRange = computeUnmarkedRange(text, titlesOutsideManaged[0], managedRange);
+      return {
+        state: "needs-merge",
+        evidence: {
+          managedStart: 1,
+          titleCount: titlePositions.length,
+          unmarkedTitleCount: titlesOutsideManaged.length,
+          unmarkedRange,
+          reason: "sandwich: managed marker + unmarked stale core"
+        }
+      };
+    }
+    return {
+      state: "clean",
+      evidence: {
+        managedStart: 1,
+        titleCount: titlePositions.length,
+        reason: "single managed core, no unmarked dup"
+      }
+    };
+  }
+
+  // Case B: no managed marker
+  if (titlePositions.length === 1) {
+    // Structurally healthy (single heading, no dup), but upgrade should still replace
+    // this legacy core form with a managed-marker block. doctor passes; upgrade merges.
+    return {
+      state: "clean",
+      evidence: {
+        managedStart: 0,
+        titleCount: 1,
+        upgradeable: "legacy-core",
+        legacyRange: computeUnmarkedRange(text, titlePositions[0], null),
+        reason: "single legacy core, no managed marker"
+      }
+    };
+  }
+  if (titlePositions.length > 1) {
+    return {
+      state: "needs-merge",
+      evidence: {
+        managedStart: 0,
+        titleCount: titlePositions.length,
+        unmarkedTitleCount: titlePositions.length,
+        unmarkedRange: computeUnmarkedRange(text, titlePositions[0], null),
+        reason: "legacy duplicate cores"
+      }
+    };
+  }
+  return {
+    state: "needs-merge",
+    evidence: {
+      managedStart: 0,
+      titleCount: 0,
+      reason: "no Kit core present"
+    }
+  };
 }
 
-function findUnmarkedCoreRange(text) {
-  const start = text.indexOf("# Agent Handoff Kit Core Runtime");
-  if (start < 0) return null;
+// Locate Kit core titles that are real top-level headings (line-anchored).
+// This intentionally excludes inline mentions like `# Agent Handoff Kit Core Runtime`
+// inside backticks or prose, so the assess function only reacts to real duplicate headings.
+function locateCoreTitlePositions(text) {
+  const regex = /(^|\n)# Agent Handoff Kit Core Runtime(?=\r?\n|$)/g;
+  const positions = [];
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const headingStart = match.index + (match[1] === "\n" ? 1 : 0);
+    positions.push(headingStart);
+  }
+  return positions;
+}
+
+function computeUnmarkedRange(text, titleStart, managedRange) {
+  const titleNeedle = "# Agent Handoff Kit Core Runtime";
   const terminal = "keep the core within budget.";
-  const terminalIndex = text.indexOf(terminal, start);
-  if (terminalIndex >= 0) return { start, end: terminalIndex + terminal.length };
-  const afterTitle = start + "# Agent Handoff Kit Core Runtime".length;
-  const nextTopLevel = text.slice(afterTitle).search(/\n# (?!Agent Handoff Kit Core Runtime\b)/);
-  if (nextTopLevel < 0) return { start, end: text.length };
-  return { start, end: afterTitle + nextTopLevel + 1 };
+  const terminalIndex = text.indexOf(terminal, titleStart);
+  if (terminalIndex >= 0 && (!managedRange || terminalIndex < managedRange.start || terminalIndex >= managedRange.end)) {
+    return { start: titleStart, end: terminalIndex + terminal.length };
+  }
+  const afterTitle = titleStart + titleNeedle.length;
+  const remainder = text.slice(afterTitle);
+  // Find next real top-level heading that is NOT another Kit core heading.
+  const nextTopLevel = remainder.search(/\n# (?!Agent Handoff Kit Core Runtime(?=\r?\n|$))/);
+  if (nextTopLevel < 0) return { start: titleStart, end: text.length };
+  return { start: titleStart, end: afterTitle + nextTopLevel + 1 };
+}
+
+function mergeManagedBlock(targetText, sourceText) {
+  const block = `${managedCoreStart}\n${sourceText.trim()}\n${managedCoreEnd}`;
+
+  // Strip every unmarked / legacy core range first; iterate to handle multiple legacy stacks.
+  let working = targetText;
+  for (let i = 0; i < 5; i += 1) {
+    const probe = assessAgentsMdHealth(working);
+    const range = probe.evidence?.unmarkedRange ?? probe.evidence?.legacyRange;
+    if (!range) break;
+    const before = working.slice(0, range.start).trimEnd();
+    const after = working.slice(range.end).trimStart();
+    working = before + (before && after ? "\n\n" : before ? "\n" : "") + after;
+  }
+
+  const existingBlock = new RegExp(`${escapeRegExp(managedCoreStart)}[\\s\\S]*?${escapeRegExp(managedCoreEnd)}`);
+  if (existingBlock.test(working)) {
+    return `${working.replace(existingBlock, block).trimEnd()}\n`;
+  }
+  if (working.trim().length === 0) return `${block}\n`;
+  return `${working.trimEnd()}\n\n${block}\n`;
 }
 
 function countOccurrences(text, needle) {
@@ -679,7 +896,7 @@ function printPlan(command, root, mode, plan, version) {
   console.log(`selected root: ${root}`);
   console.log(`mode: ${mode}`);
   console.log("");
-  console.log("📋 人話解讀：下面只是計劃。create 會新增缺少檔案，merge 會在備份後安全合併，skip 會保留既有檔案，conflict 代表工具停手等你確認。");
+  console.log("📋 計劃預覽：以下未執行。create 新增缺少檔案；merge 在備份後合併；skip 保留既有檔案；conflict 代表工具停手等你確認。");
   console.log("");
   for (const action of ["create", "merge", "skip", "conflict"]) {
     const items = plan.filter((item) => item.action === action);
@@ -687,6 +904,27 @@ function printPlan(command, root, mode, plan, version) {
     for (const item of items) console.log(`  ${item.targetRel}${item.reason ? ` - ${item.reason}` : ""}`);
   }
   console.log(`\nbackup: ${plan.filter((item) => item.action === "merge").length}`);
+}
+
+// R-026 CLI Output Contract: install/upgrade 完成必含四項（版本／模式／剛做咗乜／下一步）。
+function printInstallSummary(version, command, mode, root, counts) {
+  console.log(`\n✅ created: ${counts.created}`);
+  console.log(`🔀 merged: ${counts.merged}`);
+  console.log(`⏭️  skipped existing: ${counts.skipped}`);
+  console.log(`${counts.conflicts > 0 ? "⚠️ " : "✅ "}conflict: ${counts.conflicts}`);
+  if (counts.backupRel) console.log(`💾 backup: ${counts.backupRel}`);
+  if (counts.reportRel) console.log(`📄 migration report: ${counts.reportRel}`);
+  console.log("");
+  console.log(`📦 版本：v${version}`);
+  console.log(`🛠️  模式：${mode}`);
+  console.log(`🔎 剛做咗：${command} 命令；create ${counts.created} / merge ${counts.merged} / skip ${counts.skipped} / conflict ${counts.conflicts}。`);
+  if (counts.conflicts > 0) {
+    console.log("🚀 下一步：把 migration report 或這段輸出貼給 AI，請它判斷 conflict 點處理；工具已停手，沒有覆寫 conflict 檔案。");
+  } else if (command === "upgrade") {
+    console.log("🚀 下一步：留意下方 upgrade self-check（自動跑 doctor）；若全綠即升級完成。");
+  } else {
+    console.log("🚀 下一步：開新 AI 對話，按下方提示貼入 Work in <root> 一句後描述任務。");
+  }
 }
 
 function printDryRunExplanation(plan) {
@@ -912,4 +1150,7 @@ After install:
   Open your AI tool, start a new chat, paste the shown Work in ... message,
   then describe your task in normal language.
 `);
+  console.log(`📦 版本：v${version}`);
+  console.log(`🛠️  模式：help ready`);
+  console.log(`🚀 下一步：第一次使用先跑 init；既有專案升級用 upgrade --dry-run；要檢查現狀用 doctor。`);
 }

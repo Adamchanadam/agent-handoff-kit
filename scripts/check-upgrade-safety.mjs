@@ -107,11 +107,57 @@ function main() {
     assert(oldCoreDoctor.stdout.includes("status: passed"), `${label} doctor did not pass after old core replacement`);
   }
 
+  // Regression guard for R-024 sandwich dup core: a previous upgrade may have
+  // added a managed-core marker block while leaving the original unmarked core
+  // sitting above or below it. The new assessAgentsMdHealth() function must
+  // detect this state as needs-merge, and upgrade must replace (not skip) it.
+  // To stage this precondition, start from a stale legacy core (no managed
+  // marker), run upgrade once to produce a managed block, then inject another
+  // unmarked stale core below it — the sandwich.
+  const sandwichRoot = path.join(tmpdir(), `ack-upgrade-sandwich-${Date.now()}`);
+  mkdirSync(sandwichRoot, { recursive: true });
+  const sandwichLegacyCore = staleCoreFixture({ skillArbitration: false, promptMirror: false });
+  writeFileSync(path.join(sandwichRoot, "AGENTS.md"), [
+    "# Project Local Preamble",
+    "",
+    "Keep pre-core local rule.",
+    "",
+    sandwichLegacyCore,
+    "",
+    "## User Local Rules",
+    "",
+    "Keep post-core local rule."
+  ].join("\n"), "utf8");
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", sandwichRoot], "stage 1 upgrade to managed marker form for R-024 sandwich");
+  const sandwichManaged = read(path.join(sandwichRoot, "AGENTS.md"));
+  assert(count(sandwichManaged, "BEGIN Agent Handoff Kit managed core") === 1, "stage 1 should leave exactly one managed marker pair");
+  assert(countCoreHeadings(sandwichManaged) === 1, "stage 1 should leave exactly one core heading");
+  // Now inject an unmarked stale core BELOW the managed block → the sandwich precondition
+  const sandwichStale = staleCoreFixture({ skillArbitration: false, promptMirror: false });
+  const sandwichInjected = `${sandwichManaged.trimEnd()}\n\n## Legacy Local Notes\n\n${sandwichStale}\n`;
+  writeFileSync(path.join(sandwichRoot, "AGENTS.md"), sandwichInjected, "utf8");
+  assert(countCoreHeadings(sandwichInjected) === 2, "sandwich precondition: AGENTS.md must contain two core titles before upgrade");
+  assert(count(sandwichInjected, "BEGIN Agent Handoff Kit managed core") === 1, "sandwich precondition: AGENTS.md must already contain one managed marker pair");
+
+  const sandwichUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", sandwichRoot], "upgrade R-024 sandwich dup core");
+  assert(sandwichUpgrade.stdout.includes("merged: 1"), "R-024 sandwich upgrade must report one merged file (not skip)");
+  assert(sandwichUpgrade.stdout.includes("sandwich dup core") || sandwichUpgrade.stdout.includes("replace sandwich dup core"), "R-024 sandwich upgrade plan should describe sandwich replacement");
+
+  const sandwichResult = read(path.join(sandwichRoot, "AGENTS.md"));
+  assertSingleCore(sandwichResult, "R-024 sandwich upgrade must resolve to exactly one core");
+  assert(sandwichResult.includes("BEGIN Agent Handoff Kit managed core"), "R-024 sandwich upgrade must keep one managed marker pair");
+  assert(!sandwichResult.includes("This is a stale installed core used to test upgrade replacement."), "R-024 sandwich upgrade must remove the stale core text");
+
+  const sandwichDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", sandwichRoot], "doctor after R-024 sandwich upgrade");
+  assert(sandwichDoctor.stdout.includes("status: passed"), "doctor must pass after R-024 sandwich upgrade");
+  assert(sandwichUpgrade.stdout.includes("upgrade self-check"), "R-024 upgrade must run doctor self-check automatically (upgrade.done contract)");
+
   console.log("");
   console.log("Agent Handoff Kit upgrade safety QA passed");
   console.log(`merge root: ${mergeRoot}`);
   console.log(`conflict root: ${conflictRoot}`);
   console.log(`stale-version root: ${staleRoot}`);
+  console.log(`sandwich root: ${sandwichRoot}`);
 }
 
 function run(command, args, label, options = {}) {
@@ -161,13 +207,21 @@ function outputText(result) {
 }
 
 function assertSingleCore(text, label) {
-  assert(count(text, "# Agent Handoff Kit Core Runtime") === 1, `${label}: duplicate Agent Handoff Kit core runtime heading`);
+  assert(countCoreHeadings(text) === 1, `${label}: duplicate Agent Handoff Kit core runtime heading`);
   assert(count(text, "BEGIN Agent Handoff Kit managed core") <= 1, `${label}: duplicate managed core start marker`);
   assert(count(text, "BEGIN Agent Handoff Kit managed core") === count(text, "END Agent Handoff Kit managed core"), `${label}: managed core markers are not paired`);
 }
 
 function count(text, needle) {
   return text.split(needle).length - 1;
+}
+
+// Count real top-level Kit core headings (line-anchored), not inline mentions inside backticks/prose.
+function countCoreHeadings(text) {
+  const regex = /(^|\n)# Agent Handoff Kit Core Runtime(?=\r?\n|$)/g;
+  let n = 0;
+  while (regex.exec(text) !== null) n += 1;
+  return n;
 }
 
 function staleCoreFixture({ skillArbitration, promptMirror }) {

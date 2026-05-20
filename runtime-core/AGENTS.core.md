@@ -48,6 +48,16 @@ External skill flows, subagents, task plans, or another tool's "finish" step do 
 
 For high-risk work, pause after PLAN. High-risk means destructive operations, ambiguous target, external systems, release/publish, or broad multi-file change.
 
+## 2.1 Upgrade Done Contract
+
+`agent-handoff-kit upgrade` is considered complete only when all of the following hold. The CLI enforces this contract; do not declare upgrade success without it.
+
+1. `AGENTS.md` health state is `clean`: exactly one `# Agent Handoff Kit Core Runtime` heading, exactly one paired managed-core marker block, and no unmarked stale core ranges. Sandwich states (managed marker plus an unmarked stale core) are not clean; the installer must replace the stale ranges, not skip.
+2. The CLI runs `doctor` automatically against the upgraded root after writes complete. `doctor` must report `status: passed` across required files, anchors, schema checks, and prompt mirror checks.
+3. The migration report records every action taken, with backup paths for merged files.
+
+If any check fails, the upgrade did not finish; resolve the failure (or hand the failure output to the user) before reporting completion. This contract is the single source of truth for upgrade success; downstream QA scripts and release-grade QA derive their assertions from it.
+
 ## 3. Safety Boundaries
 
 Do not delete, reset, overwrite, bulk-move, or publish without explicit user approval.
