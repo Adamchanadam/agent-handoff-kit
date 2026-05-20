@@ -163,6 +163,24 @@ const requiredAnchors = [
 
 const schemaChecks = [
   {
+    target: "AGENTS.md",
+    label: "core runtime uniqueness",
+    checks: [
+      {
+        label: "exactly one Agent Handoff Kit Core Runtime heading",
+        test: (text) => countOccurrences(text, "# Agent Handoff Kit Core Runtime") === 1
+      },
+      {
+        label: "managed core markers are paired and not duplicated",
+        test: (text) => {
+          const starts = countOccurrences(text, managedCoreStart);
+          const ends = countOccurrences(text, managedCoreEnd);
+          return starts === ends && starts <= 1;
+        }
+      }
+    ]
+  },
+  {
     target: "dev/SESSION_HANDOFF.md",
     label: "handoff required sections",
     checks: [
@@ -594,7 +612,7 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
     return {
       ...base,
       action: "merge",
-      reason: "append managed core while preserving existing AGENTS.md content",
+      reason: "replace stale Agent Handoff Kit core or add managed core while preserving existing AGENTS.md content",
       mergedText: mergeManagedBlock(targetText, sourceText)
     };
   }
@@ -608,7 +626,27 @@ function mergeManagedBlock(targetText, sourceText) {
   const block = `${managedCoreStart}\n${sourceText.trim()}\n${managedCoreEnd}`;
   const existingBlock = new RegExp(`${escapeRegExp(managedCoreStart)}[\\s\\S]*?${escapeRegExp(managedCoreEnd)}`);
   if (existingBlock.test(targetText)) return `${targetText.replace(existingBlock, block).trimEnd()}\n`;
+  const unmarkedCore = findUnmarkedCoreRange(targetText);
+  if (unmarkedCore) {
+    return `${targetText.slice(0, unmarkedCore.start).trimEnd()}${targetText.slice(0, unmarkedCore.start).trimEnd() ? "\n\n" : ""}${block}${targetText.slice(unmarkedCore.end).trimStart() ? `\n\n${targetText.slice(unmarkedCore.end).trimStart()}` : ""}\n`;
+  }
   return `${targetText.trimEnd()}\n\n${block}\n`;
+}
+
+function findUnmarkedCoreRange(text) {
+  const start = text.indexOf("# Agent Handoff Kit Core Runtime");
+  if (start < 0) return null;
+  const terminal = "keep the core within budget.";
+  const terminalIndex = text.indexOf(terminal, start);
+  if (terminalIndex >= 0) return { start, end: terminalIndex + terminal.length };
+  const afterTitle = start + "# Agent Handoff Kit Core Runtime".length;
+  const nextTopLevel = text.slice(afterTitle).search(/\n# (?!Agent Handoff Kit Core Runtime\b)/);
+  if (nextTopLevel < 0) return { start, end: text.length };
+  return { start, end: afterTitle + nextTopLevel + 1 };
+}
+
+function countOccurrences(text, needle) {
+  return text.split(needle).length - 1;
 }
 
 function escapeRegExp(text) {

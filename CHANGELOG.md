@@ -1,5 +1,14 @@
 # 變更紀錄
 
+## v0.1.6 — 2026-05-20
+
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。
+
+### 已修正
+
+- 修正 `upgrade` 處理舊版 `AGENTS.md` 的合併方式。舊版 Agent Handoff Kit core 若未帶 managed-core 標記，現在會被目前核心替換，不再把新核心附加到舊核心下方，避免同一檔案出現兩個 `# Agent Handoff Kit Core Runtime` 與互相矛盾的收尾步驟；核心前後的使用者本地規則會保留。
+- `doctor` 與 `npm run qa:upgrade` 增加雙核心負面檢查；舊版 core 升級後必須只剩一個核心標題，否則驗收失敗。
+
 ## v0.1.5 — 2026-05-20
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。

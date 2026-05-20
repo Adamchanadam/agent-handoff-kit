@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：`v0.1.5` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
+狀態：`v0.1.6` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -201,7 +201,7 @@ GitHub Pages 上的新手介紹頁 `agent-handoff-kit-intro.html` 由原始碼�
 
 ## 目前限制
 
-- `v0.1.5` 是 GitHub 與 npm 同步發佈版本。
+- `v0.1.6` 是 GitHub 與 npm 同步發佈版本。
 - 這是早期可用版本，尚未宣稱完整穩定。
 - 升級合併仍是窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。
