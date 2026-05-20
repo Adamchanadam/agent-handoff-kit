@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：`v0.1.4` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
+狀態：`v0.1.5` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -8,7 +8,7 @@ Agent Handoff Kit 是 **AI Session 之間的接力棒**。
 
 它只處理一件狹窄但重要的事：AI 跨對話失憶。每次開新對話，AI 往往不記得你上次做到哪裡，也認不出中途新建的文件、你引入的參考資料、哪些檔案是真源。這套工具把進度、下一步、風險、檔案登記與下次開工提示寫進固定文件，讓下一個 AI 工具能接得上上一棒。
 
-想先看非技術版介紹，可打開 GitHub repo 內的 [`agent-handoff-kit-intro.html`](agent-handoff-kit-intro.html)。那一頁是新手 60 秒入門，README 則保留安裝、日常使用與限制。
+想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html)。那一頁是新手 60 秒入門，README 則保留安裝、日常使用與限制。
 
 ## 它解決甚麼問題
 
@@ -197,11 +197,11 @@ npm package 只包含安裝所需內容：
 - `LICENSE`
 - `package.json`
 
-GitHub repo 內的新手介紹頁 `agent-handoff-kit-intro.html` 與 `images/` 是原始碼倉庫資產，不會安裝到你的專案。
+GitHub Pages 上的新手介紹頁 `agent-handoff-kit-intro.html` 由原始碼倉庫根目錄發佈；`agent-handoff-kit-intro.html` 與 `images/` 是原始碼倉庫資產，不會安裝到你的專案。
 
 ## 目前限制
 
-- `v0.1.4` 是 GitHub 與 npm 同步發佈版本。
+- `v0.1.5` 是 GitHub 與 npm 同步發佈版本。
 - 這是早期可用版本，尚未宣稱完整穩定。
 - 升級合併仍是窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

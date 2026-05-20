@@ -1,5 +1,13 @@
 # 變更紀錄
 
+## v0.1.5 — 2026-05-20
+
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。
+
+### 已修正
+
+- 修正 README 新手介紹頁連結，改用 GitHub Pages 絕對網址 `https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html`，避免 GitHub 與 npm 顯示時用相對路徑解析失敗。
+
 ## v0.1.4 — 2026-05-20
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。

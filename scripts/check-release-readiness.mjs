@@ -15,7 +15,7 @@ main();
 function main() {
   const packageJson = JSON.parse(read("package.json"));
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
-  assert(packageJson.version === "0.1.4", "package version drifted from current release baseline");
+  assert(packageJson.version === "0.1.5", "package version drifted from current release baseline");
   assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "LICENSE"]), "npm package files boundary changed");
   assert(packageJson.scripts["qa:prototype"], "qa:prototype script is missing");
   assert(packageJson.scripts["qa:packs"], "qa:packs script is missing");
@@ -31,13 +31,13 @@ function main() {
   assert(packText.includes("total files: 21"), "npm dry-run did not report expected 21 package files");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
-  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.4.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.5.tgz")), "npm dry-run left a tarball behind");
 
   assertIncludes("README.md", [
-    "`v0.1.4` 已正式發佈到 GitHub 與 npm",
+    "`v0.1.5` 已正式發佈到 GitHub 與 npm",
     "AI Session 之間的接力棒",
     "AI 跨對話失憶",
-    "agent-handoff-kit-intro.html",
+    "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
     "請特別留意：那一段不是給 Terminal 的指令",
     "START_NEXT_SESSION_PROMPT.txt",
     "看到 `conflict` 不代表檔案壞掉",
@@ -56,6 +56,7 @@ function main() {
   ]);
 
   assertIncludes("CHANGELOG.md", [
+    "## v0.1.5 — 2026-05-20",
     "## v0.1.4 — 2026-05-20",
     "已 npm publish",
     "## v0.1.3 — 2026-05-19",
@@ -75,8 +76,9 @@ function main() {
     "任務入口",
     "不屬於 npm package",
     "v0.1.2 發佈狀態",
+    "v0.1.5 發佈狀態",
+    "npm latest 為 `0.1.5`",
     "v0.1.4 發佈狀態",
-    "npm latest 為 `0.1.4`",
     "v0.1.3 發佈狀態",
     "v0.1.1 發佈狀態",
     "v0.1.0 已發佈狀態",
