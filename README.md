@@ -8,7 +8,7 @@ Agent Handoff Kit 是 **AI Session 之間的接力棒**。
 
 它只處理一件狹窄但重要的事：AI 跨對話失憶。每次開新對話，AI 往往不記得你上次做到哪裡，也認不出中途新建的文件、你引入的參考資料、哪些檔案是真源。這套工具把進度、下一步、風險、檔案登記與下次開工提示寫進固定文件，讓下一個 AI 工具能接得上上一棒。
 
-想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html)。那一頁是新手 60 秒入門，README 則保留安裝、日常使用與限制。
+想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) —— 新手 60 秒入門。看完想睇實際操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) —— 兩個日常情景（整理電腦下載目錄、開咖啡店市場調查）嘅七步流程完整示範。README 則保留安裝、日常使用與限制。
 
 ## 它解決甚麼問題
 
@@ -197,7 +197,7 @@ npm package 只包含安裝所需內容：
 - `LICENSE`
 - `package.json`
 
-GitHub Pages 上的新手介紹頁 `agent-handoff-kit-intro.html` 由原始碼倉庫根目錄發佈；`agent-handoff-kit-intro.html` 與 `images/` 是原始碼倉庫資產，不會安裝到你的專案。
+GitHub Pages 上的兩個 onboarding 頁 —— [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html)（60 秒入門）與 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)（實操指南）—— 由原始碼倉庫根目錄發佈；兩個 HTML 與 `images/` 是原始碼倉庫資產，不會安裝到你的專案。
 
 ## 目前限制
 
