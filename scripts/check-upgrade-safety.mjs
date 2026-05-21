@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
+const fixturesRoot = path.join(root, "test-fixtures");
 
 main();
 
@@ -152,12 +153,115 @@ function main() {
   assert(sandwichDoctor.stdout.includes("status: passed"), "doctor must pass after R-024 sandwich upgrade");
   assert(sandwichUpgrade.stdout.includes("upgrade self-check"), "R-024 upgrade must run doctor self-check automatically (upgrade.done contract)");
 
+  // === Phase 2 R-025 real-fixture scenarios ===
+  // Replace hand-typed staleCoreFixture() preconditions with real produced
+  // files from older tagged releases (see test-fixtures/ and scripts/generate-upgrade-fixtures.mjs).
+
+  // (A) Real-fixture single-hop upgrade. For each captured version, seed a
+  // fresh root with that version's actual init artefacts, then run the
+  // current CLI upgrade. The legacy core must be replaced into a managed
+  // block, single core, and the automatic doctor self-check must pass.
+  const realFixtureRoots = [];
+  for (const ver of ["v0.1.4", "v0.1.5", "v0.1.6"]) {
+    const fixtureDir = path.join(fixturesRoot, ver);
+    assert(existsSync(path.join(fixtureDir, "AGENTS.md")), `missing fixture: ${ver}/AGENTS.md (re-run npm run qa:fixtures)`);
+    assert(existsSync(path.join(fixtureDir, "dev/PROJECT_INDEX.md")), `missing fixture: ${ver}/dev/PROJECT_INDEX.md`);
+    const hopRoot = path.join(tmpdir(), `ack-upgrade-realhop-${ver.replace(/\./g, "_")}-${Date.now()}`);
+    mkdirSync(path.join(hopRoot, "dev"), { recursive: true });
+    copyFileSync(path.join(fixtureDir, "AGENTS.md"), path.join(hopRoot, "AGENTS.md"));
+    copyFileSync(path.join(fixtureDir, "dev/PROJECT_INDEX.md"), path.join(hopRoot, "dev/PROJECT_INDEX.md"));
+    const hopUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", hopRoot], `real-fixture single-hop upgrade ${ver}`);
+    assert(hopUpgrade.stdout.includes("merged: 1"), `${ver} real-fixture single-hop must report one merged file`);
+    assert(hopUpgrade.stdout.includes("upgrade self-check"), `${ver} real-fixture single-hop must run doctor self-check`);
+    assert(hopUpgrade.stdout.includes("status: passed"), `${ver} real-fixture single-hop self-check must pass`);
+    const hopAgents = read(path.join(hopRoot, "AGENTS.md"));
+    assertSingleCore(hopAgents, `${ver} real-fixture single-hop result must be single core`);
+    assert(count(hopAgents, "BEGIN Agent Handoff Kit managed core") === 1, `${ver} real-fixture single-hop must produce managed marker pair`);
+    realFixtureRoots.push(hopRoot);
+  }
+
+  // (B) Real-fixture sandwich: stage 1 upgrade promotes v0.1.4 legacy core
+  // into a managed block; then inject v0.1.4 fixture AGENTS.md text as a
+  // stale core fragment below the managed block. Current CLI upgrade must
+  // strip the stale fragment and leave exactly one core.
+  const realSandwichRoot = path.join(tmpdir(), `ack-upgrade-real-sandwich-${Date.now()}`);
+  mkdirSync(path.join(realSandwichRoot, "dev"), { recursive: true });
+  copyFileSync(path.join(fixturesRoot, "v0.1.4/AGENTS.md"), path.join(realSandwichRoot, "AGENTS.md"));
+  copyFileSync(path.join(fixturesRoot, "v0.1.4/dev/PROJECT_INDEX.md"), path.join(realSandwichRoot, "dev/PROJECT_INDEX.md"));
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", realSandwichRoot], "real-sandwich stage 1: promote v0.1.4 legacy fixture to managed form");
+  const stageOneAgents = read(path.join(realSandwichRoot, "AGENTS.md"));
+  assert(count(stageOneAgents, "BEGIN Agent Handoff Kit managed core") === 1, "real-sandwich stage 1 must produce one managed marker pair");
+  assert(countCoreHeadings(stageOneAgents) === 1, "real-sandwich stage 1 must leave one core heading");
+  const realStaleCoreText = readFileSync(path.join(fixturesRoot, "v0.1.4/AGENTS.md"), "utf8");
+  const injectedAgents = `${stageOneAgents.trimEnd()}\n\n## Legacy Notes (real-fixture sandwich)\n\n${realStaleCoreText}\n`;
+  writeFileSync(path.join(realSandwichRoot, "AGENTS.md"), injectedAgents, "utf8");
+  assert(countCoreHeadings(injectedAgents) === 2, "real-sandwich precondition: must have two core headings before final upgrade");
+  const realSandwichUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", realSandwichRoot], "real-sandwich final upgrade");
+  assert(realSandwichUpgrade.stdout.includes("merged: 1"), "real-sandwich final upgrade must report one merged file");
+  assert(realSandwichUpgrade.stdout.includes("upgrade self-check"), "real-sandwich final upgrade must run doctor self-check");
+  assert(realSandwichUpgrade.stdout.includes("status: passed"), "real-sandwich self-check must pass");
+  const realSandwichResult = read(path.join(realSandwichRoot, "AGENTS.md"));
+  assertSingleCore(realSandwichResult, "real-sandwich final result must be single core");
+
+  // (C) Chain upgrade scenario (R-025): simulate a user who installed at
+  // v0.1.4 and upgraded through each subsequent release. Each hop uses
+  // its own version's CLI from a detached worktree; the corresponding
+  // version's doctor must pass after that hop. The final hop uses the
+  // current HEAD CLI and its self-check must pass.
+  const chainRoot = path.join(tmpdir(), `ack-upgrade-chain-${Date.now()}`);
+  mkdirSync(chainRoot, { recursive: true });
+  const chainSteps = [
+    { ref: "v0.1.4", command: "init" },
+    { ref: "v0.1.5", command: "upgrade" },
+    { ref: "v0.1.6", command: "upgrade" }
+  ];
+  for (const step of chainSteps) {
+    withWorktree(step.ref, (worktreePath) => {
+      const cli = path.join(worktreePath, "bin/agent-handoff-kit.mjs");
+      run(process.execPath, [cli, step.command, "--yes", "--root", chainRoot], `chain step: ${step.command} via ${step.ref} CLI`);
+      const stepDoctor = run(process.execPath, [cli, "doctor", "--root", chainRoot], `chain doctor: ${step.ref} CLI after ${step.command}`);
+      assert(stepDoctor.stdout.includes("status: passed"), `chain doctor must pass after ${step.ref} ${step.command}`);
+    });
+  }
+  // Final hop: current HEAD CLI upgrade with its R-024 / R-026 enforcement.
+  const chainFinal = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", chainRoot], "chain final: upgrade via current HEAD CLI");
+  const chainFinalAgents = read(path.join(chainRoot, "AGENTS.md"));
+  assertSingleCore(chainFinalAgents, "chain final state must be single core");
+  assert(count(chainFinalAgents, "BEGIN Agent Handoff Kit managed core") === 1, "chain final state must have one managed marker pair");
+  assert(chainFinal.stdout.includes("upgrade self-check"), "chain final upgrade must run doctor self-check");
+  assert(chainFinal.stdout.includes("status: passed"), "chain final self-check must pass (R-025 chain acceptance)");
+
   console.log("");
   console.log("Agent Handoff Kit upgrade safety QA passed");
   console.log(`merge root: ${mergeRoot}`);
   console.log(`conflict root: ${conflictRoot}`);
   console.log(`stale-version root: ${staleRoot}`);
   console.log(`sandwich root: ${sandwichRoot}`);
+  console.log(`real-fixture single-hop roots: ${realFixtureRoots.length}`);
+  console.log(`real-sandwich root: ${realSandwichRoot}`);
+  console.log(`chain root: ${chainRoot}`);
+}
+
+function withWorktree(ref, callback) {
+  const worktreePath = path.join(tmpdir(), `ack-chain-wt-${ref.replace(/\./g, "_")}-${Date.now()}`);
+  const addResult = spawnSync("git", ["worktree", "add", "--detach", worktreePath, ref], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  if (addResult.status !== 0) {
+    throw new Error(`git worktree add ${ref} failed (exit ${addResult.status})\n${addResult.stdout ?? ""}\n${addResult.stderr ?? ""}`);
+  }
+  try {
+    callback(worktreePath);
+  } finally {
+    const rmResult = spawnSync("git", ["worktree", "remove", "--force", worktreePath], {
+      cwd: root,
+      encoding: "utf8"
+    });
+    if (rmResult.status !== 0) {
+      console.error(`warning: chain worktree cleanup failed for ${worktreePath}`);
+    }
+  }
 }
 
 function run(command, args, label, options = {}) {
@@ -224,6 +328,13 @@ function countCoreHeadings(text) {
   return n;
 }
 
+// R-025 boundary: this synthesized fixture is retained ONLY for schema-boundary
+// tests where the production state cannot be captured from a real tag (e.g.
+// toggling the skillArbitration / promptMirror flags to cover the v0.1.3 vs
+// v0.1.4 era distinction in one place). Production-state preconditions must
+// use test-fixtures/<version>/ generated by scripts/generate-upgrade-fixtures.mjs.
+// Do NOT extend this function with new production scenarios; add a real
+// fixture instead.
 function staleCoreFixture({ skillArbitration, promptMirror }) {
   return `# Agent Handoff Kit Core Runtime
 

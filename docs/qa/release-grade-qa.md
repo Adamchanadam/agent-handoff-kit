@@ -49,6 +49,9 @@
 | 執行落差 | 檢查規則是否有 `doctor`、QA 腳本、負面測試或人工審閱承接；不得只增加提醒文字。 |
 | 技能流程覆蓋 | 用核心規則、治理規則包與 QA 錨點確認外部技能流程只能作 subordinate evidence，不能讓 active root 跳過 handoff/log/index/registry 持久化。 |
 | 舊核心殘留 | 用升級負面測試確認舊版 `AGENTS.md` core 被替換而不是附加；`doctor` 必須擋下同一檔案內兩個 core runtime 標題。 |
+| 升級路徑覆蓋 | `qa:upgrade` 必須含跨版本鏈式升級驗收（`v0.1.4` → `v0.1.5` → `v0.1.6` → 當前 HEAD），每跳用對應版本嘅 CLI 跑 `init`／`upgrade`／`doctor`，最後一跳用當前 HEAD 跑並 self-check 通過。 |
+| 補丁前置狀態枚舉 | 每個 `R-XXX` 補丁必須明文列覆蓋與唔覆蓋嘅前置狀態枚舉，唔填唔放行。例：R-024 覆蓋「夾心 managed + stale」「legacy single core」「無 core」三態，唔覆蓋「managed marker 不成對」（屬 conflict，由人工處理）。 |
+| CLI Output Contract 一致性 | 每次 release 前 sweep `bin/agent-handoff-kit.mjs`：（a）`init`／`upgrade`／`doctor` 完成輸出必含版本（v0.X.Y）、模式（mode）、剛做咗乜（counts）、下一步四項；（b）禁忌用語清單命中 = 0（含「人話解讀」等自貶字眼）；（c）內部 action 名（create／merge／skip／conflict／status）保留唔變。 |
 
 ## 套件邊界
 
@@ -156,6 +159,58 @@ npm package 由 `package.json` 的 `files` 控制：
 - 非空既有專案升級重驗：已通過，臨時根目錄為 `C:\tmp\ack_release_candidate_upgrade_trial_20260517_171753`。
 - 最近發佈前驗收：`npm run qa:prototype`、`npm run qa:packs`、`npm run qa:upgrade`、`npm run qa:release` 已在新名稱下通過；公開文件補齊後 `npm run qa:release` 已再次通過。
 - 發佈後仍需驗證：GitHub Release、npm package metadata、`npx @adamchanadam/agent-handoff-kit --help`、`npx @adamchanadam/agent-handoff-kit doctor` 的實際可用性。
+
+## QA Fixture 真實性紀律（R-025）
+
+升級或回歸 fixture 必須由真實舊版本嘅 `init`／`upgrade` 產物生成；手嗒 template literal 合成只可做 schema 邊界測試。
+
+- 真源生成：`scripts/generate-upgrade-fixtures.mjs` 用 `git worktree add --detach <tmp> <tag>` 喺對應 tag 開臨時 worktree，跑該版本 CLI 嘅 `init`，將產物 copy 入 `test-fixtures/<version>/`。
+- Fixture 涵蓋：`AGENTS.md`（core runtime form）+ `dev/PROJECT_INDEX.md`（template version metadata）。新加版本須一齊納入。
+- 退役對象：合成嘅 `staleCoreFixture()` 函數限 schema-boundary use（toggle skillArbitration／promptMirror 等模型參數）；production-state preconditions 必用真實 fixture。
+- npm package 邊界：`test-fixtures/` 唔喺 `package.json` `files` 白名單內，唔會入 npm package；只屬原始碼倉庫資產。
+- 違反例：用 inline string 寫一個冒充「v0.1.X 嘅 AGENTS.md」嚟測 production state，係 R-025 違反，必須改用對應版本 fixture。
+
+## 跨版本鏈式升級驗收（R-025）
+
+`qa:upgrade` 必含 `chainUpgradeScenario`：
+
+1. `v0.1.4` CLI 跑 `init`（生成 v0.1.4 form 嘅 root）+ `v0.1.4` CLI doctor PASS。
+2. `v0.1.5` CLI 跑 `upgrade`（用 `git worktree add v0.1.5` 嘅 detached HEAD CLI）+ `v0.1.5` CLI doctor PASS。
+3. `v0.1.6` CLI 跑 `upgrade` + `v0.1.6` CLI doctor PASS。
+4. 當前 HEAD CLI 跑 `upgrade`（自動跑 R-024 self-check）+ self-check `status: passed`。
+5. 最終 `AGENTS.md` 必係 single core + single managed marker pair（即 R-024 嘅 clean state）。
+
+鏈式測試嘅意義：重現用戶長期升級嘅 cumulative drift，並確保當前 CLI 能 reset 任何之前版本累積嘅 sandwich / dup core / anchor 缺漏。中間 hop 失敗（例如 v0.1.5 CLI 嘅 doctor 對 v0.1.4 root 失敗）唔當 chain 通過；要根因到舊版 CLI 嘅實際邊界 bug，唔可以 silent 跳過。
+
+## 補丁前置狀態枚舉（R-025）
+
+每個 `R-XXX` 補丁喺發佈級 QA 必填一條「覆蓋／唔覆蓋嘅前置狀態枚舉」，唔填唔放行。
+
+| R 編號 | 覆蓋嘅前置狀態 | 唔覆蓋嘅前置狀態 |
+|---|---|---|
+| R-024 | （a）夾心 sandwich：managed marker pair + unmarked stale core；（b）legacy single core：無 managed marker + 單一 title；（c）legacy duplicate cores：無 managed marker + 多 title；（d）無 Kit core：file 存在但完全冇 core；（e）clean：managed marker pair + 無 unmarked dup。 | （f）managed-core markers 不成對／多 pair → 屬 conflict 狀態，CLI 顯示 conflict action，人工介入，唔由 upgrade auto-merge 處理。 |
+| R-026 | 全部 `init`／`upgrade`／`doctor` 完成輸出（含 first-install / upgrade-existing / healthy / needs-fix / partial 模式）；`help` 命令完成輸出（version + mode + next）。 | 中間進度行（如 `ok: create` 之類）唔強制四項契約；`migration-report.md` 內容契約唔屬 CLI Output Contract 範圍（migration report 有獨立 schema）。 |
+
+## CLI Output Contract Sweep（R-026）
+
+發佈前須 grep 公開倉庫源碼，確認以下命中：
+
+```text
+grep -n "人話解讀" bin/agent-handoff-kit.mjs       # 期望 0 命中
+grep -c "📦 版本" bin/agent-handoff-kit.mjs         # 期望 ≥ 3（init/upgrade/doctor/help 至少四處）
+grep -c "🛠️" bin/agent-handoff-kit.mjs              # 期望 ≥ 2（install/help 模式）
+grep -c "🩺 模式" bin/agent-handoff-kit.mjs         # 期望 ≥ 1（doctor 模式）
+grep -c "🚀 下一步" bin/agent-handoff-kit.mjs       # 期望 ≥ 3（install/doctor/help）
+```
+
+人工驗證（語氣審閱必填項）：
+
+- 安裝完成訊息：用戶讀完知道版本、做咗乜、下一步點處理。
+- 升級完成訊息：用戶讀完知道 self-check 結果，唔會誤以為「skip」即係未完成。
+- Doctor 失敗訊息：四種模式（missing files / anchor / schema / prompt mirror）每種都應有對應中文下一步指示。
+- Help 訊息：用戶第一次跑 `--help` 應理解三個命令、版本同下一步。
+- 禁忌用語清單：「人話解讀」「人話補一句」「人話解釋」等自我評論／粗俗自貶 phrasing 一律禁。
+- 內部 action 名：`create` / `merge` / `skip` / `conflict` / `status` 保留唔變（QA 同 migration report 依賴）。
 
 ## 發佈阻擋項
 

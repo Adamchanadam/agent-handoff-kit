@@ -1,0 +1,33 @@
+# Agent Handoff Kit Test Fixtures
+
+Real produced files from older tagged releases of the CLI. These fixtures
+exist so `scripts/check-upgrade-safety.mjs` can stage realistic upgrade
+preconditions instead of hand-typed templates that drift from what users
+actually have on disk (see R-025).
+
+## How they are generated
+
+Run `node scripts/generate-upgrade-fixtures.mjs` from the repo root. The
+generator creates a detached `git worktree` at each target tag, runs that
+tag's own `bin/agent-handoff-kit.mjs init` into a temp directory, copies
+the key files into `test-fixtures/<tag>/`, and cleans up the worktree.
+
+Do **not** edit these files by hand. Re-run the generator when a new
+tagged release should be added to the fixture set.
+
+## Covered versions
+
+- v0.1.4
+- v0.1.5
+- v0.1.6
+
+## Fixture files per version
+
+- AGENTS.md
+- dev/PROJECT_INDEX.md
+
+## npm package boundary
+
+This directory is excluded from the published npm package via the
+`files` whitelist in `package.json`. Fixtures live in the GitHub source
+repo only, so end users never download them.
