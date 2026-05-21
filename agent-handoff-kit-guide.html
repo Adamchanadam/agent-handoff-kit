@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Handoff Kit — 實操指南</title>
+  <meta name="description" content="兩個日常情景示範 Agent Handoff Kit 完整七步流程 — 整理電腦下載目錄、開咖啡店市場調查。" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --red:      #E63946;
+      --yellow:   #FFD60A;
+      --blue:     #2E5BFF;
+      --ink:      #0A0A0A;
+      --paper:    #F7F4EE;
+      --paper-2:  #EFEAE0;
+      --green:    #06A77D;
+
+      --font-sans: "Space Grotesk", "Inter", "Helvetica Neue", Helvetica, Arial,
+                   "PingFang TC", "Microsoft JhengHei", sans-serif;
+      --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+
+      --max-width: 1180px;
+      --rule:      4px solid var(--ink);
+      --rule-thin: 2px solid var(--ink);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 17px;
+      line-height: 1.55;
+      letter-spacing: 0.005em;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    p { max-width: 62ch; margin: 0 0 1em; }
+    .wrap { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; }
+
+    .top-banner {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.5fr;
+      height: 14px;
+      border-bottom: var(--rule);
+    }
+    .top-banner > div:nth-child(1) { background: var(--red); }
+    .top-banner > div:nth-child(2) { background: var(--yellow); }
+    .top-banner > div:nth-child(3) { background: var(--blue); }
+
+    nav.bar {
+      border-bottom: var(--rule);
+      background: var(--paper);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    nav.bar .wrap {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 14px;
+      padding-bottom: 14px;
+      gap: 24px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .logo-mark {
+      width: 36px; height: 36px;
+      position: relative;
+      background: var(--ink);
+      flex-shrink: 0;
+    }
+    .logo-mark::before {
+      content: ''; position: absolute;
+      left: 5px; top: 5px;
+      width: 11px; height: 11px;
+      background: var(--red);
+    }
+    .logo-mark::after {
+      content: ''; position: absolute;
+      right: 5px; bottom: 5px;
+      width: 0; height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-bottom: 12px solid var(--blue);
+    }
+    .hero { border-bottom: var(--rule); padding: 72px 0 64px; }
+    .hero .kicker {
+      display: inline-block;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 6px 10px;
+      letter-spacing: 0.05em;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: clamp(40px, 6.5vw, 88px);
+      font-weight: 700;
+      line-height: 0.96;
+      margin: 0 0 20px;
+      letter-spacing: -0.02em;
+    }
+    .hero h1 .accent { color: var(--red); }
+    .hero h1 .accent2 { color: var(--blue); }
+    .hero .lede {
+      font-size: clamp(18px, 1.5vw, 21px);
+      max-width: 56ch;
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .case-tabs {
+      border-bottom: var(--rule);
+      background: var(--paper);
+      position: sticky;
+      top: 67px;
+      z-index: 49;
+    }
+    .case-tabs .wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      padding: 0 24px;
+    }
+    .case-tab {
+      padding: 18px 22px;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      border-right: var(--rule-thin);
+      font-family: var(--font-sans);
+      letter-spacing: 0.01em;
+      text-align: left;
+      color: var(--ink);
+      transition: background 120ms ease-out;
+    }
+    .case-tab:last-child { border-right: none; }
+    .case-tab.active { background: var(--ink); color: var(--paper); }
+    .case-tab:hover:not(.active) { background: var(--paper-2); }
+    .case-tab .case-num {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      opacity: 0.7;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .case-content[hidden] { display: none; }
+
+    .step-rail { padding: 36px 0 8px; }
+    .step-rail-inner {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      border: 3px solid var(--ink);
+      overflow: hidden;
+    }
+    .step-pill {
+      padding: 12px 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      border-right: 2px solid var(--ink);
+      background: var(--paper-2);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      text-decoration: none;
+      color: var(--ink);
+      cursor: pointer;
+      transition: background 120ms ease-out;
+    }
+    .step-pill:last-child { border-right: none; }
+    .step-pill:hover { background: var(--yellow); }
+    .step-pill .num { font-weight: 700; font-size: 13px; }
+    .step-pill .title {
+      font-family: var(--font-sans);
+      font-size: 12.5px;
+      letter-spacing: 0;
+      line-height: 1.25;
+    }
+
+    .step-section { padding: 56px 0 72px; border-top: var(--rule-thin); }
+    .step-section:first-of-type { border-top: none; }
+    .step-section .badge {
+      display: inline-block;
+      background: var(--blue);
+      color: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 6px 12px;
+      margin-bottom: 16px;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+    }
+    .step-section h2 {
+      font-size: clamp(26px, 3.4vw, 40px);
+      margin: 0 0 16px;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      max-width: 24ch;
+    }
+    .step-section .narrative {
+      max-width: 62ch;
+      font-size: 17px;
+      line-height: 1.65;
+    }
+
+    .block { border: 3px solid var(--ink); margin: 24px 0; }
+    .block-header {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 10px 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .block-header .label { font-weight: 700; text-transform: uppercase; }
+    .block-header .meta { opacity: 0.7; font-size: 12px; }
+
+    .block.file .block-body,
+    .block.terminal .block-body {
+      padding: 16px 18px;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .block.file .block-body { background: var(--paper-2); color: var(--ink); }
+    .block.terminal .block-body { background: #0d1117; color: #e6edf3; }
+    .block .hl { background: var(--yellow); color: var(--ink); padding: 1px 5px; }
+    .block.terminal .hl { background: var(--yellow); color: var(--ink); }
+
+    .chat { display: grid; gap: 16px; margin: 24px 0; }
+    .chat-row { display: flex; gap: 14px; }
+    .chat-row.user { justify-content: flex-end; }
+    .chat-bubble {
+      max-width: 88%;
+      border: 3px solid var(--ink);
+      padding: 16px 18px;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+    .chat-bubble .who {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .chat-bubble .who::before {
+      font-size: 1.6em;
+      margin-right: 6px;
+      vertical-align: -3px;
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+    }
+    .chat-bubble.user .who::before { content: '🗨️'; }
+    .chat-bubble.ai .who::before { content: '🤖'; }
+    .chat-bubble.user { background: var(--yellow); }
+    .chat-bubble.ai { background: var(--paper); }
+    .chat-bubble pre {
+      font-family: var(--font-mono);
+      background: var(--ink);
+      color: var(--paper);
+      padding: 12px 14px;
+      margin: 8px 0;
+      font-size: 12.5px;
+      line-height: 1.55;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .chat-bubble code {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      background: rgba(0,0,0,0.08);
+      padding: 1px 5px;
+    }
+    .chat-bubble ul { margin: 8px 0 8px 20px; }
+    .chat-bubble ul li { margin-bottom: 4px; }
+    .chat-bubble p { margin: 0 0 0.7em; max-width: none; }
+    .chat-bubble p:last-child { margin-bottom: 0; }
+    .chat-bubble .loop {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: var(--paper-2);
+      padding: 10px 12px;
+      border-left: 4px solid var(--blue);
+      margin: 10px 0;
+    }
+    .pill {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 3px 9px;
+      border: 2px solid var(--ink);
+      background: var(--paper-2);
+      margin: 0 6px 6px 0;
+      letter-spacing: 0.04em;
+      font-weight: 700;
+    }
+    .pill.coding { background: var(--blue); color: var(--paper); }
+    .pill.safety { background: var(--red); color: var(--paper); }
+    .pill.research { background: var(--green); color: var(--paper); }
+    .pill.knowledge { background: var(--ink); color: var(--paper); }
+    .pill.writing { background: var(--yellow); }
+    .pill.release { background: #FF7A00; color: var(--paper); }
+
+    .callout {
+      border: 3px solid var(--ink);
+      background: var(--paper-2);
+      padding: 20px 22px;
+      margin: 28px 0 0;
+    }
+    .callout .label {
+      display: inline-block;
+      background: var(--red);
+      color: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 700;
+      padding: 4px 10px;
+      margin-bottom: 14px;
+    }
+    .callout h3 {
+      font-size: 18px;
+      margin: 0 0 12px;
+      line-height: 1.3;
+    }
+    .callout ul { margin: 0 0 0 20px; padding: 0; max-width: 66ch; }
+    .callout ul li { margin-bottom: 10px; line-height: 1.55; }
+    .callout ul li strong { color: var(--red); }
+    .callout code {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      background: rgba(0,0,0,0.06);
+      padding: 1px 5px;
+    }
+
+    .outro {
+      padding: 72px 0 88px;
+      border-top: var(--rule);
+      background: var(--ink);
+      color: var(--paper);
+    }
+    .outro h2 {
+      font-size: clamp(28px, 3.4vw, 44px);
+      margin: 0 0 16px;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+    }
+    .outro h2 .accent { color: var(--yellow); }
+    .outro p { max-width: 56ch; opacity: 0.9; }
+    .outro a {
+      display: inline-block;
+      background: var(--yellow);
+      color: var(--ink);
+      padding: 14px 22px;
+      border: 3px solid var(--yellow);
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      text-decoration: none;
+      margin-top: 16px;
+      transition: transform 120ms ease-out;
+    }
+    .outro a:hover { transform: translate(-2px, -2px); }
+
+    footer {
+      border-top: var(--rule-thin);
+      background: var(--ink);
+      color: var(--paper);
+      padding: 48px 0 36px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+    footer .wrap {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+    footer strong {
+      font-family: var(--font-sans);
+      font-size: 16px;
+      text-transform: none;
+      letter-spacing: 0;
+      display: block;
+      margin-bottom: 8px;
+    }
+    footer a { color: var(--paper); text-decoration: underline; }
+    footer p { max-width: 50ch; margin: 0; line-height: 1.65; opacity: 0.85; }
+
+    @media (max-width: 900px) {
+      .case-tabs .wrap { grid-template-columns: 1fr; }
+      .case-tab { border-right: none; border-bottom: var(--rule-thin); }
+      .case-tab:last-child { border-bottom: none; }
+      .step-rail-inner { grid-template-columns: repeat(2, 1fr); }
+      .step-pill { border-right: none; border-bottom: 2px solid var(--ink); }
+      footer .wrap { grid-template-columns: 1fr; gap: 24px; }
+      .chat-bubble { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="top-banner">
+  <div></div><div></div><div></div>
+</div>
+
+<nav class="bar">
+  <div class="wrap">
+    <div class="logo">
+      <span class="logo-mark"></span>
+      <span>Agent Handoff Kit · 實操指南</span>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="kicker">v0.1.7 · 七步流程完整示範</span>
+    <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
+    <p class="lede">兩個日常情景 —— 整理電腦下載目錄、開咖啡店的市場調查 —— 完整示範 Agent Handoff Kit 的七步流程。每一步都會見到 AI 主動宣告載入哪個工作模式、寫入哪份交接文件、輸出哪段下次開工提示。</p>
+  </div>
+</header>
+
+<div class="case-tabs" id="case-tabs">
+  <div class="wrap">
+    <button class="case-tab active" data-case="a">
+      <span class="case-num">CASE A</span>
+      整理電腦下載目錄,完成後公開發佈
+    </button>
+    <button class="case-tab" data-case="b">
+      <span class="case-num">CASE B</span>
+      開咖啡店市場調查 + 寫完成報告
+    </button>
+  </div>
+</div>
+
+<!-- ───────────────────────── CASE A ───────────────────────── -->
+<div class="case-content" data-case="a">
+
+  <div class="wrap step-rail">
+    <div class="step-rail-inner">
+      <a href="#a-step-1" class="step-pill"><span class="num">01</span><span class="title">安裝 Kit</span></a>
+      <a href="#a-step-2" class="step-pill"><span class="num">02</span><span class="title">開工貼上提示</span></a>
+      <a href="#a-step-3" class="step-pill"><span class="num">03</span><span class="title">AI 第一回應</span></a>
+      <a href="#a-step-4" class="step-pill"><span class="num">04</span><span class="title">確認 + 寫程式</span></a>
+      <a href="#a-step-5" class="step-pill"><span class="num">05</span><span class="title">Safety 自動加碼</span></a>
+      <a href="#a-step-6" class="step-pill"><span class="num">06</span><span class="title">收工 + 輸出提示</span></a>
+      <a href="#a-step-7" class="step-pill"><span class="num">07</span><span class="title">下次接力 + 發佈</span></a>
+    </div>
+  </div>
+
+  <!-- Case A · Step 1 -->
+  <section class="step-section" id="a-step-1">
+    <div class="wrap">
+      <span class="badge">STEP 01 · CASE A</span>
+      <h2>安裝 Kit —— 一句指令,在資料夾建好治理檔案</h2>
+      <p class="narrative">第一步完全與 AI 無關。你只需要在電腦開一個空資料夾(例如 <code>~/Downloads-tidy</code>),打開 Terminal,執行一句指令。Kit 會自動為你建好整套交接同治理文件,之後與 AI 對話時 AI 會自己讀取。</p>
+
+      <div class="block terminal">
+        <div class="block-header"><span class="label">Terminal</span><span class="meta">~/Downloads-tidy</span></div>
+        <div class="block-body">$ <span class="hl">npx @adamchanadam/agent-handoff-kit init</span>
+
+📋 計劃預覽:以下未執行。create 新增缺少檔案;merge 在備份後合併;skip 保留既有檔案。
+
+create: 17
+  AGENTS.md
+  CLAUDE.md
+  GEMINI.md
+  START_NEXT_SESSION_PROMPT.txt
+  dev/SESSION_HANDOFF.md
+  dev/SESSION_LOG.md
+  dev/PROJECT_INDEX.md
+  dev/DOC_SYNC_REGISTRY.md
+  dev/RULE_PACKS.md
+  dev/rules/safety.md
+  dev/rules/coding.md
+  ... (其餘工作模式檔)
+
+是否繼續? (yes/no): <span class="hl">yes</span>
+
+✅ created: 17
+🔀 merged: 0
+⏭️  skipped existing: 0
+
+📦 版本:v0.1.7
+🛠️  模式:first-install
+🔎 剛做咗:init 命令;create 17 / merge 0 / skip 0 / conflict 0。
+🚀 下一步:開新 AI 對話,按下方提示貼入 Work in &lt;root&gt; 一句後描述任務。
+
+============================================================
+✅ 安裝完成:下一步請在 AI 對話中操作
+============================================================
+⚠️  請注意:下面文字不是 Terminal 指令。
+📋 請打開你要使用的 AI 工具,新增一段對話,貼上下面一句:
+------------------------------------------------------------
+<span class="hl">Work in ~/Downloads-tidy. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.</span>
+------------------------------------------------------------</div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>這一步靜靜建立了整套協作基建</h3>
+        <ul>
+          <li><strong>三入口同源</strong>:同時建立 <code>AGENTS.md</code>、<code>CLAUDE.md</code>、<code>GEMINI.md</code>,Claude Code、Codex、Gemini CLI 三個工具都找到同一套規則。</li>
+          <li><strong>治理檔骨架</strong>:<code>dev/</code> 裡面有交接、日誌、項目索引、同步登記表、工作模式路由 —— AI 之後的讀序就靠這幾份。</li>
+          <li><strong>輸出契約</strong>:CLI 最後必印四項 —— 版本、模式、剛做了什麼、下一步 —— 讓你立即知道 Kit 哪個版本、走到哪一步、下一步應該怎樣做。</li>
+          <li><strong>「下一步」不是 Terminal 指令</strong>:Kit 特別用 <code>⚠️</code> 標明。新手最易撞的誤會,是將「Work in...」這句以為要繼續在 Terminal 輸入 —— 其實是要貼到 AI 對話。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case A · Step 2 -->
+  <section class="step-section" id="a-step-2">
+    <div class="wrap">
+      <span class="badge">STEP 02 · CASE A</span>
+      <h2>開工貼上提示 —— 開新 AI 對話,一句指引加日常話描述任務</h2>
+      <p class="narrative">打開你慣用的 AI 工具(Claude Code、Codex、Gemini CLI 三選其一),開一個新對話。第一段貼 Kit 安裝時印出那句 <code>Work in ...</code>,接著用日常話講你要做什麼。不需要解釋 Kit 怎樣運作、不需要叫 AI 用哪個工作模式 —— AI 讀完 <code>AGENTS.md</code> 會自行處理。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+<pre>Work in ~/Downloads-tidy. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.</pre>
+            <p>我的下載目錄堆了一兩年亂檔,過千份,要找一份舊文件都需要慢慢翻。我想寫一個小工具,執行一次就將它們按類型分入子目錄(文件、圖片、安裝包、壓縮包、其他),子目錄再按年份分一層。寫好之後,我想將它整理成可以重用的工具,放上 GitHub 讓朋友也能用。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>這句指引內藏 Kit 啟動契約</h3>
+        <ul>
+          <li><strong>"Work in &lt;path&gt;"</strong> 明確指定 AI 的工作根目錄 —— 確保 AI 不會在錯誤資料夾改動檔案。</li>
+          <li><strong>"Read AGENTS.md and follow it"</strong> 觸發讀序合約 —— AI 必須先讀 <code>AGENTS.md</code>,再按裡面所講的順序讀其他治理檔。</li>
+          <li><strong>"Tell me the current state and your recommended next step"</strong> 觸發啟動卡加計劃輸出 —— AI 第一段不可以直接改檔,必須先報告。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case A · Step 3 -->
+  <section class="step-section" id="a-step-3">
+    <div class="wrap">
+      <span class="badge">STEP 03 · CASE A</span>
+      <h2>AI 的第一回應 —— 主動講出讀過哪些文件、載入哪個工作模式</h2>
+      <p class="narrative">AI 不會立即寫程式。它先按 <code>AGENTS.md</code> 的讀序,逐份讀 <code>dev/SESSION_HANDOFF.md</code>、<code>dev/SESSION_LOG.md</code> 最近條目、<code>dev/PROJECT_INDEX.md</code>,再讀 <code>dev/RULE_PACKS.md</code> 選出適合這個任務的工作模式。讀完之後,AI 顯示一張啟動卡,主動向你交代:目前狀態、已載入哪個工作模式、為何要載入、下一步建議。</p>
+
+      <div class="chat">
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI(已按 AGENTS.md 啟動)</span>
+<pre>   /\_/\   Agent Handoff Kit v0.1.7
+  ( o.o )  continuity ready
+   > ^ <
+
+🔎 Handoff: loaded
+📌 目前狀態：新項目，SESSION_HANDOFF 仍未有上一輪紀錄
+⚠️ 邊界：涉及大量檔案移動，需要 dry-run 先列清單
+🚀 下一步：載入工作模式 + 進入 PLAN 階段</pre>
+            <p>我已經按 <code>AGENTS.md</code> 的讀序,讀齊以下文件:</p>
+            <ul>
+              <li><code>dev/SESSION_HANDOFF.md</code> —— 新項目,仍未有 current state,第一份交接由今次寫入。</li>
+              <li><code>dev/PROJECT_INDEX.md</code> —— 仍是模板,Fact Base 與 Local QC Commands 待填。</li>
+              <li><code>dev/RULE_PACKS.md</code> —— 工作模式路由表,用來選擇今次的模式。</li>
+            </ul>
+            <p>根據你的描述,我會載入以下兩個工作模式:</p>
+            <p>
+              <span class="pill coding">coding</span>寫那個下載目錄整理小工具<br/>
+              <span class="pill safety">safety</span>因為要移動大量檔案,執行前要先 dry-run 列清單由你確認,絕對不會默默移動或者覆寫
+            </p>
+            <p>我接著要做的工作迴圈:</p>
+            <p class="loop">PLAN(列清楚分類邏輯、目錄結構、dry-run 範圍)<br/>→ READ(掃描下載目錄樣本)<br/>→ CHANGE(寫 script + dry-run 模式)<br/>→ QC(你確認 dry-run 清單)<br/>→ 正式執行 + PERSIST(將今次完成的事寫入 SESSION_HANDOFF 與 SESSION_LOG)</p>
+            <p><strong>你想我現在進入 PLAN,將分類邏輯與 dry-run 範圍寫清楚由你確認才開始嗎?</strong></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>這個回應有四件事是 Kit 預設行為</h3>
+        <ul>
+          <li><strong>啟動卡</strong>:ASCII 小貓圖案、版本字、Handoff loaded 標記 —— 由 <code>runtime-core/AGENTS.core.md</code> 的 startup contract 定義,跨工具一致。</li>
+          <li><strong>讀序合約</strong>:AI 主動講出讀過哪些文件、哪份是空的、哪份待填。新項目的 handoff 是空的,這個是預期,不是故障。</li>
+          <li><strong>主動宣告工作模式</strong>:你沒有要求用 coding 模式,但 AI 讀完 <code>dev/RULE_PACKS.md</code> 自己選擇。<code>safety</code> 的自動加碼是 Kit 核心安全護欄 —— 凡涉及檔案移動、Git、API、發佈,AI 都會自動加。</li>
+          <li><strong>高風險工作 PLAN 後暫停</strong>:這個任務涉及檔案移動(屬 destructive 範疇),Kit 預設要 AI 在 PLAN 階段停手,等你確認才進入 CHANGE。AI 不會自行越界。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case A · Step 4 -->
+  <section class="step-section" id="a-step-4">
+    <div class="wrap">
+      <span class="badge">STEP 04 · CASE A</span>
+      <h2>你確認,AI 進入 PLAN → READ → CHANGE 寫程式</h2>
+      <p class="narrative">你確認之後,AI 開始按工作迴圈做事。PLAN 階段它列清楚目錄分類邏輯、檔名命名規則、要 dry-run 的範圍。READ 階段它掃描你下載目錄樣本,認清現時亂況。CHANGE 階段它寫好整理 script,但不正式執行 —— 先準備好 dry-run 模式。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>好,進入 PLAN。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · PLAN 階段</span>
+            <p><strong>分類邏輯</strong>(5 類):</p>
+            <ul>
+              <li><strong>documents/</strong> —— .pdf .docx .doc .txt .md .rtf .pages</li>
+              <li><strong>images/</strong> —— .jpg .jpeg .png .gif .webp .heic .svg</li>
+              <li><strong>installers/</strong> —— .dmg .pkg .exe .msi .deb .rpm</li>
+              <li><strong>archives/</strong> —— .zip .tar .gz .7z .rar</li>
+              <li><strong>others/</strong> —— 以上分不到的一律歸入這類</li>
+            </ul>
+            <p><strong>子目錄結構</strong>:每類裡面再按檔案最後修改年份分,例如 <code>documents/2025/</code>、<code>documents/2024/</code>。</p>
+            <p><strong>檔名規則</strong>:保留原檔名;如有重名 append 數字尾碼(_1、_2)。</p>
+            <p><strong>Dry-run 範圍</strong>:掃描整個 <code>~/Downloads</code> 目錄;不會 follow symlink、不會處理 <code>.</code> 開頭的隱藏檔。</p>
+            <p>我現在進入 READ 階段掃描你的目錄,然後寫 script 並執行一次 dry-run 讓你看清單。<strong>這個 plan 可以嗎?</strong></p>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>可以,繼續。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · READ + CHANGE 階段</span>
+            <p>掃描 <code>~/Downloads</code>,共找到 <strong>1,043 個檔案</strong>。樣本(隨機 5 個):</p>
+<pre>~/Downloads/IMG_2837.HEIC                (2025-04, image)
+~/Downloads/銀行月結單_2024-11.pdf       (2024-11, document)
+~/Downloads/Notion-2.0.41.dmg            (2024-08, installer)
+~/Downloads/設計稿備份.zip                 (2025-01, archive)
+~/Downloads/Screenshot 2025-03-15.png    (2025-03, image)</pre>
+            <p>已寫好 script 到 <code>~/Downloads-tidy/sort_downloads.py</code>,加入 <code>--dry-run</code> flag。即將執行 dry-run,只會印出「哪個檔案會去哪裡」的清單,完全不會移動任何東西。</p>
+            <p><strong>準備好執行 dry-run 嗎?</strong></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>PLAN → READ → CHANGE → QC → PERSIST 五階段運作</h3>
+        <ul>
+          <li><strong>PLAN 階段</strong>必須列清楚:目標、範圍、驗收標準、哪個案例不處理 —— 不是立即寫 code,而是先寫清楚規則由你確認。</li>
+          <li><strong>READ 階段</strong>是收集事實 —— 真實掃描你的目錄看樣本,而不是憑「估計」寫 script。</li>
+          <li><strong>CHANGE 階段</strong>寫東西但不 commit —— 寫好 script、加 dry-run flag,正式移動前再停手等確認。</li>
+          <li>這套迴圈來自 <code>runtime-core/AGENTS.core.md</code> 的 Work Loop 章節,跨案例都是同一套。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case A · Step 5 -->
+  <section class="step-section" id="a-step-5">
+    <div class="wrap">
+      <span class="badge">STEP 05 · CASE A</span>
+      <h2>Safety 模式自動加碼 —— dry-run 列清單,你確認才正式執行</h2>
+      <p class="narrative">Safety 模式在第三步已經自動加載。它的核心要求:破壞性動作(檔案移動、刪除、覆寫、Git reset、發佈)必須先講計劃,而涉及移動大量檔案時要用 dry-run 列清單,得到用戶明確確認才正式執行。AI 不可以「悄悄做」。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>好,執行 dry-run。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 執行 dry-run</span>
+<pre>$ python sort_downloads.py --dry-run
+
+==== Dry-run summary ====
+Total scanned:           1,043 files
+Plan summary:
+  documents/2025/          234 files
+  documents/2024/          178 files
+  documents/2023/           62 files
+  images/2025/             198 files
+  images/2024/             134 files
+  installers/2025/          48 files
+  installers/2024/          39 files
+  archives/2025/            26 files
+  archives/2024/            21 files
+  others/                   103 files
+
+⚠️ 5 個檔案有重名,會 append _1 / _2 尾碼。
+⚠️ 0 個檔案跨 partition(全部仍在同一個磁碟)。
+
+Dry-run 完成,完全沒有移動任何檔案。
+看完清單覺得可以,輸入 yes 才正式執行;不可以我可以調整分類規則。</pre>
+            <p>清單列完。這個分配你接受嗎?如果有檔案你想保留在 <code>~/Downloads</code> 不搬,可以講 —— 例如想保留最近 7 日內的檔案,我可以加 filter。</p>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>清單可以,我接受,正式執行。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 正式執行</span>
+<pre>$ python sort_downloads.py
+
+Moving 1,043 files...
+[████████████████████████████████] 100% (1043/1043)
+
+==== Done ====
+Moved:           1,043 files
+Renamed (dup):       5 files
+Failed:              0 files
+
+新目錄結構在 ~/Downloads 裡面,可以打開 Finder 查看。</pre>
+            <p>已經完成。下載目錄現在分為 5 個主類加年份子目錄,找東西應該快很多。接著我要進入 PERSIST 階段,將今次完成的事寫入 <code>dev/SESSION_HANDOFF.md</code> 與 <code>dev/SESSION_LOG.md</code>,讓下次或者下個 AI 都能接得上。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>Safety 模式在這一步做了以下幾件事</h3>
+        <ul>
+          <li><strong>Dry-run 強制</strong>:涉及移動 1000 個以上檔案,AI 不可以一句指令就移動 —— 必須先 dry-run、列清單、等明確確認。</li>
+          <li><strong>清單透明</strong>:每類有多少檔案、年份分佈如何、重名怎樣處理 —— 全部列清楚,你看不順可以叫 AI 改規則。</li>
+          <li><strong>機密保護與破壞性禁區</strong>:Safety 模式同時禁止 <code>rm -rf</code>、<code>git reset --hard</code>、強制推送、系統根路徑操作 —— 這個情景未撞到,但同一套規則一直在守護。</li>
+          <li><strong>追蹤責任</strong>:正式執行完之後 AI 要進入 PERSIST 階段,將動作寫入 SESSION_LOG,將「下載目錄已整理 + script 位置」寫入 SESSION_HANDOFF 的 current state —— 下個 AI 接力時會見到。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case A · Step 6 -->
+  <section class="step-section" id="a-step-6">
+    <div class="wrap">
+      <span class="badge">STEP 06 · CASE A</span>
+      <h2>收工 —— 一句「收工」,AI 自動更新交接與輸出下次提示</h2>
+      <p class="narrative">工作完成之後,你不需要記住要更新哪份檔案。輸入一句「收工」、「wrap up」或者「handoff」,AI 偵測到收工意圖,即進入完整 closeout 流程:對賬式更新 <code>dev/SESSION_HANDOFF.md</code>、寫今次紀錄入 <code>dev/SESSION_LOG.md</code>、生成一段 fenced 的下次開工提示,並同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code> 副本。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>收工。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 收工流程</span>
+<pre>   /\_/\   Agent Handoff Kit v0.1.7
+  ( -.- )  handoff saved
+   > ^ <
+
+✅ Done: 下載目錄整理小工具完成,1043 個檔案已分入 5 類乘以年份子目錄
+🔎 QC: dry-run + 正式執行 + 0 failure
+📌 Handoff: opening message ready
+⚠️ Boundary: 尚未做 release(README + tag + push GitHub)</pre>
+            <p>我已經:</p>
+            <ul>
+              <li>對賬式更新 <code>dev/SESSION_HANDOFF.md</code> —— current state 改為「sort_downloads.py 已完成 + 已正式執行」,next priority 列出「加 README + tag + push GitHub」。</li>
+              <li>新增 entry 入 <code>dev/SESSION_LOG.md</code> —— 包含今次的 dry-run 清單摘要、正式執行結果、Workspace identity(commit 等)。</li>
+              <li><code>dev/PROJECT_INDEX.md</code> Fact Base 加入 <code>sort_downloads.py</code> 的角色描述。</li>
+            </ul>
+            <p>下次開工請貼以下一段(已同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code>):</p>
+            <p>📋 Next session: copy and paste the whole block below</p>
+<pre>Work in ~/Downloads-tidy. Read AGENTS.md and follow it.
+
+Current state: sort_downloads.py done, 1043 files moved.
+Next: 加 README、tag v0.1.0、push 上 GitHub。
+Risk: 仍未做 release,亦未在 SESSION_LOG 留 Git remote URL。
+
+After reading SESSION_HANDOFF, recommend next concrete step.</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>收工觸發了以下完整 closeout 流程</h3>
+        <ul>
+          <li><strong>收工意圖識別</strong>:「收工」、「wrap up」、「handoff」、「end session」、「done for today」一類自然短語都 trigger 同一套 closeout,你不需要記長指令。</li>
+          <li><strong>對賬式更新</strong>:AI 不會將新狀態追加在舊狀態下面 —— 必須逐段對賬 <code>SESSION_HANDOFF</code> 的 current state、改為當前事實,避免新日期配舊快照。</li>
+          <li><strong>fenced text 開工提示</strong>:輸出的下次開工文字一定包在 <code>```text</code> code block 裡面 —— 讓你可以一鍵複製,不會挾走前後的閒文。</li>
+          <li><strong>START_NEXT_SESSION_PROMPT.txt 自動同步</strong>:fenced text 的內容會同時寫入這個副本 —— 下次新對話打開,你可以直接在檔案 cat / copy。<code>SESSION_HANDOFF.md</code> 仍是權威真源,副本只是方便。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case A · Step 7 -->
+  <section class="step-section" id="a-step-7">
+    <div class="wrap">
+      <span class="badge">STEP 07 · CASE A</span>
+      <h2>下次接力與公開發佈 —— 新對話貼回提示,AI 由上一棒繼續</h2>
+      <p class="narrative">過了一天。你想做埋 release —— 加 README、tag 版本、push 上 GitHub。打開新 AI 對話(可能仍是 Claude,或者今次轉用 Codex / Gemini),貼回 <code>START_NEXT_SESSION_PROMPT.txt</code> 內容。新 AI 啟動,讀 <code>AGENTS.md</code>,讀回上次 <code>SESSION_HANDOFF</code>,接得回上一棒 —— 不需要你重新交代任何背景。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你 · 第二天新對話</span>
+<pre>Work in ~/Downloads-tidy. Read AGENTS.md and follow it.
+
+Current state: sort_downloads.py done, 1043 files moved.
+Next: 加 README、tag v0.1.0、push 上 GitHub。
+Risk: 仍未做 release,亦未在 SESSION_LOG 留 Git remote URL。
+
+After reading SESSION_HANDOFF, recommend next concrete step.</pre>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI(接力)</span>
+<pre>   /\_/\   Agent Handoff Kit v0.1.7
+  ( o.o )  continuity ready
+   > ^ <
+
+🔎 Handoff: loaded
+📌 目前狀態：sort_downloads.py 已完成 + 已正式執行 (1043 個檔案已移動)
+⚠️ 邊界：release 流程涉及 tag + push, 必須你明確批准每一步
+🚀 下一步：載入 release + safety, 進入 PLAN</pre>
+            <p>讀齊 <code>dev/SESSION_HANDOFF.md</code> 上次紀錄。今次目標是 release:加 README、tag v0.1.0、push 上 GitHub。我載入以下兩個工作模式:</p>
+            <p>
+              <span class="pill release">release</span>真正 publish 前必須明確批准,不自動 tag / push<br/>
+              <span class="pill safety">safety</span>涉及 Git remote 寫入,仍然在生效
+            </p>
+            <p>PLAN:</p>
+            <ul>
+              <li>寫 <code>README.md</code> —— 簡介、安裝、用法、選項、限制。</li>
+              <li><code>git init</code> + <code>git add</code> + <code>git commit</code> 寫第一個 commit。</li>
+              <li><code>git tag v0.1.0</code>。</li>
+              <li>你在 GitHub 開好新 repo(我不能代你做),交個 URL 給我,我執行 <code>git remote add</code> + <code>git push</code> + <code>git push --tags</code>。</li>
+            </ul>
+            <p><strong>這個 PLAN 可以嗎?GitHub repo URL 你想自己開,還是我列步驟讓你跟著做?</strong></p>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>好,我自己上 GitHub 開好 repo 再交 URL 給你。Repo 名我用 <code>downloads-tidy</code>。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 寫 README + commit + tag</span>
+            <p>README 已寫好(三段:用途、安裝、用法選項)。git 初始化、第一個 commit、tag v0.1.0 全部執行完。等你交 GitHub URL,然後執行 push。</p>
+<pre>$ git log --oneline
+8e3a2f1 (HEAD -> main, tag: v0.1.0) Initial release: sort_downloads.py</pre>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>Repo URL: <code>https://github.com/yourname/downloads-tidy</code></p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · push</span>
+<pre>$ git remote add origin https://github.com/yourname/downloads-tidy.git
+$ git push -u origin main
+$ git push origin v0.1.0
+
+Pushed to https://github.com/yourname/downloads-tidy
+Tag v0.1.0 created at https://github.com/yourname/downloads-tidy/releases/tag/v0.1.0</pre>
+            <p>Release 完成。你的 <code>sort_downloads.py</code> 公開在 GitHub,朋友 clone 下來可以立即使用。</p>
+            <p>準備好就講「收工」,我會將今次 release 的 commit hash、tag、Git remote URL 寫入 <code>SESSION_HANDOFF</code> 與 <code>SESSION_LOG</code>,再輸出下次開工提示。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>接力與 release 的 Kit 護欄</h3>
+        <ul>
+          <li><strong>新 AI 完全不需要追問背景</strong>:它只讀 <code>AGENTS.md</code> 與 <code>SESSION_HANDOFF.md</code>,立即知道上次做到哪、下一步是什麼、有什麼 risk。新對話、新工具、新一天都接得上。</li>
+          <li><strong>跨工具一致</strong>:今天是 Claude,下次轉 Codex 或者 Gemini 都一樣 —— 三入口同源,讀同一套規則。</li>
+          <li><strong>release 模式</strong>必含「未明確批准不得 publish」紀律 —— AI 寫 README、commit、tag 自己做,但 <code>git push</code>、開 GitHub repo、npm publish 一律要你明確點頭。</li>
+          <li><strong>外部帳號操作 AI 不代辦</strong>:GitHub repo 在 web 介面開,要你登入按 「New repo」 —— 不會交 AI 代用你帳號操作,這是 safety 紀律。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /case-content[a] -->
+
+<!-- ───────────────────────── CASE B ───────────────────────── -->
+<div class="case-content" data-case="b" hidden>
+
+  <div class="wrap step-rail">
+    <div class="step-rail-inner">
+      <a href="#b-step-1" class="step-pill"><span class="num">01</span><span class="title">準備 + 安裝</span></a>
+      <a href="#b-step-2" class="step-pill"><span class="num">02</span><span class="title">開工貼上提示</span></a>
+      <a href="#b-step-3" class="step-pill"><span class="num">03</span><span class="title">AI 第一回應</span></a>
+      <a href="#b-step-4" class="step-pill"><span class="num">04</span><span class="title">對齊資料來源</span></a>
+      <a href="#b-step-5" class="step-pill"><span class="num">05</span><span class="title">寫報告 + 列 Drive 步驟</span></a>
+      <a href="#b-step-6" class="step-pill"><span class="num">06</span><span class="title">收工 + 輸出提示</span></a>
+      <a href="#b-step-7" class="step-pill"><span class="num">07</span><span class="title">下次接力 + 改報告</span></a>
+    </div>
+  </div>
+
+  <!-- Case B · Step 1 -->
+  <section class="step-section" id="b-step-1">
+    <div class="wrap">
+      <span class="badge">STEP 01 · CASE B</span>
+      <h2>準備資料分工與安裝 Kit</h2>
+      <p class="narrative">與 Case A 不同,這個研究任務涉及多個來源,所以在安裝 Kit 之前要先想清楚分工 —— 哪一樣放在哪裡。三件工具各做一件事:Notion 做 Index、本機放 reference 內容、Google Drive 留給最終 deliverable。Kit 自身不需要知道 Notion / Drive 的內容,Kit 只負責交接、治理、AI 工作模式。</p>
+
+      <div class="block file">
+        <div class="block-header"><span class="label">分工</span><span class="meta">三件工具,三件事</span></div>
+        <div class="block-body">Notion (Index DB)
+├── 標題 (text)
+├── 類型 (政府報告 / 競品截圖 / 訪談錄音 / 自寫筆記)
+├── 來源 (text 或 URL)
+├── 日期 (date)
+├── 標籤 (multi-select)
+├── 摘要 (text, 一句)
+└── 本機路徑 (text, 指向 reference/ 裡面的檔案)
+
+本機 ~/cafe-research/
+├── AGENTS.md / CLAUDE.md / GEMINI.md   (Kit 稍後安裝時建立)
+├── dev/                                 (Kit 交接與治理檔)
+├── reference/                           (你預先建好)
+│   ├── 政府統計-人口分佈-2024.pdf
+│   ├── 行業協會-餐飲業趨勢-2024.pdf
+│   ├── 競品-A 咖啡店-menu截圖.png
+│   ├── 訪談-業界朋友張生-2025-04-12.md
+│   └── ...
+└── report/                              (你預先建好)
+    └── (稍後 AI 會寫入 report-draft.md)
+
+Google Drive
+└── 稍後寫好 report 之後上傳 final 版,share link 給合伙人</div>
+      </div>
+
+      <p class="narrative" style="margin-top: 20px;">準備好 Notion DB schema 與本機 folder 結構之後,在 <code>~/cafe-research/</code> 打開 Terminal,執行同一句 Kit 安裝指令。</p>
+
+      <div class="block terminal">
+        <div class="block-header"><span class="label">Terminal</span><span class="meta">~/cafe-research</span></div>
+        <div class="block-body">$ <span class="hl">npx @adamchanadam/agent-handoff-kit init</span>
+
+✅ created: 17
+📦 版本:v0.1.7
+🛠️  模式:first-install
+🚀 下一步:開新 AI 對話,按下方提示貼入 Work in &lt;root&gt; 一句後描述任務。</div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>Kit 與 Notion / Drive 的角色分工</h3>
+        <ul>
+          <li><strong>Kit 只負責交接</strong>:Kit 不取代 Notion 做研究 index,亦不取代 Drive 放 deliverable。Kit 只負責 AI 如何開工、如何識讀資料來源、如何接力。</li>
+          <li><strong>真源紀律</strong>:Notion 裡面每行有「本機路徑」欄 —— 即是說 Notion 一行是 metadata index,真正內容在本機檔案。這是 <code>knowledge</code> 工作模式的核心規則(真源唯一,引用不重複)。</li>
+          <li><strong>npm package 不含介紹頁與治理檔</strong>:Kit 安裝後,你的 <code>dev/</code> 裡面就只有開工治理檔,不會多了 maintainer 文件 —— 用戶不需要學那些。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case B · Step 2 -->
+  <section class="step-section" id="b-step-2">
+    <div class="wrap">
+      <span class="badge">STEP 02 · CASE B</span>
+      <h2>開工貼上提示 —— 與 Case A 同一個入口,任務描述講出 stack</h2>
+      <p class="narrative">與 Case A 一樣,打開你慣用的 AI 工具(Claude Code、Codex、Gemini CLI 三選其一),開新對話,貼 <code>Work in ...</code> 那一句,接著用日常話描述任務。今次任務描述要講埋 Notion + 本機 reference + Drive deliverable 的 stack —— 因為 AI 不會自己估這套分工。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+<pre>Work in ~/cafe-research. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.</pre>
+            <p>我想研究自己社區是否可以開一間咖啡店,要寫一份十頁市場調查報告,結論回答「是否值得做加下一步行動建議」,給自己與太太看,亦想拿去與業界朋友傾談。</p>
+            <p>資料分工是這樣:Notion 有一個 Index DB,登記了 30 條以上 reference(政府統計、行業報告、競品 menu 截圖、訪談筆記),每行有「本機路徑」指向 <code>~/cafe-research/reference/</code> 裡面對應檔案。本機 <code>reference/</code> 已經放好對應 PDF、截圖、筆記。報告草稿想寫入 <code>~/cafe-research/report/</code>。完成後我會自己上傳 Google Drive、設權限分享 —— 不需要 AI 代我做。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>任務描述內包含 stack 的原因</h3>
+        <ul>
+          <li><strong>外部來源不自動可達</strong>:AI 不會自己知道你 Notion DB 如何 organize、哪一欄是本機路徑。你要在任務描述講清楚 —— 這是 <code>knowledge</code> 模式的「外部來源登記」紀律。</li>
+          <li><strong>分工明示</strong>:你預先講「Drive 我自己上,不需要 AI 代」—— 讓 AI 接下來自動將 Drive upload 列做「手動步驟清單」而不是「自動執行」。</li>
+          <li><strong>任務目標清楚</strong>:報告長度、結論方向、讀者(自己 + 太太 + 業界朋友)都講明 —— 讓 AI 寫東西時調適語氣與深度。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case B · Step 3 -->
+  <section class="step-section" id="b-step-3">
+    <div class="wrap">
+      <span class="badge">STEP 03 · CASE B</span>
+      <h2>AI 第一回應 —— 載入 research 與 knowledge 兩個模式,計劃讀齊 Notion 與本機</h2>
+      <p class="narrative">啟動卡與 Case A 一樣 —— ASCII 小貓、版本、Handoff loaded。但今次工作模式組合不同:研究類任務自動載入 <code>research</code>(來源紀律、事實與推論分清楚)與 <code>knowledge</code>(真源唯一、外部寫後回讀)。</p>
+
+      <div class="chat">
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI(已按 AGENTS.md 啟動)</span>
+<pre>   /\_/\   Agent Handoff Kit v0.1.7
+  ( o.o )  continuity ready
+   > ^ <
+
+🔎 Handoff: loaded
+📌 目前狀態：新項目，SESSION_HANDOFF 仍未有上一輪紀錄
+⚠️ 邊界：外部來源(Notion 與 Drive)我沒有直接 access，要靠你介紹同 reference/ 的本機檔
+🚀 下一步：載入工作模式 + 進入 PLAN，先對齊 Notion DB 與本機 reference</pre>
+            <p>讀齊 <code>AGENTS.md</code>、<code>SESSION_HANDOFF.md</code>(空)、<code>PROJECT_INDEX.md</code>(模板)、<code>RULE_PACKS.md</code>。根據任務,載入以下工作模式:</p>
+            <p>
+              <span class="pill research">research</span>研究類任務:來源、日期分清楚,事實與推論分開寫<br/>
+              <span class="pill knowledge">knowledge</span>外部來源不自動可達:可達不等於已讀入,未讀的來源要標 pending,不可以當沒有資料
+            </p>
+            <p>我接著要做的工作迴圈(因為涉及多個來源,READ 階段會比 Case A 重):</p>
+            <p class="loop">PLAN(列清楚要對齊哪些來源、哪一段要寫)<br/>→ READ(逐條讀 Notion index 對應本機 reference,識別空白)<br/>→ CHANGE(寫 report draft 入 report/)<br/>→ QC(檢查每段 claim 有沒有引用、有沒有主觀推論未標)<br/>→ PERSIST(寫入 SESSION_HANDOFF 與 PROJECT_INDEX 的 Fact Base)</p>
+            <p>我會先進入 PLAN 階段,做兩件事:</p>
+            <ol>
+              <li>列出我會如何對齊 Notion DB 與本機 reference;如果發現「Notion 有登記但本機沒有檔案」或者「本機有檔但 Notion 沒有登記」我會如何處理。</li>
+              <li>列出十頁報告的章節結構,等你確認才開始寫。</li>
+            </ol>
+            <p><strong>你確認進入 PLAN 嗎?順便:你的 Notion DB 我如何 access —— 你會 export 到本機,還是在對話貼 row 過來?</strong></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>與 Case A 同一啟動,但模式組合反映任務性質</h3>
+        <ul>
+          <li><strong>research 與 knowledge 自動同時載入</strong>:Kit 的 <code>dev/RULE_PACKS.md</code> 裡面列明「涉及來源、研究問題、跨工具同步」三個 trigger 同時命中,自動載入兩個模式。</li>
+          <li><strong>外部來源邊界</strong>:AI 主動講「Notion 與 Drive 我沒有直接 access」—— 這是 <code>knowledge</code> 模式紀律,不講大話亦不假設可達。</li>
+          <li><strong>READ 階段加重</strong>:跨多個來源時,READ 階段不再是簡單樣本掃描 —— 要逐條對齊加識別空白。AI 會將「哪條 reference 未讀」列做 pending,而不是跳過。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case B · Step 4 -->
+  <section class="step-section" id="b-step-4">
+    <div class="wrap">
+      <span class="badge">STEP 04 · CASE B</span>
+      <h2>你確認,AI 對齊 Notion 與本機,識別空白</h2>
+      <p class="narrative">你決定將 Notion DB export 成 CSV(Notion 內建功能)放入 <code>reference/</code>,再在對話講 AI 路徑。AI 讀完 CSV,逐行對齊本機 <code>reference/</code> 裡面對應檔案,發現空白即報告 —— 不會悄悄當沒事。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>好,進入 PLAN。我剛才將 Notion DB export 為 CSV,放在 <code>reference/notion-index.csv</code>。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · READ 階段(對齊資料來源)</span>
+            <p>讀 <code>reference/notion-index.csv</code>,共 32 行。對齊本機 <code>reference/</code> 裡面檔案:</p>
+<pre>== 對齊結果 ==
+✅ Notion 與本機都有, path 對:        24 條
+⚠️ Notion 有登記, 本機沒有對應檔案:    5 條
+⚠️ 本機有檔案, Notion 沒有登記:       3 條
+❌ Notion 有 path 但本機檔案打不開:    0 條</pre>
+            <p><strong>5 條 Notion 有登記但本機沒有檔案的:</strong></p>
+            <ul>
+              <li>「行業協會 2023 半年報告」—— path 寫住 <code>reference/行業協會-2023-H1.pdf</code>,本機不存在</li>
+              <li>「訪談 - 業界朋友陳生 - 2025-04」—— path 寫住 <code>reference/訪談-陳生.md</code>,本機不存在</li>
+              <li>(其餘 3 條相似)</li>
+            </ul>
+            <p>有三個處理方法,選一個:</p>
+            <ol>
+              <li><strong>標 pending</strong> —— 我在 <code>dev/PROJECT_INDEX.md</code> Fact Base 裡面註記「這 5 條暫缺,寫報告時相關章節要明示『資料未取得,結論為暫定』」。</li>
+              <li><strong>暫停等你補</strong> —— 你現在去找回這 5 個檔案放入 reference/,然後我才開始。</li>
+              <li><strong>我憑現有 27 條 reference 先寫 draft</strong> —— 之後你補檔案,我再回頭 update 對應章節。</li>
+            </ol>
+            <p><strong>還有,本機有但 Notion 未登記的 3 個:</strong></p>
+            <ul>
+              <li><code>reference/競品-D 咖啡店-2025-05.png</code></li>
+              <li><code>reference/筆記-選址初探-2025-03.md</code></li>
+              <li><code>reference/政府數據-社區人口-2024.xlsx</code></li>
+            </ul>
+            <p>我建議將這 3 條補登記入 Notion —— 但 Notion 寫入要你做(AI 沒有寫入 access),我可以列好 metadata 給你 copy paste。</p>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>選 1 (標 pending)。本機未登記那 3 條,你列好 metadata,我之後手動加入 Notion。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI</span>
+            <p>好,完成以下幾件事:</p>
+            <ul>
+              <li>5 條暫缺的 reference 已寫入 <code>dev/PROJECT_INDEX.md</code> Fact Base 「待補來源」section,寫報告時相關章節會自動標「結論為暫定」。</li>
+              <li>3 條本機未登記的 metadata 列好在下面,等你補入 Notion。</li>
+            </ul>
+            <p>準備好可以進入 CHANGE 階段寫報告。<strong>十頁報告章節結構建議如下,你確認才開始寫:</strong></p>
+            <ol>
+              <li>摘要(1 頁)—— 結論加三點主因</li>
+              <li>行業背景(1.5 頁)—— 行業協會數據加餐飲業趨勢</li>
+              <li>社區數據(1.5 頁)—— 人口、消費力、客流</li>
+              <li>競品分析(2 頁)—— 5 間附近競品 menu 加定價加觀察</li>
+              <li>選址分析(1 頁)—— 鋪位選址初步建議</li>
+              <li>成本估算(1.5 頁)—— 起步 capex 加月度 opex 估算</li>
+              <li>結論加行動建議(1.5 頁)—— 「是否值得做加下一步」</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>可達不等於已讀入,這一步保你資料來源不靜默走漏</h3>
+        <ul>
+          <li><strong>對齊不是靜默</strong>:AI 主動報告「Notion 有 5 條本機缺、本機有 3 條 Notion 沒有登記」 —— 而不是跳過。這是 <code>knowledge</code> 模式紀律。</li>
+          <li><strong>三選項而不是替你決定</strong>:AI 不自己選,列三個處理方向讓你確認 —— 因為這是事實取捨,涉及你的判斷。</li>
+          <li><strong>Notion 寫入不自動代辦</strong>:AI 沒有 access Notion API,亦沒有你的帳號權限 —— 將 metadata 列好你 copy paste,這是 <code>safety</code> 紀律延伸到「外部寫入」邊界。</li>
+          <li><strong>缺項紀錄寫入治理檔</strong>:5 條暫缺寫入 <code>dev/PROJECT_INDEX.md</code> Fact Base「待補來源」—— 下次接力的 AI 會見到、會在對應章節提醒。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case B · Step 5 -->
+  <section class="step-section" id="b-step-5">
+    <div class="wrap">
+      <span class="badge">STEP 05 · CASE B</span>
+      <h2>寫報告(writing 模式自動加碼)+ Drive 上傳由 AI 列步驟不代辦</h2>
+      <p class="narrative">章節結構確認之後,AI 進入 CHANGE 階段寫報告草稿。涉及實際寫長文,Kit 自動加載 <code>writing</code> 模式(受眾、用途、語氣紀律)。每段 claim 都 trace 回用了哪條 reference,事實與推論明顯分開。寫完之後 export 做你想要的格式,Drive 上傳由你親手做 —— AI 只列步驟。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>章節結構可以,開始寫。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · CHANGE 階段(加載 writing 模式)</span>
+            <p>自動加載:</p>
+            <p><span class="pill writing">writing</span>受眾、用途、語氣 —— 今次讀者是你 + 太太 + 業界朋友,所以語氣是「個人計劃書」而非「投資者 pitch」</p>
+            <p>開始寫 <code>report/report-draft.md</code>。每段尾我會用 footnote 形式註明引用的 Notion record 與本機檔案 path,方便你回查。十頁草稿寫完會交給你 review。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 寫完 draft</span>
+            <p>草稿完成,共 10.3 頁(2,847 字加 4 個表)。位置:<code>report/report-draft.md</code>。重點摘要:</p>
+            <ul>
+              <li><strong>結論</strong>:可做,但建議 6 個月試水溫(快閃店 / 共享廚房模式)而非一開頭就承租獨立鋪。主因:社區消費力夠、競爭密度中等、起步 capex 風險可控。</li>
+              <li><strong>5 條暫缺來源</strong>的相關章節已標「結論為暫定,待 X 資料補齊重審」—— 涉及 2 個 sub-section。</li>
+              <li><strong>引用</strong>:每章節尾有 footnote 列引用的 Notion record id 與本機檔案 path 共 24 個 —— 你可以逐條 trace 回。</li>
+            </ul>
+            <p>要 export 做其他格式嗎?常見選擇:</p>
+            <ul>
+              <li><code>.docx</code> —— Microsoft Word / Google Docs 通用</li>
+              <li><code>.pdf</code> —— 印出來或者直接 share link</li>
+              <li><code>.html</code> —— 在 browser 看</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>要 docx,我自己上 Drive。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · export 與列 Drive 上傳步驟</span>
+            <p>已 export <code>report/report-final.docx</code>。</p>
+            <p>Drive 上傳這部分,因為涉及你的 Google 帳號權限,我不代辦。請按以下步驟操作:</p>
+            <ol>
+              <li>打開 Google Drive(<code>drive.google.com</code>),登入你的帳號。</li>
+              <li>右上角 「+ 新增」 → 「檔案上傳」,選 <code>~/cafe-research/report/report-final.docx</code>。</li>
+              <li>上傳完之後,右鍵檔案 → 「共用」。</li>
+              <li>輸入合伙人 / 太太 / 業界朋友 的 Gmail。權限選「檢視者」就夠;「編輯者」只給想合作改稿的人。</li>
+              <li>複製 share link,之後可以將這個 link 留在<code>SESSION_HANDOFF</code> 的 risk / notes 段(我稍後會留位給你填)。</li>
+            </ol>
+            <p>準備好就講「收工」,我會將今次寫的東西、有 5 條暫缺、報告位置寫入交接,並提供下次接力提示。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>writing 模式與外部寫入邊界</h3>
+        <ul>
+          <li><strong>writing 模式接力 research 與 knowledge</strong>:三個模式同時生效,但職責不同 —— research 管「來源紀律」、knowledge 管「真源唯一」、writing 管「受眾語氣」。</li>
+          <li><strong>引用 inline footnote</strong>:每段 claim 帶引用,是 <code>research</code> 模式的事實與推論紀律。AI 不可以無引用憑空寫。</li>
+          <li><strong>結論為暫定明示</strong>:5 條缺的 reference 影響 2 個 sub-section,AI 自動標「結論為暫定」 —— 而不是用 27 條撐住 10 頁假裝齊全。</li>
+          <li><strong>外部上傳與權限不代辦</strong>:Drive upload 與 share permission 涉及你的帳號,AI 列清楚步驟讓你跟,不自己代用 OAuth 寫入。<code>safety</code> 紀律延伸。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case B · Step 6 -->
+  <section class="step-section" id="b-step-6">
+    <div class="wrap">
+      <span class="badge">STEP 06 · CASE B</span>
+      <h2>收工 —— 與 Case A 一樣的 closeout,但保留 Drive link 待你補</h2>
+      <p class="narrative">收工指令與 Case A 一樣 —— 一句「收工」或者「wrap up」。AI 進入完整 closeout,但對賬時會特別留意:Drive share link 你說親手上傳之後再補,AI 會在 SESSION_HANDOFF 留位等你填,不會自己假裝有 URL。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>收工。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 收工流程</span>
+<pre>   /\_/\   Agent Handoff Kit v0.1.7
+  ( -.- )  handoff saved
+   > ^ <
+
+✅ Done: 市場調查報告草稿完成 (10.3 頁), export 做 docx
+🔎 QC: 24 條引用 trace, 5 條暫缺已標 pending
+📌 Handoff: opening message ready
+⚠️ Boundary: Drive share link 由你親手上傳補, 仍未填</pre>
+            <p>已對賬式更新:</p>
+            <ul>
+              <li><code>dev/SESSION_HANDOFF.md</code> current state:報告草稿與 final docx 已生成 (位置 <code>report/report-final.docx</code>);next priority:你上 Drive 加 share,將 link 填回 handoff 或者下次告訴 AI。</li>
+              <li><code>dev/SESSION_LOG.md</code> 新增 entry:Notion 對齊結果、5 條 pending、章節結構、引用數目。</li>
+              <li><code>dev/PROJECT_INDEX.md</code> Fact Base:30 條已 ingest reference 加 5 條 pending 加報告位置。</li>
+            </ul>
+            <p>下次開工請貼以下一段(已同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code>):</p>
+            <p>📋 Next session: copy and paste the whole block below</p>
+<pre>Work in ~/cafe-research. Read AGENTS.md and follow it.
+
+Current state: 報告 final.docx 已寫好, 結論為「6 個月試水溫」。
+5 條 reference 仍 pending, 影響 2 個 sub-section。
+Drive share link: 待填 (我已自己上傳, link 為 https://...)。
+
+Next: 視你回應而定 —— 改建議 / 加 reference / 改章節 / 製作 pitch deck 衍生。
+
+After reading SESSION_HANDOFF, recommend next concrete step.</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>跨案例同一套 closeout</h3>
+        <ul>
+          <li><strong>對賬式而非追加</strong>:AI 不會將新狀態追加在舊狀態下面 —— current state 必須逐段對賬覆寫。</li>
+          <li><strong>fenced text 開工提示</strong>:與 Case A 一樣,下次開工文字一定包在 <code>```text</code> code block。</li>
+          <li><strong>缺項保留</strong>:Drive share link 仍沒有,AI 不自己編 URL —— 留位待你補。這是 Kit 的「未核實事實不可寫作已核實」紀律。</li>
+          <li><strong>跨案例一致</strong>:Case A 與 Case B 兩個任務性質完全不同,但 closeout 流程同一套 —— 即是說將來你做第三個、第四個案例,流程仍是這套。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case B · Step 7 -->
+  <section class="step-section" id="b-step-7">
+    <div class="wrap">
+      <span class="badge">STEP 07 · CASE B</span>
+      <h2>下次接力 —— 老闆與合伙人意見之後改報告</h2>
+      <p class="narrative">過了幾天,你將報告 share link 傳給了合伙人。對方覺得「6 個月試水溫」的起步 capex 估算還是太高,想看有沒有 3 個月的更輕版本。你打開新對話,貼回 <code>START_NEXT_SESSION_PROMPT.txt</code>,加一句新要求。新 AI 啟動,接得回上次狀態,重新進入 research 與 writing 模式改報告。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你 · 幾天後新對話</span>
+<pre>Work in ~/cafe-research. Read AGENTS.md and follow it.
+
+Current state: 報告 final.docx 已寫好, 結論為「6 個月試水溫」。
+5 條 reference 仍 pending, 影響 2 個 sub-section。
+Drive share link: https://drive.google.com/file/d/abc123/view (合伙人已看)
+
+Next: 合伙人覺得 6 個月 capex 估算還是太高, 想看 3 個月「快閃 + 共享廚房」的更輕版本。
+
+After reading SESSION_HANDOFF, recommend next concrete step.</pre>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 接力</span>
+<pre>   /\_/\   Agent Handoff Kit v0.1.7
+  ( o.o )  continuity ready
+   > ^ <
+
+🔎 Handoff: loaded
+📌 目前狀態：10.3 頁報告 final.docx 已交合伙人, Drive link 已填
+🎯 新要求：加 3 個月快閃 + 共享廚房 alternative
+⚠️ 邊界：5 條 reference 仍 pending, 影響 2 個 sub-section —— 與我寫新 alternative 暫無直接撞
+🚀 下一步：重新載入 research 與 writing, 進入 PLAN</pre>
+            <p>讀齊上次 <code>SESSION_HANDOFF.md</code>、<code>SESSION_LOG.md</code> 最近 entry、<code>PROJECT_INDEX.md</code>。已掌握:</p>
+            <ul>
+              <li>原本 6 個月方案 capex 結構與假設</li>
+              <li>5 條 pending reference 的範圍(影響 2 個 sub-section,與今次新要求無重疊)</li>
+              <li>合伙人 feedback 主軸:capex 要更低</li>
+            </ul>
+            <p>重新載入工作模式(同上次):</p>
+            <p>
+              <span class="pill research">research</span>
+              <span class="pill knowledge">knowledge</span>
+              <span class="pill writing">writing</span>
+            </p>
+            <p>PLAN:</p>
+            <ol>
+              <li>在 reference/ 選出 3 至 4 條與「快閃店 / 共享廚房」相關的 reference(我會用 Notion DB 裡面的標籤找)。</li>
+              <li>計算 3 個月方案的 capex(主要是無租金鋪位 → 市集場地租 / 共享廚房月費加設備加初步存貨)。</li>
+              <li>在報告的「結論加行動建議」章節加一個 sub-section:「Alternative B:3 個月快閃加共享廚房」。</li>
+              <li>結論段加一句 framing:「主方案 6 個月對比 Alternative B 3 個月的取捨是 X 對 Y」。</li>
+            </ol>
+            <p><strong>這個 PLAN 可以嗎?</strong></p>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>可以,做。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 寫與完成</span>
+            <p>完成。新 sub-section 加在結論章節,共 1.4 頁。export 出 <code>report/report-v2.docx</code> —— 你可以上 Drive 取代原本那個檔案,或者上一個新版本。</p>
+            <p>Diff 摘要(與 v1 比):</p>
+            <ul>
+              <li>加 1.4 頁(新 alternative sub-section)</li>
+              <li>結論段:加一段對比兩個方案的 framing</li>
+              <li>引用:新加 4 條 reference 的 footnote(來自原本 27 條 ingest 的 set,沒有用到 5 條 pending 的)</li>
+            </ul>
+            <p>準備好可以「收工」,我會更新 <code>SESSION_HANDOFF</code> 反映 v2 出了,並列回:5 條 pending reference 仍未補。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>多 session 接力的 value</h3>
+        <ul>
+          <li><strong>不需要重新交代背景</strong>:新 AI 只讀 <code>AGENTS.md</code> 與 <code>SESSION_HANDOFF.md</code>,立即知道:報告寫到哪、結論是什麼、哪條 reference 仍 pending、合伙人意見是什麼。你只需要講「新要求」一句。</li>
+          <li><strong>跨工具一致</strong>:今天是 Claude,下次轉 Codex 或者 Gemini,結果一樣 —— 三入口同源。</li>
+          <li><strong>引用紀律延續</strong>:新加章節仍是 research 模式紀律 —— 每個 claim 有引用,事實與推論分開。</li>
+          <li><strong>缺項紀錄保留</strong>:5 條 pending reference 跨 session 都仍在 PROJECT_INDEX,不會悄悄消失。下次第三個 session 接力的 AI 都仍會見到。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /case-content[b] -->
+
+<!-- ───────────────────────── Outro ───────────────────────── -->
+<section class="outro">
+  <div class="wrap">
+    <h2>走完兩個案例之後,你會發現 <span class="accent">同一套流程</span> 適用於不同任務</h2>
+    <p>由 Terminal 一句安裝 —— 開新 AI 對話貼一句 —— AI 自己讀齊治理檔、宣告載入哪個工作模式 —— PLAN 階段停手等你確認 —— safety / knowledge / writing 自動加碼配合任務 —— 收工一句「收工」自動寫好下次提示 —— 新對話貼回去就接得回。整套節奏跨案例、跨工具、跨日子都是同一套。</p>
+    <p>你之後做第三個、第四個任務 —— 寫 newsletter、做股市觀察、整理多個項目的 invoice —— 流程仍然是這七步。Kit 的工作模式會根據任務性質自動切換,但你的習慣動作(貼提示、講任務、確認 PLAN、收工)始終一樣。</p>
+    <a href="agent-handoff-kit-intro.html">看回新手 60 秒入門 →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <strong>Agent Handoff Kit · 實操指南</strong>
+      <p>本頁將 Agent Handoff Kit 的七步流程與兩個日常情景結合,讓非技術背景的新手都找到代入感。實際細節以官方 README 與 60 秒入門介紹頁為準。</p>
+    </div>
+    <div>
+      <strong>主要文件</strong>
+      <p>
+        <a href="agent-handoff-kit-intro.html">新手入門介紹</a><br/>
+        <a href="https://github.com/Adamchanadam/agent-handoff-kit">README on GitHub</a>
+      </p>
+    </div>
+    <div>
+      <strong>版本</strong>
+      <p>v0.1.7 · MIT License</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Tab toggle: 切換 Case A / Case B,scroll 至 case-tabs 按鈕位置
+  document.querySelectorAll('.case-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = btn.dataset.case;
+      document.querySelectorAll('.case-tab').forEach(function (b) {
+        if (b.dataset.case === target) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+      document.querySelectorAll('.case-content').forEach(function (c) {
+        if (c.dataset.case === target) c.removeAttribute('hidden');
+        else c.setAttribute('hidden', '');
+      });
+      // 滾動至 case-tabs 按鈕位置(對齊 sticky nav 下方)
+      var tabsEl = document.getElementById('case-tabs');
+      var nav = document.querySelector('nav.bar');
+      var targetTop = tabsEl.getBoundingClientRect().top + window.pageYOffset - (nav ? nav.offsetHeight : 0);
+      window.scrollTo({ top: targetTop, behavior: 'smooth' });
+    });
+  });
+</script>
+
+</body>
+</html>
