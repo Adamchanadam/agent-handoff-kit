@@ -1,5 +1,7 @@
 # Session Log
 
+> **Handoff role**: This log is the trace-back / audit trail layer. Handoff capability rests on `dev/SESSION_HANDOFF.md`. The next AI session can continue by reading `AGENTS.md` + `dev/SESSION_HANDOFF.md` + `dev/PROJECT_INDEX.md` + needed rule packs; reading this log is not required for continuity. Each closeout must advance the N-rule per `AGENTS.md` `## Closeout And Handoff` step 11 (R-010 SESSION_LOG handoff-role discipline): N=1–3 keep full, N=4–10 short-index after absorbed-source check, N=11+ archive into `dev/SESSION_LOG_archive/`.
+
 Add new session entries at the top. Record what actually happened in the session; do not copy old completed work forward as new work.
 
 This log carries recent evidence, not current state. Put the current objective, next action, risks, and workspace identity in `dev/SESSION_HANDOFF.md`.

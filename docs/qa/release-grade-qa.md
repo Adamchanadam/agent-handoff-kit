@@ -52,6 +52,7 @@
 | 升級路徑覆蓋 | `qa:upgrade` 必須含跨版本鏈式升級驗收（`v0.1.4` → `v0.1.5` → `v0.1.6` → 當前 HEAD），每跳用對應版本嘅 CLI 跑 `init`／`upgrade`／`doctor`，最後一跳用當前 HEAD 跑並 self-check 通過。 |
 | 補丁前置狀態枚舉 | 每個 `R-XXX` 補丁必須明文列覆蓋與唔覆蓋嘅前置狀態枚舉，唔填唔放行。例：R-024 覆蓋「夾心 managed + stale」「legacy single core」「無 core」三態，唔覆蓋「managed marker 不成對」（屬 conflict，由人工處理）。 |
 | CLI Output Contract 一致性 | 每次 release 前 sweep `bin/agent-handoff-kit.mjs`：（a）`init`／`upgrade`／`doctor` 完成輸出必含版本（v0.X.Y）、模式（mode）、剛做咗乜（counts）、下一步四項；（b）禁忌用語清單命中 = 0（含「人話解讀」等自貶字眼）；（c）內部 action 名（create／merge／skip／conflict／status）保留唔變。 |
+| SESSION_LOG handoff-role discipline（R-010）| 每次 release 前 grep `bin/agent-handoff-kit.mjs` 含 `assessSessionLogDiscipline` 函數 + doctor 集成；grep `runtime-core/AGENTS.core.md` closeout step list 含「Advance the SESSION_LOG N-rule」+「R-010 SESSION_LOG handoff-role discipline」；grep `runtime-core/SESSION_LOG.md` template 含「Handoff role」blockquote。Fresh install + doctor 跑出「SESSION_LOG discipline (R-010): ok」（warn-only：N=11+ warn，doctor exit 不變 0）。 |
 
 ## 套件邊界
 
@@ -219,6 +220,34 @@ grep -c "🚀 下一步" bin/agent-handoff-kit.mjs       # 期望 ≥ 3（instal
 - Help 訊息：用戶第一次跑 `--help` 應理解三個命令、版本同下一步。
 - 禁忌用語清單：「人話解讀」「人話補一句」「人話解釋」等自我評論／粗俗自貶 phrasing 一律禁。
 - 內部 action 名：`create` / `merge` / `skip` / `conflict` / `status` 保留唔變（QA 同 migration report 依賴）。
+
+## SESSION_LOG handoff-role discipline Sweep（R-010）
+
+發佈前須 grep 公開倉庫源碼，確認以下命中：
+
+```text
+grep -c "assessSessionLogDiscipline" bin/agent-handoff-kit.mjs       # 期望 ≥ 2（函數定義 + doctor 集成 call）
+grep -c "SESSION_LOG discipline (R-010)" bin/agent-handoff-kit.mjs   # 期望 ≥ 1（doctor output line）
+grep -c "R-010 SESSION_LOG handoff-role discipline" runtime-core/AGENTS.core.md  # 期望 ≥ 1
+grep -c "Advance the SESSION_LOG N-rule" runtime-core/AGENTS.core.md            # 期望 ≥ 1
+grep -c "Handoff role" runtime-core/SESSION_LOG.md                              # 期望 ≥ 1（blockquote）
+```
+
+Fresh install 嘅 runtime behavior 驗證：
+
+- `init --yes --root <tmp>` 完成。
+- `doctor --root <tmp>` 跑出 `SESSION_LOG discipline (R-010): ok` + `status: passed` + exit 0。
+- 因 fresh install 嘅 SESSION_LOG.md 只 1 條 template entry，未到 N=11 threshold，所以期望 ok（不 warn）。
+
+Warn behavior 驗證（人工或 fixture-based）：
+
+- Fresh init 後注入 12 條 fake H2 entry (`## 2026-01-01 — test1` 等) 入 SESSION_LOG.md → doctor 跑出 `SESSION_LOG discipline (R-010): warn` + `warn: SESSION_LOG entry count = 12...` + `status: passed`（warn-only，doctor exit 不變 0）。
+
+人工驗證：
+
+- AI Closeout flow 是否自動執行 N 規則推進（由 `runtime-core/AGENTS.core.md` `## Closeout And Handoff` 步驟 11 enforce）。
+- Doctor warn 是否唔 block release（exit 0；release-grade QA 唔會因 warn 而 fail）。
+- 接力角色定位是否清晰（HANDOFF carries handoff capability；SESSION_LOG carries trace-back only）。
 
 ## 發佈阻擋項
 

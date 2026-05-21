@@ -479,11 +479,22 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
+  // R-010 SESSION_LOG handoff-role discipline check (warn-only; does not change mode or exit).
+  const disciplineResult = await assessSessionLogDiscipline(root);
+  console.log(`\nSESSION_LOG discipline (R-010): ${disciplineResult.ok ? "ok" : "warn"}`);
+  if (!disciplineResult.ok) {
+    for (const warning of disciplineResult.warnings) {
+      console.log(`  warn: ${warning}`);
+    }
+  }
+
   printDoctorSummary(version, root, "healthy", {
-    checked: rows.length + anchorRows.length + schemaRows.length + mirrorRows.length,
+    checked: rows.length + anchorRows.length + schemaRows.length + mirrorRows.length + 1,
     failedKind: null,
     failedCount: 0,
-    nextStep: "繼續日常使用；如要升級到較新版，執行 npx @adamchanadam/agent-handoff-kit@latest upgrade。"
+    nextStep: disciplineResult.ok
+      ? "繼續日常使用；如要升級到較新版，執行 npx @adamchanadam/agent-handoff-kit@latest upgrade。"
+      : "繼續使用；下次 closeout 時 AI 應自動執行 R-010 N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
   });
   return "passed";
 }
@@ -697,6 +708,41 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
     return { ...base, action: "conflict", reason: "existing bridge does not route to AGENTS.md" };
   }
   return { ...base, action: "skip", reason: "preserve existing file" };
+}
+
+// R-010 SESSION_LOG handoff-role discipline (warn-only doctor check).
+// Returns { ok, warnings } where:
+// - ok: true if no warnings triggered
+// - warnings: array of Chinese, actionable warning strings
+// Thresholds (all warn-only; doctor exit unaffected):
+// - H2 entry count ≥ 11 → warn (archive boundary; AI closeout flow should auto-advance)
+// - H2 entry count ≥ 25 → warn (severe drift; suggest AI re-do closeout)
+// - line count ≥ 1500 → warn (anomalous entry size; safety net)
+async function assessSessionLogDiscipline(root) {
+  const logPath = path.join(root, "dev/SESSION_LOG.md");
+  let text = "";
+  try {
+    text = await readFile(logPath, "utf8");
+  } catch {
+    return { ok: false, warnings: ["dev/SESSION_LOG.md unreadable; discipline check skipped"] };
+  }
+
+  const warnings = [];
+  const entryMatches = text.match(/^## \d{4}-\d{2}-\d{2}/gm) || [];
+  const entryCount = entryMatches.length;
+  const lineCount = text.split("\n").length;
+
+  if (entryCount >= 25) {
+    warnings.push(`SESSION_LOG entry count = ${entryCount}（嚴重超過 N=11+ archive 邊界；R-010 嘅 AI closeout flow 應該已自動推進，如未動請要求 AI 跟 R-010 重做 closeout）`);
+  } else if (entryCount >= 11) {
+    warnings.push(`SESSION_LOG entry count = ${entryCount}（達 N=11+ archive 邊界；下次 closeout 時 AI 應自動執行 N 規則推進，如未動請提醒）`);
+  }
+
+  if (lineCount >= 1500) {
+    warnings.push(`SESSION_LOG line count = ${lineCount}（超過 1500 安全網閾值；可能 entry 異常長）`);
+  }
+
+  return { ok: warnings.length === 0, warnings };
 }
 
 // R-024 唯一真源：AGENTS.md 健康判斷合三為一函數。

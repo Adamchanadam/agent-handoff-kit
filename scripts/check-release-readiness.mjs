@@ -108,7 +108,22 @@ function main() {
     "active project root",
     "ack:section:*",
     "State Reconciliation Check",
-    "Do not append a new state snapshot"
+    "Do not append a new state snapshot",
+    "R-010 SESSION_LOG handoff-role discipline",
+    "Advance the SESSION_LOG N-rule",
+    "dev/SESSION_LOG_archive/INDEX.md"
+  ]);
+
+  assertIncludes("runtime-core/SESSION_LOG.md", [
+    "Handoff role",
+    "trace-back / audit trail layer",
+    "R-010 SESSION_LOG handoff-role discipline"
+  ]);
+
+  assertIncludes("bin/agent-handoff-kit.mjs", [
+    "assessSessionLogDiscipline",
+    "R-010 SESSION_LOG handoff-role discipline",
+    "SESSION_LOG discipline (R-010)"
   ]);
 
   const install = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");
@@ -122,6 +137,7 @@ function main() {
   assert(doctor.stdout.includes("dev/SESSION_HANDOFF.md (handoff required sections)"), "doctor did not check handoff schema");
   assert(doctor.stdout.includes("dev/PROJECT_INDEX.md (project index tables)"), "doctor did not check project index schema");
   assert(doctor.stdout.includes("dev/RULE_PACKS.md (rule pack router coverage)"), "doctor did not check rule pack router schema");
+  assert(doctor.stdout.includes("SESSION_LOG discipline (R-010): ok"), "doctor did not run R-010 SESSION_LOG discipline check, or fresh install triggered an unexpected warning");
 
   const installedHandoff = readAt(tempRoot, "dev/SESSION_HANDOFF.md");
   const installedLog = readAt(tempRoot, "dev/SESSION_LOG.md");
