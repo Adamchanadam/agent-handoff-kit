@@ -105,13 +105,21 @@ npm package 由 `package.json` 的 `files` 控制：
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
 
+## v0.1.7 發佈狀態
+
+- 發佈版本：`0.1.7`。
+- release notes：`CHANGELOG.md` 的 `v0.1.7` 段落。
+- 發佈內容：R-024 夾心 dup core 修補（`assessAgentsMdHealth()` 函數合三為一）+ `upgrade` self-check；R-025 真實 fixture（`test-fixtures/v0.1.4`/`v0.1.5`/`v0.1.6` + `scripts/generate-upgrade-fixtures.mjs`）+ 跨版本鏈式升級驗收 + 補丁前置狀態枚舉；R-026 CLI Output Contract 取代 R-013／R-017／R-021；`runtime-core/AGENTS.core.md` 加 `## 2.1 Upgrade Done Contract` 段。
+- 發佈前驗收：完整四條 QA + `qa:fixtures`、版本號確認、package boundary（21 files 未變）、GitHub Release 材料、npm package metadata、CLI Output Contract sweep（「人話解讀」字眼 0 命中 + 版本／模式／剛做咗乜／下一步四項契約滿足）。
+- npm 狀態：已 npm publish；npm latest 為 `0.1.7`。
+
 ## v0.1.6 發佈狀態
 
 - 發佈版本：`0.1.6`。
 - release notes：`CHANGELOG.md` 的 `v0.1.6` 段落。
 - 發佈內容：修正舊版未標記 `AGENTS.md` core 升級時 append 成雙核心的問題；升級會替換 stale Kit core 並保留 core 前後本地規則；`doctor` 與 `qa:upgrade` 已補雙核心負面檢查。
 - 發佈前驗收：完整四條 QA、版本號確認、package boundary、GitHub Release 材料、npm package metadata。
-- npm 狀態：已 npm publish；npm latest 為 `0.1.6`。
+- npm 狀態：已 npm publish；npm latest 為 `0.1.6`（v0.1.7 發佈後改為 archived，但 npm registry 仍可 install）。
 
 ## v0.1.5 發佈狀態
 

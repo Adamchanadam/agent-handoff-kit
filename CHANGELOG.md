@@ -1,5 +1,27 @@
 # 變更紀錄
 
+## v0.1.7 — 2026-05-20
+
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。
+
+### 已修正
+
+- 修正 `upgrade` 漏網嘅夾心 dup core 案：用戶之前用舊版 `upgrade` 加咗 managed-core 標記，但同一檔仍夾住未標記嘅舊核心。舊版升級邏輯一見 managed marker 就 skip；此版起，會用單一 `assessAgentsMdHealth()` 函數做 `AGENTS.md` 健康判斷唯一真源（三態 `clean` / `needs-merge` / `conflict`），偵測到夾心狀態即時 merge 替換 stale fragment。`doctor` 嘅唯一核心檢查、`upgrade` 嘅 anchor early-skip 路徑同 `findUnmarkedCoreRange` 三處散邏輯全部收歸此函數。
+- `upgrade` 完成後自動跑 `doctor` self-check。如 self-check 失敗即 exit 1 + 中文下一步指示；不會默默宣稱 upgrade 完成。
+
+### 已改善
+
+- CLI 輸出按新 Output Contract 重寫：`init` / `upgrade` / `doctor` 完成訊息必含四項（版本、模式、剛做咗乜、下一步）；`help` 加版本／模式／下一步三項。內部 action 名稱（`create` / `merge` / `skip` / `conflict` / `status`）保留唔變，避免破壞 QA 同 migration report 引用。新訊息禁忌用語清單明文，移除「人話解讀」等自貶字眼。
+- `runtime-core/AGENTS.core.md` 新增 `## 2.1 Upgrade Done Contract` 段做 upgrade 完成條件唯一真源（clean health + doctor passed + migration report 完整）。
+- `scripts/check-upgrade-safety.mjs` 加 R-024 sandwich dup core 負面測試 + 3 個 real-fixture single-hop 場景（v0.1.4 / v0.1.5 / v0.1.6）+ 1 個 real sandwich case + 1 個 chainUpgradeScenario（用 `git worktree add --detach <tag>` 模擬 v0.1.4 init → v0.1.5 upgrade → v0.1.6 upgrade 嘅真實用戶升級鏈，每跳用對應版本 CLI 跑該版本 doctor PASS；最終 hop HEAD CLI self-check 通過）。
+- 新 `scripts/generate-upgrade-fixtures.mjs`（透過 `npm run qa:fixtures` 觸發）：用 git worktree 機制喺各 tag detached HEAD 跑該版本 CLI 嘅 init，生成 `test-fixtures/v0.1.4`、`v0.1.5`、`v0.1.6` 真實產物（每組 AGENTS.md + dev/PROJECT_INDEX.md）。`test-fixtures/` 唔入 npm package（whitelist 未變），只屬原始碼倉庫資產。
+- `docs/qa/release-grade-qa.md` 加 4 個新 section：QA Fixture 真實性紀律、跨版本鏈式升級驗收、補丁前置狀態枚舉（每個 R-XXX 補丁必填覆蓋／唔覆蓋枚舉）、CLI Output Contract Sweep；治理 QA 缺口矩陣加 3 維度（升級路徑覆蓋／補丁前置狀態枚舉／CLI Output Contract 一致性）。
+
+### 規矩演化（historical pointers）
+
+- R-013（安裝後新手指示）、R-017（emoji UX 與開工 prompt 精簡）、R-021（CLI 回傳訊息新手化）三條需求已由 R-026 「CLI Output Contract」統一取代。R-013 / R-017 / R-021 嘅已發佈內容（v0.1.1 ~ v0.1.4）保留作歷史；未來 CLI 文案改動只入 R-026，唔開新平行 R-XXX。
+- `staleCoreFixture()` 合成函數加 R-025 deprecation comment 限 schema-boundary use；production-state preconditions 一律改用 `test-fixtures/<version>/` 真實產物。
+
 ## v0.1.6 — 2026-05-20
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。
