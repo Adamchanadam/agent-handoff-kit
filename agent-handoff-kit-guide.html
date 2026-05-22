@@ -573,6 +573,16 @@ create: 17
       <h2>開工貼上提示 —— 開新 AI 對話,一句指引加日常話描述任務</h2>
       <p class="narrative">打開你慣用的 AI 工具(Claude Code、Codex、Gemini CLI 三選其一),開一個新對話。第一段貼 Kit 安裝時印出那句 <code>Work in ...</code>,接著用日常話講你要做什麼。不需要解釋 Kit 怎樣運作、不需要叫 AI 用哪個工作模式 —— AI 讀完 <code>AGENTS.md</code> 會自行處理。</p>
 
+      <div class="callout" style="border-left: 3px solid var(--accent);">
+        <span class="label">兩條入場路 — 新手與老手有別</span>
+        <h3>新手與老手的開工句式略有分別,但最終匯入同一套讀序契約</h3>
+        <p>本指南開首已經提過,<strong>Cases A/B/C 屬已熟悉 v2 的 advanced user path</strong>。如果你是第一次安裝、未試過 Kit 如何操作 —— Terminal 安裝完成之後,CLI 印出的起步句是:</p>
+        <p style="margin: 8px 0 0 0;"><code style="background: var(--paper-2); padding: 4px 8px; border-radius: 4px; display: inline-block;">Work in &lt;你的資料夾&gt;. I just installed agent-handoff-kit. Help me get started.</code></p>
+        <p>新手貼這句進入新對話,AI 會偵測首次安裝信號,自動載入<strong>新手引導包</strong>(<code>dev/rules/onboarding.md</code>),先問你想做哪一類任務(代碼、研究、寫作、知識整理、其他),再一步一步示範完整流程。新手引導包屬於一次性教學,完成第一個任務之後自動卸載,之後不再出現。</p>
+        <p>而本案例(Case A)示範的是<strong>老手直接入場</strong>:用戶已經熟悉 Kit 大致如何運作、不需要新手引導包的 5 情景示範,所以採用更精準的句式 <code>Read AGENTS.md and follow it</code> 直接觸發讀序契約,並在同一段對話中一氣呵成講明任務目標。AI 偵測到老手句式,跳過 onboarding 環節,直接進入 PLAN 階段。</p>
+        <p>兩條路殊途同歸 —— 最終都由 <code>AGENTS.md</code> 的讀序契約接管:讀齊治理檔、選對工作模式、報告當前狀態、提建議下一步。下次再開新任務(SESSION 不再是第一次),所有用戶都會走本指南這條老手直接路;本案例展示的就是後續每一次開工的標準入場方式。</p>
+      </div>
+
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
@@ -1034,6 +1044,7 @@ Google Drive
       <span class="badge">STEP 02 · CASE B</span>
       <h2>開工貼上提示 —— 與 Case A 同一個入口,任務描述講出 stack</h2>
       <p class="narrative">與 Case A 一樣,打開你慣用的 AI 工具(Claude Code、Codex、Gemini CLI 三選其一),開新對話,貼 <code>Work in ...</code> 那一句,接著用日常話描述任務。今次任務描述要講埋 Notion + 本機 reference + Drive deliverable 的 stack —— 因為 AI 不會自己估這套分工。</p>
+      <p class="narrative" style="font-size: 13px; opacity: 0.85;">入場路徑沿用 Case A Step 2 介紹過的<strong>老手直接句式</strong> —— 第一次安裝的新手會由 <code>Help me get started</code> 句進入 onboarding pack 一步一步帶,後續每次開工(包括本案例)都走 <code>Read AGENTS.md and follow it</code> 直接路。兩條路最終匯入同一套讀序契約,詳細對照見 Case A Step 2 的「兩條入場路」說明。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1510,7 +1521,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
               <li>長期項目信號出現 —— 我將更主動 detect (b)/(c)/(d) trigger</li>
             </ul>
             <p>AI 自動偵測到任務需求演進,觸發 append entry 至 PROJECT_DECISIONS.md <code>## Evolution Timeline</code>:</p>
-<pre style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:14px;">### 2026-XX-XX: 需求由 markdown MVP 演進為多語法 + 協同編輯
+<pre>### 2026-XX-XX: 需求由 markdown MVP 演進為多語法 + 協同編輯
 原 Day 1 Active Objective: 「markdown MVP 校對與風格建議」
 經 6 session 演進: 加入 LaTeX 支援 (Session 2)、程式碼註釋校對 (Session 4)、協同編輯模式 (Session 6)。
 驅動原因: 用戶試用過程發現純 markdown scope 對技術寫作不足夠。
@@ -1555,15 +1566,15 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
               <li>自動 split 條件啟動 (Confirmed Decisions ≥ 30)</li>
             </ul>
             <p>執行 split:</p>
-<pre style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:14px;">保留在 HANDOFF hot tier (最近 12 條): #21 - #32
+<pre>保留在 HANDOFF hot tier (最近 12 條): #21 - #32
 移至 PROJECT_DECISIONS Decisions Archive (最舊 20 條): #1 - #20
 排序: newest first (#20 在最頂,#1 在最底)</pre>
             <p>HANDOFF 從 32 條 Confirmed Decisions 收斂為 12 條 active decisions,清晰反映項目當前的判斷邊界。Decisions Archive 完整保留所有歷史條目,trace-back 用。</p>
-            <p>同時觀察到:本 session plan 涉及多選項架構取捨(後端模型由 GPT-4 切換至 Claude 3.5 Sonnet,rationale 為長文本表現與成本對比)。(c) trigger 啟動,append entry 至 <code>## Architecture Choices</code>:</p>
-<pre style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:14px;">### 2026-XX-XX: 後端模型由 GPT-4 切換至 Claude 3.5 Sonnet
-比較選項: (1) GPT-4 Turbo / (2) Claude 3.5 Sonnet / (3) Gemini 1.5 Pro
-選擇: Claude 3.5 Sonnet
-Rationale: 長文本 200k context window 對程式碼註釋校對任務更穩定;成本對比 GPT-4 Turbo 低約 30%。
+            <p>同時觀察到:本 session plan 涉及多選項架構取捨(後端模型由 GPT-5.5 切換至 Claude 4.6 Sonnet,rationale 為長文本表現與成本對比)。(c) trigger 啟動,append entry 至 <code>## Architecture Choices</code>:</p>
+<pre>### 2026-XX-XX: 後端模型由 GPT-5.5 切換至 Claude 4.6 Sonnet
+比較選項: (1) GPT-5.5 / (2) Claude 4.6 Sonnet / (3) Gemini 3.5 Pro
+選擇: Claude 4.6 Sonnet
+Rationale: 1M context window 對程式碼註釋校對任務更穩定;成本對比 GPT-5.5 約低 25%。
 影響: 後端 API client 需重寫;prompt template 需重新調整。</pre>
           </div>
         </div>
@@ -1586,25 +1597,25 @@ Rationale: 長文本 200k context window 對程式碼註釋校對任務更穩定
     <div class="wrap">
       <span class="badge">DAY 90 · CASE C</span>
       <h2>回顧問題 —— 你問「我們之前為何選 Claude?」,AI 查 PROJECT_DECISIONS 答你</h2>
-      <p class="narrative">再過一個月,項目已 launch beta。某日合作伙伴問你:「為何選 Claude 3.5 而不選 GPT-4?」你不記得具體 rationale 細節 —— 但你知道 AI 有紀錄。打開新對話,問 AI。AI 讀 HANDOFF + PROJECT_INDEX 後,觸發 retrospective query —— 查 PROJECT_DECISIONS.md。</p>
+      <p class="narrative">再過一個月,項目已 launch beta。某日合作伙伴問你:「為何選 Claude 4.6 而不選 GPT-5.5?」你不記得具體 rationale 細節 —— 但你知道 AI 有紀錄。打開新對話,問 AI。AI 讀 HANDOFF + PROJECT_INDEX 後,觸發 retrospective query —— 查 PROJECT_DECISIONS.md。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你 · Day 90 新對話</span>
-            <p>我們之前為何選擇 Claude 3.5 Sonnet 而不是 GPT-4 做後端模型? 合作伙伴現在問我。</p>
+            <p>我們之前為何選擇 Claude 4.6 Sonnet 而不是 GPT-5.5 做後端模型? 合作伙伴現在問我。</p>
           </div>
         </div>
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI · 查歷史</span>
-            <p>HANDOFF 的當前 Active Objective 提及 backend 用 Claude 3.5 Sonnet,但 rationale 不在 hot tier。讀 PROJECT_DECISIONS.md <code>## Architecture Choices</code>:</p>
-<pre style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:14px;">### 2026-XX-XX: 後端模型由 GPT-4 切換至 Claude 3.5 Sonnet
-比較選項: (1) GPT-4 Turbo / (2) Claude 3.5 Sonnet / (3) Gemini 1.5 Pro
-選擇: Claude 3.5 Sonnet
-Rationale: 長文本 200k context window 對程式碼註釋校對任務更穩定;成本對比 GPT-4 Turbo 低約 30%。
+            <p>HANDOFF 的當前 Active Objective 提及 backend 用 Claude 4.6 Sonnet,但 rationale 不在 hot tier。讀 PROJECT_DECISIONS.md <code>## Architecture Choices</code>:</p>
+<pre>### 2026-XX-XX: 後端模型由 GPT-5.5 切換至 Claude 4.6 Sonnet
+比較選項: (1) GPT-5.5 / (2) Claude 4.6 Sonnet / (3) Gemini 3.5 Pro
+選擇: Claude 4.6 Sonnet
+Rationale: 1M context window 對程式碼註釋校對任務更穩定;成本對比 GPT-5.5 約低 25%。
 影響: 後端 API client 需重寫;prompt template 需重新調整。</pre>
-            <p>原 rationale 兩點:(1) 長文本 200k context window 對程式碼註釋校對更穩定;(2) 成本比 GPT-4 Turbo 低 ~30%。當時切換時 Day 60 SESSION_LOG 有完整紀錄,如需細節 trace-back 我可以查 archive。</p>
+            <p>原 rationale 兩點:(1) 1M context window 對程式碼註釋校對更穩定;(2) 成本比 GPT-5.5 約低 25%。當時切換時 Day 60 SESSION_LOG 有完整紀錄,如需細節 trace-back 我可以查 archive。</p>
             <p>你可以直接將此 rationale 答給合作伙伴。</p>
           </div>
         </div>

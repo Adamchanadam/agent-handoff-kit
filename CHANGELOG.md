@@ -1,5 +1,48 @@
 # 變更紀錄
 
+## v0.2.3 — 2026-05-22
+
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。屬 v0.2.2 嘅 immediate follow-up patch，修補 agent-handoff-kit-guide.html 三類遺留缺口：(1) Case C pre block UI bug（light-on-light unreadable text）、(2) Case C AI 模型版本資訊過時、(3) Cases A/B Step 2 對話框句式與新手引導包 trigger phrase 之間缺 bridging narrative 解釋。
+
+### Fix 1 — Case C pre block UI bug
+
+Case C 4 個 pre block 採用 inline style `background: var(--paper-2)`（淺色）但 inherited `color: var(--paper)`（亦係淺色），導致 light-on-light 文字完全睇唔到。Adam 截圖直接揭發。
+
+修補：移除全部 4 個破壞性 inline style，回歸預設 `.chat-bubble pre` CSS（黑底 paper 字），與 Cases A/B 視覺一致。
+
+### Fix 2 — AI model versions outdated in Case C narrative
+
+Case C「決策日誌」展示嘅後端模型對比範例引用咗 2025 年舊模型（Claude 3.5 Sonnet / GPT-4 Turbo / Gemini 1.5 Pro / 200k context），與 2026-05 時點脫節。Adam catch：「case C .... 寫住嘅內容太舊，現在不是 3.5，已是 Claude 4.6 Sonnet... 上網搜最新資訊對齊。」
+
+修補：WebSearch 確認 2026-05 latest LLM versions —— Claude Sonnet 4.6 (Feb 2026, 1M context window)、GPT-5.5 (April 2026)、Gemini 3.5 Pro (May 2026)。guide.html 7 處更新：line 1562 narrative reference / pre block content / line 1589 / 1595 / 1601 / 1607。
+
+### Fix 3 — Cases A/B Step 2 bridging narrative (R-029.5)
+
+v0.2.0 release shipped R-029 onboarding pack + canonical trigger phrase「Work in <你的資料夾>. I just installed agent-handoff-kit. Help me get started.」Cross-surface wording sweep（v0.2.1）enforce 呢句 trigger phrase 出現喺 4 個 surface（CLI / README / intro / guide hero）。
+
+但 guide.html Cases A/B Step 2 對話框示範嘅係 advanced user direct path：「Work in &lt;root&gt;. Read AGENTS.md and follow it. Before changing anything, tell me the current state...」—— 與第一螢 R-029 callout 句式不同。Adam catch：「'agent-handoff-kit-guide.html' 仍是出現舊句，未改？」
+
+呢個係 design tension：Cases A/B/C 已被 hero 框架定位為 "advanced user path"，所以 Step 2 用直接句式係 narrative authentic；但用戶第一次睇 guide 容易誤會「啲句點解唔一致」。
+
+v0.2.3 採用 β 中度改動（Adam approved）：
+
+- **Case A Step 2 加 bridging callout（15-20 行）**：「兩條入場路 — 新手與老手有別」標題，正式解釋新手嘅 onboarding trigger 句 vs 老手嘅直接句點解殊途同歸、最終都匯入 `AGENTS.md` 讀序契約、新手引導包屬一次性教學完成後自動卸載
+- **Case B Step 2 加 reference sentence**：簡短 reference Case A Step 2 嘅完整解釋，避免重複
+
+完整保留 Cases A/B 老手直接 narrative authenticity（不改 user bubble 句式），同時封住「點解第一螢同 Step 2 句式唔同」呢個 UX 缺口。
+
+### QC discipline reinforcement
+
+R-026 sweep 沿用 v0.2.2 內置 `internalReferenceForbidden` patterns（R-XXX + closeout step N + strict mechanical）。v0.2.3 新加嘅 bridging callout 內容避免任何 internal reference ID 泄露，全部用日常語言表達（「新手引導包」/「老手直接句式」/「讀序契約」）。
+
+### Migration path（v0.2.2 → v0.2.3）
+
+既有用戶 upgrade 無影響：
+
+1. v0.2.3 改動限於 guide.html 文案；唔影響 runtime behavior、CLI、scripts、runtime-core
+2. `upgrade` action 對既有 install state 行為一致
+3. RULE_PACKS.md routing table 已喺 v0.2.1 force-refresh，本版本無需再做
+
 ## v0.2.2 — 2026-05-22
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。屬 v0.2.1 嘅 immediate follow-up patch，修補 internal reference IDs（v2-specific governance jargon）泄露於 user-facing surface 嘅 gap。Adam catch 揭發 R-026 forbidden vocabulary sweep 第三次 design gap —— scope expansion 仍不夠 comprehensive。

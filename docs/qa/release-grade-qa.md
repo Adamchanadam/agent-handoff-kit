@@ -117,6 +117,14 @@ npm package 由 `package.json` 的 `files` 控制：
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
 
+## v0.2.3 發佈狀態
+
+- 發佈版本：`0.2.3`。
+- release notes：`CHANGELOG.md` 的 `v0.2.3` 段落。
+- 發佈內容：Patch release 修補 `agent-handoff-kit-guide.html` 三類遺留缺口。**Fix 1**：Case C 4 個 pre block 採用破壞性 inline style（`background: var(--paper-2)` 淺色 + inherited `color: var(--paper)` 亦淺色）導致 light-on-light 文字完全 unreadable —— 移除全部 inline style 回歸預設 `.chat-bubble pre` CSS（黑底 paper 字）。**Fix 2**：Case C「決策日誌」展示嘅後端模型對比範例引用 2025 舊模型（Claude 3.5 Sonnet / GPT-4 Turbo / Gemini 1.5 Pro / 200k context）已脫節 2026-05 時點；WebSearch 確認 latest 為 Claude Sonnet 4.6（Feb 2026, 1M context）/ GPT-5.5（April 2026）/ Gemini 3.5 Pro（May 2026）；guide.html 7 處更新。**Fix 3（R-029.5）**：Cases A/B Step 2 對話框示範 advanced user direct path「Read AGENTS.md and follow it...」與第一螢 R-029 callout canonical phrase「I just installed agent-handoff-kit. Help me get started.」唔同；Adam catch「啲句點解唔一致」。採用 β 中度改動（Adam approved）：Case A Step 2 加「兩條入場路」bridging callout 15-20 行解釋新手嘅 onboarding trigger 句 vs 老手嘅直接句點解殊途同歸；Case B Step 2 加 reference sentence。完整保留 narrative authenticity（不改 user bubble 句式）。
+- 發佈前驗收：qa:release 全綠（既有 21 assertion + 內置 cross-surface + internal-reference + book-language sweep 全部 0 命中）；guide.html 內置 internal reference forbidden patterns（R-XXX / closeout step N / strict mechanical）grep 0 hit；新加 bridging callout 沿用 v0.2.2 紀律全部用日常語言表達。
+- npm 狀態：已 npm publish；npm latest 為 `0.2.3`；package fileCount 23（不變 — patch 屬 release artifact wording，唔加新 file）。
+
 ## v0.2.2 發佈狀態
 
 - 發佈版本：`0.2.2`。
