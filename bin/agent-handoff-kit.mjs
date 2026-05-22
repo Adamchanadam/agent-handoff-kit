@@ -27,7 +27,8 @@ const mappings = [
   ["packs/agent-governance.md", "dev/rules/agent-governance.md"],
   ["packs/release.md", "dev/rules/release.md"],
   ["packs/knowledge.md", "dev/rules/knowledge.md"],
-  ["packs/communication.md", "dev/rules/communication.md"]
+  ["packs/communication.md", "dev/rules/communication.md"],
+  ["packs/onboarding.md", "dev/rules/onboarding.md"]
 ];
 
 const requiredTargets = mappings.map(([, target]) => target);
@@ -174,6 +175,23 @@ const requiredAnchors = [
       "Architecture Choices",
       "Insights & Learnings"
     ]
+  },
+  {
+    target: "dev/rules/onboarding.md",
+    label: "onboarding pack core anchors",
+    snippets: [
+      "Onboarding Pack",
+      "transient pack",
+      "明確 onboarding signal keywords",
+      "5-step walk-through pattern",
+      "Application Scenario Library",
+      "Scenario A. 寫 / 改代碼項目",
+      "Scenario B. 整理研究資料",
+      "Scenario C. 整理電腦檔案",
+      "Scenario D. 學寫代碼",
+      "Scenario E. 其他",
+      "Tone Discipline"
+    ]
   }
 ];
 
@@ -296,6 +314,19 @@ const schemaChecks = [
       heading("Architecture Choices"),
       heading("Insights & Learnings"),
       includes("(empty)")
+    ]
+  },
+  {
+    target: "dev/rules/onboarding.md",
+    label: "onboarding pack structure (R-029)",
+    checks: [
+      heading("Scope"),
+      heading("Load When"),
+      heading("Discipline"),
+      heading("Application Scenario Library"),
+      heading("Cross-reference to guide.html"),
+      heading("Tone Discipline"),
+      heading("Closeout")
     ]
   }
 ];

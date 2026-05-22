@@ -8,6 +8,16 @@ Agent Handoff Kit 是 **AI Session 之間的接力棒**。
 
 它只處理一件狹窄但重要的事：AI 跨對話失憶。每次開新對話，AI 往往不記得你上次做到哪裡，也認不出中途新建的文件、你引入的參考資料、哪些檔案是真源。這套工具把進度、下一步、風險、檔案登記與下次開工提示寫進固定文件，讓下一個 AI 工具能接得上上一棒。
 
+> 🚀 **第一次用？你不需要先讀本 README 或任何文檔。**
+>
+> 安裝完成後，在 AI 對話中講一句：
+>
+> ```
+> Work in <你的資料夾>. I just installed agent-handoff-kit. Help me get started.
+> ```
+>
+> AI 會自動引導你選擇情景（寫代碼 / 寫報告 / 整理知識庫 / 學寫代碼 / 其他），然後一步一步帶你做第一個任務。本 README 與下方介紹頁是參考對照，不是必讀。
+
 想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) —— 新手 60 秒入門。看完想睇實際操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) —— 兩個日常情景（整理電腦下載目錄、開咖啡店市場調查）嘅七步流程完整示範。README 則保留安裝、日常使用與限制。
 
 ## 它解決甚麼問題
@@ -112,7 +122,7 @@ dev/rules/*.md
 | `dev/PROJECT_DECISIONS.md` | 保存項目嘅長期演進、決策、架構取捨、學習觀察。屬 warm 資料層 —— AI 開工**不需要讀**本檔；遇到「之前點解咁做」嘅問題時 AI 自己嚟搵。短期單一 task 項目本檔保持近空；長期項目 AI 喺收工時自動 maintain。 |
 | `dev/DOC_SYNC_REGISTRY.md` | 記錄哪些文件改動後需要同步。 |
 | `dev/RULE_PACKS.md` | 告訴 AI 不同任務應讀哪些工作規則。 |
-| `dev/rules/*.md` | 按任務載入的細分工作規則。 |
+| `dev/rules/*.md` | 按任務載入的細分工作規則。含 9 個 pack：safety / coding / writing / research / agent-governance / release / knowledge / communication / **onboarding**（v0.2.0 新加，新手第一次用時 AI 主動載入做 walk-through）。 |
 
 你不需要自己逐一閱讀全部文件。你的工作是描述目標；AI 的工作是讀入口文件、判斷要讀哪些資料，再告訴你它準備怎樣做。
 

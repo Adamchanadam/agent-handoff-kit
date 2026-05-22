@@ -16,7 +16,8 @@ const packs = {
   "agent-governance": read("packs/agent-governance.md"),
   release: read("packs/release.md"),
   knowledge: read("packs/knowledge.md"),
-  communication: read("packs/communication.md")
+  communication: read("packs/communication.md"),
+  onboarding: read("packs/onboarding.md")
 };
 
 const scenarios = [
@@ -70,6 +71,12 @@ const scenarios = [
     route: ["Reply format, language", "dev/rules/communication.md"],
     pack: "communication",
     snippets: ["language", "unverified facts", "copy-paste-ready"]
+  },
+  {
+    name: "onboarding (R-029)",
+    route: ["First-time user signals", "dev/rules/onboarding.md"],
+    pack: "onboarding",
+    snippets: ["Onboarding Pack", "transient pack", "5-step walk-through pattern", "Scenario A. 寫 / 改代碼項目", "Scenario E. 其他", "Tone Discipline", "Anti-pattern"]
   }
 ];
 
@@ -96,6 +103,14 @@ const mixedScenarios = [
       ["knowledge"],
       ["knowledge", "research"],
       ["knowledge", "safety"]
+    ]
+  },
+  {
+    name: "first-time onboarding to first task (R-029)",
+    phases: [
+      ["onboarding"],
+      ["onboarding", "coding"],
+      ["coding"]
     ]
   }
 ];

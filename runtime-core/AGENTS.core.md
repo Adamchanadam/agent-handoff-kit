@@ -13,6 +13,8 @@ After this core is loaded, read in order:
 
 Then classify the user's task and read only the required rule pack(s). State which pack(s) you loaded and why, using plain language so the user understands the working mode without needing to know pack names.
 
+Before classifying the task, detect first-time-user signals (R-029): if the user's first message in this session is short, vague, or contains onboarding signal keywords (e.g. "新手", "I'm new", "教我用", "help me start", "first time", "我啱啱安裝", "點開始", "show me how", "agent handoff kit 可幫我做甚麼", "我想做 [type] project", "點用", "能力"), or if the session is a fresh installation (HANDOFF Active Objective empty + Session count 1), load `dev/rules/onboarding.md` proactively BEFORE doing the regular task loop. The onboarding pack surfaces the AI's role and offers Scenario A-E selection (instead of immediately diving into task execution). Onboarding is a transient pack: after the user completes their first-task walk-through, unload it and load the regular scenario pack (coding / research / writing / knowledge / etc) for ongoing work.
+
 If the user did not paste the previous opening message but the current project root is clear, read `AGENTS.md` first as fallback entry, then use this read order. If the root is unclear or mismatched, stop and ask for the intended project root before reading or editing project state.
 
 If a required file is missing, create the smallest useful version only after confirming the target project root.

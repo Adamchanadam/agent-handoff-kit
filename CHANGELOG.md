@@ -2,25 +2,52 @@
 
 ## v0.2.0 — 2026-05-22
 
-狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。屬 v2 嘅第一個 major version bump（v0.1.8 → v0.2.0），反映 R-028 用戶項目治理擴展屬 substantive architectural change。
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。屬 v2 嘅第一個 major version bump（v0.1.8 → v0.2.0），反映 **R-028 用戶項目治理擴展 + R-029 新手 onboarding AI driven walk-through** 二合一 architectural improvement。
 
 ### Major change
 
-- **R-028 用戶項目治理擴展**：新加 `runtime-core/PROJECT_DECISIONS.md` template 至 npm package，安裝後落 `dev/PROJECT_DECISIONS.md`。本檔保存項目嘅長期演進 narrative（任務需求演進 / 設計決策 rationale / 架構層判斷取捨 / 累積式學習觀察），屬 warm 資料層 —— AI 開工**不需要讀**本檔，遇到「之前為何這樣做」時 AI 自己會搵。新手用戶**完全不需要打開、不需要記 schema、不需要手動寫** —— 一切由 AI 自律執行。
+#### R-028 用戶項目治理擴展（長期 narrative archival）
+
+- 新加 `runtime-core/PROJECT_DECISIONS.md` template 至 npm package，安裝後落 `dev/PROJECT_DECISIONS.md`。本檔保存項目嘅長期演進 narrative（任務需求演進 / 設計決策 rationale / 架構層判斷取捨 / 累積式學習觀察），屬 warm 資料層 —— AI 開工**不需要讀**本檔，遇到「之前為何這樣做」時 AI 自己會搵。新手用戶**完全不需要打開、不需要記 schema、不需要手動寫** —— 一切由 AI 自律執行。
 - Schema 含 4 個固定 H2 section：Evolution Timeline / Decisions Archive / Architecture Choices / Insights & Learnings，由 `bin/agent-handoff-kit.mjs` `requiredAnchors` + `schemaChecks` 強制 enforce。
-- npm package files count 由 21 升至 22；用戶項目 dev/*.md 數量由 5 升至 6；用戶項目 `dev/*.md` + `docs/*.md` 上限紀律封 10（未來再加新 file 必 trigger major version bump + R-005 verdict「健康」或「緊張 / 合併」）。
 
-### 已改善
+#### R-029 新手 onboarding AI driven walk-through（day-1 onboarding UX 改善）
 
-- `runtime-core/AGENTS.core.md` 加 closeout step 12 紀律：每次收工 AI 自動執行 R-028 4 個 trigger 條件 — (a) Decisions split / (b) Evolution append / (c) Architecture append / (d) Insights append。AI smart-detect 短期 vs 長期項目 signal（session count / active objective shifting / decisions list size / user retrospective questions）以調整 proactiveness。
-- `bin/agent-handoff-kit.mjs` `mappings` array 加 `runtime-core/PROJECT_DECISIONS.md` → `dev/PROJECT_DECISIONS.md`；`requiredAnchors` + `schemaChecks` 加 PROJECT_DECISIONS rules / groups；doctor 完成輸出嘅 schema checks count 由 7 升至 8。
+- **核心 design**：新加 `packs/onboarding.md` rule pack（含 5 個 Application Scenario A-E × 5-step walk-through pattern + AI sample wording per step + Cross-reference to guide.html + Tone Discipline + Anti-pattern table）。當用戶第一次使用 Agent Handoff Kit、message 含 onboarding signal keyword 或屬 fresh installation context 時，AI 主動 load 本 pack，offer Scenario A-E 選擇，再用 5-step pattern（確認 context / 解釋 v2 fit / ask task scope / suggest minimum viable / confirm + transition）帶用戶做第一個任務。
+- **5 個 Application Scenarios**：A 寫 / 改代碼項目 / B 整理研究資料 / 寫報告 / C 整理電腦檔案 / Notion / Drive 知識庫 / D 學寫代碼（技術新手）/ E 其他（用戶自定義）。Scenarios A/B/C cross-reference guide.html 嘅 Case A/B/C，但用戶**不需要先讀** guide —— AI 主動帶 walk-through。
+- **解決嘅 critical UX gap**：v2 release 之前嘅 user journey 入面，用戶安裝後仍要自己 figure out「點用 v2」「邊個工作模式對應自己情景」「點描述任務」。R-029 之後，用戶只需講「help me start」「教我用」「我啱啱安裝」之類 trigger，AI 即主動引導 + offer scenarios + walk through 5 step。
+
+#### v0.2.0 紀律強化
+
+- npm package files count 由 21 升至 23（PROJECT_DECISIONS 加 1 + onboarding pack 加 1）；用戶項目 dev/*.md top-level 數量由 5 升至 6（加 PROJECT_DECISIONS）；用戶項目 `dev/*.md` + `docs/*.md` top-level 上限紀律封 10（未來再加新 file 必 trigger major version bump + R-005 verdict「健康」或「緊張 / 合併」）。
+- 用戶項目 rule packs 由 8 個（safety / coding / writing / research / agent-governance / release / knowledge / communication）升至 9 個（加 onboarding）。
+
+### 已改善（R-028 + R-029）
+
+#### Source layer
+
+- `runtime-core/AGENTS.core.md` 加 closeout step 12 紀律（R-028）：每次收工 AI 自動執行 R-028 4 個 trigger 條件 — (a) Decisions split / (b) Evolution append / (c) Architecture append / (d) Insights append。AI smart-detect 短期 vs 長期項目 signal（session count / active objective shifting / decisions list size / user retrospective questions）以調整 proactiveness。
+- `runtime-core/AGENTS.core.md` `## 1. Startup Reads` 加 first-time-user signal detection 紀律（R-029）：用戶首段 message 含 onboarding signal keyword 或 fresh installation context 時，AI 主動 load `dev/rules/onboarding.md` proactively，offer Scenario A-E selection 而非立即 dive into task。
+- `runtime-core/RULE_PACKS.md` 加 first-time signal routing row 喺 table 最頂位置（R-029）。
+- `bin/agent-handoff-kit.mjs` `mappings` array 加 `runtime-core/PROJECT_DECISIONS.md` → `dev/PROJECT_DECISIONS.md` + `packs/onboarding.md` → `dev/rules/onboarding.md`；`requiredAnchors` + `schemaChecks` 加 PROJECT_DECISIONS + onboarding rules / groups；doctor 完成輸出嘅 schema checks count 由 7 升至 9。
 - `packs/agent-governance.md` 加 Rule 8 + Check item 6 做 R-028 reinforcement wording。
-- `scripts/check-release-readiness.mjs` 加 PROJECT_DECISIONS schema check assertion；加 `checkForbiddenVocabulary()` helper 對 README + onboarding HTML + `checkForbiddenVocabularyInChangelogLatestSection()` 對 CHANGELOG latest section（R-026 scope 擴展嘅 anchor-bounded grep strategy，避免 historical sections 嘅 false positive）；加 `checkBookLanguage()` 對 onboarding HTML（書面語紀律 enforcement，廣東口語字符 0 命中）。
-- `scripts/check-public-prototype.mjs` + `scripts/check-upgrade-safety.mjs` 加 `dev/PROJECT_DECISIONS.md` existsSync assertion 對 fresh install + upgrade scenario。
-- `docs/qa/release-grade-qa.md` 加 4 個新 row（PROJECT_DECISIONS 結構驗收 / Release Artifact Vocabulary Sweep / Onboarding HTML 書面語紀律 / Project Decisions discipline）入「驗收分層」+「治理 QA 缺口矩陣」；「CLI Output Contract Sweep」section rename 為「Release Artifact Vocabulary Sweep」（v0.2.0 起 scope 擴展）+ 加新「Onboarding HTML Book-language Discipline Sweep」+「Project Decisions Discipline Sweep」section；補丁前置狀態枚舉加 R-028 row；prepend v0.2.0 發佈狀態段。
-- 公開介紹頁 `agent-handoff-kit-intro.html` 加 `#tiers` section「分檔有層次」（Hot / Warm / Cold 三格 visual）。
-- 實操指南頁 `agent-handoff-kit-guide.html` 加 Case C「長期項目演進」（4-phase 時間軸 narrative — Day 1 / Day 30 / Day 60 / Day 90）。
-- `README.md` 加新 H2 section「項目決策日誌」說明 PROJECT_DECISIONS.md 嘅職責同分工。
+- 新加 `packs/onboarding.md` rule pack（~400 line，含 7 H2 section + 5 Scenario × 5 step + Anti-pattern table）（R-029）。
+
+#### Scripts
+
+- `scripts/check-release-readiness.mjs` 加 PROJECT_DECISIONS + onboarding pack schema check assertion；加 `checkForbiddenVocabulary()` helper 對 README + onboarding HTML + `checkForbiddenVocabularyInChangelogLatestSection()` 對 CHANGELOG latest section（R-026 scope 擴展嘅 anchor-bounded grep strategy）；加 `checkBookLanguage()` 對 onboarding HTML（書面語紀律 enforcement，廣東口語字符 0 命中）。
+- `scripts/check-public-prototype.mjs` + `scripts/check-upgrade-safety.mjs` 加 `dev/PROJECT_DECISIONS.md` + `dev/rules/onboarding.md` existsSync assertion 對 fresh install + upgrade scenario。Total files 21 → 23。
+- `scripts/check-pack-scenarios.mjs` 加 onboarding routing scenario（含 5 個 Scenario + transient pack wording + Anti-pattern 等 snippets）+ first-time onboarding to first task mixed scenario（phases `[onboarding] → [onboarding, coding] → [coding]`）。
+
+#### QA docs
+
+- `docs/qa/release-grade-qa.md` 加 5 個新 row（PROJECT_DECISIONS 結構驗收 / Release Artifact Vocabulary Sweep / Onboarding HTML 書面語紀律 / Project Decisions discipline / **Onboarding Pack 結構驗收 + Onboarding UX discipline (R-029)**）入「驗收分層」+「治理 QA 缺口矩陣」；「CLI Output Contract Sweep」section rename 為「Release Artifact Vocabulary Sweep」（v0.2.0 起 scope 擴展）+ 加新 3 個 Sweep section（Onboarding HTML Book-language Discipline + Project Decisions Discipline + **Onboarding Pack Discipline (R-029)**）；補丁前置狀態枚舉加 R-028 + R-029 row；prepend v0.2.0 發佈狀態段。
+
+#### User-facing surface
+
+- `README.md` first-screen 加新 R-029 callout：「第一次用？你不需要先讀本 README 或任何文檔。安裝完成後在 AI 對話中講一句 `Work in <你的資料夾>. I just installed agent-handoff-kit. Help me get started.` AI 會自動引導你選擇情景，一步一步帶你做第一個任務。」+ 加新 H2 section「項目決策日誌」說明 PROJECT_DECISIONS.md 嘅職責同分工 + `dev/rules/*.md` row 補 onboarding pack mention。
+- `agent-handoff-kit-intro.html` 加 `#tiers` section「分檔有層次」（Hot / Warm / Cold 三格 visual，R-028）+ #howto section 之後加 first-time callout（R-029）。
+- `agent-handoff-kit-guide.html` 加 Case C「長期項目演進」（4-phase 時間軸 narrative — Day 1 / Day 30 / Day 60 / Day 90，R-028）+ hero 之後加 first-time callout（R-029）。
 
 ### R-026 scope 擴展
 

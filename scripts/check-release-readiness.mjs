@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 22"), "npm dry-run did not report expected 22 package files");
+  assert(packText.includes("total files: 23"), "npm dry-run did not report expected 23 package files");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -103,7 +103,10 @@ function main() {
     "PROJECT_DECISIONS 結構驗收",
     "Project Decisions Discipline Sweep",
     "Release Artifact Vocabulary Sweep",
-    "R-028 project narrative discipline"
+    "R-028 project narrative discipline",
+    "Onboarding Pack 結構驗收 (R-029)",
+    "Onboarding Pack Discipline Sweep（R-029",
+    "Onboarding UX discipline（R-029）"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -126,7 +129,11 @@ function main() {
     "Evolution Timeline",
     "Decisions Archive",
     "Architecture Choices",
-    "Insights & Learnings"
+    "Insights & Learnings",
+    "first-time-user signals (R-029)",
+    "onboarding signal keywords",
+    "dev/rules/onboarding.md",
+    "transient pack"
   ]);
 
   assertIncludes("runtime-core/SESSION_LOG.md", [
@@ -141,7 +148,10 @@ function main() {
     "SESSION_LOG discipline (R-010)",
     "runtime-core/PROJECT_DECISIONS.md",
     "dev/PROJECT_DECISIONS.md",
-    "project decisions log structure"
+    "project decisions log structure",
+    "packs/onboarding.md",
+    "dev/rules/onboarding.md",
+    "onboarding pack structure (R-029)"
   ]);
 
   const install = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");
@@ -156,6 +166,7 @@ function main() {
   assert(doctor.stdout.includes("dev/PROJECT_INDEX.md (project index tables)"), "doctor did not check project index schema");
   assert(doctor.stdout.includes("dev/RULE_PACKS.md (rule pack router coverage)"), "doctor did not check rule pack router schema");
   assert(doctor.stdout.includes("dev/PROJECT_DECISIONS.md (project decisions log structure)"), "doctor did not check PROJECT_DECISIONS schema (R-028)");
+  assert(doctor.stdout.includes("dev/rules/onboarding.md (onboarding pack structure (R-029))"), "doctor did not check onboarding pack schema (R-029)");
   assert(doctor.stdout.includes("SESSION_LOG discipline (R-010): ok"), "doctor did not run R-010 SESSION_LOG discipline check, or fresh install triggered an unexpected warning");
 
   const installedHandoff = readAt(tempRoot, "dev/SESSION_HANDOFF.md");

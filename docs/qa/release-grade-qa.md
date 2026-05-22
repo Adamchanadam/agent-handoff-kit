@@ -24,6 +24,7 @@
 | PROJECT_DECISIONS 結構驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `dev/PROJECT_DECISIONS.md` 含 4 個 H2 section heading（Evolution Timeline / Decisions Archive / Architecture Choices / Insights & Learnings）並保持順序；檔頭含 onboarding 句式（「warm 資料層」、「AI 開工不需要讀」、「AI 在收工時自動 update」）。 | 是 |
 | Release Artifact Vocabulary Sweep | 已併入 `npm run qa:release` | 對 `bin/agent-handoff-kit.mjs` + `README.md` + `agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html` 跑禁忌字眼 grep（「人話解讀」「人話補一句」「人話解釋」）；對 `CHANGELOG.md` 限 latest version section (anchor-bounded by `## v` heading) 跑相同 grep；命中數必為 0。 | 是 |
 | Onboarding HTML 書面語紀律 | 已併入 `npm run qa:release` | 對 `agent-handoff-kit-intro.html` 與 `agent-handoff-kit-guide.html` 跑廣東口語字符 grep（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）；命中數必為 0（onboarding HTML 必為繁體中文書面語）。 | 是 |
+| Onboarding Pack 結構驗收 (R-029) | 已併入 `doctor` 與 `npm run qa:release` 與 `npm run qa:packs` | 檢查 `dev/rules/onboarding.md` 含 H2 sections（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）並保持順序；含 5 個 Scenario H3 heading（A 寫 / 改代碼項目 / B 整理研究資料 / C 整理電腦檔案 / D 學寫代碼 / E 其他）；含 transient pack + 5-step walk-through pattern wording；含 Tone Discipline 5 條（書面語 / 講人話 / 敍事+解釋 / 不過度解釋 internals / 鼓勵性而非考試）。 | 是 |
 
 ## 規則包場景覆蓋
 
@@ -59,6 +60,7 @@
 | Plan scope coverage matrix | 每次 release 嘅 plan 必明文列出三層 artifact families 嘅對齊範圍：（a）**Content layer** — `README.md` 版本字串 + `已正式發佈` 句、`CHANGELOG.md` prepend 新版本段、`package.json` version bump、`docs/qa/release-grade-qa.md` prepend 新版本「發佈狀態」段、對外 onboarding HTML（intro / guide）版本字串 + 任何因 release notes 觸發嘅描述更新；（b）**Script layer** — `scripts/check-release-readiness.mjs` 嘅 release baseline assertion + tarball name + README/CHANGELOG/release-grade-qa.md required string、`scripts/check-public-prototype.mjs` 嘅 tarball name + update notice mock newer version；（c）**Source layer** — `runtime-core/*.md` 嘅模板更新、`bin/agent-handoff-kit.mjs` 嘅功能改動、`packs/*.md` 嘅工作模式紀律。Plan 漏列任何 family 即視為 plan design gap，需 root-fix 或補 plan amend 後再 release。本維度由 v0.1.8 R-005 治理健康檢查（`outputs/governance-health-check-20260522.md`）落地：v0.1.7 → v0.1.8 plan 初版漏咗 script layer，qa:release fail 揭發後加 root-fix（dynamic baseline refactor），令 script layer 之後自動同 package.json 對齊；future release plan 仍必明文列三層 families 做覆蓋自驗。 |
 | Project Decisions discipline（R-028） | 每次 release 前須驗證：（a）`runtime-core/PROJECT_DECISIONS.md` template 含 4 個 H2 section heading 順序正確 + 檔頭 onboarding 句式；（b）`runtime-core/AGENTS.core.md` closeout step 12 wording 命中（含「Maintain `dev/PROJECT_DECISIONS.md`」、「R-028 project narrative discipline」、4 個 H2 section name）；（c）`bin/agent-handoff-kit.mjs` mappings 含 `runtime-core/PROJECT_DECISIONS.md` → `dev/PROJECT_DECISIONS.md`；（d）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 `dev/PROJECT_DECISIONS.md` rule + group；（e）Fresh install 後 `dev/PROJECT_DECISIONS.md` 存在且 doctor 「project decisions log structure」schema check pass；（f）Upgrade 既有專案後 `dev/PROJECT_DECISIONS.md` 自動建立（若不存在）或保留（若用戶已有 content）。`npm run qa:release` 自動驗 (a)-(e)；(f) 由 `npm run qa:upgrade` mergeRoot scenario 嘅 existsSync assertion 驗。 |
 | 書面語紀律（HTML 輸出） | 對外 onboarding HTML（`agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html`）必為繁體中文書面語，廣東口語字符（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）grep 命中數必為 0。Release 前 `npm run qa:release` 自動驗。違反即視為 release artifact 質量落差，需逐句修正後再 release。 |
+| Onboarding UX discipline（R-029） | 每次 release 前須驗證：（a）`packs/onboarding.md` template 含 7 個 H2 section（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）+ 5 個 Scenario H3 + Anti-pattern table；（b）`runtime-core/AGENTS.core.md` `## 1. Startup Reads` 含 first-time-user signal detection wording + onboarding pack proactive load 紀律；（c）`runtime-core/RULE_PACKS.md` 含 onboarding signal routing row；（d）`bin/agent-handoff-kit.mjs` mappings 含 `packs/onboarding.md` → `dev/rules/onboarding.md`；（e）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 onboarding pack rule + group；（f）Fresh install 後 `dev/rules/onboarding.md` 存在且 doctor schema check pass；（g）`npm run qa:packs` 嘅 onboarding routing scenario + first-time onboarding to first task mixed scenario 通過。`npm run qa:release` 自動驗 (a)-(f)；(g) 由 `qa:packs` 驗。 |
 
 ## 套件邊界
 
@@ -116,9 +118,9 @@ npm package 由 `package.json` 的 `files` 控制：
 
 - 發佈版本：`0.2.0`。
 - release notes：`CHANGELOG.md` 的 `v0.2.0` 段落。
-- 發佈內容：R-028 用戶項目治理擴展 — 新加 `runtime-core/PROJECT_DECISIONS.md` template（4 H2 section + 檔頭 onboarding tone）+ `runtime-core/AGENTS.core.md` closeout step 12 紀律（AI smart detect heuristic：Decisions split / Evolution / Architecture / Insights）+ `bin/agent-handoff-kit.mjs` mappings / requiredAnchors / schemaChecks 擴展 + `scripts/check-release-readiness.mjs` PROJECT_DECISIONS verifier + R-026 forbidden vocabulary scope 擴展（CLI source + README + onboarding HTML + CHANGELOG anchor-bounded latest section）+ 書面語紀律 enforcement（onboarding HTML 廣東口語字符 0 命中）+ `packs/agent-governance.md` R-028 reinforcement rule。對外 onboarding：intro 加 `#tiers` section「分檔有層次」（Hot / Warm / Cold 三格）+ guide 加 Case C「長期項目演進」4-phase narrative + README 加「項目決策日誌」段。Major version bump（v0.1.8 → v0.2.0）反映 R-028 屬 substantive architectural change。npm package files 由 21 → 22（含 `runtime-core/PROJECT_DECISIONS.md` template）。
-- 發佈前驗收：完整四條 QA + 動態 baseline real first-test 通過（version 0.1.8 → 0.2.0 腳本零改動仍 PASS）+ Plan scope coverage matrix release-context first-test 通過 + R-005 治理健康檢查 walk-through verdict ∈ {健康, 緊張 / 合併方向} + Release Artifact Vocabulary Sweep 全部 grep 命中 + Project Decisions Discipline Sweep 全部 grep 命中 + 書面語紀律 grep 0 命中 + CLI Output Contract sweep 既有 grep 仍命中。
-- npm 狀態：已 npm publish；npm latest 為 `0.2.0`；package fileCount 22。
+- 發佈內容：**R-028 用戶項目治理擴展 + R-029 新手 onboarding AI driven walk-through** 二合一 architectural improvement。R-028 部分：新加 `runtime-core/PROJECT_DECISIONS.md` template（4 H2 section + 檔頭 onboarding tone）+ `runtime-core/AGENTS.core.md` closeout step 12 紀律（AI smart detect heuristic：Decisions split / Evolution / Architecture / Insights）+ R-026 forbidden vocabulary scope 擴展（CLI source + README + onboarding HTML + CHANGELOG anchor-bounded latest section）+ Onboarding HTML 書面語紀律 enforcement。R-029 部分：新加 `packs/onboarding.md` rule pack（含 5 個 Application Scenario A-E × 5-step walk-through pattern + AI sample wording per step + Cross-reference to guide.html + Tone Discipline + Anti-pattern table）+ `runtime-core/AGENTS.core.md` `## 1. Startup Reads` 加 first-time-user signal detection + proactive onboarding load 紀律 + `runtime-core/RULE_PACKS.md` 加 first-time signal routing row + 配套 `bin/agent-handoff-kit.mjs` mappings / requiredAnchors / schemaChecks 擴展。Scripts 同步：4 個 scripts 全部 update (total files 21 → 22 → 23；assertions 加 PROJECT_DECISIONS + onboarding；book-language sweep + R-026 forbidden vocabulary sweep + onboarding pack mixed scenario)。對外 onboarding：intro 加 `#tiers` section「分檔有層次」（Hot / Warm / Cold 三格）+ guide 加 Case C「長期項目演進」4-phase narrative + README 加「項目決策日誌」段 + README first-screen「不需要先讀」messaging + intro/guide 加「不需要先讀」cross-reference。Major version bump（v0.1.8 → v0.2.0）反映 R-028 + R-029 屬 substantive architectural change。npm package files 由 21 → 23（含 `runtime-core/PROJECT_DECISIONS.md` + `packs/onboarding.md`）。
+- 發佈前驗收：完整四條 QA + 動態 baseline real first-test 通過（version 0.1.8 → 0.2.0 腳本零改動仍 PASS）+ Plan scope coverage matrix release-context first-test 通過 + R-005 治理健康檢查 walk-through verdict ∈ {健康, 緊張 / 合併方向} + Release Artifact Vocabulary Sweep 全部 grep 命中 + Project Decisions Discipline Sweep 全部 grep 命中 + **Onboarding Pack Discipline Sweep 全部 grep 命中** + 書面語紀律 grep 0 命中 + CLI Output Contract sweep 既有 grep 仍命中 + `qa:packs` 嘅 onboarding routing scenario + first-time onboarding to first task mixed scenario 通過。
+- npm 狀態：已 npm publish；npm latest 為 `0.2.0`；package fileCount 23。
 
 ## v0.1.8 發佈狀態
 
@@ -222,6 +224,7 @@ npm package 由 `package.json` 的 `files` 控制：
 | R-024 | （a）夾心 sandwich：managed marker pair + unmarked stale core；（b）legacy single core：無 managed marker + 單一 title；（c）legacy duplicate cores：無 managed marker + 多 title；（d）無 Kit core：file 存在但完全冇 core；（e）clean：managed marker pair + 無 unmarked dup。 | （f）managed-core markers 不成對／多 pair → 屬 conflict 狀態，CLI 顯示 conflict action，人工介入，唔由 upgrade auto-merge 處理。 |
 | R-026 | 全部 `init`／`upgrade`／`doctor` 完成輸出（含 first-install / upgrade-existing / healthy / needs-fix / partial 模式）；`help` 命令完成輸出（version + mode + next）；v0.2.0 起擴 scope 至對外 release artifacts (README + onboarding HTML + CHANGELOG anchor-bounded latest section)。 | 中間進度行（如 `ok: create` 之類）唔強制四項契約；`migration-report.md` 內容契約唔屬 CLI Output Contract 範圍（migration report 有獨立 schema）；CHANGELOG historical sections（latest 段之前）唔受 R-026 scope 限制（historical fact 不可改）；內部 governance docs (SESSION_LOG / HANDOFF / DECISION_LOG) 不受 R-026 scope 限制。 |
 | R-028 | （a）first-install fresh project：installer create `dev/PROJECT_DECISIONS.md` 為 4 H2 section template + 檔頭 onboarding tone；（b）upgrade from v0.1.X：用戶 dev/ 缺 PROJECT_DECISIONS.md，upgrade auto-create empty template；（c）upgrade existing PROJECT_DECISIONS.md：用戶手動加過 narrative，upgrade preserve（同 SESSION_HANDOFF.md / SESSION_LOG.md preserve discipline 一致）。 | （d）retro-archive sweep：用戶 explicit trigger AI scan SESSION_LOG 舊條目 reclassify 入 PROJECT_DECISIONS 屬 v0.2.x opt-in feature，唔屬 v0.2.0 critical path；（e）file-level conflict：用戶嘅 `dev/PROJECT_DECISIONS.md` 完全不可讀（permission / encoding）— 屬人工介入範疇，唔由 upgrade auto-merge 處理。 |
+| R-029 | （a）First-time user fresh install：用戶安裝後第一句 message 含 onboarding signal keyword 或 vague description，AI 主動 load `dev/rules/onboarding.md` proactively，offer Scenario A-E selection；（b）First-time user 揀 Scenario X：AI 跑 5-step walk-through pattern (Step 1 確認 context / Step 2 解釋 v2 fit / Step 3 ask task scope / Step 4 suggest minimum viable / Step 5 confirm + transition)；（c）Onboarding completion：AI 完成 walk-through 後 unload onboarding pack + load 對應 regular scenario pack；（d）Returning user：用戶已熟悉 v2，無 onboarding signal，AI 直接進入 regular work loop 跳過 onboarding pack。 | （e）用戶 mid-session 觸發 onboarding signal（譬如已 progress 至 Step 4，但突然 say「教我用」）— AI 應 ask user about clarification 是否真係想 restart onboarding，唔自動 reload；（f）Onboarding pack 嘅 internal sample wording 字面 mismatch（譬如 AI adapt wording 過分背離 anchor）— 屬語意 drift，不可機器驗，由人工終讀承擔。 |
 
 ## Release Artifact Vocabulary Sweep（R-026，v0.2.0 起 scope 擴展）
 
@@ -314,6 +317,53 @@ Upgrade behavior 驗證（由 `npm run qa:upgrade` mergeRoot scenario 自動驗�
 - 安裝後嘅 `dev/PROJECT_DECISIONS.md` 檔頭 onboarding tone 對新手友善（明文「AI 開工不需要讀」「不需要你手動寫」），不會誤導用戶以為自己要 fill in。
 - 4 個 H2 section 順序保持（Evolution → Decisions Archive → Architecture → Insights），不可被 random order。
 - Closeout step 12 嘅 4 個 trigger 條件 (a)/(b)/(c)/(d) 紀律 wording 清晰，AI 自律執行有 anchor。
+
+## Onboarding Pack Discipline Sweep（R-029，v0.2.0 起新加）
+
+發佈前須 grep 公開倉庫源碼，確認以下命中：
+
+```text
+grep -c "Onboarding Pack" packs/onboarding.md                              # 期望 ≥ 1（H1 title）
+grep -c "transient pack" packs/onboarding.md                                # 期望 ≥ 2（Scope + Discipline）
+grep -c "5-step walk-through pattern" packs/onboarding.md                   # 期望 ≥ 1
+grep -c "Scenario A. 寫 / 改代碼項目" packs/onboarding.md                   # 期望 ≥ 1
+grep -c "Scenario B. 整理研究資料" packs/onboarding.md                      # 期望 ≥ 1
+grep -c "Scenario C. 整理電腦檔案" packs/onboarding.md                      # 期望 ≥ 1
+grep -c "Scenario D. 學寫代碼" packs/onboarding.md                          # 期望 ≥ 1
+grep -c "Scenario E. 其他" packs/onboarding.md                              # 期望 ≥ 1
+grep -c "Tone Discipline" packs/onboarding.md                               # 期望 ≥ 1
+grep -c "Anti-pattern" packs/onboarding.md                                  # 期望 ≥ 1
+grep -c "Cross-reference to guide.html" packs/onboarding.md                 # 期望 ≥ 1
+
+grep -c "First-time user signals" runtime-core/RULE_PACKS.md                # 期望 ≥ 1（router row）
+grep -c "dev/rules/onboarding.md" runtime-core/RULE_PACKS.md                # 期望 ≥ 1
+
+grep -c "first-time-user signals" runtime-core/AGENTS.core.md               # 期望 ≥ 1（startup detection）
+grep -c "onboarding signal keywords" runtime-core/AGENTS.core.md            # 期望 ≥ 1
+grep -c "transient pack" runtime-core/AGENTS.core.md                        # 期望 ≥ 1
+
+grep -c "packs/onboarding.md" bin/agent-handoff-kit.mjs                     # 期望 ≥ 1（mappings entry）
+grep -c "dev/rules/onboarding.md" bin/agent-handoff-kit.mjs                 # 期望 ≥ 1
+grep -c "onboarding pack structure" bin/agent-handoff-kit.mjs               # 期望 ≥ 1（schemaChecks label）
+```
+
+Fresh install 嘅 runtime behavior 驗證：
+
+- `init --yes --root <tmp>` 完成後 `dev/rules/onboarding.md` 存在。
+- `doctor --root <tmp>` 跑出 `dev/rules/onboarding.md (onboarding pack structure (R-029))` schema check `ok`。
+- Doctor 完整 schema checks count 由 8 升至 9。
+
+Pack scenario routing 驗證（由 `npm run qa:packs` mergeRoot scenario 自動驗）：
+
+- `onboarding` routing scenario：router 含「First-time user signals」+ pack 含 5 個 Scenario + transient pack wording。
+- `first-time onboarding to first task` mixed scenario：phases `[onboarding] → [onboarding, coding] → [coding]` 順序合法 (轉折 onboarding → coding 並 unload onboarding)。
+
+人工驗證（語意審閱必填項）：
+
+- Onboarding pack 嘅 5 個 Scenario walk-through 每 step 含 AI sample wording，書面語紀律 enforce（紀律目標：用戶讀 AI sample 即明白意義，無需先讀任何文檔）。
+- 5 個 Scenario 嘅 step 5 「ask user about confirm + 進入 work loop」明文 transition 至對應 regular pack（A → coding+writing；B → research+writing+knowledge；C → knowledge+safety；D → coding+safety；E → custom）。
+- Cross-reference to guide.html 嘅 wording 明確「不需要先讀本指南」，避免用戶誤以為要 mandatory reading。
+- Anti-pattern table 列 6 個明確 anti-pattern，每個含 「點解唔做」+「正確做法」對照。
 
 ## SESSION_LOG handoff-role discipline Sweep（R-010）
 
