@@ -15,7 +15,8 @@ main();
 function main() {
   const packageJson = JSON.parse(read("package.json"));
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
-  assert(packageJson.version === "0.1.7", "package version drifted from current release baseline");
+  const version = packageJson.version;
+  assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed (expected semver e.g. 0.1.8)");
   assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "LICENSE"]), "npm package files boundary changed");
   assert(packageJson.scripts["qa:prototype"], "qa:prototype script is missing");
   assert(packageJson.scripts["qa:packs"], "qa:packs script is missing");
@@ -32,10 +33,10 @@ function main() {
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
-  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.7.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, `adamchanadam-agent-handoff-kit-${version}.tgz`)), "npm dry-run left a tarball behind");
 
   assertIncludes("README.md", [
-    "`v0.1.7` 已正式發佈到 GitHub 與 npm",
+    `\`v${version}\` 已正式發佈到 GitHub 與 npm`,
     "AI Session 之間的接力棒",
     "AI 跨對話失憶",
     "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
@@ -57,6 +58,7 @@ function main() {
   ]);
 
   assertIncludes("CHANGELOG.md", [
+    `## v${version} — `,
     "## v0.1.7 — 2026-05-20",
     "## v0.1.6 — 2026-05-20",
     "## v0.1.5 — 2026-05-20",
@@ -78,10 +80,11 @@ function main() {
     "用戶流程驗收",
     "任務入口",
     "不屬於 npm package",
+    `v${version} 發佈狀態`,
     "v0.1.2 發佈狀態",
     "v0.1.7 發佈狀態",
     "v0.1.6 發佈狀態",
-    "npm latest 為 `0.1.7`",
+    `npm latest 為 \`${version}\``,
     "v0.1.5 發佈狀態",
     "v0.1.4 發佈狀態",
     "v0.1.3 發佈狀態",

@@ -10,6 +10,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const tempRoot = path.join(tmpdir(), `ack-prototype-check-${Date.now()}`);
 
+const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+const version = packageJson.version;
+function nextPatch(v) {
+  const [maj, min, p] = v.split(".").map(Number);
+  return `${maj}.${min}.${p + 1}`;
+}
+
 const forbiddenPatterns = [
   { label: "opening-message end marker drift", pattern: /end marker after it/i },
   { label: "external API safety routed to coding pack", pattern: /external api safety\s*\|\s*coding pack/i },
@@ -43,7 +50,7 @@ async function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
   assert(outputText(pack).includes("total files: 21"), "npm dry-run did not report expected 21 package files");
-  assert(!existsSync(path.join(root, "adamchanadam-agent-handoff-kit-0.1.7.tgz")), "npm dry-run left a tarball behind");
+  assert(!existsSync(path.join(root, `adamchanadam-agent-handoff-kit-${version}.tgz`)), "npm dry-run left a tarball behind");
 
   const hits = scanForbiddenText(root);
   assert(hits.length === 0, formatHits(hits));
@@ -60,10 +67,10 @@ async function checkUpdateNotice() {
     "update notice with mock registry",
     {
       AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE: "1",
-      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.8"
+      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: nextPatch(version)
     }
   );
-  assert(update.stdout.includes("有新版可用：0.1.7 -> 0.1.8"), "update notice did not show newer version");
+  assert(update.stdout.includes(`有新版可用：${version} -> ${nextPatch(version)}`), "update notice did not show newer version");
   assert(update.stdout.includes("https://github.com/Adamchanadam/agent-handoff-kit/releases/latest"), "update notice did not include release notes URL");
 
   const skipped = run(
@@ -73,7 +80,7 @@ async function checkUpdateNotice() {
     {
       AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE: "1",
       AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1",
-      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: "0.1.8"
+      AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: nextPatch(version)
     }
   );
   assert(!skipped.stdout.includes("Update available!"), "disabled update check still printed an update notice");

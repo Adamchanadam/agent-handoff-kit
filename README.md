@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：`v0.1.7` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
+狀態：`v0.1.8` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -106,7 +106,7 @@ dev/rules/*.md
 | `GEMINI.md` | 讓 Gemini CLI 找到同一套入口。 |
 | `START_NEXT_SESSION_PROMPT.txt` | 下次開工時可直接貼上的便利副本；由 handoff 產生。 |
 | `dev/SESSION_HANDOFF.md` | 保存目前狀態、下一步、風險、驗收結果與下一次開工文字。 |
-| `dev/SESSION_LOG.md` | 保存近期實際做過的事與檢查結果。 |
+| `dev/SESSION_LOG.md` | 保存近期實際做過的事與檢查結果。主檔長期保持短小；N=11+ 嘅舊條目自動 archive 至 `dev/SESSION_LOG_archive/`，trace-back 用。接力靠 `SESSION_HANDOFF.md`，本檔屬冷資料層。 |
 | `dev/PROJECT_INDEX.md` | 記錄專案檔案、必讀資料、外部來源與常用檢查。 |
 | `dev/DOC_SYNC_REGISTRY.md` | 記錄哪些文件改動後需要同步。 |
 | `dev/RULE_PACKS.md` | 告訴 AI 不同任務應讀哪些工作規則。 |
@@ -201,7 +201,7 @@ GitHub Pages 上的兩個 onboarding 頁 —— [`agent-handoff-kit-intro.html`]
 
 ## 目前限制
 
-- `v0.1.7` 是 GitHub 與 npm 同步發佈版本。
+- `v0.1.8` 是 GitHub 與 npm 同步發佈版本。
 - 這是早期可用版本，尚未宣稱完整穩定。
 - 升級合併仍是窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

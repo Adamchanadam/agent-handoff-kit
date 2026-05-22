@@ -1,5 +1,18 @@
 # 變更紀錄
 
+## v0.1.8 — 2026-05-22
+
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。
+
+### 已改善
+
+- 釋出 R-010 SESSION_LOG 接力角色紀律入 npm package。`runtime-core/AGENTS.core.md` 加 closeout step 11，明文化「每次收工自動執行 N 規則推進」mandatory step：N=1-3 留 full 做 safety buffer；N=4-10 已被 `SESSION_HANDOFF.md` / R 表 / `DECISION_LOG.md` / `PROJECT_INDEX.md` 吸收嘅降短索引；N=11+ archive 至 `dev/SESSION_LOG_archive/archive_<batch>_<low_date>_to_<high_date>.md`，主檔末尾留 archive index 段做 trace-back 入口。新 AI session 接力只需讀 `AGENTS.md` + `SESSION_HANDOFF.md` + `PROJECT_INDEX.md` + 相關 R 表 + `DECISION_LOG.md` 即可，無需讀 `SESSION_LOG.md`。
+- `runtime-core/SESSION_LOG.md` template 頂部加 head blockquote，講「本檔屬 trace-back / audit trail 冷資料層，唔承擔接力責任」，install 後用戶即見。
+- `bin/agent-handoff-kit.mjs` 加 `assessSessionLogDiscipline()` 函數，doctor 跑此函數做 warn-only safety net：H2 entry ≥ 11 warn / ≥ 25 warn (severe) / 主檔 line ≥ 1500 warn。Doctor exit 不變 0，mode 永遠 healthy；enforce 主要靠 AI closeout flow 自律執行 N 規則。
+- `scripts/check-release-readiness.mjs` 加 grep + doctor stdout assertions 確保 R-010 wording 同 doctor `SESSION_LOG discipline (R-010): ok` line 一致。
+- `docs/qa/release-grade-qa.md` 加 SESSION_LOG handoff-role discipline sweep section + 治理 QA 缺口矩陣 +1 維度。
+- 公開介紹頁 `agent-handoff-kit-intro.html` + 實操指南頁 `agent-handoff-kit-guide.html` + `README.md` 同步 v0.1.8 + R-010 紀律描述（指南頁 Case A Step 06「Kit 內置邏輯」box 加第 5 條治理段；`README.md` `dev/SESSION_LOG.md` row description 補 archive 機制）。
+
 ## v0.1.7 — 2026-05-20
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。

@@ -454,7 +454,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.1.7 · 七步流程完整示範</span>
+    <span class="kicker">v0.1.8 · 七步流程完整示範</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">兩個日常情景 —— 整理電腦下載目錄、開咖啡店的市場調查 —— 完整示範 Agent Handoff Kit 的七步流程。每一步都會見到 AI 主動宣告載入哪個工作模式、寫入哪份交接文件、輸出哪段下次開工提示。</p>
   </div>
@@ -521,7 +521,7 @@ create: 17
 🔀 merged: 0
 ⏭️  skipped existing: 0
 
-📦 版本:v0.1.7
+📦 版本:v0.1.8
 🛠️  模式:first-install
 🔎 剛做咗:init 命令;create 17 / merge 0 / skip 0 / conflict 0。
 🚀 下一步:開新 AI 對話,按下方提示貼入 Work in &lt;root&gt; 一句後描述任務。
@@ -589,7 +589,7 @@ create: 17
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI(已按 AGENTS.md 啟動)</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.7
+<pre>   /\_/\   Agent Handoff Kit v0.1.8
   ( o.o )  continuity ready
    > ^ <
 
@@ -796,7 +796,7 @@ Failed:              0 files
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI · 收工流程</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.7
+<pre>   /\_/\   Agent Handoff Kit v0.1.8
   ( -.- )  handoff saved
    > ^ <
 
@@ -831,6 +831,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
           <li><strong>對賬式更新</strong>:AI 不會將新狀態追加在舊狀態下面 —— 必須逐段對賬 <code>SESSION_HANDOFF</code> 的 current state、改為當前事實,避免新日期配舊快照。</li>
           <li><strong>fenced text 開工提示</strong>:輸出的下次開工文字一定包在 <code>```text</code> code block 裡面 —— 讓你可以一鍵複製,不會挾走前後的閒文。</li>
           <li><strong>START_NEXT_SESSION_PROMPT.txt 自動同步</strong>:fenced text 的內容會同時寫入這個副本 —— 下次新對話打開,你可以直接在檔案 cat / copy。<code>SESSION_HANDOFF.md</code> 仍是權威真源,副本只是方便。</li>
+          <li><strong>SESSION_LOG 接力角色紀律(R-010)</strong>:接力靠 <code>SESSION_HANDOFF.md</code>,<code>SESSION_LOG.md</code> 屬 trace-back 冷資料層。每次收工,AI 自動執行 N 規則(N = session 數):N=1-3 留 full 做 safety buffer;N=4-10 已吸收嘅降短索引(reference 用結構 anchor);N=11+ archive 至 <code>dev/SESSION_LOG_archive/archive_&lt;batch&gt;_&lt;date_range&gt;.md</code>,主檔末尾留 archive index 段。主檔長期保持短小;想 trace 歷史去 archive 目錄。<code>doctor</code> 會喺主檔過長時 warn(warn-only,不阻 release)。</li>
         </ul>
       </div>
     </div>
@@ -860,7 +861,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI(接力)</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.7
+<pre>   /\_/\   Agent Handoff Kit v0.1.8
   ( o.o )  continuity ready
    > ^ <
 
@@ -993,7 +994,7 @@ Google Drive
         <div class="block-body">$ <span class="hl">npx @adamchanadam/agent-handoff-kit init</span>
 
 ✅ created: 17
-📦 版本:v0.1.7
+📦 版本:v0.1.8
 🛠️  模式:first-install
 🚀 下一步:開新 AI 對話,按下方提示貼入 Work in &lt;root&gt; 一句後描述任務。</div>
       </div>
@@ -1051,7 +1052,7 @@ Google Drive
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI(已按 AGENTS.md 啟動)</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.7
+<pre>   /\_/\   Agent Handoff Kit v0.1.8
   ( o.o )  continuity ready
    > ^ <
 
@@ -1273,7 +1274,7 @@ Google Drive
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI · 收工流程</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.7
+<pre>   /\_/\   Agent Handoff Kit v0.1.8
   ( -.- )  handoff saved
    > ^ <
 
@@ -1341,7 +1342,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI · 接力</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.7
+<pre>   /\_/\   Agent Handoff Kit v0.1.8
   ( o.o )  continuity ready
    > ^ <
 
@@ -1436,7 +1437,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.1.7 · MIT License</p>
+      <p>v0.1.8 · MIT License</p>
     </div>
   </div>
 </footer>

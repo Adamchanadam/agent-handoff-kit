@@ -106,6 +106,14 @@ npm package 由 `package.json` 的 `files` 控制：
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
 
+## v0.1.8 發佈狀態
+
+- 發佈版本：`0.1.8`。
+- release notes：`CHANGELOG.md` 的 `v0.1.8` 段落。
+- 發佈內容：R-010 SESSION_LOG 接力角色紀律 propagation 入 npm package — `runtime-core/AGENTS.core.md` closeout step 11（N 規則 mandatory advancement + AI proactive enforce）+ `runtime-core/SESSION_LOG.md` head blockquote + `bin/agent-handoff-kit.mjs` `assessSessionLogDiscipline()` doctor warn-only safety net（H2 entry ≥ 11 / ≥ 25 / 主檔 line ≥ 1500 全部 warn，exit 不變 0）+ `scripts/check-release-readiness.mjs` 加 grep + doctor stdout assertions + 本文件加 SESSION_LOG handoff-role discipline sweep section + 治理 QA 缺口矩陣 +1 維度。對外 onboarding（`agent-handoff-kit-intro.html` / `agent-handoff-kit-guide.html` / `README.md`）同步 v0.1.8 + R-010 紀律描述（指南頁 Case A Step 06「Kit 內置邏輯」box 加第 5 條治理段；README `dev/SESSION_LOG.md` row description 補 archive 機制）。release-gate 腳本根因治理：`scripts/check-release-readiness.mjs` + `scripts/check-public-prototype.mjs` 嘅 current release baseline / tarball name / README assertion / CHANGELOG latest segment / release-grade-qa.md latest pointer / mock newer version 全部 refactor 至動態讀 `package.json` 嘅 version，免下次 release 漏對齊。
+- 發佈前驗收：完整四條 QA（含新 `SESSION_LOG discipline (R-010): ok` assertion 與動態 baseline）+ 版本號對齊（`README.md` + `package.json` + `CHANGELOG.md` + onboarding HTML + 本文件 latest pointer）+ package boundary（21 files 未變）+ GitHub Release 材料 + npm package metadata + CLI Output Contract sweep。
+- npm 狀態：已 npm publish；npm latest 為 `0.1.8`。
+
 ## v0.1.7 發佈狀態
 
 - 發佈版本：`0.1.7`。
