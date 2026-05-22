@@ -1,5 +1,47 @@
 # 變更紀錄
 
+## v0.2.0 — 2026-05-22
+
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。屬 v2 嘅第一個 major version bump（v0.1.8 → v0.2.0），反映 R-028 用戶項目治理擴展屬 substantive architectural change。
+
+### Major change
+
+- **R-028 用戶項目治理擴展**：新加 `runtime-core/PROJECT_DECISIONS.md` template 至 npm package，安裝後落 `dev/PROJECT_DECISIONS.md`。本檔保存項目嘅長期演進 narrative（任務需求演進 / 設計決策 rationale / 架構層判斷取捨 / 累積式學習觀察），屬 warm 資料層 —— AI 開工**不需要讀**本檔，遇到「之前為何這樣做」時 AI 自己會搵。新手用戶**完全不需要打開、不需要記 schema、不需要手動寫** —— 一切由 AI 自律執行。
+- Schema 含 4 個固定 H2 section：Evolution Timeline / Decisions Archive / Architecture Choices / Insights & Learnings，由 `bin/agent-handoff-kit.mjs` `requiredAnchors` + `schemaChecks` 強制 enforce。
+- npm package files count 由 21 升至 22；用戶項目 dev/*.md 數量由 5 升至 6；用戶項目 `dev/*.md` + `docs/*.md` 上限紀律封 10（未來再加新 file 必 trigger major version bump + R-005 verdict「健康」或「緊張 / 合併」）。
+
+### 已改善
+
+- `runtime-core/AGENTS.core.md` 加 closeout step 12 紀律：每次收工 AI 自動執行 R-028 4 個 trigger 條件 — (a) Decisions split / (b) Evolution append / (c) Architecture append / (d) Insights append。AI smart-detect 短期 vs 長期項目 signal（session count / active objective shifting / decisions list size / user retrospective questions）以調整 proactiveness。
+- `bin/agent-handoff-kit.mjs` `mappings` array 加 `runtime-core/PROJECT_DECISIONS.md` → `dev/PROJECT_DECISIONS.md`；`requiredAnchors` + `schemaChecks` 加 PROJECT_DECISIONS rules / groups；doctor 完成輸出嘅 schema checks count 由 7 升至 8。
+- `packs/agent-governance.md` 加 Rule 8 + Check item 6 做 R-028 reinforcement wording。
+- `scripts/check-release-readiness.mjs` 加 PROJECT_DECISIONS schema check assertion；加 `checkForbiddenVocabulary()` helper 對 README + onboarding HTML + `checkForbiddenVocabularyInChangelogLatestSection()` 對 CHANGELOG latest section（R-026 scope 擴展嘅 anchor-bounded grep strategy，避免 historical sections 嘅 false positive）；加 `checkBookLanguage()` 對 onboarding HTML（書面語紀律 enforcement，廣東口語字符 0 命中）。
+- `scripts/check-public-prototype.mjs` + `scripts/check-upgrade-safety.mjs` 加 `dev/PROJECT_DECISIONS.md` existsSync assertion 對 fresh install + upgrade scenario。
+- `docs/qa/release-grade-qa.md` 加 4 個新 row（PROJECT_DECISIONS 結構驗收 / Release Artifact Vocabulary Sweep / Onboarding HTML 書面語紀律 / Project Decisions discipline）入「驗收分層」+「治理 QA 缺口矩陣」；「CLI Output Contract Sweep」section rename 為「Release Artifact Vocabulary Sweep」（v0.2.0 起 scope 擴展）+ 加新「Onboarding HTML Book-language Discipline Sweep」+「Project Decisions Discipline Sweep」section；補丁前置狀態枚舉加 R-028 row；prepend v0.2.0 發佈狀態段。
+- 公開介紹頁 `agent-handoff-kit-intro.html` 加 `#tiers` section「分檔有層次」（Hot / Warm / Cold 三格 visual）。
+- 實操指南頁 `agent-handoff-kit-guide.html` 加 Case C「長期項目演進」（4-phase 時間軸 narrative — Day 1 / Day 30 / Day 60 / Day 90）。
+- `README.md` 加新 H2 section「項目決策日誌」說明 PROJECT_DECISIONS.md 嘅職責同分工。
+
+### R-026 scope 擴展
+
+- R-026「CLI Output Contract」嘅 forbidden vocabulary 紀律 enforce scope 由原 CLI source（`bin/agent-handoff-kit.mjs`）擴展至**對外 release artifacts**（公開倉庫 `README.md` + GitHub Pages onboarding HTML + `CHANGELOG.md` anchor-bounded latest section）。內部 governance docs（`dev/SESSION_LOG.md` / `dev/SESSION_HANDOFF.md` / `docs/DECISION_LOG.md`）不受 R-026 scope 限制。
+- CHANGELOG 嘅 historical sections 因含 v0.1.4 historical mention 屬不可改 historical fact —— anchor-bounded grep strategy（限「## v」heading 之間嘅 latest section）避免 false positive。
+
+### Onboarding HTML 書面語紀律 enforcement（v0.2.0 起新加）
+
+- 對外 onboarding HTML（intro + guide）必為繁體中文書面語，廣東口語字符（嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰）grep 命中數必為 0。
+- 既有 3-5 處口語混入（intro `#combo` section + guide outro section 嘅 Adam-AI-Instructions cross-recommendation 段）已 normalize 為書面語。
+- `scripts/check-release-readiness.mjs` `checkBookLanguage()` helper 自動驗，違反即 throw error，release 阻擋。
+
+### Migration path（v0.1.X → v0.2.0）
+
+既有用戶升級時：
+
+1. `upgrade` action 偵測 `dev/PROJECT_DECISIONS.md` 不存在 → 建立 empty template（含檔頭 onboarding tone + 4 個 H2 section heading）
+2. 已有 `dev/PROJECT_DECISIONS.md` → preserve（用戶手動加過嘅內容唔覆寫）
+3. AI 由 next session 開始按 closeout step 12 紀律自動 maintain
+4. 歷史 narrative 留喺 SESSION_LOG 嘅 archive 中，不 retro-fill
+
 ## v0.1.8 — 2026-05-22
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。

@@ -27,6 +27,7 @@ function main() {
   assert(mergedAgents.includes("BEGIN Agent Handoff Kit managed core"), "managed core block was not added");
   assert(mergedAgents.includes("Agent Handoff Kit Core Runtime"), "core runtime text was not merged");
   assertSingleCore(mergedAgents, "local-rule merge should create one managed core");
+  assert(existsSync(path.join(mergeRoot, "dev/PROJECT_DECISIONS.md")), "upgrade did not create dev/PROJECT_DECISIONS.md (R-028)");
 
   const mergeReport = latestReport(mergeRoot);
   assert(read(mergeReport).includes("## Merged"), "migration report missing merged section");

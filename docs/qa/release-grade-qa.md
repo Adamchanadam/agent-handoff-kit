@@ -21,6 +21,9 @@
 | 安裝後指示驗收 | 已併入 `npm run qa:prototype` 與 `npm run qa:release` | 檢查安裝成功後的 Terminal 輸出不會令用戶誤把提示文字當成命令，並確認 README 說明安裝後第一步。 | 是 |
 | 技能／子代理流程仲裁驗收 | 已併入 `npm run qa:packs` 與 `npm run qa:release` | 檢查外部技能、子代理、demo workspace 或其他工具的 closeout 不可取代目前根目錄自己的 Agent Handoff Kit 持久化。 | 是 |
 | 舊核心升級結構驗收 | 已併入 `npm run qa:upgrade` 與 `npm run qa:release` | 檢查舊版未標記 `AGENTS.md` core 升級後不會留下雙核心、雙收尾合約或 stale 上半段，且保留 core 前後的使用者本地規則。 | 是 |
+| PROJECT_DECISIONS 結構驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `dev/PROJECT_DECISIONS.md` 含 4 個 H2 section heading（Evolution Timeline / Decisions Archive / Architecture Choices / Insights & Learnings）並保持順序；檔頭含 onboarding 句式（「warm 資料層」、「AI 開工不需要讀」、「AI 在收工時自動 update」）。 | 是 |
+| Release Artifact Vocabulary Sweep | 已併入 `npm run qa:release` | 對 `bin/agent-handoff-kit.mjs` + `README.md` + `agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html` 跑禁忌字眼 grep（「人話解讀」「人話補一句」「人話解釋」）；對 `CHANGELOG.md` 限 latest version section (anchor-bounded by `## v` heading) 跑相同 grep；命中數必為 0。 | 是 |
+| Onboarding HTML 書面語紀律 | 已併入 `npm run qa:release` | 對 `agent-handoff-kit-intro.html` 與 `agent-handoff-kit-guide.html` 跑廣東口語字符 grep（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）；命中數必為 0（onboarding HTML 必為繁體中文書面語）。 | 是 |
 
 ## 規則包場景覆蓋
 
@@ -54,6 +57,8 @@
 | CLI Output Contract 一致性 | 每次 release 前 sweep `bin/agent-handoff-kit.mjs`：（a）`init`／`upgrade`／`doctor` 完成輸出必含版本（v0.X.Y）、模式（mode）、剛做咗乜（counts）、下一步四項；（b）禁忌用語清單命中 = 0（含「人話解讀」等自貶字眼）；（c）內部 action 名（create／merge／skip／conflict／status）保留唔變。 |
 | SESSION_LOG handoff-role discipline（R-010）| 每次 release 前 grep `bin/agent-handoff-kit.mjs` 含 `assessSessionLogDiscipline` 函數 + doctor 集成；grep `runtime-core/AGENTS.core.md` closeout step list 含「Advance the SESSION_LOG N-rule」+「R-010 SESSION_LOG handoff-role discipline」；grep `runtime-core/SESSION_LOG.md` template 含「Handoff role」blockquote。Fresh install + doctor 跑出「SESSION_LOG discipline (R-010): ok」（warn-only：N=11+ warn，doctor exit 不變 0）。 |
 | Plan scope coverage matrix | 每次 release 嘅 plan 必明文列出三層 artifact families 嘅對齊範圍：（a）**Content layer** — `README.md` 版本字串 + `已正式發佈` 句、`CHANGELOG.md` prepend 新版本段、`package.json` version bump、`docs/qa/release-grade-qa.md` prepend 新版本「發佈狀態」段、對外 onboarding HTML（intro / guide）版本字串 + 任何因 release notes 觸發嘅描述更新；（b）**Script layer** — `scripts/check-release-readiness.mjs` 嘅 release baseline assertion + tarball name + README/CHANGELOG/release-grade-qa.md required string、`scripts/check-public-prototype.mjs` 嘅 tarball name + update notice mock newer version；（c）**Source layer** — `runtime-core/*.md` 嘅模板更新、`bin/agent-handoff-kit.mjs` 嘅功能改動、`packs/*.md` 嘅工作模式紀律。Plan 漏列任何 family 即視為 plan design gap，需 root-fix 或補 plan amend 後再 release。本維度由 v0.1.8 R-005 治理健康檢查（`outputs/governance-health-check-20260522.md`）落地：v0.1.7 → v0.1.8 plan 初版漏咗 script layer，qa:release fail 揭發後加 root-fix（dynamic baseline refactor），令 script layer 之後自動同 package.json 對齊；future release plan 仍必明文列三層 families 做覆蓋自驗。 |
+| Project Decisions discipline（R-028） | 每次 release 前須驗證：（a）`runtime-core/PROJECT_DECISIONS.md` template 含 4 個 H2 section heading 順序正確 + 檔頭 onboarding 句式；（b）`runtime-core/AGENTS.core.md` closeout step 12 wording 命中（含「Maintain `dev/PROJECT_DECISIONS.md`」、「R-028 project narrative discipline」、4 個 H2 section name）；（c）`bin/agent-handoff-kit.mjs` mappings 含 `runtime-core/PROJECT_DECISIONS.md` → `dev/PROJECT_DECISIONS.md`；（d）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 `dev/PROJECT_DECISIONS.md` rule + group；（e）Fresh install 後 `dev/PROJECT_DECISIONS.md` 存在且 doctor 「project decisions log structure」schema check pass；（f）Upgrade 既有專案後 `dev/PROJECT_DECISIONS.md` 自動建立（若不存在）或保留（若用戶已有 content）。`npm run qa:release` 自動驗 (a)-(e)；(f) 由 `npm run qa:upgrade` mergeRoot scenario 嘅 existsSync assertion 驗。 |
+| 書面語紀律（HTML 輸出） | 對外 onboarding HTML（`agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html`）必為繁體中文書面語，廣東口語字符（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）grep 命中數必為 0。Release 前 `npm run qa:release` 自動驗。違反即視為 release artifact 質量落差，需逐句修正後再 release。 |
 
 ## 套件邊界
 
@@ -106,6 +111,14 @@ npm package 由 `package.json` 的 `files` 控制：
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
+
+## v0.2.0 發佈狀態
+
+- 發佈版本：`0.2.0`。
+- release notes：`CHANGELOG.md` 的 `v0.2.0` 段落。
+- 發佈內容：R-028 用戶項目治理擴展 — 新加 `runtime-core/PROJECT_DECISIONS.md` template（4 H2 section + 檔頭 onboarding tone）+ `runtime-core/AGENTS.core.md` closeout step 12 紀律（AI smart detect heuristic：Decisions split / Evolution / Architecture / Insights）+ `bin/agent-handoff-kit.mjs` mappings / requiredAnchors / schemaChecks 擴展 + `scripts/check-release-readiness.mjs` PROJECT_DECISIONS verifier + R-026 forbidden vocabulary scope 擴展（CLI source + README + onboarding HTML + CHANGELOG anchor-bounded latest section）+ 書面語紀律 enforcement（onboarding HTML 廣東口語字符 0 命中）+ `packs/agent-governance.md` R-028 reinforcement rule。對外 onboarding：intro 加 `#tiers` section「分檔有層次」（Hot / Warm / Cold 三格）+ guide 加 Case C「長期項目演進」4-phase narrative + README 加「項目決策日誌」段。Major version bump（v0.1.8 → v0.2.0）反映 R-028 屬 substantive architectural change。npm package files 由 21 → 22（含 `runtime-core/PROJECT_DECISIONS.md` template）。
+- 發佈前驗收：完整四條 QA + 動態 baseline real first-test 通過（version 0.1.8 → 0.2.0 腳本零改動仍 PASS）+ Plan scope coverage matrix release-context first-test 通過 + R-005 治理健康檢查 walk-through verdict ∈ {健康, 緊張 / 合併方向} + Release Artifact Vocabulary Sweep 全部 grep 命中 + Project Decisions Discipline Sweep 全部 grep 命中 + 書面語紀律 grep 0 命中 + CLI Output Contract sweep 既有 grep 仍命中。
+- npm 狀態：已 npm publish；npm latest 為 `0.2.0`；package fileCount 22。
 
 ## v0.1.8 發佈狀態
 
@@ -207,11 +220,14 @@ npm package 由 `package.json` 的 `files` 控制：
 | R 編號 | 覆蓋嘅前置狀態 | 唔覆蓋嘅前置狀態 |
 |---|---|---|
 | R-024 | （a）夾心 sandwich：managed marker pair + unmarked stale core；（b）legacy single core：無 managed marker + 單一 title；（c）legacy duplicate cores：無 managed marker + 多 title；（d）無 Kit core：file 存在但完全冇 core；（e）clean：managed marker pair + 無 unmarked dup。 | （f）managed-core markers 不成對／多 pair → 屬 conflict 狀態，CLI 顯示 conflict action，人工介入，唔由 upgrade auto-merge 處理。 |
-| R-026 | 全部 `init`／`upgrade`／`doctor` 完成輸出（含 first-install / upgrade-existing / healthy / needs-fix / partial 模式）；`help` 命令完成輸出（version + mode + next）。 | 中間進度行（如 `ok: create` 之類）唔強制四項契約；`migration-report.md` 內容契約唔屬 CLI Output Contract 範圍（migration report 有獨立 schema）。 |
+| R-026 | 全部 `init`／`upgrade`／`doctor` 完成輸出（含 first-install / upgrade-existing / healthy / needs-fix / partial 模式）；`help` 命令完成輸出（version + mode + next）；v0.2.0 起擴 scope 至對外 release artifacts (README + onboarding HTML + CHANGELOG anchor-bounded latest section)。 | 中間進度行（如 `ok: create` 之類）唔強制四項契約；`migration-report.md` 內容契約唔屬 CLI Output Contract 範圍（migration report 有獨立 schema）；CHANGELOG historical sections（latest 段之前）唔受 R-026 scope 限制（historical fact 不可改）；內部 governance docs (SESSION_LOG / HANDOFF / DECISION_LOG) 不受 R-026 scope 限制。 |
+| R-028 | （a）first-install fresh project：installer create `dev/PROJECT_DECISIONS.md` 為 4 H2 section template + 檔頭 onboarding tone；（b）upgrade from v0.1.X：用戶 dev/ 缺 PROJECT_DECISIONS.md，upgrade auto-create empty template；（c）upgrade existing PROJECT_DECISIONS.md：用戶手動加過 narrative，upgrade preserve（同 SESSION_HANDOFF.md / SESSION_LOG.md preserve discipline 一致）。 | （d）retro-archive sweep：用戶 explicit trigger AI scan SESSION_LOG 舊條目 reclassify 入 PROJECT_DECISIONS 屬 v0.2.x opt-in feature，唔屬 v0.2.0 critical path；（e）file-level conflict：用戶嘅 `dev/PROJECT_DECISIONS.md` 完全不可讀（permission / encoding）— 屬人工介入範疇，唔由 upgrade auto-merge 處理。 |
 
-## CLI Output Contract Sweep（R-026）
+## Release Artifact Vocabulary Sweep（R-026，v0.2.0 起 scope 擴展）
 
 發佈前須 grep 公開倉庫源碼，確認以下命中：
+
+CLI source（內部 action 名 + 完成訊息四項契約）：
 
 ```text
 grep -n "人話解讀" bin/agent-handoff-kit.mjs       # 期望 0 命中
@@ -221,14 +237,83 @@ grep -c "🩺 模式" bin/agent-handoff-kit.mjs         # 期望 ≥ 1（doctor 
 grep -c "🚀 下一步" bin/agent-handoff-kit.mjs       # 期望 ≥ 3（install/doctor/help）
 ```
 
+對外 release artifacts（v0.2.0 新加 scope）：
+
+```text
+grep -n -E "人話解讀|人話補一句|人話解釋" README.md                       # 期望 0 命中
+grep -n -E "人話解讀|人話補一句|人話解釋" agent-handoff-kit-intro.html   # 期望 0 命中
+grep -n -E "人話解讀|人話補一句|人話解釋" agent-handoff-kit-guide.html   # 期望 0 命中
+# CHANGELOG.md 限 latest section (anchor-bounded by ## v heading)，避免 historical entries false positive
+# 由 scripts/check-release-readiness.mjs 嘅 checkForbiddenVocabularyInChangelogLatestSection() 執行
+```
+
 人工驗證（語氣審閱必填項）：
 
 - 安裝完成訊息：用戶讀完知道版本、做咗乜、下一步點處理。
 - 升級完成訊息：用戶讀完知道 self-check 結果，唔會誤以為「skip」即係未完成。
 - Doctor 失敗訊息：四種模式（missing files / anchor / schema / prompt mirror）每種都應有對應中文下一步指示。
 - Help 訊息：用戶第一次跑 `--help` 應理解三個命令、版本同下一步。
-- 禁忌用語清單：「人話解讀」「人話補一句」「人話解釋」等自我評論／粗俗自貶 phrasing 一律禁。
+- 禁忌用語清單：「人話解讀」「人話補一句」「人話解釋」等自我評論／粗俗自貶 phrasing 一律禁；由 v0.2.0 起 enforce scope 由 CLI source 擴展至對外 release artifacts (README / onboarding HTML / CHANGELOG latest section)；內部 governance docs (SESSION_LOG / HANDOFF / DECISION_LOG / 內部討論) 不受限。
 - 內部 action 名：`create` / `merge` / `skip` / `conflict` / `status` 保留唔變（QA 同 migration report 依賴）。
+
+## Onboarding HTML Book-language Discipline Sweep（v0.2.0 起新加）
+
+對外 onboarding HTML 必為繁體中文書面語，廣東口語字符 grep 命中數必為 0：
+
+```text
+grep -n -E "[嘅咁喺揀唔乜啱嚟咗嗰]" agent-handoff-kit-intro.html      # 期望 0 命中
+grep -n -E "[嘅咁喺揀唔乜啱嚟咗嗰]" agent-handoff-kit-guide.html      # 期望 0 命中
+```
+
+由 `scripts/check-release-readiness.mjs` 嘅 `checkBookLanguage()` helper 自動執行；違反即 throw error，release 阻擋。
+
+範圍紀律：
+
+- Onboarding HTML（intro + guide）為用戶第一個接觸嘅頁面，書面語紀律強制 enforce。
+- README.md 屬 maintainer-friendly，允許 mixed style；不受書面語紀律約束。
+- WORK 治理檔 + SESSION_LOG / HANDOFF / DECISION_LOG / 內部 audit report 屬 maintainer 對話 surface，不受書面語紀律約束。
+- npm package CHANGELOG 屬 release artifact 但 historical sections 不可改；由 R-026 anchor-bounded grep 處理 false positive。
+
+## Project Decisions Discipline Sweep（R-028，v0.2.0 起新加）
+
+發佈前須 grep 公開倉庫源碼，確認以下命中：
+
+```text
+grep -c "Project Decisions Log" runtime-core/PROJECT_DECISIONS.md           # 期望 ≥ 1（檔頭）
+grep -c "Evolution Timeline" runtime-core/PROJECT_DECISIONS.md              # 期望 ≥ 1（H2 section）
+grep -c "Decisions Archive" runtime-core/PROJECT_DECISIONS.md               # 期望 ≥ 1
+grep -c "Architecture Choices" runtime-core/PROJECT_DECISIONS.md            # 期望 ≥ 1
+grep -c "Insights & Learnings" runtime-core/PROJECT_DECISIONS.md            # 期望 ≥ 1
+grep -c "warm 資料層" runtime-core/PROJECT_DECISIONS.md                     # 期望 ≥ 1（檔頭 onboarding tone）
+
+grep -c "Maintain \`dev/PROJECT_DECISIONS.md\`" runtime-core/AGENTS.core.md  # 期望 ≥ 1
+grep -c "R-028 project narrative discipline" runtime-core/AGENTS.core.md    # 期望 ≥ 1
+grep -c "Evolution Timeline" runtime-core/AGENTS.core.md                    # 期望 ≥ 1（在 closeout step 12 內）
+grep -c "Decisions Archive" runtime-core/AGENTS.core.md                     # 期望 ≥ 1
+grep -c "Architecture Choices" runtime-core/AGENTS.core.md                  # 期望 ≥ 1
+grep -c "Insights & Learnings" runtime-core/AGENTS.core.md                  # 期望 ≥ 1
+
+grep -c "runtime-core/PROJECT_DECISIONS.md" bin/agent-handoff-kit.mjs       # 期望 ≥ 1（mappings entry）
+grep -c "dev/PROJECT_DECISIONS.md" bin/agent-handoff-kit.mjs                # 期望 ≥ 1
+grep -c "project decisions log structure" bin/agent-handoff-kit.mjs         # 期望 ≥ 1（schemaChecks label）
+```
+
+Fresh install 嘅 runtime behavior 驗證：
+
+- `init --yes --root <tmp>` 完成後 `dev/PROJECT_DECISIONS.md` 存在。
+- `doctor --root <tmp>` 跑出 `dev/PROJECT_DECISIONS.md (project decisions log structure)` schema check `ok`。
+- Doctor 完整 schema checks 包含 PROJECT_DECISIONS group。
+
+Upgrade behavior 驗證（由 `npm run qa:upgrade` mergeRoot scenario 自動驗）：
+
+- 既有專案缺 `dev/PROJECT_DECISIONS.md`：upgrade auto-create empty template。
+- 既有專案已有 `dev/PROJECT_DECISIONS.md`（用戶手動加過 narrative）：upgrade preserve user content（同 SESSION_HANDOFF / SESSION_LOG preserve discipline 一致，由 `classifyExistingFile` 嘅 default `skip "preserve existing file"` 路徑承擔）。
+
+人工驗證（語意審閱必填項）：
+
+- 安裝後嘅 `dev/PROJECT_DECISIONS.md` 檔頭 onboarding tone 對新手友善（明文「AI 開工不需要讀」「不需要你手動寫」），不會誤導用戶以為自己要 fill in。
+- 4 個 H2 section 順序保持（Evolution → Decisions Archive → Architecture → Insights），不可被 random order。
+- Closeout step 12 嘅 4 個 trigger 條件 (a)/(b)/(c)/(d) 紀律 wording 清晰，AI 自律執行有 anchor。
 
 ## SESSION_LOG handoff-role discipline Sweep（R-010）
 

@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：`v0.1.8` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
+狀態：`v0.2.0` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -94,6 +94,7 @@ START_NEXT_SESSION_PROMPT.txt
 dev/SESSION_HANDOFF.md
 dev/SESSION_LOG.md
 dev/PROJECT_INDEX.md
+dev/PROJECT_DECISIONS.md
 dev/DOC_SYNC_REGISTRY.md
 dev/RULE_PACKS.md
 dev/rules/*.md
@@ -108,6 +109,7 @@ dev/rules/*.md
 | `dev/SESSION_HANDOFF.md` | 保存目前狀態、下一步、風險、驗收結果與下一次開工文字。 |
 | `dev/SESSION_LOG.md` | 保存近期實際做過的事與檢查結果。主檔長期保持短小；N=11+ 嘅舊條目自動 archive 至 `dev/SESSION_LOG_archive/`，trace-back 用。接力靠 `SESSION_HANDOFF.md`，本檔屬冷資料層。 |
 | `dev/PROJECT_INDEX.md` | 記錄專案檔案、必讀資料、外部來源與常用檢查。 |
+| `dev/PROJECT_DECISIONS.md` | 保存項目嘅長期演進、決策、架構取捨、學習觀察。屬 warm 資料層 —— AI 開工**不需要讀**本檔；遇到「之前點解咁做」嘅問題時 AI 自己嚟搵。短期單一 task 項目本檔保持近空；長期項目 AI 喺收工時自動 maintain。 |
 | `dev/DOC_SYNC_REGISTRY.md` | 記錄哪些文件改動後需要同步。 |
 | `dev/RULE_PACKS.md` | 告訴 AI 不同任務應讀哪些工作規則。 |
 | `dev/rules/*.md` | 按任務載入的細分工作規則。 |
@@ -125,6 +127,24 @@ dev/rules/*.md
 接力責任由 `dev/SESSION_HANDOFF.md` 對賬式更新承擔；`dev/SESSION_LOG.md` 屬 trace-back / 審計用嘅冷資料層。**新 AI session 開工唔需要讀完整 LOG**，只需要讀 `AGENTS.md` + `dev/SESSION_HANDOFF.md` + 索引文件就足夠接力。
 
 所以你部電腦嘅 `dev/` 資料夾唔會被 session log 不停撐大，亦唔需要你手動清理。如果主檔意外膨脹（11 條以上未 archive，或單檔超過 1500 行），`doctor` 會喺輸出顯示一個 warning 提醒 AI 下次收工執行整理；但呢個只屬提醒，唔會令 `doctor` 失敗、亦唔阻擋安裝。
+
+## 項目決策日誌
+
+`dev/PROJECT_DECISIONS.md` 保存項目的長期演進、決策、架構取捨與學習觀察 narrative。屬 warm 資料層 —— AI 開工**不需要讀**本檔；當你問「之前為何這樣做」時，AI 自己會從這裡找答案。
+
+- 短期 single-task 項目：本檔保持近空，你不需要 maintain
+- 長期持續演進項目：AI 會在每次收工時自動 maintain
+  - HANDOFF 的「Confirmed Decisions」或同類 decisions section 累積至 30+ 條時，AI 自動 split 舊條目至此
+  - 觀察到任務需求演進、架構取捨、累積學習 pattern 時，AI 主動 append entry
+
+本檔含 4 個固定 H2 section：
+
+- **Evolution Timeline** —— 任務需求嘅長期演進
+- **Decisions Archive** —— 累積決策嘅冷封存
+- **Architecture Choices** —— 主要架構取捨同 rationale
+- **Insights & Learnings** —— 多 session 累積嘅學習觀察
+
+本檔同 SESSION_LOG 嘅 archive 機制屬同一套 hot / warm / cold 分層紀律 —— 你部電腦嘅 `dev/` 資料夾長期使用都唔會被無關 narrative 撐大，亦唔需要你手動清理。新手用戶完全唔需要打開本檔，亦唔需要記任何 schema —— 一切由 AI 自律執行。
 
 ## 工作模式
 
@@ -222,7 +242,7 @@ Agent Handoff Kit 同 [Adam-AI-Instructions](https://github.com/prompt-templates
 
 ## 目前限制
 
-- `v0.1.8` 是 GitHub 與 npm 同步發佈版本。
+- `v0.2.0` 是 GitHub 與 npm 同步發佈版本。
 - 這是早期可用版本，尚未宣稱完整穩定。
 - 升級合併仍是窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

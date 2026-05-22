@@ -137,7 +137,7 @@
     }
     .case-tabs .wrap {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 0;
       padding: 0 24px;
     }
@@ -454,7 +454,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.1.8 · 七步流程完整示範</span>
+    <span class="kicker">v0.2.0 · 七步流程完整示範 + 長期項目演進</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">兩個日常情景 —— 整理電腦下載目錄、開咖啡店的市場調查 —— 完整示範 Agent Handoff Kit 的七步流程。每一步都會見到 AI 主動宣告載入哪個工作模式、寫入哪份交接文件、輸出哪段下次開工提示。</p>
   </div>
@@ -469,6 +469,10 @@
     <button class="case-tab" data-case="b">
       <span class="case-num">CASE B</span>
       開咖啡店市場調查 + 寫完成報告
+    </button>
+    <button class="case-tab" data-case="c">
+      <span class="case-num">CASE C</span>
+      長期項目演進(跨多月時間軸)
     </button>
   </div>
 </div>
@@ -831,7 +835,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
           <li><strong>對賬式更新</strong>:AI 不會將新狀態追加在舊狀態下面 —— 必須逐段對賬 <code>SESSION_HANDOFF</code> 的 current state、改為當前事實,避免新日期配舊快照。</li>
           <li><strong>fenced text 開工提示</strong>:輸出的下次開工文字一定包在 <code>```text</code> code block 裡面 —— 讓你可以一鍵複製,不會挾走前後的閒文。</li>
           <li><strong>START_NEXT_SESSION_PROMPT.txt 自動同步</strong>:fenced text 的內容會同時寫入這個副本 —— 下次新對話打開,你可以直接在檔案 cat / copy。<code>SESSION_HANDOFF.md</code> 仍是權威真源,副本只是方便。</li>
-          <li><strong>SESSION_LOG 接力角色紀律(R-010)</strong>:接力靠 <code>SESSION_HANDOFF.md</code>,<code>SESSION_LOG.md</code> 屬 trace-back 冷資料層。每次收工,AI 自動執行 N 規則(N = session 數):N=1-3 留 full 做 safety buffer;N=4-10 已吸收嘅降短索引(reference 用結構 anchor);N=11+ archive 至 <code>dev/SESSION_LOG_archive/archive_&lt;batch&gt;_&lt;date_range&gt;.md</code>,主檔末尾留 archive index 段。主檔長期保持短小;想 trace 歷史去 archive 目錄。<code>doctor</code> 會喺主檔過長時 warn(warn-only,不阻 release)。</li>
+          <li><strong>SESSION_LOG 接力角色紀律(R-010)</strong>:接力靠 <code>SESSION_HANDOFF.md</code>,<code>SESSION_LOG.md</code> 屬 trace-back 冷資料層。每次收工,AI 自動執行 N 規則(N = session 數):N=1-3 留 full 做 safety buffer;N=4-10 已吸收的降短索引(reference 用結構 anchor);N=11+ archive 至 <code>dev/SESSION_LOG_archive/archive_&lt;batch&gt;_&lt;date_range&gt;.md</code>,主檔末尾留 archive index 段。主檔長期保持短小;若要 trace 歷史則前往 archive 目錄。<code>doctor</code> 會在主檔過長時 warn(warn-only,不阻 release)。</li>
         </ul>
       </div>
     </div>
@@ -1411,13 +1415,210 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
 
 </div><!-- /case-content[b] -->
 
+<!-- ───────────────────────── CASE C ───────────────────────── -->
+<div class="case-content" data-case="c" hidden>
+
+  <div class="wrap step-rail">
+    <div class="step-rail-inner" style="grid-template-columns: repeat(4, 1fr);">
+      <a href="#c-phase-1" class="step-pill"><span class="num">Day 1</span><span class="title">開新項目</span></a>
+      <a href="#c-phase-2" class="step-pill"><span class="num">Day 30</span><span class="title">需求演進 + AI append</span></a>
+      <a href="#c-phase-3" class="step-pill"><span class="num">Day 60</span><span class="title">決策累積 + 自動 split</span></a>
+      <a href="#c-phase-4" class="step-pill"><span class="num">Day 90</span><span class="title">回顧問題 + AI 查歷史</span></a>
+    </div>
+  </div>
+
+  <!-- Case C disclaimer -->
+  <section class="step-section" id="c-disclaimer">
+    <div class="wrap">
+      <span class="badge" style="background: var(--red);">CASE C · 結構說明</span>
+      <h2>這個案例跨越多個月份,以時間軸標記。</h2>
+      <p class="narrative">Case A 與 Case B 展示單一 session 內的七步流程。Case C 則展示<strong>跨越多個 session、跨越多個月份</strong>的長期項目演進。重點不在每日的具體動作,而在 AI 如何<strong>自動維護項目的長期 narrative</strong> —— 任務需求的演進、決策的累積、架構選擇的歷史、累積式的學習觀察。</p>
+      <p class="narrative">你的角色仍然是:提需求、提供參考資料、做驗收。AI 的角色是:讀齊 PROJECT_DECISIONS / SESSION_LOG / SESSION_HANDOFF,自動補入 narrative,<strong>不需要你打開檔案,亦不需要你記住分檔結構</strong>。</p>
+    </div>
+  </section>
+
+  <!-- Case C · Phase 1 -->
+  <section class="step-section" id="c-phase-1">
+    <div class="wrap">
+      <span class="badge">DAY 1 · CASE C</span>
+      <h2>開新項目 —— 第一個任務描述進入 SESSION_HANDOFF</h2>
+      <p class="narrative">你開新對話,描述任務:「我想開發一個 AI 編輯助手」。AI 讀齊 AGENTS.md 後,將任務描述記入 SESSION_HANDOFF.md 的 Active Objective。<code>dev/PROJECT_DECISIONS.md</code> 仍是 fresh template —— 4 個 H2 section 全部 (empty)。AI 暫不主動 maintain 本檔,因為短期 single-task 信號為主(session count 1,沒有任務演進跡象)。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你 · Day 1</span>
+            <p>我想開發一個 AI 編輯助手 —— 主要功能是文字校對與風格建議。先做最簡單的 MVP,只支援 markdown,輸入文字輸出修改建議。</p>
+          </div>
+        </div>
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · Day 1 啟動</span>
+            <p>讀齊 AGENTS.md、SESSION_HANDOFF(空)、PROJECT_INDEX(模板)、RULE_PACKS。載入 coding 模式 + research 模式(因為要先了解現有 AI 編輯工具的特性)。</p>
+            <p>記入 SESSION_HANDOFF Active Objective:「AI 編輯助手 MVP —— markdown 文字校對與風格建議」。準備進入 PLAN 階段。</p>
+            <p style="font-size:13px;opacity:0.7;">PROJECT_DECISIONS.md 保持 (empty) —— 短期 single-task project default 狀態。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>Day 1 PROJECT_DECISIONS.md 為何保持 (empty)?</h3>
+        <ul>
+          <li><strong>短期 vs 長期信號</strong>:AI 開工時 smart-detect 項目特性。Session count = 1、Active Objective 簡單清晰、Confirmed Decisions = 0 —— 全部屬短期信號。Closeout step 12 的 4 個 trigger 條件 (a)/(b)/(c)/(d) 全部未觸發,本檔保持 no-op default。</li>
+          <li><strong>用戶感知 transparent</strong>:你不需要打開 PROJECT_DECISIONS.md,亦不需要知道它存在。AI 收工時不會 mention 本檔,因為沒有 narrative 要 archive。</li>
+          <li><strong>schema 已建立</strong>:即使本檔 (empty),4 個 H2 section heading 已由 installer 建立。日後若項目演進為長期形態,AI 可即時開始 append,無需 schema migration。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case C · Phase 2 -->
+  <section class="step-section" id="c-phase-2">
+    <div class="wrap">
+      <span class="badge">DAY 30 · CASE C</span>
+      <h2>需求演進 —— AI 偵測到任務轉向,自動 append Evolution Timeline</h2>
+      <p class="narrative">過了一個月,經過 5-6 個 session,你的需求慢慢演進:由「markdown 校對」變成「markdown + LaTeX + 程式碼註釋校對」,再加入「協同編輯模式」。Active Objective 的 narrative 已經與 Day 1 有 substantial diff。AI 偵測到 substantive task evolution signal,closeout step 12 (b) trigger 啟動,自動 append entry 至 <code>## Evolution Timeline</code>。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你 · Day 30 收工</span>
+            <p>收工。</p>
+          </div>
+        </div>
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · Day 30 收工流程</span>
+            <p>進行 closeout 流程,逐段對賬 SESSION_HANDOFF。發現:</p>
+            <ul>
+              <li>Active Objective 由「markdown MVP」演進為「markdown + LaTeX + 程式碼 + 協同編輯」</li>
+              <li>Session count 已達 6,Confirmed Decisions 累積 4 條</li>
+              <li>長期項目信號出現 —— 我將更主動 detect (b)/(c)/(d) trigger</li>
+            </ul>
+            <p>R-028 closeout step 12 (b) 觸發:append entry 至 PROJECT_DECISIONS.md <code>## Evolution Timeline</code>:</p>
+<pre style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:14px;">### 2026-XX-XX: 需求由 markdown MVP 演進為多語法 + 協同編輯
+原 Day 1 Active Objective: 「markdown MVP 校對與風格建議」
+經 6 session 演進: 加入 LaTeX 支援 (Session 2)、程式碼註釋校對 (Session 4)、協同編輯模式 (Session 6)。
+驅動原因: 用戶試用過程發現純 markdown scope 對技術寫作不足夠。
+影響: Architecture 需重新評估後端模型如何處理多語法上下文。</pre>
+            <p>我已將以上 narrative 補入 PROJECT_DECISIONS。下次有人問「這個項目最初做甚麼」時,我會在這裡找到答案,而不是只看當前 HANDOFF 的最新狀態。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>(b) trigger 偵測的依據</h3>
+        <ul>
+          <li><strong>Substantive task evolution</strong>:不是每次需求微調都 trigger。AI 比較 Active Objective 的當前 wording 與 prior session 的 narrative,判斷是否有 substantial diff。「加多一個語法」這類局部擴展不算;「項目的核心定位轉向」算。</li>
+          <li><strong>長期項目信號累積</strong>:Session count ≥ 4、Active Objective shifting、Confirmed Decisions ≥ 10、用戶曾問「之前為何這樣做」 —— 任一信號出現,AI 對 (b)/(c)/(d) trigger 的 detect proactiveness 升高。</li>
+          <li><strong>不需要用戶 trigger</strong>:你不需要叫 AI「整理項目歷史」。AI 在 closeout 階段自動執行紀律。違反即下次 closeout 補做,不靜默跳過。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case C · Phase 3 -->
+  <section class="step-section" id="c-phase-3">
+    <div class="wrap">
+      <span class="badge">DAY 60 · CASE C</span>
+      <h2>決策累積 —— Confirmed Decisions 達 30 條,AI 自動 split 落 Decisions Archive</h2>
+      <p class="narrative">再過一個月,Session count 累積至 15,SESSION_HANDOFF 的「Confirmed Decisions」段累積至 32 條。R-028 closeout step 12 (a) trigger 觸發:AI 自動 split 最舊的條目落 PROJECT_DECISIONS.md <code>## Decisions Archive</code>,保留最近 8-22 條在 HANDOFF hot tier。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你 · Day 60 收工</span>
+            <p>收工。</p>
+          </div>
+        </div>
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · Day 60 收工流程</span>
+            <p>進行 closeout 流程。檢測到:</p>
+            <ul>
+              <li>SESSION_HANDOFF Confirmed Decisions 累積至 32 條,超過 30 split 邊界</li>
+              <li>R-028 closeout step 12 (a) trigger 啟動</li>
+            </ul>
+            <p>執行 split:</p>
+<pre style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:14px;">保留在 HANDOFF hot tier (最近 12 條): #21 - #32
+移至 PROJECT_DECISIONS Decisions Archive (最舊 20 條): #1 - #20
+排序: newest first (#20 在最頂,#1 在最底)</pre>
+            <p>HANDOFF 從 32 條 Confirmed Decisions 收斂為 12 條 active decisions,清晰反映項目當前的判斷邊界。Decisions Archive 完整保留所有歷史條目,trace-back 用。</p>
+            <p>同時觀察到:本 session plan 涉及多選項架構取捨(後端模型由 GPT-4 切換至 Claude 3.5 Sonnet,rationale 為長文本表現與成本對比)。(c) trigger 啟動,append entry 至 <code>## Architecture Choices</code>:</p>
+<pre style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:14px;">### 2026-XX-XX: 後端模型由 GPT-4 切換至 Claude 3.5 Sonnet
+比較選項: (1) GPT-4 Turbo / (2) Claude 3.5 Sonnet / (3) Gemini 1.5 Pro
+選擇: Claude 3.5 Sonnet
+Rationale: 長文本 200k context window 對程式碼註釋校對任務更穩定;成本對比 GPT-4 Turbo 低約 30%。
+影響: 後端 API client 需重寫;prompt template 需重新調整。</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>(a) split + (c) architecture append 同時觸發</h3>
+        <ul>
+          <li><strong>Split 紀律 strict mechanical</strong>:30 條為硬性閾值。HANDOFF Confirmed Decisions 累積至 30+ 必 split,不會因 session 性質而豁免。保留 8-22 條在 hot tier,具體保留數視乎 narrative coherence (避免突兀切斷一個 cluster of decisions)。</li>
+          <li><strong>Multi-option trade-off 的明確 trigger</strong>:plan 階段列出 ≥ 2 候選路徑 + 選擇其中一條 + 記錄 rationale —— 三個條件同時滿足才觸發 (c) trigger。簡單「我選 A 或 B」式 binary choice 不觸發,因為缺 rationale 紀律。</li>
+          <li><strong>HANDOFF 仍是接力真源</strong>:即使 Confirmed Decisions split 過,HANDOFF 仍含當前 active decisions。新 AI session 接力只需讀 HANDOFF + PROJECT_INDEX + 相關 R 表,不需要讀 PROJECT_DECISIONS。後者只在「之前為何這樣做」的 retrospective 查詢時才被讀。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Case C · Phase 4 -->
+  <section class="step-section" id="c-phase-4">
+    <div class="wrap">
+      <span class="badge">DAY 90 · CASE C</span>
+      <h2>回顧問題 —— 你問「我們之前為何選 Claude?」,AI 查 PROJECT_DECISIONS 答你</h2>
+      <p class="narrative">再過一個月,項目已 launch beta。某日合作伙伴問你:「為何選 Claude 3.5 而不選 GPT-4?」你不記得具體 rationale 細節 —— 但你知道 AI 有紀錄。打開新對話,問 AI。AI 讀 HANDOFF + PROJECT_INDEX 後,觸發 retrospective query —— 查 PROJECT_DECISIONS.md。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你 · Day 90 新對話</span>
+            <p>我們之前為何選擇 Claude 3.5 Sonnet 而不是 GPT-4 做後端模型? 合作伙伴現在問我。</p>
+          </div>
+        </div>
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 查歷史</span>
+            <p>HANDOFF 的當前 Active Objective 提及 backend 用 Claude 3.5 Sonnet,但 rationale 不在 hot tier。讀 PROJECT_DECISIONS.md <code>## Architecture Choices</code>:</p>
+<pre style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:14px;">### 2026-XX-XX: 後端模型由 GPT-4 切換至 Claude 3.5 Sonnet
+比較選項: (1) GPT-4 Turbo / (2) Claude 3.5 Sonnet / (3) Gemini 1.5 Pro
+選擇: Claude 3.5 Sonnet
+Rationale: 長文本 200k context window 對程式碼註釋校對任務更穩定;成本對比 GPT-4 Turbo 低約 30%。
+影響: 後端 API client 需重寫;prompt template 需重新調整。</pre>
+            <p>原 rationale 兩點:(1) 長文本 200k context window 對程式碼註釋校對更穩定;(2) 成本比 GPT-4 Turbo 低 ~30%。當時切換時 Day 60 SESSION_LOG 有完整紀錄,如需細節 trace-back 我可以查 archive。</p>
+            <p>你可以直接將此 rationale 答給合作伙伴。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">Kit 內置邏輯</span>
+        <h3>Retrospective query 的完整 flow</h3>
+        <ul>
+          <li><strong>HANDOFF + PROJECT_INDEX 不夠就查 warm tier</strong>:AI 開工讀 hot tier 已足夠處理當前任務。當用戶提出 retrospective question(「之前為何」「最初設計是甚麼」「哪個 session 改了這項」),AI 自動 reach into PROJECT_DECISIONS warm tier。</li>
+          <li><strong>不需要用戶記得文件名</strong>:你只需要問問題,AI 自己會去 PROJECT_DECISIONS 找。你不需要記 4 個 H2 section name,亦不需要記 R-028 紀律。</li>
+          <li><strong>SESSION_LOG archive trace-back</strong>:若 PROJECT_DECISIONS 的 entry 不夠詳細,AI 可進一步查 SESSION_LOG_archive 對應 batch,找到當時 closeout 的完整 narrative。Hot → Warm → Cold 三層 fallback 完整。</li>
+          <li><strong>新手用戶完全 transparent</strong>:你從來沒有打開過 PROJECT_DECISIONS.md,亦沒有打開過 SESSION_LOG_archive 目錄,沒有記住 schema —— 但你的項目歷史 narrative 全部完整保留,AI 隨時可以幫你 retrieve。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /case-content[c] -->
+
 <!-- ───────────────────────── Outro ───────────────────────── -->
 <section class="outro">
   <div class="wrap">
     <h2>走完兩個案例之後,你會發現 <span class="accent">同一套流程</span> 適用於不同任務</h2>
     <p>由 Terminal 一句安裝 —— 開新 AI 對話貼一句 —— AI 自己讀齊治理檔、宣告載入哪個工作模式 —— PLAN 階段停手等你確認 —— safety / knowledge / writing 自動加碼配合任務 —— 收工一句「收工」自動寫好下次提示 —— 新對話貼回去就接得回。整套節奏跨案例、跨工具、跨日子都是同一套。</p>
     <p>你之後做第三個、第四個任務 —— 寫 newsletter、做股市觀察、整理多個項目的 invoice —— 流程仍然是這七步。Kit 的工作模式會根據任務性質自動切換,但你的習慣動作(貼提示、講任務、確認 PLAN、收工)始終一樣。</p>
-    <p>另外建議:你想 AI 喺<strong>單一對話內</strong>嘅做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)有持久基準,可以配合 <a href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">Adam-AI-Instructions</a> 使用 —— 到該 repo 嘅「五、Prompt 索引」揀適用版本,複製對應 <code style="font-family:var(--font-mono);">prompt.md</code> 全文貼入你 AI 工具設定(Claude Cowork Global Instructions、Claude Code <code style="font-family:var(--font-mono);">~/.claude/CLAUDE.md</code>、ChatGPT Custom Instructions 等)。Agent Handoff Kit 管「對話之間」嘅接力,Adam-AI-Instructions 管「單次對話質素」,兩者唔重疊,配合使用效果最好。</p>
+    <p>另外建議:你希望 AI 在<strong>單一對話內</strong>的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)有持久基準,可以配合 <a href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">Adam-AI-Instructions</a> 使用 —— 到該 repo 的「五、Prompt 索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);">prompt.md</code> 全文貼入你 AI 工具設定(Claude Cowork Global Instructions、Claude Code <code style="font-family:var(--font-mono);">~/.claude/CLAUDE.md</code>、ChatGPT Custom Instructions 等)。Agent Handoff Kit 管「對話之間」的接力,Adam-AI-Instructions 管「單次對話質素」,兩者不重疊,配合使用效果最好。</p>
     <a href="agent-handoff-kit-intro.html">看回新手 60 秒入門 →</a>
     <a class="alt" href="https://github.com/Adamchanadam/agent-handoff-kit#readme">睇 README on GitHub →</a>
     <a class="alt" href="https://github.com/prompt-templates/Adam-AI-Instructions">睇 Adam-AI-Instructions →</a>
@@ -1440,7 +1641,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.1.8 · MIT License</p>
+      <p>v0.2.0 · MIT License</p>
     </div>
   </div>
 </footer>

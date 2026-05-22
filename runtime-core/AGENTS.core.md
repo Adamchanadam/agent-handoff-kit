@@ -86,6 +86,22 @@ At full closeout:
 10. Regenerate `START_NEXT_SESSION_PROMPT.txt` from the fenced opening message in `dev/SESSION_HANDOFF.md`. `dev/SESSION_HANDOFF.md` is authoritative; `START_NEXT_SESSION_PROMPT.txt` is only a convenience copy for the user to paste at the next startup.
 11. Advance the SESSION_LOG N-rule (R-010 SESSION_LOG handoff-role discipline). After prepending the new closeout entry, count `## YYYY-MM-DD` H2 entries in `dev/SESSION_LOG.md`. Any entry now at position N ≥ 11 (oldest end) must be moved into `dev/SESSION_LOG_archive/archive_<batch>_<low_date>_to_<high_date>.md` with raw content preserved. Maintain `dev/SESSION_LOG_archive/INDEX.md` (master index of all archive batches; create on first archive). Entries at N=4–10 whose core facts are already absorbed into HANDOFF / PROJECT_INDEX / requirements / decision records collapse to a short-index line using structural anchors, not line numbers. Entries with unique narrative not yet absorbed must first be ported into the relevant durable source, then collapsed. This is mandatory; do not skip. Handoff capability rests on `dev/SESSION_HANDOFF.md`; `dev/SESSION_LOG.md` is trace-back / audit trail and does not carry handoff responsibility.
 
+12. Maintain `dev/PROJECT_DECISIONS.md` per R-028 project narrative discipline. Each closeout must run the following checks with equal mechanical rigor as the SESSION_LOG N-rule (step 11):
+
+    (a) Decisions split check: If `dev/SESSION_HANDOFF.md` contains a decisions-like H2 section (e.g. `## Confirmed Decisions`, `## Decisions`, `## 已定案決策`) with a numbered list of ≥ 30 entries, AI must split the oldest entries (retaining the most recent 8–22 in the handoff hot tier) into `dev/PROJECT_DECISIONS.md` `## Decisions Archive`, newest first. If no such section exists in the handoff, this check is no-op (default for short single-task projects).
+
+    (b) Evolution append: If the current session observed substantive task evolution (user's task description differs substantially from prior sessions, or HANDOFF Current Baseline narrative shifted direction), AI must append an entry to `## Evolution Timeline`.
+
+    (c) Architecture append: If the current session plan involved a multi-option architectural trade-off (≥ 2 candidate paths + selected one + recorded rationale), AI must append an entry to `## Architecture Choices`.
+
+    (d) Insights append: If AI observed a cross-session accumulated pattern (recurring same-type problem, sustained-effective approach, persistently-painful tool), AI must append an entry to `## Insights & Learnings`.
+
+    AI must execute (a)–(d) proactively, not wait for user trigger or doctor warning. When none of the conditions are met, this step is no-op.
+
+    AI must smart-detect long-term vs short-term project signals to gauge how proactively to look for (b)–(d) trigger conditions: long-term signals (session count ≥ 4, active objective shifting, multi-subtask SESSION_LOG entries, decisions list ≥ 10, user asking "why did we do X earlier") imply more proactive detection; short-term single-task projects keep this step as no-op default.
+
+    Skipping any required (a)–(d) action when its condition is met is what would cause the next AI session to lose the long-term narrative — do not repeat that pattern. Handoff capability still rests on `dev/SESSION_HANDOFF.md`; `dev/PROJECT_DECISIONS.md` is the long-term narrative archive that surfaces when users ask retrospective questions.
+
 Installed handoff templates use English headings by default for cross-tool stability, but project teams may translate `dev/SESSION_HANDOFF.md` section headings and visible field labels into the project's working language. Keep the `ack:section:*` and `ack:field:*` semantic markers intact; `doctor` validates those markers so localized handoff notes remain supported.
 
 Use this closeout card:

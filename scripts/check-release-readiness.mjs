@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 21"), "npm dry-run did not report expected 21 package files");
+  assert(packText.includes("total files: 22"), "npm dry-run did not report expected 22 package files");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -54,7 +54,9 @@ function main() {
     "收工",
     "wrap up",
     "handoff",
-    "fenced `text` code block"
+    "fenced `text` code block",
+    "## 項目決策日誌",
+    "dev/PROJECT_DECISIONS.md"
   ]);
 
   assertIncludes("CHANGELOG.md", [
@@ -97,7 +99,11 @@ function main() {
     "治理 QA 缺口矩陣",
     "執行落差",
     "技能／子代理流程仲裁驗收",
-    "技能流程覆蓋"
+    "技能流程覆蓋",
+    "PROJECT_DECISIONS 結構驗收",
+    "Project Decisions Discipline Sweep",
+    "Release Artifact Vocabulary Sweep",
+    "R-028 project narrative discipline"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -114,7 +120,13 @@ function main() {
     "Do not append a new state snapshot",
     "R-010 SESSION_LOG handoff-role discipline",
     "Advance the SESSION_LOG N-rule",
-    "dev/SESSION_LOG_archive/INDEX.md"
+    "dev/SESSION_LOG_archive/INDEX.md",
+    "Maintain `dev/PROJECT_DECISIONS.md`",
+    "R-028 project narrative discipline",
+    "Evolution Timeline",
+    "Decisions Archive",
+    "Architecture Choices",
+    "Insights & Learnings"
   ]);
 
   assertIncludes("runtime-core/SESSION_LOG.md", [
@@ -126,7 +138,10 @@ function main() {
   assertIncludes("bin/agent-handoff-kit.mjs", [
     "assessSessionLogDiscipline",
     "R-010 SESSION_LOG handoff-role discipline",
-    "SESSION_LOG discipline (R-010)"
+    "SESSION_LOG discipline (R-010)",
+    "runtime-core/PROJECT_DECISIONS.md",
+    "dev/PROJECT_DECISIONS.md",
+    "project decisions log structure"
   ]);
 
   const install = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");
@@ -140,6 +155,7 @@ function main() {
   assert(doctor.stdout.includes("dev/SESSION_HANDOFF.md (handoff required sections)"), "doctor did not check handoff schema");
   assert(doctor.stdout.includes("dev/PROJECT_INDEX.md (project index tables)"), "doctor did not check project index schema");
   assert(doctor.stdout.includes("dev/RULE_PACKS.md (rule pack router coverage)"), "doctor did not check rule pack router schema");
+  assert(doctor.stdout.includes("dev/PROJECT_DECISIONS.md (project decisions log structure)"), "doctor did not check PROJECT_DECISIONS schema (R-028)");
   assert(doctor.stdout.includes("SESSION_LOG discipline (R-010): ok"), "doctor did not run R-010 SESSION_LOG discipline check, or fresh install triggered an unexpected warning");
 
   const installedHandoff = readAt(tempRoot, "dev/SESSION_HANDOFF.md");
@@ -163,9 +179,75 @@ function main() {
   simulateMultiSessionFlow(installedHandoff, installedLog);
   simulateLocalizedHandoffHeadings();
 
+  // R-026 Release Artifact Vocabulary Sweep — forbidden vocabulary must not appear in
+  // user-facing release artifacts. CHANGELOG is bounded to the latest version section
+  // because historical entries may legitimately mention the forbidden phrases (e.g. v0.1.4
+  // history records when the phrase "人話解讀" was added before being later retired).
+  const r026Forbidden = [/人話解讀/, /人話補一句/, /人話解釋/];
+  checkForbiddenVocabulary("README.md", read("README.md"), r026Forbidden);
+  checkForbiddenVocabulary("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), r026Forbidden);
+  checkForbiddenVocabulary("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), r026Forbidden);
+  checkForbiddenVocabularyInChangelogLatestSection(read("CHANGELOG.md"), r026Forbidden);
+
+  // Onboarding HTML book-language discipline — Cantonese spoken characters must not appear
+  // in user-facing HTML (Wording style: 繁體中文書面語). Triggers if any of the listed
+  // characters appear outside explicitly allowed contexts.
+  const cantoneseSpokenChars = /[嘅咁喺揀唔乜啱嚟咗嗰]/g;
+  checkBookLanguage("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), cantoneseSpokenChars);
+  checkBookLanguage("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), cantoneseSpokenChars);
+
   console.log("");
   console.log("Agent Handoff Kit release readiness QA passed");
   console.log(`user-flow root: ${tempRoot}`);
+}
+
+function checkForbiddenVocabulary(label, text, patterns) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      throw new Error(`R-026 forbidden vocabulary "${match[0]}" found in ${label} (release artifact must not contain this phrase)`);
+    }
+  }
+  console.log(`ok: ${label} forbidden-vocabulary sweep (R-026)`);
+}
+
+function checkForbiddenVocabularyInChangelogLatestSection(text, patterns) {
+  // Bound to the latest version section: from the first "## v" heading to the next "## v"
+  // heading (or end of file). Historical sections are intentionally excluded.
+  const latestHeading = text.match(/^## v[\d.]+[^\n]*/m);
+  if (!latestHeading) {
+    throw new Error(`CHANGELOG.md missing latest "## v<version>" heading — anchor-bounded grep cannot proceed`);
+  }
+  const startIdx = latestHeading.index;
+  const afterStart = text.slice(startIdx + latestHeading[0].length);
+  const nextHeadingMatch = afterStart.match(/\n## v[\d.]+/);
+  const endIdx = nextHeadingMatch ? startIdx + latestHeading[0].length + nextHeadingMatch.index : text.length;
+  const latestSection = text.slice(startIdx, endIdx);
+  for (const pattern of patterns) {
+    const match = latestSection.match(pattern);
+    if (match) {
+      throw new Error(`R-026 forbidden vocabulary "${match[0]}" found in CHANGELOG.md latest section (release artifact must not contain this phrase; historical sections excluded)`);
+    }
+  }
+  console.log(`ok: CHANGELOG.md latest section forbidden-vocabulary sweep (R-026 anchor-bounded)`);
+}
+
+function checkBookLanguage(label, text, pattern) {
+  // Exclude content inside <div class="block-body">...</div> (CLI Terminal mock blocks).
+  // These mirror literal CLI output from bin/agent-handoff-kit.mjs which contains
+  // R-026 contract phrasing (e.g. "剛做咗") that does not follow book-language
+  // discipline because it is verbatim CLI output, not user-facing narrative.
+  const blockBodyRegex = /<div class="block-body">[\s\S]*?<\/div>/g;
+  const strippedText = text.replace(blockBodyRegex, (match) => " ".repeat(match.length));
+  const matches = [...strippedText.matchAll(pattern)];
+  if (matches.length > 0) {
+    const samples = matches.slice(0, 5).map((m) => {
+      const line = text.slice(0, m.index).split("\n").length;
+      return `line ${line}: ${m[0]}`;
+    });
+    throw new Error(`Book-language discipline violated in ${label}: ${matches.length} Cantonese spoken character(s) found. First ${samples.length}: ${samples.join(", ")}`);
+  }
+  console.log(`ok: ${label} book-language discipline sweep`);
 }
 
 function simulateMultiSessionFlow(installedHandoff, installedLog) {

@@ -46,10 +46,11 @@ async function main() {
   assert(doctor.stdout.includes("status: passed"), "doctor output did not include status: passed");
   assert(doctor.stdout.includes("✅ 檢查通過"), "doctor output missing beginner-friendly passed message");
   assert(!existsSync(path.join(tempRoot, "archive")), "installer created archive directory by default");
+  assert(existsSync(path.join(tempRoot, "dev/PROJECT_DECISIONS.md")), "installer did not create dev/PROJECT_DECISIONS.md (R-028)");
   await checkUpdateNotice();
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
-  assert(outputText(pack).includes("total files: 21"), "npm dry-run did not report expected 21 package files");
+  assert(outputText(pack).includes("total files: 22"), "npm dry-run did not report expected 22 package files");
   assert(!existsSync(path.join(root, `adamchanadam-agent-handoff-kit-${version}.tgz`)), "npm dry-run left a tarball behind");
 
   const hits = scanForbiddenText(root);

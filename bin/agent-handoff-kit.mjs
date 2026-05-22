@@ -19,6 +19,7 @@ const mappings = [
   ["runtime-core/PROJECT_INDEX.md", "dev/PROJECT_INDEX.md"],
   ["runtime-core/DOC_SYNC_REGISTRY.md", "dev/DOC_SYNC_REGISTRY.md"],
   ["runtime-core/RULE_PACKS.md", "dev/RULE_PACKS.md"],
+  ["runtime-core/PROJECT_DECISIONS.md", "dev/PROJECT_DECISIONS.md"],
   ["packs/safety.md", "dev/rules/safety.md"],
   ["packs/coding.md", "dev/rules/coding.md"],
   ["packs/writing.md", "dev/rules/writing.md"],
@@ -158,6 +159,21 @@ const requiredAnchors = [
       "external APIs, SDKs, CLIs",
       "secret values"
     ]
+  },
+  {
+    target: "dev/PROJECT_DECISIONS.md",
+    label: "project decisions narrative anchors",
+    snippets: [
+      "Project Decisions Log",
+      "warm 資料層",
+      "AI 開工",
+      "不需要讀",
+      "AI 在收工時自動 update",
+      "Evolution Timeline",
+      "Decisions Archive",
+      "Architecture Choices",
+      "Insights & Learnings"
+    ]
   }
 ];
 
@@ -269,6 +285,17 @@ const schemaChecks = [
       includes("dev/rules/coding.md"),
       includes("dev/rules/research.md"),
       includes("dev/rules/release.md")
+    ]
+  },
+  {
+    target: "dev/PROJECT_DECISIONS.md",
+    label: "project decisions log structure",
+    checks: [
+      heading("Evolution Timeline"),
+      heading("Decisions Archive"),
+      heading("Architecture Choices"),
+      heading("Insights & Learnings"),
+      includes("(empty)")
     ]
   }
 ];
