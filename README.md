@@ -114,6 +114,18 @@ dev/rules/*.md
 
 你不需要自己逐一閱讀全部文件。你的工作是描述目標；AI 的工作是讀入口文件、判斷要讀哪些資料，再告訴你它準備怎樣做。
 
+## SESSION_LOG 嘅自動整理機制
+
+長期使用後，`dev/SESSION_LOG.md` 唔會無止境膨脹。每次你講「收工」，AI 會自動執行 N 規則整理（N 代表 session 嘅 entry 數，N=1 為最新）：
+
+- **N=1–3**：最新三條 session 條目保留完整內容（safety buffer，萬一交接出錯仍有 fallback）。
+- **N=4–10**：核心內容已被 `dev/SESSION_HANDOFF.md` 等真源吸收嘅條目，自動降為短索引（日期 + 標題 + 真源 anchor）。
+- **N=11+**：自動 archive 入 `dev/SESSION_LOG_archive/archive_<批次>_<日期區間>.md`；主檔末尾留一份 archive index 做 trace-back 入口。
+
+接力責任由 `dev/SESSION_HANDOFF.md` 對賬式更新承擔；`dev/SESSION_LOG.md` 屬 trace-back / 審計用嘅冷資料層。**新 AI session 開工唔需要讀完整 LOG**，只需要讀 `AGENTS.md` + `dev/SESSION_HANDOFF.md` + 索引文件就足夠接力。
+
+所以你部電腦嘅 `dev/` 資料夾唔會被 session log 不停撐大，亦唔需要你手動清理。如果主檔意外膨脹（11 條以上未 archive，或單檔超過 1500 行），`doctor` 會喺輸出顯示一個 warning 提醒 AI 下次收工執行整理；但呢個只屬提醒，唔會令 `doctor` 失敗、亦唔阻擋安裝。
+
 ## 工作模式
 
 你不需要記規則包名稱，只要描述任務。AI 會按任務切換工作模式。
