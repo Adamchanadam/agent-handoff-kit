@@ -15,8 +15,16 @@ Use for file operations, shell commands, Git changes, package managers, installe
 7. On macOS / Linux, do not run `rm -rf`, `sudo rm`, recursive `chmod`, recursive `chown`, or destructive wildcard operations unless the user explicitly requested the operation and target paths are listed and verified.
 8. Do not run `git reset --hard`, branch deletion, tag deletion, force push, or history rewrite unless the user explicitly requested it and affected refs/files are listed.
 9. Before staging or committing, inspect current status and avoid staging unrelated parent-repo, sibling-directory, generated, credential, or user-owned changes.
-10. Before using external APIs, SDKs, CLIs, package managers, deploy tools, cloud tools, or release tools, verify current official documentation or project-local runbooks. If verification is blocked, mark the result unverified instead of guessing.
+10. Before using external APIs, SDKs, CLIs, package managers, deploy tools, cloud tools, or release tools, verify current official documentation or project-local runbooks. Differentiate three layers of external access (R-030 Integration governance; see `dev/rules/integrations.md`):
+   (a) Anthropic-vetted Connectors (e.g. Notion / Drive / Slack via Claude Desktop Extensions): trust the vetted MCP server behavior; still verify destructive write parameters before invocation.
+   (b) Community / custom MCP servers (user-installed via manual config): treat with extra caution — destructive writes require dry-run + user confirmation; verify server behavior against project-local runbook if available.
+   (c) Raw external APIs / SDKs / CLIs (no MCP layer): full Rule 10 verification of official docs required; mark unverified if blocked.
 11. Do not print, copy, log, commit, upload, or generate files containing secret values. Use redacted placeholders or line references.
+12. Credential leak prevention (R-030 Integration governance):
+   (a) Never request, log, or persist credential values (API keys / OAuth tokens / app secrets / refresh tokens) in any project file. Credentials live exclusively in AI tool secure storage (OS Keychain / Credential Manager / AI tool config) or env vars, never in `dev/*`.
+   (b) Recognize common credential prefixes (`sk-`, `sk-ant-`, `ntn_`, `secret_`, `ya29.`, `1//`, `xoxp-`, `xoxb-`, `ghp_`, `gho_`, `ghs_`, `github_pat_`, `sl.`, `AKIA`, `AIza`) — if a value matching any prefix appears in conversation, redact immediately and warn the user to rotate the token.
+   (c) Before writing to `dev/PROJECT_INDEX.md` `## Installed Integrations`, `dev/SESSION_HANDOFF.md`, or `dev/SESSION_LOG.md`, self-check that no credential value is present; doctor `checkInstalledIntegrationsCredentialLeak()` enforces this at QC.
+   (d) Auth failure (token expired / revoked / rate-limit) surfaces to the user with a pointer to the AI tool's own settings interface; do not attempt to auto-fix auth or re-auth flow (out of scope for Kit governance).
 
 ## Checks
 

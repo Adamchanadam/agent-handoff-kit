@@ -21,6 +21,13 @@ If a required file is missing, create the smallest useful version only after con
 
 Before acting on a non-trivial task, identify required local source-of-truth files and external sources from the handoff, project index, user request, and sync registry. Read them or mark them blocked. Reachable is not the same as ingested. Do not treat unread sources as absent.
 
+After reading `dev/PROJECT_INDEX.md`, if `## Installed Integrations` is non-empty, run startup availability probe (R-030 Integration governance discipline; see `dev/rules/integrations.md`):
+
+- For each declared Integration under Connectors / MCPs subsection, attempt minimal capability probe (e.g. for Notion: try `mcp__notion__search` with project DB name; for Drive: try `mcp__google-drive__list` with project folder).
+- If probe succeeds: update the corresponding `Last Verified` cell to today's date; proceed normally.
+- If probe fails (current AI tool lacks the Connector / auth expired / network issue): print warning in the startup card (`⚠️ Boundary` line) noting which Integration is declared-but-unavailable + that this session will fallback to paste flow when that external surface is touched. Do not attempt to auto-fix auth or credential issues; surface to the user to handle via the AI tool's own settings interface.
+- Credential separation: AI must never request, log, or persist credential values (API keys / OAuth tokens / app secrets / refresh tokens). Credentials live in OS-level secure storage or AI-tool-specific config, never in `dev/*` files. Recognize common credential prefixes (`sk-`, `sk-ant-`, `ntn_`, `secret_`, `ya29.`, `1//`, `xoxp-`, `xoxb-`, `ghp_`, `gho_`, `ghs_`, `github_pat_`, `sl.`, `AKIA`, `AIza`) and redact + warn the user to rotate the token if accidentally pasted.
+
 After startup reads are complete, show a short startup card:
 
 ```text
@@ -134,6 +141,8 @@ Do not declare handoff ready if `dev/SESSION_HANDOFF.md` still contains stale st
 Use `dev/RULE_PACKS.md` to decide which pack to read.
 
 A pack may add task-specific requirements. A pack cannot weaken core safety. If two packs conflict, choose the safer and more verifiable path, then record the conflict in closeout.
+
+When a task references external tools (Notion / Google Drive / Slack / Linear / GitHub / Dropbox / HubSpot / Atlassian / etc.) or `dev/PROJECT_INDEX.md` `## Installed Integrations` is non-empty, load `dev/rules/integrations.md` together with the relevant domain pack. The integrations pack covers Connector-first defaults, credential separation, multi-layer source-of-truth architecture, and cross-session resilience for declared integrations.
 
 After the task, persist durable facts into handoff/log/index/registry. Do not assume the next session remembers pack context unless it is recorded.
 

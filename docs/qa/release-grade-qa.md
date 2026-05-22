@@ -64,6 +64,17 @@
 | Onboarding UX discipline（R-029） | 每次 release 前須驗證：（a）`packs/onboarding.md` template 含 7 個 H2 section（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）+ 5 個 Scenario H3 + Anti-pattern table；（b）`runtime-core/AGENTS.core.md` `## 1. Startup Reads` 含 first-time-user signal detection wording + onboarding pack proactive load 紀律；（c）`runtime-core/RULE_PACKS.md` 含 onboarding signal routing row；（d）`bin/agent-handoff-kit.mjs` mappings 含 `packs/onboarding.md` → `dev/rules/onboarding.md`；（e）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 onboarding pack rule + group；（f）Fresh install 後 `dev/rules/onboarding.md` 存在且 doctor schema check pass；（g）`npm run qa:packs` 嘅 onboarding routing scenario + first-time onboarding to first task mixed scenario 通過。`npm run qa:release` 自動驗 (a)-(f)；(g) 由 `qa:packs` 驗。 |
 | Cross-surface wording alignment（R-029.1，v0.2.1 新加 dim） | v0.2.0 release ceremony 嘅 critical QC gap：plan scope coverage matrix 嘅三層（content / script / source）唔 cover cross-surface wording alignment。R-029 嘅 onboarding trigger phrase 跨 5 個 surface（CLI source + README + intro.html + guide.html + onboarding pack 自身），但 v0.2.0 release 時 CLI source 仍係 legacy wording 而其他 surface 已 update —— silent disconnect。v0.2.1 起加新 dim（第四 layer）：每次涉及 user-facing prompt / wording / canonical trigger phrase 嘅 release plan 必明文驗證跨 surface 一致。`scripts/check-release-readiness.mjs` 嘅 `checkCrossSurfaceWordingConsistency()` helper 自動 enforce canonical R-029 trigger phrase 喺 4 個 surface（bin + README + intro + guide）一致。違反即 throw error，release 阻擋。 |
 | Routing table propagation discipline（R-029.2，v0.2.1 新加 dim） | v0.2.0 既有 upgrade 紀律對 `dev/RULE_PACKS.md` 沿用 default `skip "preserve existing file"`，導致 v0.1.X 用戶 upgrade 後 routing table 仍係舊版（silent missing R-029 onboarding routing row）。Architectural reclassification：`dev/RULE_PACKS.md` 由 user customization target 重新歸類為 **maintainer-owned routing table**（同 AGENTS.md managed core block 同類紀律）。v0.2.1 起 `bin/agent-handoff-kit.mjs` `classifyExistingFile` 加 force-update merge logic：當 stale state detected (targetText 唔含 v0.2.0+ 嘅 routing rows)，trigger `action: "merge"` 用 latest source 覆寫。`scripts/check-upgrade-safety.mjs` chain test final hop 加 RULE_PACKS.md routing row 強制 assertion。Doctor schema check 加 strict anchor enforce routing table 一致性。 |
+| Upgrade migration safety from prior minor versions（R-030，v0.3.0 新加 dim） | v0.3.0 audit 揭發 systemic QC gap：`scripts/check-upgrade-safety.mjs` chain test fixture 只 cover `v0.1.4 → v0.1.5 → v0.1.6 → v0.1.7 → v0.1.8`，**跳過 v0.2.0 / v0.2.1 / v0.2.2 / v0.2.3 整個 state**，所以 v0.2.x → v0.3.0 嘅 upgrade-time migration / requiredAnchors propagation / user-data preservation 完全冇 automated test。v0.3.0 release Phase 5.5 🔴 全面檢 初版 audit miss 咗 5 個 upgrade pitfalls（External Sources 用戶 rows overwrite / doctor schema 7-col mismatch / v0.2.x doctor without upgrade fail / onboarding.md upgrade 後 doctor anchor fail / AGENTS.md managed-core R-030 propagation skip），由 Adam catch 才補。同類 pattern 同 v0.2.1 RULE_PACKS.md propagation gap 一致：每次 release reactive 發現，QC framework 唔自我擴展。v0.3.0 起 5 支柱 sustainable mechanism 落地：(P1) chain test extension —— chainSteps append 全部已 release minor / patch versions（v0.2.0 / v0.2.1 / v0.2.2 / v0.2.3），future release 必同步 append 新 tag；(P2) user-data-preservation regression fixture（`test-fixtures/user-data/`）—— PROJECT_INDEX 含用戶填過 External Sources / Fact Base / Workspace Identity 完整 rows，upgrade 後 8+ assertion 驗證 rows 全部 preserved；(P3) prior-version requiredAnchors propagation test —— chain final 後 explicit assert AGENTS.md 含當前 major release 新 anchors（譬如 v0.3.0「startup availability probe」/「dev/rules/integrations.md」/「Credential separation」）+ onboarding.md 含 Scenario F；(P4) docs/qa/release-grade-qa.md 加本 dim + Upgrade Migration Safety Sweep section；(P5) WORK AGENTS.md `## QC Trigger Vocabulary` 🔴 全面檢 條目加新 mandatory item + 長期記憶 codify。Future major bump 必 cover 呢 5 支柱，違反即視為 audit-time blind spot。 |
+
+### Upgrade Migration Safety Sweep（R-030，v0.3.0 新加 Sweep）
+
+對應 7-dim 第七項 dim「Upgrade migration safety from prior minor versions」嘅 automated enforcement Sweep。`scripts/check-upgrade-safety.mjs` 強制 grep + assertion：
+
+- (a) **Chain test 覆蓋全部 already-released minor / patch versions**：chainSteps array 含 v0.1.4 → v0.1.5 → v0.1.6 → v0.1.7 → v0.1.8 → v0.2.0 → v0.2.1 → v0.2.2 → v0.2.3 → HEAD（9 hops + final）。每次新 release 必 append 新 tag 至 array，否則該 release 失「upgrade chain coverage from prior version」紀律。
+- (b) **User-data-preservation regression fixture**：`test-fixtures/user-data/dev/PROJECT_INDEX.md` 含 Notion DB「Project Tasks」/ Drive「Project Files/」/ Linear「Project Backlog」/ Python 3.11 Stack / pytest QC commands / a1b2c3d Workspace Identity 等用戶填過 rows。chain test 之後 run upgrade，8+ assertion 驗證 rows 全部 preserved + Installed Integrations section 已 insert（non-destructive migration）。
+- (c) **Prior-version requiredAnchors propagation test**：chain final 後 explicit assert AGENTS.md 含當前 major release 新 anchors（v0.3.0：「startup availability probe」/「dev/rules/integrations.md」/「Credential separation」）+ onboarding.md 含 Scenario F（v0.3.0 R-030 anchor）—— 確認 managed-core merge + smart-merge 對 v(N-1) state propagation 觸發。
+
+違反任何 (a) / (b) / (c) 即 throw error，release 阻擋。
 
 ## 套件邊界
 
@@ -116,6 +127,36 @@ npm package 由 `package.json` 的 `files` 控制：
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
+
+## v0.3.0 發佈狀態
+
+- 發佈版本：`0.3.0`。
+- release notes：`CHANGELOG.md` 的 `v0.3.0` 段落。
+- 發佈內容：**v2 second major version bump**（v0.2.x → v0.3.0）。引入 first-class **Integration Governance Framework**（R-030）支持 Connectors + MCPs + Plugins + Skills 跨 session 治理 + 機密分離原則 + 多層持久化 source-of-truth architecture + cross-tool resilience。新加 `packs/integrations.md`（~400 行 10th rule pack）+ `runtime-core/PROJECT_INDEX.md` 加 `## Installed Integrations` H2 section（4 subsection + Source-of-truth Architecture sub-table + 機密分離 header）+ 既有 External Sources 表加 `via` column + AGENTS.core.md startup availability probe + RULE_PACKS routing 加新 row + SESSION_HANDOFF Durable Anchors 加 row 6 + packs/knowledge.md Rule 5 重寫 Connector-first（backward-compat preserved）+ packs/safety.md Rule 10 三層 differentiation + 新 Rule 12 credential leak prevention + packs/onboarding.md 加 Scenario F + 5 既有 Scenarios Step 1 micro-question + bin/agent-handoff-kit.mjs 加 `checkInstalledIntegrationsCredentialLeak()` doctor function（14 credential prefix grep）+ classifyExistingFile PROJECT_INDEX migration auto-append + 7 處 user-facing R-XXX leak normalize + 4 scripts 全部 update + guide.html Cases A/B/C narrative 重寫（Connector-primary + Terminal mock blocks version-agnostic + hero/Step 2 callout retire 內部 jargon 共用「兩種開工方式」anchor）+ README 加新「外部工具治理」section。
+- 發佈前驗收：qa:release 全綠（既有 21 assertions + 5+ 新 v0.3.0 assertion = 26+）。Doctor 顯示 10 schema checks status passed + credential leak sweep ok + integrations pack structure check ok。Cross-callout wording grep「兩種開工方式」命中 hero + Case A Step 2 callout。內部 jargon ban grep 對 intro + guide 0 hits。credential prefix sweep 對 runtime-core 兩 template files 0 hits。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.0`；package fileCount 24（從 23 增加，因加 `packs/integrations.md`）。
+
+### Installed Integrations Discipline Sweep（R-030）
+
+對 `runtime-core/PROJECT_INDEX.md` template 嘅 `## Installed Integrations` section 驗證：
+- 4 個 subsection heading 命中：Connectors / MCPs / Plugins / Skills
+- Source-of-truth Architecture sub-table 命中
+- 機密分離原則 header 命中
+- 5 個 table header schema 命中
+- External Sources 表 `via` column 命中
+- assertIncludes 對 PROJECT_INDEX + AGENTS.core.md + SESSION_HANDOFF + RULE_PACKS + integrations pack + knowledge/safety/onboarding 全部新 anchor 命中
+
+### Credential Leak Prevention Sweep（R-030）
+
+對 `runtime-core/PROJECT_INDEX.md` + `runtime-core/SESSION_HANDOFF.md` template files 強制 grep 14 個 credential prefix patterns（`sk-` / `sk-ant-` / `ntn_` / `secret_` / `ya29.` / `1//` / `xox[abprs]-` / `ghp_` / `gho_` / `ghs_` / `github_pat_` / `sl.` / `AKIA` / `AIza`）。命中即 release 阻擋。Runtime 階段由 `bin/agent-handoff-kit.mjs` `checkInstalledIntegrationsCredentialLeak()` doctor function 對用戶嘅 `dev/PROJECT_INDEX.md` + `dev/SESSION_HANDOFF.md` + `dev/SESSION_LOG.md` 跑同樣 sweep；命中即 doctor `status: failed`。
+
+### 內部 jargon ban（R-030）
+
+對 user-facing HTML（`agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html`）強制 grep `v2 (的|嘅) advanced user path` 等已 retire 內部 jargon patterns。命中即 release 阻擋。
+
+### Cross-callout wording consistency（R-030）
+
+`agent-handoff-kit-guide.html` 嘅 hero callout + Case A Step 2 bridging callout 必共用同一套白話 anchor「兩種開工方式」。qa:release grep enforce 喺 guide.html 命中此 anchor，確認 cross-callout wording 一致防 silent drift。
 
 ## v0.2.3 發佈狀態
 

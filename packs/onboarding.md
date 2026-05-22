@@ -48,8 +48,9 @@
 > **C. 整理電腦檔案 / Notion / Drive 知識庫** —— 你想 organize 多個來源的資料
 > **D. 學寫代碼（我是技術新手）** —— 你想由零開始學寫小工具
 > **E. 其他** —— 描述你的情景，我會 customize 引導
+> **F. 我已裝咗一堆外部工具（Notion / Drive / Slack 等 Connector / MCP / Plugin），想 plan 點 systematically 用** —— 我帶你 declare + 設計治理
 >
-> 選擇其中一個（A/B/C/D/E），我會引導你做第一個任務。如果你想看完整 narrative example，可以開新 tab 看 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html 的 Case A/B/C。本指南是參考對照，不需要先讀。」
+> 選擇其中一個（A/B/C/D/E/F），我會引導你做第一個任務。如果你想看完整 narrative example，可以開新 tab 看 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html 的 Case A/B/C。本指南是參考對照，不需要先讀。」
 
 ### 3. 5-step walk-through pattern
 
@@ -92,7 +93,9 @@
 
 - 任務：AI 確認 project root 存在 + 識別 stack + 檢查 git status
 - AI sample wording：
-  > 「請告訴我你的 project 在哪個目錄？如果還未建立，可以在電腦開新 folder 然後告訴我路徑。我會檢查 git status、讀 README / package.json 識別你的 stack（譬如 Python / Node.js / Rust 等），再為下一步建議方向。」
+  > 「請告訴我你的 project 在哪個目錄？如果還未建立，可以在電腦開新 folder 然後告訴我路徑。我會檢查 git status、讀 README / package.json 識別你的 stack（譬如 Python / Node.js / Rust 等），再為下一步建議方向。
+  >
+  > 順便：你 Claude Code / Claude Cowork 已裝邊啲 Connector / MCP / Plugin / Skill 我可以用？譬如 GitHub / Linear / Slack / Notion 之類嘅整合（適用於代碼項目嘅 issue tracking / collaboration）。如果未裝 / 唔確定，講「冇」/「未確認」即可，我會留位之後再加。」
 
 #### Step A.2 — 解釋 v2 如何 fit
 
@@ -125,12 +128,14 @@
 #### Step B.1 — 確認 project context
 
 - AI sample wording：
-  > 「請告訴我三點：(1) 你的報告主題；(2) 已有資料在哪裡（Notion / Google Drive / 本地檔案）；(3) 報告的讀者是誰（自己 / 客戶 / 合作伙伴 / 公開）。我會根據這三點建議分工。」
+  > 「請告訴我三點：(1) 你的報告主題；(2) 已有資料在哪裡（Notion / Google Drive / 本地檔案）；(3) 報告的讀者是誰（自己 / 客戶 / 合作伙伴 / 公開）。我會根據這三點建議分工。
+  >
+  > 順便：你已裝 Notion Connector / Drive Connector 嗎？如果有，我可以直接讀寫對應 DB / folder（譬如 Notion DB Index 記每份 reference 嘅 path + 摘要、Drive folder 儲持久化參考檔）；未裝就 fallback 列 paste packet 由你親手做。如果未裝 / 唔確定，講「冇」/「未確認」即可。」
 
 #### Step B.2 — 解釋 v2 如何 fit
 
 - AI sample wording：
-  > 「v2 對研究類項目的核心 value 有三點：(1) 真源紀律 —— 每條 claim 必須引用，事實與推論分開寫，AI 不會憑印象寫；(2) 外部來源邊界 —— Notion / Drive 寫入由你親手做，AI 列步驟但不代辦你的帳號操作；(3) 跨 session 接力 —— 你寫到 50% 收工，下次接得返，包括引用紀律。」
+  > 「v2 對研究類項目的核心 value 有三點：(1) 真源紀律 —— 每條 claim 必須引用，事實與推論分開寫，AI 不會憑印象寫；(2) 外部來源治理 —— 如果你已裝 Notion / Drive Connector（或者其他 MCP server），AI 直接讀寫對應 DB / folder；未裝就 fallback 列 paste packet 由你親手做，兩條路都受跨 session 紀律保護；(3) 跨 session 接力 —— 你寫到 50% 收工，下次接得返，包括引用紀律加項目登記表記低嘅 Integration 紀錄。」
 
 #### Step B.3 — Ask user about 第一個 task scope
 
@@ -154,12 +159,14 @@
 #### Step C.1 — 確認 project context
 
 - AI sample wording：
-  > 「請告訴我你想整理的是：(a) 電腦目錄（哪個 folder）/ (b) Notion DB（請描述 schema）/ (c) Google Drive（哪個 folder）/ (d) 多個來源混合（請描述）。」
+  > 「請告訴我你想整理的是：(a) 電腦目錄（哪個 folder）/ (b) Notion DB（請描述 schema）/ (c) Google Drive（哪個 folder）/ (d) 多個來源混合（請描述）。
+  >
+  > 順便：如果涉及 Notion / Drive / Dropbox 等外部來源，你已裝對應 Connector / MCP 嗎？如果有，我直接讀寫；未裝就 fallback paste packet。如果未裝 / 唔確定，講「冇」/「未確認」即可。」
 
 #### Step C.2 — 解釋 v2 如何 fit
 
 - AI sample wording：
-  > 「v2 對知識庫整理的核心 value 有三點：(1) 識別真源 vs reference vs draft —— PROJECT_INDEX 登記每份檔案的角色，避免 AI 將參考檔當真源；(2) Notion / Drive 寫入由你親手做，AI 列詳細步驟但不代辦；(3) 危險動作（大量檔案移動 / 重命名 / 刪除）必須 dry-run 列清單，等你 confirm 才實際執行。」
+  > 「v2 對知識庫整理的核心 value 有三點：(1) 識別真源 vs reference vs draft —— PROJECT_INDEX 登記每份檔案的角色，避免 AI 將參考檔當真源；(2) Integration-aware 治理 —— 如果你已裝 Notion / Drive Connector，AI 直接讀寫對應 surface；未裝就 fallback 列 paste packet 步驟由你親手做；(3) 危險動作（大量檔案移動 / 重命名 / 刪除）必須 dry-run 列清單，等你 confirm 才實際執行。」
 
 #### Step C.3 — Ask user about 第一個 task scope
 
@@ -183,7 +190,9 @@
 #### Step D.1 — 確認 project context
 
 - AI sample wording：
-  > 「你想學寫的是：(a) 簡單 script（譬如自動 organize 檔案）/ (b) 一個 web page（HTML/CSS/JS）/ (c) 一個 Python 小工具 / (d) 學 git/GitHub 基本概念？告訴我你的興趣方向，我會 customize 第一個練習。」
+  > 「你想學寫的是：(a) 簡單 script（譬如自動 organize 檔案）/ (b) 一個 web page（HTML/CSS/JS）/ (c) 一個 Python 小工具 / (d) 學 git/GitHub 基本概念？告訴我你的興趣方向，我會 customize 第一個練習。
+  >
+  > 順便：你 Claude Code 已裝邊啲 Plugin / Skill 我可以用？（初學階段唔需要太多，但有 GitHub Connector 之類會方便 git 操作。）未裝就講「冇」即可。」
 
 #### Step D.2 — 解釋 v2 如何 fit
 
@@ -212,7 +221,9 @@
 #### Step E.1 — 確認 project context（custom intake）
 
 - AI sample wording：
-  > 「請告訴我四點：(1) 你想完成的目標（一句講完）；(2) 已有資料 / 工具 / 限制；(3) 你的技術水平（零基礎 / 略有經驗 / 熟練）；(4) 想 first session 達成的 minimal output。我會根據這四點 customize 一個 5-step walk-through，對應 v2 適合你的工作模式。」
+  > 「請告訴我四點：(1) 你想完成的目標（一句講完）；(2) 已有資料 / 工具 / 限制；(3) 你的技術水平（零基礎 / 略有經驗 / 熟練）；(4) 想 first session 達成的 minimal output。我會根據這四點 customize 一個 5-step walk-through，對應 v2 適合你的工作模式。
+  >
+  > 順便：你 Claude Code / Claude Cowork 已裝邊啲 Connector / MCP / Plugin / Skill 我可以用？任何已裝整合都可以講；未裝 / 唔確定就講「冇」/「未確認」。」
 
 #### Step E.2 — 解釋 v2 如何 fit（custom）
 
@@ -230,6 +241,72 @@
 
 - AI 載入適合 user use case 嘅 regular pack（可能組合多個 pack）
 
+### Scenario F. 審視已裝外部工具 + 設計治理
+
+**對應 v0.3.0 引入嘅 Integration governance 紀律**（不教 install，只教 declare + plan governance）
+
+#### Step F.1 — Intake：列你已裝嘅外部工具
+
+- 任務：AI 收集用戶已裝嘅 Connector / MCP / Plugin / Skill，按四類分類
+- AI sample wording：
+  > 「請告訴我你已裝嘅外部工具，盡量分四類列：
+  >
+  > **(a) Anthropic 官方 Connector**（經 Claude Desktop Settings → Extensions 一鍵安裝）—— 譬如 Notion / Drive / Slack / Linear / Atlassian / HubSpot 等
+  > **(b) Community / Custom MCP server**（用戶自建或第三方提供）—— 譬如 GitHub repo install 嘅 server
+  > **(c) Claude Code Plugin**（經 `/plugin` command 安裝）—— 譬如 Anthropic-managed marketplace bundle
+  > **(d) Skill**（SKILL.md 直接安裝或 plugin 攜帶）—— 譬如 superpowers skill / 自製 skill
+  >
+  > 唔記得邊類就只列名稱即可，我會幫你 categorize。如果未裝任何外部工具，講『目前只用本機檔』即可。」
+
+#### Step F.2 — 機密分離 brief
+
+- 任務：AI 解釋 credential 點儲存 + Kit 唔記 credential 值
+- AI sample wording：
+  > 「我會幫你 declare 你已裝嘅工具，但 **任何 API key / OAuth token / credential 都不會喺項目登記表紀錄**。
+  >
+  > Notion / Drive 等嘅 credential 通常喺你裝 Connector 時已經自動加密儲存喺 OS 層 secure storage（譬如 Claude Desktop 嘅 macOS Keychain / Windows Credential Manager）—— 項目登記表只會記低三件事：(1) 你用咗邊個工具、(2) 用佢做乜（譬如 Notion 做 DB Index）、(3) credential 由邊個工具管（譬如『Claude Desktop Extensions』），但不記錄 credential 值本身。
+  >
+  > 你都不需要喺對話貼出 token。貼咗我會即時提示你 redacted 同 rotate token 防再用。」
+
+#### Step F.3 — Source-of-truth Architecture mapping
+
+- 任務：AI 引導用戶設計多層持久化分工
+- AI sample wording：
+  > 「對於每個工具，告訴我它喺項目嘅角色：
+  >
+  > - **真源（source of truth）**：原始可審計嘅 reference 內容（譬如本機 `~/project/reference/` 存 PDF）
+  > - **Index**：登記每份真源檔嘅 metadata + 摘要 + tag（譬如 Notion DB「Project Index」）
+  > - **持久化參考檔（mirror）**：防本機 disk failure / 跨裝置 access（譬如 Drive folder 同步本機）
+  > - **Working draft**：AI 寫 task output（譬如本機 `~/project/output/`）
+  >
+  > 一個工具可以承擔一個或多個角色。如果你 first time 設計呢套，我建議典型分工：本機 = 真源 + Working draft、Notion = Index、Drive = Mirror。可以採用，或者你描述自己想點分工。」
+
+#### Step F.4 — 寫入項目登記表
+
+- 任務：AI 將用戶 declaration 寫入 PROJECT_INDEX `## Installed Integrations` + External Sources `via` column
+- AI sample wording：
+  > 「我會將你 declare 嘅工具寫入項目登記表：
+  >
+  > - `## Installed Integrations` `### Connectors` 表填 Notion / Drive 等 entries（每個含 Project Usage / Access Scope / Specific Instance / Credential Location / Declared / Last Verified）
+  > - `## Installed Integrations` `### Source-of-truth Architecture` sub-table 填多層分工
+  > - 既有 `## External Sources` 表嘅 `via` column 引用對應 Connector entry
+  >
+  > 寫好之後我會 show 你 review。有錯隨時改。」
+
+#### Step F.5 — Verify availability + 進入 actual task 或 standby
+
+- 任務：AI 跑 capability probe，確認 declared Integration 喺本 session 可用，然後接力下一個任務
+- AI sample wording：
+  > 「Declaration 寫好。我會 verify 每個 declared Integration 喺本 session 嘅可用性：
+  >
+  > - Notion：試 `mcp__notion__search` 確認 DB accessible
+  > - Drive：試 `mcp__google-drive__list` 確認 folder accessible
+  > - 其他類似
+  >
+  > Probe 結果寫入每行 `Last Verified` cell。如果任何 Integration 唔可用（譬如 current AI tool 未配對應 MCP），我會 surface 出嚟由你決定點處理。
+  >
+  > 之後你想入 actual task 就講你想做乜（譬如『開始整理 reference』），我會載入對應 regular pack 加 integrations pack 接力。如果未準備好，講『暫停』我就 standby。」
+
 ## Cross-reference to guide.html
 
 每個 scenario walk-through 完成後（或者用戶問「我想睇完整 example」），AI 可以 mention：
@@ -237,8 +314,8 @@
 > 「如果想看完整 narrative example，可以開新 tab 看 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html 的 Case A/B/C：
 >
 > - Case A 對應 onboarding scenario A（寫 / 改代碼項目）加 scenario C 的檔案整理部分
-> - Case B 對應 onboarding scenario B（整理研究資料 / 寫報告）加 scenario C 的 Notion reference 部分
-> - Case C 對應長期項目演進（適用於你項目運行到後期，跨多月時間軸）
+> - Case B 對應 onboarding scenario B（整理研究資料 / 寫報告）加 scenario F 的多源 governance 設計（Notion DB Index + 本機真源 + Drive 持久化參考檔 三層 architecture）
+> - Case C 對應長期項目演進（適用於你項目運行到後期，跨多月時間軸；Day 30+ narrative 含 Integration declaration 演進）
 >
 > 本指南是參考對照，不需要先讀。」
 
@@ -250,13 +327,26 @@
 
 ### 2. 講人話
 
-避免內部 jargon（R-XXX / PROJECT_INDEX / closeout step / managed core / SESSION_LOG N-rule 等），改用日常解釋：
+紀律邊界要清楚劃分：
+
+- **要過濾嘅 internal jargon**（用戶不需要知 Kit 內部運作）：R-XXX / PROJECT_INDEX / closeout step / managed core / SESSION_LOG N-rule / startup contract / handoff sufficiency 等
+- **要教嘅 user-facing 概念**（2026-05 用戶普遍認知，需要正確命名）：Connector / MCP / Plugin / Skill / Claude Desktop Extensions / 一鍵安裝 等
+
+對 internal jargon 改用日常解釋：
 
 - 「項目登記表」而非「PROJECT_INDEX」
 - 「收工」而非「closeout」
 - 「下次開工提示」而非「next-session opening message」
 - 「AI 工作模式」而非「rule pack」
 - 「危險指令」而非「destructive operation」
+
+對 user-facing 概念保留原英文 / 已 mainstream 嘅中文譯名：
+
+- 「Connector」/「Anthropic 官方整合」
+- 「MCP」/「外部工具協議」
+- 「Plugin」/「插件」（Claude Code plugin）
+- 「Skill」/「技能」（SKILL.md instruction）
+- 「Claude Desktop Extensions」/「一鍵安裝」
 
 ### 3. 敍事 + 解釋
 
@@ -296,3 +386,4 @@
 | 假設用戶讀過 README / intro / guide | 用戶可能跳過文檔直接從 AI 對話開始 | 主動 surface 必要 concept，但不灌輸 |
 | 完成 onboarding 後唔 unload pack | Onboarding pack 屬 transient，長期駐留會 noise | Closeout 時 explicit unload + 載入 regular pack |
 | 一次過跑 5 step 唔等用戶 confirm | 用戶 cognitive load 爆 + 失去 walk-through 精神 | 每 step 等用戶 confirm 才繼續 |
+| 假設用戶冇裝任何 Connector / MCP，預設 paste-only flow | 違反 2026-05 reality —— Connector ecosystem 已成熟，paste-only 不應係 default；錯誤心智模型會持續影響後續 session | Scenarios A-E Step 1 加 micro-question 問已裝整合；或者用戶選 Scenario F dedicated declaration path |

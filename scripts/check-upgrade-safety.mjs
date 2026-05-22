@@ -172,7 +172,8 @@ function main() {
     copyFileSync(path.join(fixtureDir, "AGENTS.md"), path.join(hopRoot, "AGENTS.md"));
     copyFileSync(path.join(fixtureDir, "dev/PROJECT_INDEX.md"), path.join(hopRoot, "dev/PROJECT_INDEX.md"));
     const hopUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", hopRoot], `real-fixture single-hop upgrade ${ver}`);
-    assert(hopUpgrade.stdout.includes("merged: 1"), `${ver} real-fixture single-hop must report one merged file`);
+    // v0.3.0+: upgrade now merges AGENTS.md managed-core (1) + PROJECT_INDEX.md ## Installed Integrations migration (1) = 2 merges.
+    assert(hopUpgrade.stdout.includes("merged: 2"), `${ver} real-fixture single-hop must report two merged files (AGENTS.md managed-core + PROJECT_INDEX.md Installed Integrations migration)`);
     assert(hopUpgrade.stdout.includes("upgrade self-check"), `${ver} real-fixture single-hop must run doctor self-check`);
     assert(hopUpgrade.stdout.includes("status: passed"), `${ver} real-fixture single-hop self-check must pass`);
     const hopAgents = read(path.join(hopRoot, "AGENTS.md"));
@@ -211,12 +212,20 @@ function main() {
   // current HEAD CLI and its self-check must pass.
   const chainRoot = path.join(tmpdir(), `ack-upgrade-chain-${Date.now()}`);
   mkdirSync(chainRoot, { recursive: true });
+  // R-030 v0.3.0+: P1 chain test extension — covers ALL released minor / patch versions.
+  // Every release MUST append its new tag here so that upgrade-from-prior-version
+  // automated testing accumulates permanently. Closes the v0.2.x state coverage gap that
+  // caused v0.3.0 audit to miss 5 upgrade pitfalls.
   const chainSteps = [
     { ref: "v0.1.4", command: "init" },
     { ref: "v0.1.5", command: "upgrade" },
     { ref: "v0.1.6", command: "upgrade" },
     { ref: "v0.1.7", command: "upgrade" },
-    { ref: "v0.1.8", command: "upgrade" }
+    { ref: "v0.1.8", command: "upgrade" },
+    { ref: "v0.2.0", command: "upgrade" },
+    { ref: "v0.2.1", command: "upgrade" },
+    { ref: "v0.2.2", command: "upgrade" },
+    { ref: "v0.2.3", command: "upgrade" }
   ];
   for (const step of chainSteps) {
     withWorktree(step.ref, (worktreePath) => {
@@ -242,6 +251,65 @@ function main() {
   assert(chainFinalRulePacks.includes("First-time user signals"), "chain final RULE_PACKS.md missing R-029 onboarding signal routing row (v0.2.1 force-refresh failed)");
   assert(chainFinalRulePacks.includes("dev/rules/onboarding.md"), "chain final RULE_PACKS.md missing onboarding pack reference (v0.2.1 force-refresh failed)");
 
+  // v0.3.0 R-030: chain test must verify the stale v0.2.x RULE_PACKS.md was force-refreshed
+  // to include the v0.3.0+ integrations pack routing row, AND the stale v0.2.x PROJECT_INDEX.md
+  // was migrated with auto-appended ## Installed Integrations section template. Without these
+  // assertions, the upgrade flow may silently leave v0.2.x users without Integration governance
+  // discipline support.
+  assert(chainFinalRulePacks.includes("dev/rules/integrations.md"), "chain final RULE_PACKS.md missing R-030 integrations pack routing row (v0.3.0 force-refresh failed)");
+  const chainFinalProjectIndex = read(path.join(chainRoot, "dev/PROJECT_INDEX.md"));
+  assert(chainFinalProjectIndex.includes("## Installed Integrations"), "chain final PROJECT_INDEX.md missing ## Installed Integrations section (v0.3.0 migration failed)");
+  assert(chainFinalProjectIndex.includes("機密分離原則"), "chain final PROJECT_INDEX.md missing credential separation header (v0.3.0 migration failed)");
+  assert(chainFinalProjectIndex.includes("Source-of-truth Architecture"), "chain final PROJECT_INDEX.md missing Source-of-truth Architecture sub-table (v0.3.0 migration failed)");
+  // R-030 v0.3.0+: `via` reference appears in Installed Integrations 紀律 description blockquote
+  // (External Sources stays at user-original schema; via column migration is incremental user choice).
+  assert(chainFinalProjectIndex.includes("`via`"), "chain final PROJECT_INDEX.md missing `via` reference in Installed Integrations migration (R-030 migration failed)");
+  // Doctor on final state must include integrations pack schema check + credential leak sweep.
+  const chainFinalDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", chainRoot], "chain final doctor");
+  assert(chainFinalDoctor.stdout.includes("integrations pack structure (外部工具治理)"), "chain final doctor missing R-030 integrations pack schema check");
+  assert(chainFinalDoctor.stdout.includes("Credential 機密分離 sweep: ok"), "chain final doctor missing R-030 credential leak sweep");
+
+  // R-030 v0.3.0+: P3 prior-version requiredAnchors propagation test.
+  // Verifies that v0.2.x managed-core state's missing v0.3.0 anchors triggers merge (not skip).
+  // Without this assertion, future major bumps could silently leave v(N-1) users with stale managed-core
+  // content (same pattern as v0.2.1 RULE_PACKS.md propagation gap, generalized to managed-core anchors).
+  assert(chainFinalAgents.includes("startup availability probe"), "chain final AGENTS.md missing R-030 startup probe anchor (v0.3.0 propagation gap — managed-core merge did not trigger from v0.2.x state)");
+  assert(chainFinalAgents.includes("dev/rules/integrations.md"), "chain final AGENTS.md missing R-030 integrations pack reference (v0.3.0 propagation gap)");
+  assert(chainFinalAgents.includes("Credential separation"), "chain final AGENTS.md missing R-030 credential separation discipline (v0.3.0 propagation gap)");
+  // Also verify onboarding pack got Scenario F via smart-merge (since v0.2.x onboarding.md exists without F).
+  const chainFinalOnboarding = read(path.join(chainRoot, "dev/rules/onboarding.md"));
+  assert(chainFinalOnboarding.includes("Scenario F. 審視已裝外部工具"), "chain final onboarding.md missing R-030 Scenario F (smart-merge did not trigger from v0.2.x state)");
+
+  // R-030 v0.3.0+: P2 user-data-preservation regression test.
+  // Seeds a fresh root with a fully user-filled PROJECT_INDEX (Notion DB / Drive / Linear declared in
+  // External Sources, custom Fact Base rows, project-specific QC commands), runs upgrade, then asserts
+  // all user-filled rows preserved. Without this regression test, future migrations could silently
+  // overwrite user data (the gap that v0.3.0 audit initially missed before manual catch).
+  const userDataFixtureDir = path.join(fixturesRoot, "user-data");
+  assert(existsSync(path.join(userDataFixtureDir, "dev/PROJECT_INDEX.md")), "missing fixture: user-data/dev/PROJECT_INDEX.md (P2 regression fixture)");
+  const userDataRoot = path.join(tmpdir(), `ack-upgrade-userdata-${Date.now()}`);
+  mkdirSync(path.join(userDataRoot, "dev"), { recursive: true });
+  // First init from current CLI to bootstrap full installation (gets all other files).
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", userDataRoot], "user-data regression bootstrap install");
+  // Then overwrite PROJECT_INDEX with user-filled fixture (simulating v0.2.x user state with custom data).
+  copyFileSync(path.join(userDataFixtureDir, "dev/PROJECT_INDEX.md"), path.join(userDataRoot, "dev/PROJECT_INDEX.md"));
+  // Run upgrade — should trigger PROJECT_INDEX migration (insert Installed Integrations) without overwriting user content.
+  const userDataUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", userDataRoot], "user-data regression upgrade");
+  assert(userDataUpgrade.stdout.includes("status: passed"), "user-data regression upgrade self-check must pass");
+  // Verify user-filled rows preserved post-upgrade.
+  const userDataPostIndex = read(path.join(userDataRoot, "dev/PROJECT_INDEX.md"));
+  assert(userDataPostIndex.includes("Python 3.11"), "P2 regression: user-filled Stack row『Python 3.11』lost after upgrade");
+  assert(userDataPostIndex.includes("Notion DB「Project Tasks」"), "P2 regression: user-filled External Sources row『Notion DB「Project Tasks」』lost after upgrade");
+  assert(userDataPostIndex.includes("https://notion.so/abc123def456"), "P2 regression: user-filled Notion URL lost after upgrade");
+  assert(userDataPostIndex.includes("Google Drive「Project Files/」"), "P2 regression: user-filled External Sources row『Google Drive』lost after upgrade");
+  assert(userDataPostIndex.includes("Linear「Project Backlog」"), "P2 regression: user-filled External Sources row『Linear』lost after upgrade");
+  assert(userDataPostIndex.includes("~/project/docs/api-spec.md"), "P2 regression: user-filled Fact Base row lost after upgrade");
+  assert(userDataPostIndex.includes("pytest tests/unit/"), "P2 regression: user-filled Local QC Commands row lost after upgrade");
+  assert(userDataPostIndex.includes("a1b2c3d"), "P2 regression: user-filled Workspace Identity row lost after upgrade");
+  // Verify Installed Integrations section was correctly inserted (non-destructive migration).
+  assert(userDataPostIndex.includes("## Installed Integrations"), "P2 regression: ## Installed Integrations not inserted after upgrade");
+  assert(userDataPostIndex.includes("### Source-of-truth Architecture"), "P2 regression: Source-of-truth Architecture sub-table not inserted");
+
   console.log("");
   console.log("Agent Handoff Kit upgrade safety QA passed");
   console.log(`merge root: ${mergeRoot}`);
@@ -251,6 +319,7 @@ function main() {
   console.log(`real-fixture single-hop roots: ${realFixtureRoots.length}`);
   console.log(`real-sandwich root: ${realSandwichRoot}`);
   console.log(`chain root: ${chainRoot}`);
+  console.log(`user-data regression root: ${userDataRoot}`);
 }
 
 function withWorktree(ref, callback) {

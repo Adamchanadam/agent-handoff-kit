@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 23"), "npm dry-run did not report expected 23 package files");
+  assert(packText.includes("total files: 24"), "npm dry-run did not report expected 24 package files (v0.3.0+ includes packs/integrations.md)");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -56,7 +56,10 @@ function main() {
     "handoff",
     "fenced `text` code block",
     "## 項目決策日誌",
-    "dev/PROJECT_DECISIONS.md"
+    "dev/PROJECT_DECISIONS.md",
+    "## 外部工具治理",
+    "Installed Integrations",
+    "機密分離原則"
   ]);
 
   assertIncludes("CHANGELOG.md", [
@@ -137,7 +140,69 @@ function main() {
     "first-time-user signals (R-029)",
     "onboarding signal keywords",
     "dev/rules/onboarding.md",
-    "transient pack"
+    "transient pack",
+    "startup availability probe",
+    "R-030 Integration governance discipline",
+    "dev/rules/integrations.md",
+    "Credential separation"
+  ]);
+
+  assertIncludes("runtime-core/PROJECT_INDEX.md", [
+    "## Installed Integrations",
+    "機密分離原則",
+    "### Connectors",
+    "### MCPs",
+    "### Plugins",
+    "### Skills",
+    "### Source-of-truth Architecture",
+    "`via`"
+  ]);
+
+  assertIncludes("runtime-core/SESSION_HANDOFF.md", [
+    "Installed Integrations registry",
+    "availability probe"
+  ]);
+
+  assertIncludes("runtime-core/RULE_PACKS.md", [
+    "dev/rules/integrations.md",
+    "Connector-first default",
+    "credential separation"
+  ]);
+
+  assertIncludes("packs/integrations.md", [
+    "Integrations Pack",
+    "機密分離原則",
+    "Connectors（Anthropic 官方 vetted）",
+    "MCPs（community / custom）",
+    "Plugins（Claude Code plugin bundle）",
+    "Skills（SKILL.md instruction set）",
+    "Source-of-truth Architecture",
+    "Cross-session Lifecycle",
+    "Connector-first default"
+  ]);
+
+  assertIncludes("packs/knowledge.md", [
+    "Connector-first default",
+    "R-030 Integration governance discipline",
+    "Backward-compat"
+  ]);
+
+  assertIncludes("packs/safety.md", [
+    "Differentiate three layers of external access",
+    "Anthropic-vetted Connectors",
+    "Community / custom MCP servers",
+    "Credential leak prevention",
+    "Recognize common credential prefixes"
+  ]);
+
+  assertIncludes("packs/onboarding.md", [
+    "Scenario F. 審視已裝外部工具",
+    "Step F.1 — Intake",
+    "Step F.2 — 機密分離 brief",
+    "Step F.3 — Source-of-truth Architecture mapping",
+    "Step F.4 — 寫入項目登記表",
+    "Step F.5 — Verify availability",
+    "順便：你 Claude Code"
   ]);
 
   assertIncludes("runtime-core/SESSION_LOG.md", [
@@ -149,13 +214,17 @@ function main() {
   assertIncludes("bin/agent-handoff-kit.mjs", [
     "assessSessionLogDiscipline",
     "R-010 SESSION_LOG handoff-role discipline",
-    "SESSION_LOG discipline (R-010)",
+    "SESSION_LOG 接力角色紀律",
     "runtime-core/PROJECT_DECISIONS.md",
     "dev/PROJECT_DECISIONS.md",
     "project decisions log structure",
     "packs/onboarding.md",
     "dev/rules/onboarding.md",
-    "onboarding pack structure (R-029)"
+    "onboarding pack structure (新手引導包)",
+    "packs/integrations.md",
+    "dev/rules/integrations.md",
+    "integrations pack structure (外部工具治理)",
+    "checkInstalledIntegrationsCredentialLeak"
   ]);
 
   const install = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");
@@ -170,8 +239,10 @@ function main() {
   assert(doctor.stdout.includes("dev/PROJECT_INDEX.md (project index tables)"), "doctor did not check project index schema");
   assert(doctor.stdout.includes("dev/RULE_PACKS.md (rule pack router coverage)"), "doctor did not check rule pack router schema");
   assert(doctor.stdout.includes("dev/PROJECT_DECISIONS.md (project decisions log structure)"), "doctor did not check PROJECT_DECISIONS schema (R-028)");
-  assert(doctor.stdout.includes("dev/rules/onboarding.md (onboarding pack structure (R-029))"), "doctor did not check onboarding pack schema (R-029)");
-  assert(doctor.stdout.includes("SESSION_LOG discipline (R-010): ok"), "doctor did not run R-010 SESSION_LOG discipline check, or fresh install triggered an unexpected warning");
+  assert(doctor.stdout.includes("dev/rules/onboarding.md (onboarding pack structure (新手引導包))"), "doctor did not check onboarding pack schema");
+  assert(doctor.stdout.includes("dev/rules/integrations.md (integrations pack structure (外部工具治理))"), "doctor did not check integrations pack schema (R-030 v0.3.0+)");
+  assert(doctor.stdout.includes("SESSION_LOG 接力角色紀律: ok"), "doctor did not run SESSION_LOG discipline check, or fresh install triggered an unexpected warning");
+  assert(doctor.stdout.includes("Credential 機密分離 sweep: ok"), "doctor did not run credential leak sweep (R-030 v0.3.0+)");
 
   const installedHandoff = readAt(tempRoot, "dev/SESSION_HANDOFF.md");
   const installedLog = readAt(tempRoot, "dev/SESSION_LOG.md");
@@ -218,6 +289,39 @@ function main() {
   checkForbiddenVocabulary("README.md", read("README.md"), internalReferenceForbidden);
   checkForbiddenVocabulary("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), internalReferenceForbidden);
   checkForbiddenVocabulary("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), internalReferenceForbidden);
+
+  // R-030 v0.3.0+: Internal "v2 / advanced user path" jargon must not appear on user-facing surfaces.
+  const v2JargonForbidden = [/v2 (的|嘅) advanced user path/, /v2 advanced user path/];
+  checkForbiddenVocabulary("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), v2JargonForbidden);
+  checkForbiddenVocabulary("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), v2JargonForbidden);
+
+  // R-030 v0.3.0+: Cross-callout wording consistency for guide.html hero + Case A Step 2.
+  const guideText = read("agent-handoff-kit-guide.html");
+  const heroAnchor = "兩種開工方式";
+  if (!guideText.includes(heroAnchor)) {
+    throw new Error(`Cross-callout wording inconsistency: guide.html missing shared "${heroAnchor}" anchor (R-030 v0.3.0+; hero + Case A Step 2 callout must reference the same plain-language framing)`);
+  }
+  console.log(`ok: agent-handoff-kit-guide.html cross-callout shared anchor "${heroAnchor}"`);
+
+  // R-030 v0.3.0+: Credential leak prevention sweep over runtime-core template files.
+  const credentialLeakPatterns = [
+    /sk-ant-[A-Za-z0-9_-]{20,}/,
+    /\bsk-[A-Za-z0-9_-]{20,}/,
+    /\bntn_[A-Za-z0-9_-]{40,}/,
+    /\bsecret_[A-Za-z0-9_-]{40,}/,
+    /\bya29\.[A-Za-z0-9_-]{20,}/,
+    /\b1\/\/[A-Za-z0-9_-]{30,}/,
+    /\bxox[abprs]-[A-Za-z0-9-]{10,}/,
+    /\bghp_[A-Za-z0-9]{36}/,
+    /\bgho_[A-Za-z0-9]{36}/,
+    /\bghs_[A-Za-z0-9]{36}/,
+    /\bgithub_pat_[A-Za-z0-9_]{20,}/,
+    /\bsl\.[A-Za-z0-9_-]{50,}/,
+    /\bAKIA[A-Z0-9]{16}/,
+    /\bAIza[A-Za-z0-9_-]{35}/
+  ];
+  checkForbiddenVocabulary("runtime-core/PROJECT_INDEX.md", read("runtime-core/PROJECT_INDEX.md"), credentialLeakPatterns);
+  checkForbiddenVocabulary("runtime-core/SESSION_HANDOFF.md", read("runtime-core/SESSION_HANDOFF.md"), credentialLeakPatterns);
 
   // Onboarding HTML book-language discipline — Cantonese spoken characters must not appear
   // in user-facing HTML (Wording style: 繁體中文書面語). Triggers if any of the listed

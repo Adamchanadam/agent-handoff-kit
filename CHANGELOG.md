@@ -1,5 +1,71 @@
 # 變更紀錄
 
+## v0.3.0 — 2026-05-22
+
+狀態:正式發佈版本。此版本已建立 tag、GitHub Release,並已 npm publish。**v2 嘅 second major version bump**(v0.2.x → v0.3.0),引入 first-class **Integration governance framework**(R-030):支持 Connectors / MCPs / Plugins / Skills 跨 session 治理 + 機密分離原則 + 多層持久化 source-of-truth architecture + cross-tool resilience。
+
+### Major addition (R-030 Integration Governance Framework)
+
+v0.2.x 設計於 pre-MCP-Connector-mainstream 時期(2024-2025),packs/knowledge.md Rule 5 預設「paste fallback」為 default 紀律。2026-05 reality:Anthropic 官方 Connector directory 398 verified integrations、Claude Desktop Extensions 一鍵安裝、2,300+ public MCP servers —— Connector ecosystem 已成熟,但 v2 framework 完全冇 Integration 治理紀律。
+
+v0.3.0 修補:
+
+- **NEW `packs/integrations.md`** (~400 行) — 4 個 subsection(Connectors / MCPs / Plugins / Skills)各自紀律 + 機密分離原則 + Source-of-truth Architecture 多層持久化 + Cross-session Lifecycle 6 階段
+- **`runtime-core/PROJECT_INDEX.md` 加新 `## Installed Integrations` H2 section** — 4 subsection table schema(Connectors / MCPs / Plugins / Skills,每個含 `Credential Location` column 記指向唔記 value)+ `### Source-of-truth Architecture` sub-table 描述多層分工(真源 / Index / Mirror / Working draft)+ ⚠️ 機密分離 header
+- **`runtime-core/PROJECT_INDEX.md` 既有 `## External Sources` 表加 `via` column** — 引用 Installed Integrations entry,確認該 source 經邊個 integration 訪問,boundary 同 Installed Integrations 互相一致
+- **`runtime-core/AGENTS.core.md` startup reads 加 availability probe 紀律** — 新 session 開工自動 verify 每個 declared Integration,update `Last Verified` cell;auth 失敗即 surface 唔自動 fix
+- **`runtime-core/AGENTS.core.md` 加 credential 機密分離 enforcement** — 認 14 種 credential prefix patterns,redact + warn rotate
+- **`runtime-core/RULE_PACKS.md` 加 integrations pack routing row**
+- **`runtime-core/SESSION_HANDOFF.md` `## Durable Anchors` 加 row 6** — Installed Integrations registry 屬 durable anchor,新 AI 必讀
+- **`packs/knowledge.md` Rule 5 重寫 Connector-first default** — (a) check declaration / (b) functional 即用直接 MCP / (c) unavailable fallback paste + drift flag / (d) undeclared 即 ask user(backward-compat preserved)
+- **`packs/safety.md` Rule 10 differentiate 三層 external access** — Anthropic-vetted Connectors / community MCP / raw API,加新 Rule 12 credential leak prevention
+- **`packs/onboarding.md` 加 Scenario F「審視已裝外部工具 + 設計治理」** 5-step walk-through + 5 既有 Scenarios A-E Step 1 加 micro-question 問已裝整合 + Scenario B Step B.2 + Scenario C Step C.2 retire paste-only mindset + Tone Discipline 第 2 條釐清 jargon 邊界(internal jargon 過濾 / user-facing 概念可教)+ Anti-pattern row 加「假設用戶冇裝任何 Connector」
+- **`bin/agent-handoff-kit.mjs`** — mappings 加 integrations pack;requiredAnchors / schemaChecks 加新 anchor + integrations pack structure check;新加 `checkInstalledIntegrationsCredentialLeak()` doctor function(grep 14 credential prefix patterns 對 PROJECT_INDEX + SESSION_HANDOFF + SESSION_LOG);`classifyExistingFile` 加 PROJECT_INDEX upgrade path(v0.2.x 既有用戶 upgrade 後自動 append `## Installed Integrations` section template + `via` column);schema check label 既有「onboarding pack structure (R-029)」normalize 為「(新手引導包)」;7 處 user-facing CLI R-XXX leak(line 326 / 547 / 560 / 781 / 814 / 1232 / 1278)normalize 為日常 wording
+- **`scripts/check-release-readiness.mjs`** — assertion 由 21 條擴展至 26+(integrations pack anchors + PROJECT_INDEX Installed Integrations schema + AGENTS.core.md Integration startup probe anchors + 14 credential prefix sweep over runtime-core template files + v2 jargon ban + cross-callout wording grep)
+- **`scripts/check-pack-scenarios.mjs`** — 加 integrations routing scenario + Notion+本機+Drive multi-source governance scenario + cross-tool drift fallback scenario
+- **`scripts/check-upgrade-safety.mjs`** — chain test final hop 加 PROJECT_INDEX `## Installed Integrations` section migration assertion + `via` column + credential leak doctor check
+- **`scripts/check-public-prototype.mjs`** — total files 23 → 24;assertion `dev/rules/integrations.md` 必創建
+
+### Documentation rewrites
+
+- **`agent-handoff-kit-guide.html` Cases A/B/C narrative 重寫**:
+  - 8 個 Terminal mock blocks(line 541 / 619 / 826 / 891 / 1024 / 1083 / 1305 / 1373)版本字 `v0.1.8` 改為 generic placeholder `vX.Y.Z` + 第一個 mock 上方加 disclaimer footnote 「實際版本字會係你安裝時 npm latest,本指南不會 drift」
+  - Hero callout(line 470)+ Case A Step 2 bridging callout 兩處同步 stateless rewrite,retire「v2 advanced user path」內部 jargon,共用「兩種開工方式」白話 anchor(qa:release 對 anchor 一致性 grep enforce)
+  - Case B Steps 1-7 major rewrite 為 Connector-primary narrative:Step 4 改為 AI 用 `mcp__notion__search` 直接讀 DB 而非 user 手動 CSV export;Step 4 寫入 3 row 補登記改為 AI 用 `mcp__notion__create-pages` 直接寫 + read-back verify;Step 5 Drive upload 改為 AI 用 `mcp__google-drive__upload` 直接執行 + `update-permissions` 設 share + read-back verify;Step 6 closeout 反映「無待填缺口」嘅完整對齊狀態(declared Connector functional case);所有 paste-only narrative 改為 fallback 路徑(未 declare Connector 才用)
+  - Case C Day 30 narrative 加 Integration declaration evolution(項目演進加 Slack + Linear Connector)
+- **`agent-handoff-kit-intro.html` v0.2.3 → v0.3.0** + 加 Integration explainer
+- **`README.md` 加新 H2 section「外部工具治理」** 介紹 Installed Integrations 機制 + 機密分離原則 + 跨 session lifecycle 6 階段(不教 install)
+- **`docs/qa/release-grade-qa.md` v0.3.0 發佈狀態** + 新 Sweep「Installed Integrations Discipline Sweep(R-030)」+「Credential Leak Prevention Sweep」+ 治理 QA 缺口矩陣加 dim「Integration Governance UX gap closure」
+- **`CHANGELOG.md` 本檔 prepend v0.3.0 entry**
+
+### v0.2.3 揭發 gap 順手清
+
+v0.2.3 release 後發佈檢 grep 揭發 `bin/agent-handoff-kit.mjs` CLI source 7 處 user-facing R-XXX leak(line 326 / 547 / 560 / 781 / 814 / 1232 / 1278)—— v0.2.2 `internalReferenceForbidden` sweep scope 第四次 design gap(只 cover README + intro + guide 3 個 HTML/MD surface,唔 cover CLI source post-install printed output 或 upgrade reason strings)。本版本一齊清。
+
+### Migration path(v0.2.x → v0.3.0,backward-compat preserved)
+
+既有 v0.2.x 用戶 upgrade 影響:
+
+1. **`upgrade` 自動 append PROJECT_INDEX 新 `## Installed Integrations` section template**(empty rows + schema + `via` column)—— 唔影響既有 sections;Content fields stay user-owned;可選擇填或留空。**無 declare = AI 行 backward-compat fallback path**(knowledge Rule 5 (d) ask-user,等同 v0.2.x behavior)
+2. **RULE_PACKS.md 加 integrations pack routing row force-refresh**(同 v0.2.1 紀律一致)
+3. **doctor 加 credential leak scan + integrations pack schema check** — 既有項目若無 credential leak + 無 install integrations pack 之前,upgrade 後新 schema 自動 propagate,doctor 仍 pass
+4. **既有 CLI behavior preserved** —— 只有 7 處 user-facing R-XXX leak normalize 為日常 wording,功能無變
+
+### Lifecycle 6 階段 cross-session resilience
+
+新引入嘅 Integration governance 治理流程:
+
+1. **First-contact declaration**(onboarding 階段 AI 主動引問)
+2. **Initial recording**(寫入 PROJECT_INDEX `## Installed Integrations`)
+3. **Cross-session handoff**(SESSION_HANDOFF `## Durable Anchors` 強制要求新 AI 讀本 section)
+4. **Startup availability probe**(新 AI 開工 verify 每個 declared Integration + update `Last Verified`)
+5. **Mid-session drift handling**(auth 失靈即 surface,唔自動 fix,紀錄入 PROJECT_INDEX + SESSION_LOG)
+6. **Multi-tool 環境 cross-tool 一致性**(declaration 屬 project-level,新 AI tool 開工 verify availability + 若無相應 MCP 就 fallback paste)
+
+### Honest reflection(2026-05 ecosystem alignment)
+
+v2 設計於 MCP/Connector 仲未 mainstream 嘅時期,先天 framework 缺 Integration 紀律。2026-05 reality 揭發呢個 framework gap 嚴重影響第一次 install 後嘅用戶 UX(onboarding pack Scenario B Step B.2 正面 reinforce 錯 paste-only mindset)。v0.3.0 屬一次性 framework 升級而非 ad-hoc patch,將 Integration 紀律納入 first-class governance dimension。
+
 ## v0.2.3 — 2026-05-22
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。屬 v0.2.2 嘅 immediate follow-up patch，修補 agent-handoff-kit-guide.html 三類遺留缺口：(1) Case C pre block UI bug（light-on-light unreadable text）、(2) Case C AI 模型版本資訊過時、(3) Cases A/B Step 2 對話框句式與新手引導包 trigger phrase 之間缺 bridging narrative 解釋。

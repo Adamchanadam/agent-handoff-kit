@@ -54,10 +54,11 @@ async function main() {
   assert(!existsSync(path.join(tempRoot, "archive")), "installer created archive directory by default");
   assert(existsSync(path.join(tempRoot, "dev/PROJECT_DECISIONS.md")), "installer did not create dev/PROJECT_DECISIONS.md (R-028)");
   assert(existsSync(path.join(tempRoot, "dev/rules/onboarding.md")), "installer did not create dev/rules/onboarding.md (R-029)");
+  assert(existsSync(path.join(tempRoot, "dev/rules/integrations.md")), "installer did not create dev/rules/integrations.md (R-030 v0.3.0+)");
   await checkUpdateNotice();
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
-  assert(outputText(pack).includes("total files: 23"), "npm dry-run did not report expected 23 package files");
+  assert(outputText(pack).includes("total files: 24"), "npm dry-run did not report expected 24 package files (v0.3.0+ includes packs/integrations.md)");
   assert(!existsSync(path.join(root, `adamchanadam-agent-handoff-kit-${version}.tgz`)), "npm dry-run left a tarball behind");
 
   const hits = scanForbiddenText(root);

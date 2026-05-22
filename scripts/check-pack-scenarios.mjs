@@ -17,7 +17,8 @@ const packs = {
   release: read("packs/release.md"),
   knowledge: read("packs/knowledge.md"),
   communication: read("packs/communication.md"),
-  onboarding: read("packs/onboarding.md")
+  onboarding: read("packs/onboarding.md"),
+  integrations: read("packs/integrations.md")
 };
 
 const scenarios = [
@@ -44,7 +45,7 @@ const scenarios = [
     name: "knowledge",
     route: ["External notes", "dev/rules/knowledge.md"],
     pack: "knowledge",
-    snippets: ["source of truth", "external surface", "ready-to-paste sync packet", "read back the written record", "Do not treat unread sources as absent"],
+    snippets: ["source of truth", "external surface", "Connector-first default", "read back the written record", "Do not treat unread sources as absent"],
     safetyEscalators: ["cloud tools", "external APIs", "data loss"]
   },
   {
@@ -76,7 +77,13 @@ const scenarios = [
     name: "onboarding (R-029)",
     route: ["First-time user signals", "dev/rules/onboarding.md"],
     pack: "onboarding",
-    snippets: ["Onboarding Pack", "transient pack", "5-step walk-through pattern", "Scenario A. 寫 / 改代碼項目", "Scenario E. 其他", "Tone Discipline", "Anti-pattern"]
+    snippets: ["Onboarding Pack", "transient pack", "5-step walk-through pattern", "Scenario A. 寫 / 改代碼項目", "Scenario E. 其他", "Scenario F. 審視已裝外部工具", "Tone Discipline", "Anti-pattern"]
+  },
+  {
+    name: "integrations (R-030)",
+    route: ["External tool integrations", "dev/rules/integrations.md"],
+    pack: "integrations",
+    snippets: ["Integrations Pack", "Connectors（Anthropic 官方 vetted）", "MCPs（community / custom）", "Plugins（Claude Code plugin bundle）", "Skills（SKILL.md instruction set）", "機密分離原則", "Source-of-truth Architecture", "Cross-session Lifecycle", "Connector-first default"]
   }
 ];
 
@@ -111,6 +118,22 @@ const mixedScenarios = [
       ["onboarding"],
       ["onboarding", "coding"],
       ["coding"]
+    ]
+  },
+  {
+    name: "Notion DB Index + 本機真源 + Drive 參考檔 multi-source governance (R-030)",
+    phases: [
+      ["onboarding", "integrations"],
+      ["integrations", "knowledge"],
+      ["integrations", "knowledge", "writing"]
+    ]
+  },
+  {
+    name: "cross-tool Integration drift fallback (R-030)",
+    phases: [
+      ["integrations"],
+      ["integrations", "knowledge"],
+      ["integrations", "safety"]
     ]
   }
 ];

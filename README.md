@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：`v0.2.3` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
+狀態：`v0.3.0` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -132,7 +132,7 @@ dev/rules/*.md
 | `dev/PROJECT_DECISIONS.md` | 保存項目嘅長期演進、決策、架構取捨、學習觀察。屬 warm 資料層 —— AI 開工**不需要讀**本檔；遇到「之前點解咁做」嘅問題時 AI 自己嚟搵。短期單一 task 項目本檔保持近空；長期項目 AI 喺收工時自動 maintain。 |
 | `dev/DOC_SYNC_REGISTRY.md` | 記錄哪些文件改動後需要同步。 |
 | `dev/RULE_PACKS.md` | 告訴 AI 不同任務應讀哪些工作規則。 |
-| `dev/rules/*.md` | 按任務載入的細分工作規則。含 9 個 pack：safety / coding / writing / research / agent-governance / release / knowledge / communication / **onboarding**（v0.2.0 新加，新手第一次用時 AI 主動載入做 walk-through）。 |
+| `dev/rules/*.md` | 按任務載入的細分工作規則。含 10 個 pack：safety / coding / writing / research / agent-governance / release / knowledge / communication / onboarding（v0.2.0 新加，新手第一次用時 AI 主動載入做 walk-through）/ **integrations**（v0.3.0 新加，外部工具治理 — Connectors / MCPs / Plugins / Skills 跨 session resilience + 機密分離原則）。 |
 
 你不需要自己逐一閱讀全部文件。你的工作是描述目標；AI 的工作是讀入口文件、判斷要讀哪些資料，再告訴你它準備怎樣做。
 
@@ -165,6 +165,40 @@ dev/rules/*.md
 - **Insights & Learnings** —— 多 session 累積嘅學習觀察
 
 本檔同 SESSION_LOG 嘅 archive 機制屬同一套 hot / warm / cold 分層紀律 —— 你部電腦嘅 `dev/` 資料夾長期使用都唔會被無關 narrative 撐大，亦唔需要你手動清理。新手用戶完全唔需要打開本檔，亦唔需要記任何 schema —— 一切由 AI 自律執行。
+
+## 外部工具治理
+
+當你項目涉及外部工具（Notion、Google Drive、Dropbox、Slack、Linear、GitHub、HubSpot 等），Kit 提供完整跨 session 治理紀律 —— 但 **不教你點 install**（安裝行為由 Anthropic 官方文檔 + 各工具自身 setup guide 負責，屬中階用戶責任）。Kit 專注「**已裝好之後，點樣治理跨 session 穩定可用**」。
+
+### Installed Integrations 登記表
+
+`dev/PROJECT_INDEX.md` 內 `## Installed Integrations` section 係項目嘅外部工具能力 registry，4 個 subsection：
+
+- **Connectors**（Anthropic 官方 vetted）—— 譬如 Notion / Drive / Slack 經 Claude Desktop Settings → Extensions 一鍵安裝
+- **MCPs**（community / custom）—— 用戶自建或第三方 MCP server
+- **Plugins**（Claude Code plugin bundle）—— 經 `/plugin` command 安裝嘅 bundle
+- **Skills**（SKILL.md instruction set）—— 由 plugin 攜帶或直接安裝
+
+加 `### Source-of-truth Architecture` sub-table 描述多層持久化分工 —— 譬如「Notion DB Index 記真源 metadata、本機 `reference/` 儲真源檔、Drive folder 做持久化參考檔 mirror、本機 `output/` 做 AI working draft」。
+
+### 機密分離原則
+
+**API key / OAuth token / 任何 credential value 永不寫入 `dev/*` 任何檔**。Credential 由 AI 工具自身 secure storage（OS Keychain / Credential Manager / AI tool config）管理，與 Kit 完全分離。Kit 嘅 doctor 對 `dev/PROJECT_INDEX.md` + `dev/SESSION_HANDOFF.md` + `dev/SESSION_LOG.md` 強制 grep 14 種 credential prefix patterns，命中即 `status: failed`。
+
+### Connector-first default
+
+新手第一次貼起步句進入 onboarding 後，AI 主動引問：「你已裝邊啲 Connector / MCP / Plugin / Skill 我可以用？」用戶 declare 後 AI 寫入 Installed Integrations registry，之後每次新 session 開工自動 verify availability + 跨 session leverage。當 declared Connector functional，AI 用直接 MCP tool call（譬如 `mcp__notion__*` 讀寫 Notion DB）；unavailable 才 fallback paste packet。
+
+### 跨 session 治理 lifecycle 6 階段
+
+1. **First-contact declaration**（onboarding 階段，AI 主動引問）
+2. **Initial recording**（寫入 PROJECT_INDEX `## Installed Integrations`）
+3. **Cross-session handoff**（SESSION_HANDOFF `## Durable Anchors` 強制要求新 AI 讀本 section）
+4. **Startup availability probe**（新 AI 開工自動 verify 每個 declared Integration）
+5. **Mid-session drift handling**（auth 失靈即 surface，唔自動 fix，紀錄入 PROJECT_INDEX + SESSION_LOG）
+6. **Multi-tool 環境 cross-tool 一致性**（PROJECT_INDEX declaration 屬 project-level，唔 lock 一個 AI tool）
+
+詳細紀律見 `dev/rules/integrations.md`（新 session 涉外部工具時 AI 自動 load）。
 
 ## 工作模式
 
@@ -262,7 +296,7 @@ Agent Handoff Kit 同 [Adam-AI-Instructions](https://github.com/prompt-templates
 
 ## 目前限制
 
-- `v0.2.3` 是 GitHub 與 npm 同步發佈版本。
+- `v0.3.0` 是 GitHub 與 npm 同步發佈版本。
 - 這是早期可用版本，尚未宣稱完整穩定。
 - 升級合併仍是窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

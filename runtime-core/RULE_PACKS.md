@@ -12,6 +12,7 @@ Read only the packs needed for the current task.
 | Governance, prompts, agents, handoff, startup/closeout, skills | `dev/rules/agent-governance.md` | governance changes and boundary control |
 | Release, publish, deploy, tag, hotfix, GA | `dev/rules/release.md` | release verification and evidence |
 | External notes, knowledge base, Notion, Obsidian, Drive | `dev/rules/knowledge.md` | external knowledge source integration |
+| External tool integrations (Connector / MCP / Plugin / Skill) — declared in `## Installed Integrations`; tasks involving Notion / Drive / Slack / Linear / Dropbox / HubSpot / GitHub / etc. external read-write | `dev/rules/integrations.md` | Connector-first default + credential separation + multi-layer source-of-truth + cross-session resilience |
 | Reply format, language, output schema | `dev/rules/communication.md` | user-facing response rules |
 
 ## Routing Rule

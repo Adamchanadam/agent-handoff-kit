@@ -28,7 +28,8 @@ const mappings = [
   ["packs/release.md", "dev/rules/release.md"],
   ["packs/knowledge.md", "dev/rules/knowledge.md"],
   ["packs/communication.md", "dev/rules/communication.md"],
-  ["packs/onboarding.md", "dev/rules/onboarding.md"]
+  ["packs/onboarding.md", "dev/rules/onboarding.md"],
+  ["packs/integrations.md", "dev/rules/integrations.md"]
 ];
 
 const requiredTargets = mappings.map(([, target]) => target);
@@ -48,7 +49,12 @@ const requiredAnchors = [
       "Agent Handoff Kit v<version>",
       "continuity ready",
       "Reachable is not the same as ingested",
-      "Do not treat unread sources as absent"
+      "Do not treat unread sources as absent",
+      // R-030 v0.3.0+: forces managed-core merge on v0.2.x → v0.3.0 upgrade to propagate
+      // startup availability probe + integrations pack reference + credential separation discipline.
+      "startup availability probe",
+      "dev/rules/integrations.md",
+      "Credential separation"
     ]
   },
   {
@@ -190,7 +196,24 @@ const requiredAnchors = [
       "Scenario C. 整理電腦檔案",
       "Scenario D. 學寫代碼",
       "Scenario E. 其他",
+      "Scenario F. 審視已裝外部工具",
       "Tone Discipline"
+    ]
+  },
+  {
+    target: "dev/rules/integrations.md",
+    label: "integrations pack core anchors",
+    snippets: [
+      "Integrations Pack",
+      "Connectors",
+      "MCPs",
+      "Plugins",
+      "Skills",
+      "機密分離原則",
+      "Source-of-truth Architecture",
+      "Cross-session Lifecycle",
+      "Connector-first default",
+      "Anti-pattern"
     ]
   }
 ];
@@ -268,15 +291,25 @@ const schemaChecks = [
       heading("Entry Points"),
       heading("Fact Base"),
       heading("External Sources"),
+      heading("Installed Integrations"),
       heading("Local QC Commands"),
       heading("Workspace Identity"),
       heading("Change Hotspots"),
       heading("Maintenance Rule"),
       tableHeader("Path", "Role", "Read when"),
       tableHeader("Source", "Role", "Required before", "Access method", "Last verified"),
-      tableHeader("Source", "Role", "Required before", "Access method", "Write-back rule", "Last verified"),
+      // External Sources tableHeader removed in v0.3.0 — schema accepts either 6-col legacy or 7-col v0.3.0+
+      // to support non-destructive migration (existing v0.2.x users keep their 6-col table; new installs
+      // get 7-col template with `via` column). The heading("External Sources") check above is sufficient
+      // to verify the section is structurally present.
       tableHeader("Check", "Command", "Run before", "Last verified"),
-      tableHeader("Change type", "Likely files", "Required checks")
+      tableHeader("Change type", "Likely files", "Required checks"),
+      // R-030 v0.3.0+: Installed Integrations subsection table headers
+      tableHeader("Tool", "Project Usage", "Access Scope", "Specific Instance", "Credential Location", "Declared", "Last Verified"),
+      tableHeader("Server", "Source", "Project Usage", "Credential Location", "Declared", "Last Verified"),
+      tableHeader("Name", "Bundle Content（Skills + MCP + hooks）", "When Triggered", "Last Verified"),
+      tableHeader("Name", "Source", "When Triggered", "Last Verified"),
+      tableHeader("Layer", "Surface（具體 instance）", "Role", "Write Direction")
     ]
   },
   {
@@ -307,7 +340,9 @@ const schemaChecks = [
       // Without this anchor, the upgrade flow may silently leave v0.1.X users with a
       // stale routing table that does not route onboarding signals.
       includes("First-time user signals"),
-      includes("dev/rules/onboarding.md")
+      includes("dev/rules/onboarding.md"),
+      // R-030 v0.3.0+: routing table must include integrations pack row.
+      includes("dev/rules/integrations.md")
     ]
   },
   {
@@ -323,7 +358,7 @@ const schemaChecks = [
   },
   {
     target: "dev/rules/onboarding.md",
-    label: "onboarding pack structure (R-029)",
+    label: "onboarding pack structure (新手引導包)",
     checks: [
       heading("Scope"),
       heading("Load When"),
@@ -332,6 +367,20 @@ const schemaChecks = [
       heading("Cross-reference to guide.html"),
       heading("Tone Discipline"),
       heading("Closeout")
+    ]
+  },
+  {
+    target: "dev/rules/integrations.md",
+    label: "integrations pack structure (外部工具治理)",
+    checks: [
+      heading("Scope"),
+      heading("Load When"),
+      heading("Discipline"),
+      heading("Rules"),
+      heading("Checks"),
+      heading("Closeout"),
+      heading("Anti-pattern（不要做的事）"),
+      heading("Cross-reference")
     ]
   }
 ];
@@ -544,22 +593,79 @@ async function runDoctor(root, version, options = {}) {
 
   // R-010 SESSION_LOG handoff-role discipline check (warn-only; does not change mode or exit).
   const disciplineResult = await assessSessionLogDiscipline(root);
-  console.log(`\nSESSION_LOG discipline (R-010): ${disciplineResult.ok ? "ok" : "warn"}`);
+  console.log(`\nSESSION_LOG 接力角色紀律: ${disciplineResult.ok ? "ok" : "warn"}`);
   if (!disciplineResult.ok) {
     for (const warning of disciplineResult.warnings) {
       console.log(`  warn: ${warning}`);
     }
   }
 
-  printDoctorSummary(version, root, "healthy", {
-    checked: rows.length + anchorRows.length + schemaRows.length + mirrorRows.length + 1,
-    failedKind: null,
-    failedCount: 0,
-    nextStep: disciplineResult.ok
+  // R-030 v0.3.0+: credential leak prevention sweep over governance files.
+  const credentialResult = await checkInstalledIntegrationsCredentialLeak(root);
+  console.log(`Credential 機密分離 sweep: ${credentialResult.ok ? "ok" : "FAILED"}`);
+  if (!credentialResult.ok) {
+    for (const finding of credentialResult.findings) {
+      console.log(`  CRITICAL: ${finding}`);
+    }
+  }
+
+  const overallHealthy = credentialResult.ok;
+  printDoctorSummary(version, root, overallHealthy ? "healthy" : "needs-attention", {
+    checked: rows.length + anchorRows.length + schemaRows.length + mirrorRows.length + 2,
+    failedKind: !credentialResult.ok ? "credential leak" : null,
+    failedCount: !credentialResult.ok ? credentialResult.findings.length : 0,
+    nextStep: !credentialResult.ok
+      ? "立即從相關檔案 redact credential value + rotate 已泄露 token；credential 應該由 AI 工具自身 secure storage 管理，永不寫入 dev/* 任何檔。"
+      : disciplineResult.ok
       ? "繼續日常使用；如要升級到較新版，執行 npx @adamchanadam/agent-handoff-kit@latest upgrade。"
-      : "繼續使用；下次 closeout 時 AI 應自動執行 R-010 N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
+      : "繼續使用；下次 closeout 時 AI 應自動執行 SESSION_LOG N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
   });
-  return "passed";
+  return overallHealthy ? "passed" : "failed";
+}
+
+// R-030 v0.3.0+: Credential leak prevention sweep. Scans dev/PROJECT_INDEX.md,
+// dev/SESSION_HANDOFF.md, dev/SESSION_LOG.md for common credential prefix patterns.
+// Credentials must live in OS-level secure storage or AI-tool config, never in dev/*.
+async function checkInstalledIntegrationsCredentialLeak(root) {
+  const credentialPatterns = [
+    { pattern: /sk-ant-[A-Za-z0-9_-]{20,}/, label: "Anthropic API key (sk-ant-)" },
+    { pattern: /\bsk-[A-Za-z0-9_-]{20,}/, label: "OpenAI / generic sk- prefix" },
+    { pattern: /\bntn_[A-Za-z0-9_-]{40,}/, label: "Notion Integration Token (ntn_)" },
+    { pattern: /\bsecret_[A-Za-z0-9_-]{40,}/, label: "Notion legacy secret_ token" },
+    { pattern: /\bya29\.[A-Za-z0-9_-]{20,}/, label: "Google OAuth access token (ya29.)" },
+    { pattern: /\b1\/\/[A-Za-z0-9_-]{30,}/, label: "Google refresh token (1//)" },
+    { pattern: /\bxox[abprs]-[A-Za-z0-9-]{10,}/, label: "Slack token (xoxp-/xoxb-/etc)" },
+    { pattern: /\bghp_[A-Za-z0-9]{36}/, label: "GitHub Personal Access Token (ghp_)" },
+    { pattern: /\bgho_[A-Za-z0-9]{36}/, label: "GitHub OAuth token (gho_)" },
+    { pattern: /\bghs_[A-Za-z0-9]{36}/, label: "GitHub server token (ghs_)" },
+    { pattern: /\bgithub_pat_[A-Za-z0-9_]{20,}/, label: "GitHub fine-grained PAT (github_pat_)" },
+    { pattern: /\bsl\.[A-Za-z0-9_-]{50,}/, label: "Dropbox token (sl.)" },
+    { pattern: /\bAKIA[A-Z0-9]{16}/, label: "AWS access key (AKIA)" },
+    { pattern: /\bAIza[A-Za-z0-9_-]{35}/, label: "Google API key (AIza)" }
+  ];
+  const targetFiles = [
+    "dev/PROJECT_INDEX.md",
+    "dev/SESSION_HANDOFF.md",
+    "dev/SESSION_LOG.md"
+  ];
+  const findings = [];
+  for (const relPath of targetFiles) {
+    const absPath = path.join(root, relPath);
+    let text;
+    try {
+      text = await readFile(absPath, "utf8");
+    } catch {
+      continue;
+    }
+    for (const { pattern, label } of credentialPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        const line = text.slice(0, match.index).split("\n").length;
+        findings.push(`${relPath}:${line} — ${label} pattern matched. Remove value immediately, rotate token, and re-store credential only in AI tool secure storage.`);
+      }
+    }
+  }
+  return { ok: findings.length === 0, findings };
 }
 
 // R-026 CLI Output Contract: doctor 完成必含四項（版本／模式／剛做咗乜／下一步）。
@@ -778,9 +884,52 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
     return {
       ...base,
       action: "merge",
-      reason: "refresh stale routing table to include v0.2.0+ rows (R-029 onboarding signal routing)",
+      reason: "refresh stale routing table to include v0.2.0+ rows (新手引導 signal routing)",
       mergedText: sourceText
     };
+  }
+  // R-030 v0.3.0+: dev/RULE_PACKS.md must also include integrations pack routing row.
+  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("dev/rules/integrations.md")) {
+    return {
+      ...base,
+      action: "merge",
+      reason: "refresh stale routing table to include v0.3.0+ rows (Integration governance routing)",
+      mergedText: sourceText
+    };
+  }
+  // R-030 v0.3.0+: dev/PROJECT_INDEX.md gets ## Installed Integrations section auto-inserted before
+  // ## Local QC Commands on upgrade if missing. NON-DESTRUCTIVE: existing ## External Sources content
+  // is fully preserved (including any user-filled rows). User can later manually add the `via` column
+  // to External Sources rows (or AI can guide that incremental migration during a later session).
+  if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade" && !targetText.includes("## Installed Integrations")) {
+    // Extract just the ## Installed Integrations block from source (not touching External Sources).
+    const sourceInstalledMatch = sourceText.match(/(## Installed Integrations[\s\S]*?)(?=## Local QC Commands)/);
+    if (sourceInstalledMatch && targetText.includes("## Local QC Commands")) {
+      const installedBlock = sourceInstalledMatch[1];
+      return {
+        ...base,
+        action: "merge",
+        reason: "insert ## Installed Integrations section template before ## Local QC Commands (R-030 Integration governance migration; existing External Sources content preserved non-destructively)",
+        mergedText: targetText.replace("## Local QC Commands", installedBlock + "## Local QC Commands")
+      };
+    }
+  }
+  // R-030 v0.3.0+: dev/rules/onboarding.md gets ### Scenario F block auto-inserted before
+  // ## Cross-reference to guide.html on upgrade if missing. NON-DESTRUCTIVE: existing Scenarios A-E
+  // content and any user customization preserved. Step 1 micro-question additions to Scenarios A-E
+  // are NOT auto-migrated (user-customizable inline sample wording, not anchor-enforced); users get
+  // those on fresh install only or can manually patch following CHANGELOG migration guidance.
+  if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && !targetText.includes("Scenario F. 審視已裝外部工具")) {
+    const sourceScenarioFMatch = sourceText.match(/(### Scenario F\. 審視已裝外部工具[\s\S]*?)(?=## Cross-reference to guide\.html)/);
+    if (sourceScenarioFMatch && targetText.includes("## Cross-reference to guide.html")) {
+      const scenarioFBlock = sourceScenarioFMatch[1];
+      return {
+        ...base,
+        action: "merge",
+        reason: "insert ### Scenario F block before ## Cross-reference to guide.html (R-030 onboarding pack migration; existing Scenarios A-E content preserved non-destructively)",
+        mergedText: targetText.replace("## Cross-reference to guide.html", scenarioFBlock + "## Cross-reference to guide.html")
+      };
+    }
   }
   if ((targetRel === "CLAUDE.md" || targetRel === "GEMINI.md") && !targetText.includes("AGENTS.md")) {
     return { ...base, action: "conflict", reason: "existing bridge does not route to AGENTS.md" };
@@ -811,7 +960,7 @@ async function assessSessionLogDiscipline(root) {
   const lineCount = text.split("\n").length;
 
   if (entryCount >= 25) {
-    warnings.push(`SESSION_LOG entry count = ${entryCount}（嚴重超過 N=11+ archive 邊界；R-010 嘅 AI closeout flow 應該已自動推進，如未動請要求 AI 跟 R-010 重做 closeout）`);
+    warnings.push(`SESSION_LOG entry count = ${entryCount}（嚴重超過 N=11+ archive 邊界；接力角色紀律下，AI closeout flow 應該已自動推進 N 規則，如未動請要求 AI 重做 closeout）`);
   } else if (entryCount >= 11) {
     warnings.push(`SESSION_LOG entry count = ${entryCount}（達 N=11+ archive 邊界；下次 closeout 時 AI 應自動執行 N 規則推進，如未動請提醒）`);
   }
@@ -1229,7 +1378,7 @@ function printInstallNextSteps(root, conflictCount) {
   console.log("------------------------------------------------------------");
   console.log("");
   console.log("🚀 AI 會主動引導你選擇情景（寫代碼 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），");
-  console.log("   一步一步帶你做第一個任務（由 R-029 onboarding pack 主動接管）。");
+  console.log("   一步一步帶你做第一個任務（由新手引導包主動接管）。");
   console.log("");
   console.log("💡 之後 session（你已熟悉 v2 之後）可改用更直接 prompt:");
   console.log(`   Work in ${root}. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.`);
@@ -1275,9 +1424,9 @@ Commands:
 After install:
   Do not type the shown "Work in ..." message into Terminal.
   Open your AI tool, start a new chat, and paste it there.
-  The default post-install prompt triggers the R-029 onboarding pack — AI
+  The default post-install prompt triggers the onboarding pack — AI
   will guide you through scenario selection (coding / research / knowledge /
-  learning / other) and walk you through your first task in 5 steps.
+  learning / other / integrations governance) and walk you through your first task.
 `);
   console.log(`📦 版本：v${version}`);
   console.log(`🛠️  模式：help ready`);

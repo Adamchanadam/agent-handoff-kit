@@ -467,7 +467,7 @@
       <div style="flex: 1; min-width: 280px;">
         <p style="margin: 0 0 12px; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>安裝完成後,在 AI 對話中貼上 CLI 顯示的新手引導 prompt:</p>
         <p style="margin: 0 0 12px; font-family: var(--font-mono); font-size: 13px; background: rgba(255,255,255,0.15); padding: 8px 12px;">Work in &lt;你的資料夾&gt;. I just installed agent-handoff-kit. Help me get started.</p>
-        <p style="margin: 0; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會自動載入 onboarding pack,引導你選擇情景並一步一步帶你做第一個任務。<strong>下方 Case A/B/C 屬已熟悉 v2 的 advanced user path</strong>(用戶直接描述任務,AI 直接載入工作模式)。本指南是參考對照,你可以之後或者想看 narrative example 時再開。</p>
+        <p style="margin: 0; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會自動載入新手引導包,先問你想做哪一類任務,再一步一步帶你做第一個任務。<strong>本指南示範的係另一種開工方式</strong> —— 用戶已經熟悉 Kit 點運作,直接在起步句之後一氣呵成講明任務描述,AI 跳過新手引導,直接入工作模式。<strong>兩種開工方式</strong>殊途同歸,最終都匯入同一套讀序契約。本指南屬參考對照,你不需要先讀,可以日後想睇完整 narrative example 時再開。</p>
       </div>
     </div>
   </div>
@@ -512,13 +512,15 @@
       <h2>安裝 Kit —— 一句指令,在資料夾建好治理檔案</h2>
       <p class="narrative">第一步完全與 AI 無關。你只需要在電腦開一個空資料夾(例如 <code>~/Downloads-tidy</code>),打開 Terminal,執行一句指令。Kit 會自動為你建好整套交接同治理文件,之後與 AI 對話時 AI 會自己讀取。</p>
 
+      <p class="narrative" style="font-size: 12px; opacity: 0.7; font-style: italic;">📝 註:下方 Terminal 範例的 <code>vX.Y.Z</code> 係版本佔位符 —— 實際你跑指令時印出的係你安裝時 npm latest(譬如 <code>v0.3.0</code>),版本字會隨 release 更新但本指南不會 drift。範例文字資訊(create 數目、檔案清單、起步句 wording)反映當前 v0.3.0 系列 CLI 真實行為。</p>
+
       <div class="block terminal">
         <div class="block-header"><span class="label">Terminal</span><span class="meta">~/Downloads-tidy</span></div>
         <div class="block-body">$ <span class="hl">npx @adamchanadam/agent-handoff-kit init</span>
 
 📋 計劃預覽:以下未執行。create 新增缺少檔案;merge 在備份後合併;skip 保留既有檔案。
 
-create: 17
+create: 20
   AGENTS.md
   CLAUDE.md
   GEMINI.md
@@ -528,19 +530,22 @@ create: 17
   dev/PROJECT_INDEX.md
   dev/DOC_SYNC_REGISTRY.md
   dev/RULE_PACKS.md
+  dev/PROJECT_DECISIONS.md
   dev/rules/safety.md
   dev/rules/coding.md
+  dev/rules/onboarding.md
+  dev/rules/integrations.md
   ... (其餘工作模式檔)
 
 是否繼續? (yes/no): <span class="hl">yes</span>
 
-✅ created: 17
+✅ created: 20
 🔀 merged: 0
 ⏭️  skipped existing: 0
 
-📦 版本:v0.1.8
+📦 版本:vX.Y.Z
 🛠️  模式:first-install
-🔎 剛做咗:init 命令;create 17 / merge 0 / skip 0 / conflict 0。
+🔎 剛做了:init 命令;create 20 / merge 0 / skip 0 / conflict 0。
 🚀 下一步:開新 AI 對話,按下方提示貼入 Work in &lt;root&gt; 一句後描述任務。
 
 ============================================================
@@ -549,8 +554,18 @@ create: 17
 ⚠️  請注意:下面文字不是 Terminal 指令。
 📋 請打開你要使用的 AI 工具,新增一段對話,貼上下面一句:
 ------------------------------------------------------------
-<span class="hl">Work in ~/Downloads-tidy. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.</span>
-------------------------------------------------------------</div>
+<span class="hl">Work in ~/Downloads-tidy. I just installed agent-handoff-kit. Help me get started.</span>
+------------------------------------------------------------
+
+🚀 AI 會主動引導你選擇情景(寫代碼 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他 / 設置 Integration),
+   一步一步帶你做第一個任務(由新手引導包主動接管)。
+
+💡 之後 session(你已熟悉 v2 之後)可改用更直接 prompt:
+   Work in ~/Downloads-tidy. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.
+
+🩺 如要檢查安裝是否完整,可在 Terminal 執行:
+   npx @adamchanadam/agent-handoff-kit doctor
+============================================================</div>
       </div>
 
       <div class="callout">
@@ -574,13 +589,13 @@ create: 17
       <p class="narrative">打開你慣用的 AI 工具(Claude Code、Codex、Gemini CLI 三選其一),開一個新對話。第一段貼 Kit 安裝時印出那句 <code>Work in ...</code>,接著用日常話講你要做什麼。不需要解釋 Kit 怎樣運作、不需要叫 AI 用哪個工作模式 —— AI 讀完 <code>AGENTS.md</code> 會自行處理。</p>
 
       <div class="callout" style="border-left: 3px solid var(--accent);">
-        <span class="label">兩條入場路 — 新手與老手有別</span>
-        <h3>新手與老手的開工句式略有分別,但最終匯入同一套讀序契約</h3>
-        <p>本指南開首已經提過,<strong>Cases A/B/C 屬已熟悉 v2 的 advanced user path</strong>。如果你是第一次安裝、未試過 Kit 如何操作 —— Terminal 安裝完成之後,CLI 印出的起步句是:</p>
+        <span class="label">兩種開工方式 — 殊途同歸</span>
+        <h3>第一次同後續開工的句式略有分別,但最終匯入同一套讀序契約</h3>
+        <p>本指南開首已經提過,<strong>兩種開工方式</strong>並存。如果你是第一次安裝、未試過 Kit 如何操作 —— Terminal 安裝完成之後,CLI 印出的起步句是:</p>
         <p style="margin: 8px 0 0 0;"><code style="background: var(--paper-2); padding: 4px 8px; border-radius: 4px; display: inline-block;">Work in &lt;你的資料夾&gt;. I just installed agent-handoff-kit. Help me get started.</code></p>
-        <p>新手貼這句進入新對話,AI 會偵測首次安裝信號,自動載入<strong>新手引導包</strong>(<code>dev/rules/onboarding.md</code>),先問你想做哪一類任務(代碼、研究、寫作、知識整理、其他),再一步一步示範完整流程。新手引導包屬於一次性教學,完成第一個任務之後自動卸載,之後不再出現。</p>
-        <p>而本案例(Case A)示範的是<strong>老手直接入場</strong>:用戶已經熟悉 Kit 大致如何運作、不需要新手引導包的 5 情景示範,所以採用更精準的句式 <code>Read AGENTS.md and follow it</code> 直接觸發讀序契約,並在同一段對話中一氣呵成講明任務目標。AI 偵測到老手句式,跳過 onboarding 環節,直接進入 PLAN 階段。</p>
-        <p>兩條路殊途同歸 —— 最終都由 <code>AGENTS.md</code> 的讀序契約接管:讀齊治理檔、選對工作模式、報告當前狀態、提建議下一步。下次再開新任務(SESSION 不再是第一次),所有用戶都會走本指南這條老手直接路;本案例展示的就是後續每一次開工的標準入場方式。</p>
+        <p>第一次貼這句進入新對話,AI 自動載入<strong>新手引導包</strong>,先問你想做哪一類任務(寫代碼、研究報告、知識庫整理、學寫代碼、其他、設置 Integration),再一步一步示範完整流程。新手引導包屬於一次性教學,完成第一個任務之後自動卸載,之後不再出現。</p>
+        <p>而本案例(Case A)示範的<strong>另一種開工方式</strong>:用戶已經熟悉 Kit 大致如何運作,直接在起步句之後一氣呵成講明任務描述,AI 偵測到任務上下文已備,跳過新手引導環節直接進入 PLAN 階段。</p>
+        <p><strong>兩種開工方式</strong>殊途同歸 —— 最終都由 <code>AGENTS.md</code> 的讀序契約接管:讀齊治理檔、選對工作模式、報告當前狀態、提建議下一步。下次再開新任務(已不係第一次),所有用戶都會走本指南呢條直接路;本案例展示的就是後續每一次開工的標準入場方式。</p>
       </div>
 
       <div class="chat">
@@ -616,7 +631,7 @@ create: 17
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI(已按 AGENTS.md 啟動)</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.8
+<pre>   /\_/\   Agent Handoff Kit vX.Y.Z
   ( o.o )  continuity ready
    > ^ <
 
@@ -823,7 +838,7 @@ Failed:              0 files
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI · 收工流程</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.8
+<pre>   /\_/\   Agent Handoff Kit vX.Y.Z
   ( -.- )  handoff saved
    > ^ <
 
@@ -888,7 +903,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI(接力)</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.8
+<pre>   /\_/\   Agent Handoff Kit vX.Y.Z
   ( o.o )  continuity ready
    > ^ <
 
@@ -1020,8 +1035,8 @@ Google Drive
         <div class="block-header"><span class="label">Terminal</span><span class="meta">~/cafe-research</span></div>
         <div class="block-body">$ <span class="hl">npx @adamchanadam/agent-handoff-kit init</span>
 
-✅ created: 17
-📦 版本:v0.1.8
+✅ created: 20
+📦 版本:vX.Y.Z
 🛠️  模式:first-install
 🚀 下一步:開新 AI 對話,按下方提示貼入 Work in &lt;root&gt; 一句後描述任務。</div>
       </div>
@@ -1044,7 +1059,7 @@ Google Drive
       <span class="badge">STEP 02 · CASE B</span>
       <h2>開工貼上提示 —— 與 Case A 同一個入口,任務描述講出 stack</h2>
       <p class="narrative">與 Case A 一樣,打開你慣用的 AI 工具(Claude Code、Codex、Gemini CLI 三選其一),開新對話,貼 <code>Work in ...</code> 那一句,接著用日常話描述任務。今次任務描述要講埋 Notion + 本機 reference + Drive deliverable 的 stack —— 因為 AI 不會自己估這套分工。</p>
-      <p class="narrative" style="font-size: 13px; opacity: 0.85;">入場路徑沿用 Case A Step 2 介紹過的<strong>老手直接句式</strong> —— 第一次安裝的新手會由 <code>Help me get started</code> 句進入 onboarding pack 一步一步帶,後續每次開工(包括本案例)都走 <code>Read AGENTS.md and follow it</code> 直接路。兩條路最終匯入同一套讀序契約,詳細對照見 Case A Step 2 的「兩條入場路」說明。</p>
+      <p class="narrative" style="font-size: 13px; opacity: 0.85;">入場方式沿用 Case A Step 2 介紹的直接句式 —— 第一次安裝會由 <code>Help me get started</code> 句進入新手引導包一步一步帶,後續每次開工(包括本案例)都走 <code>Read AGENTS.md and follow it</code> 直接路。<strong>兩種開工方式</strong>最終匯入同一套讀序契約,詳細對照見 Case A Step 2 的「兩種開工方式」說明。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1080,7 +1095,7 @@ Google Drive
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI(已按 AGENTS.md 啟動)</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.8
+<pre>   /\_/\   Agent Handoff Kit vX.Y.Z
   ( o.o )  continuity ready
    > ^ <
 
@@ -1122,20 +1137,20 @@ Google Drive
     <div class="wrap">
       <span class="badge">STEP 04 · CASE B</span>
       <h2>你確認,AI 對齊 Notion 與本機,識別空白</h2>
-      <p class="narrative">你決定將 Notion DB export 成 CSV(Notion 內建功能)放入 <code>reference/</code>,再在對話講 AI 路徑。AI 讀完 CSV,逐行對齊本機 <code>reference/</code> 裡面對應檔案,發現空白即報告 —— 不會悄悄當沒事。</p>
+      <p class="narrative">本案例假設你已在 onboarding 階段 declare 了 Notion Connector(寫入項目登記表 <code>## Installed Integrations</code>)。AI 讀齊治理檔之後跑 startup availability probe,確認 Notion Connector functional,然後**直接** <code>mcp__notion__search</code> 讀你的 DB,逐行對齊本機 <code>reference/</code> 裡面對應檔案,發現空白即報告 —— 不會悄悄當沒事。如果你未 declare Connector,AI 會 surface 缺口由你決定(裝 Connector / fallback CSV export 路徑 / 暫停)。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你</span>
-            <p>好,進入 PLAN。我剛才將 Notion DB export 為 CSV,放在 <code>reference/notion-index.csv</code>。</p>
+            <p>好,進入 PLAN。</p>
           </div>
         </div>
 
         <div class="chat-row">
           <div class="chat-bubble ai">
-            <span class="who">AI · READ 階段(對齊資料來源)</span>
-            <p>讀 <code>reference/notion-index.csv</code>,共 32 行。對齊本機 <code>reference/</code> 裡面檔案:</p>
+            <span class="who">AI · READ 階段(用 Notion Connector 直接對齊)</span>
+            <p>已 verify Notion Connector 可用。直接 <code>mcp__notion__search</code> 讀你的 DB「Cafe Research Index」,共 32 條 records。對齊本機 <code>reference/</code> 裡面檔案:</p>
 <pre>== 對齊結果 ==
 ✅ Notion 與本機都有, path 對:        24 條
 ⚠️ Notion 有登記, 本機沒有對應檔案:    5 條
@@ -1159,14 +1174,14 @@ Google Drive
               <li><code>reference/筆記-選址初探-2025-03.md</code></li>
               <li><code>reference/政府數據-社區人口-2024.xlsx</code></li>
             </ul>
-            <p>我建議將這 3 條補登記入 Notion —— 但 Notion 寫入要你做(AI 沒有寫入 access),我可以列好 metadata 給你 copy paste。</p>
+            <p>我建議將這 3 條補登記入 Notion。因為你已 declare Notion Connector 的 write access,我會 <code>mcp__notion__create-pages</code> 直接寫入 + 立即 read-back verify 每 row 寫入正確(<code>knowledge</code> 模式 Rule 6 read-back 紀律)。</p>
           </div>
         </div>
 
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你</span>
-            <p>選 1 (標 pending)。本機未登記那 3 條,你列好 metadata,我之後手動加入 Notion。</p>
+            <p>選 1 (標 pending)。本機未登記那 3 條,你直接幫我寫入 Notion。</p>
           </div>
         </div>
 
@@ -1176,7 +1191,7 @@ Google Drive
             <p>好,完成以下幾件事:</p>
             <ul>
               <li>5 條暫缺的 reference 已寫入 <code>dev/PROJECT_INDEX.md</code> Fact Base 「待補來源」section,寫報告時相關章節會自動標「結論為暫定」。</li>
-              <li>3 條本機未登記的 metadata 列好在下面,等你補入 Notion。</li>
+              <li>3 條本機未登記的 reference 經 <code>mcp__notion__create-pages</code> 寫入 Notion DB「Cafe Research Index」,每 row 隨即 <code>mcp__notion__fetch</code> read-back 確認寫入成功 + 對齊本機 path 正確。Notion 真源 + 本機真源已重新同步。</li>
             </ul>
             <p>準備好可以進入 CHANGE 階段寫報告。<strong>十頁報告章節結構建議如下,你確認才開始寫:</strong></p>
             <ol>
@@ -1198,7 +1213,7 @@ Google Drive
         <ul>
           <li><strong>對齊不是靜默</strong>:AI 主動報告「Notion 有 5 條本機缺、本機有 3 條 Notion 沒有登記」 —— 而不是跳過。這是 <code>knowledge</code> 模式紀律。</li>
           <li><strong>三選項而不是替你決定</strong>:AI 不自己選,列三個處理方向讓你確認 —— 因為這是事實取捨,涉及你的判斷。</li>
-          <li><strong>Notion 寫入不自動代辦</strong>:AI 沒有 access Notion API,亦沒有你的帳號權限 —— 將 metadata 列好你 copy paste,這是 <code>safety</code> 紀律延伸到「外部寫入」邊界。</li>
+          <li><strong>Notion 寫入用 Connector 直接執行 + read-back verify</strong>:已 declare Notion Connector 的項目,AI 用 <code>mcp__notion__create-pages</code>(或 <code>update-page</code>)直接寫入,然後立即 <code>mcp__notion__fetch</code> read-back 對齊。如果項目未 declare Connector,AI fallback 列 metadata packet 由用戶親手 paste —— 兩條路的選擇由項目登記表 <code>## Installed Integrations</code> 決定。Credential value 永不寫入治理檔(機密分離原則)。</li>
           <li><strong>缺項紀錄寫入治理檔</strong>:5 條暫缺寫入 <code>dev/PROJECT_INDEX.md</code> Fact Base「待補來源」—— 下次接力的 AI 會見到、會在對應章節提醒。</li>
         </ul>
       </div>
@@ -1209,8 +1224,8 @@ Google Drive
   <section class="step-section" id="b-step-5">
     <div class="wrap">
       <span class="badge">STEP 05 · CASE B</span>
-      <h2>寫報告(writing 模式自動加碼)+ Drive 上傳由 AI 列步驟不代辦</h2>
-      <p class="narrative">章節結構確認之後,AI 進入 CHANGE 階段寫報告草稿。涉及實際寫長文,Kit 自動加載 <code>writing</code> 模式(受眾、用途、語氣紀律)。每段 claim 都 trace 回用了哪條 reference,事實與推論明顯分開。寫完之後 export 做你想要的格式,Drive 上傳由你親手做 —— AI 只列步驟。</p>
+      <h2>寫報告(writing 模式自動加碼)+ Drive 上傳經 Connector 直接執行</h2>
+      <p class="narrative">章節結構確認之後,AI 進入 CHANGE 階段寫報告草稿。涉及實際寫長文,Kit 自動加載 <code>writing</code> 模式(受眾、用途、語氣紀律)。每段 claim 都 trace 回用了哪條 reference,事實與推論明顯分開。寫完之後 export 做你想要的格式;由於你已 declare Drive Connector,Drive upload 可由 AI 用 <code>mcp__google-drive__upload</code> 直接執行 + 設定 share permissions + read-back verify。如果你未 declare Drive Connector,AI fallback 列詳細上傳步驟由你親手做。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1250,22 +1265,22 @@ Google Drive
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你</span>
-            <p>要 docx,我自己上 Drive。</p>
+            <p>要 docx。Drive 你直接幫我上傳,share 俾合伙人 + 太太 + 業界朋友。</p>
           </div>
         </div>
 
         <div class="chat-row">
           <div class="chat-bubble ai">
-            <span class="who">AI · export 與列 Drive 上傳步驟</span>
+            <span class="who">AI · export 並用 Drive Connector 直接 upload</span>
             <p>已 export <code>report/report-final.docx</code>。</p>
-            <p>Drive 上傳這部分,因為涉及你的 Google 帳號權限,我不代辦。請按以下步驟操作:</p>
+            <p>用 Drive Connector 直接上傳:</p>
             <ol>
-              <li>打開 Google Drive(<code>drive.google.com</code>),登入你的帳號。</li>
-              <li>右上角 「+ 新增」 → 「檔案上傳」,選 <code>~/cafe-research/report/report-final.docx</code>。</li>
-              <li>上傳完之後,右鍵檔案 → 「共用」。</li>
-              <li>輸入合伙人 / 太太 / 業界朋友 的 Gmail。權限選「檢視者」就夠;「編輯者」只給想合作改稿的人。</li>
-              <li>複製 share link,之後可以將這個 link 留在<code>SESSION_HANDOFF</code> 的 risk / notes 段(我稍後會留位給你填)。</li>
+              <li><code>mcp__google-drive__upload</code> 將 <code>~/cafe-research/report/report-final.docx</code> 上傳至你項目登記表登記的「Cafe Research/」folder ✅</li>
+              <li><code>mcp__google-drive__update-permissions</code> 設定 share —— 加入合伙人 / 太太 / 業界朋友 Gmail,權限「檢視者」(編輯權限只留俾你自己,避免意外被改) ✅</li>
+              <li>read-back verify:<code>mcp__google-drive__get-file</code> 讀返檔案 metadata 確認上傳成功 + permissions 設定正確 ✅</li>
+              <li>share link 已自動寫入 <code>dev/SESSION_HANDOFF.md</code> 的 risk / notes 段(<code>https://drive.google.com/file/d/.../view</code>) ✅</li>
             </ol>
+            <p>💡 機密分離原則:Drive 的 OAuth credential 由 Claude Desktop Extensions 自動加密儲存,Kit 治理檔只記低 share link(公開座標),credential value 永不入 <code>dev/*</code>。</p>
             <p>準備好就講「收工」,我會將今次寫的東西、有 5 條暫缺、報告位置寫入交接,並提供下次接力提示。</p>
           </div>
         </div>
@@ -1278,7 +1293,7 @@ Google Drive
           <li><strong>writing 模式接力 research 與 knowledge</strong>:三個模式同時生效,但職責不同 —— research 管「來源紀律」、knowledge 管「真源唯一」、writing 管「受眾語氣」。</li>
           <li><strong>引用 inline footnote</strong>:每段 claim 帶引用,是 <code>research</code> 模式的事實與推論紀律。AI 不可以無引用憑空寫。</li>
           <li><strong>結論為暫定明示</strong>:5 條缺的 reference 影響 2 個 sub-section,AI 自動標「結論為暫定」 —— 而不是用 27 條撐住 10 頁假裝齊全。</li>
-          <li><strong>外部上傳與權限不代辦</strong>:Drive upload 與 share permission 涉及你的帳號,AI 列清楚步驟讓你跟,不自己代用 OAuth 寫入。<code>safety</code> 紀律延伸。</li>
+          <li><strong>外部上傳:Connector 直接執行 + read-back verify</strong>:已 declare Drive Connector 的項目,Drive upload + permissions 由 AI 經 <code>mcp__google-drive__*</code> tool calls 直接執行,然後 read-back 確認。OAuth credential 由 Claude Desktop Extensions 自動加密管理,Kit 不 touch credential 值本身(機密分離原則)。未 declare Connector 的項目,AI fallback 列詳細步驟由用戶親手做 —— 兩條路的選擇由項目登記表 <code>## Installed Integrations</code> 決定。</li>
         </ul>
       </div>
     </div>
@@ -1288,8 +1303,8 @@ Google Drive
   <section class="step-section" id="b-step-6">
     <div class="wrap">
       <span class="badge">STEP 06 · CASE B</span>
-      <h2>收工 —— 與 Case A 一樣的 closeout,但保留 Drive link 待你補</h2>
-      <p class="narrative">收工指令與 Case A 一樣 —— 一句「收工」或者「wrap up」。AI 進入完整 closeout,但對賬時會特別留意:Drive share link 你說親手上傳之後再補,AI 會在 SESSION_HANDOFF 留位等你填,不會自己假裝有 URL。</p>
+      <h2>收工 —— 與 Case A 一樣的 closeout,Drive link 已由 Connector 直接寫入</h2>
+      <p class="narrative">收工指令與 Case A 一樣 —— 一句「收工」或者「wrap up」。AI 進入完整 closeout。今次因為 Drive Connector 已 declare 並 functional,Drive share link 已在 Step 5 由 AI 經 Connector 直接 upload 後 read-back verify + 寫入 SESSION_HANDOFF,closeout 階段所有外部來源狀態都實際對齊(無「待填」缺口)。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1302,19 +1317,19 @@ Google Drive
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI · 收工流程</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.8
+<pre>   /\_/\   Agent Handoff Kit vX.Y.Z
   ( -.- )  handoff saved
    > ^ <
 
-✅ Done: 市場調查報告草稿完成 (10.3 頁), export 做 docx
-🔎 QC: 24 條引用 trace, 5 條暫缺已標 pending
+✅ Done: 市場調查報告草稿完成 (10.3 頁), export 做 docx, Drive upload + share 完成
+🔎 QC: 24 條引用 trace, 5 條暫缺已標 pending, Notion 3 row write read-back ok, Drive link read-back ok
 📌 Handoff: opening message ready
-⚠️ Boundary: Drive share link 由你親手上傳補, 仍未填</pre>
+⚠️ Boundary: 5 條 reference 仍 pending, 影響 2 個 sub-section</pre>
             <p>已對賬式更新:</p>
             <ul>
-              <li><code>dev/SESSION_HANDOFF.md</code> current state:報告草稿與 final docx 已生成 (位置 <code>report/report-final.docx</code>);next priority:你上 Drive 加 share,將 link 填回 handoff 或者下次告訴 AI。</li>
-              <li><code>dev/SESSION_LOG.md</code> 新增 entry:Notion 對齊結果、5 條 pending、章節結構、引用數目。</li>
-              <li><code>dev/PROJECT_INDEX.md</code> Fact Base:30 條已 ingest reference 加 5 條 pending 加報告位置。</li>
+              <li><code>dev/SESSION_HANDOFF.md</code> current state:報告草稿與 final docx 已生成 (位置 <code>report/report-final.docx</code>);Drive link <code>https://drive.google.com/file/d/.../view</code> 已 share 俾合伙人 + 太太 + 業界朋友;next priority:等合伙人 feedback 後修訂。</li>
+              <li><code>dev/SESSION_LOG.md</code> 新增 entry:Notion 對齊結果(3 row Connector direct write + read-back ok)、5 條 pending、章節結構、引用數目、Drive upload + share via Connector。</li>
+              <li><code>dev/PROJECT_INDEX.md</code> Fact Base:32 條已 ingest reference 加 5 條 pending 加報告位置 + Drive folder。Installed Integrations 的 Notion / Drive Connector <code>Last Verified</code> cell 更新今日日期。</li>
             </ul>
             <p>下次開工請貼以下一段(已同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code>):</p>
             <p>📋 Next session: copy and paste the whole block below</p>
@@ -1322,7 +1337,8 @@ Google Drive
 
 Current state: 報告 final.docx 已寫好, 結論為「6 個月試水溫」。
 5 條 reference 仍 pending, 影響 2 個 sub-section。
-Drive share link: 待填 (我已自己上傳, link 為 https://...)。
+Drive share link: https://drive.google.com/file/d/.../view (已 share 俾合伙人 + 太太 + 業界朋友)。
+Installed Integrations: Notion Connector + Drive Connector 上次 verify 今日 ok。
 
 Next: 視你回應而定 —— 改建議 / 加 reference / 改章節 / 製作 pitch deck 衍生。
 
@@ -1337,7 +1353,8 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
         <ul>
           <li><strong>對賬式而非追加</strong>:AI 不會將新狀態追加在舊狀態下面 —— current state 必須逐段對賬覆寫。</li>
           <li><strong>fenced text 開工提示</strong>:與 Case A 一樣,下次開工文字一定包在 <code>```text</code> code block。</li>
-          <li><strong>缺項保留</strong>:Drive share link 仍沒有,AI 不自己編 URL —— 留位待你補。這是 Kit 的「未核實事實不可寫作已核實」紀律。</li>
+          <li><strong>Connector functional → 真實狀態而非「待填」placeholder</strong>:已 declare Connector 的項目,外部 surface 狀態(Drive link / Notion 寫入)由 AI 直接驗證後寫入 handoff;沒有「待你補」缺口。如未 declare Connector,AI fallback 留 placeholder 等你補 —— 仍係「未核實事實不可寫作已核實」紀律,但實現方式由 Installed Integrations declaration 決定。</li>
+          <li><strong>Installed Integrations Last Verified 更新</strong>:每次 closeout 將今日成功 verify 的 Connector entry `Last Verified` cell 更新 —— 跨 session drift detection 的持久化基礎。</li>
           <li><strong>跨案例一致</strong>:Case A 與 Case B 兩個任務性質完全不同,但 closeout 流程同一套 —— 即是說將來你做第三個、第四個案例,流程仍是這套。</li>
         </ul>
       </div>
@@ -1370,7 +1387,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI · 接力</span>
-<pre>   /\_/\   Agent Handoff Kit v0.1.8
+<pre>   /\_/\   Agent Handoff Kit vX.Y.Z
   ( o.o )  continuity ready
    > ^ <
 
@@ -1501,8 +1518,8 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
   <section class="step-section" id="c-phase-2">
     <div class="wrap">
       <span class="badge">DAY 30 · CASE C</span>
-      <h2>需求演進 —— AI 偵測到任務轉向,自動 append Evolution Timeline</h2>
-      <p class="narrative">過了一個月,經過 5-6 個 session,你的需求慢慢演進:由「markdown 校對」變成「markdown + LaTeX + 程式碼註釋校對」,再加入「協同編輯模式」。Active Objective 的 narrative 已經與 Day 1 有 substantial diff。AI 偵測到 substantive task evolution signal,自動 maintain 條件 b 觸發,自動 append entry 至 <code>## Evolution Timeline</code>。</p>
+      <h2>需求演進 —— AI 偵測到任務轉向,自動 append Evolution Timeline + Integration declaration update</h2>
+      <p class="narrative">過了一個月,經過 5-6 個 session,你的需求慢慢演進:由「markdown 校對」變成「markdown + LaTeX + 程式碼註釋校對」,再加入「協同編輯模式」。同一期間,團隊新加了一個 Slack channel 作為內部 feedback 渠道、用 Linear 跟進 feature backlog —— 你在第 4 個 session 時 declare 了 Slack Connector + Linear Connector 入項目登記表 <code>## Installed Integrations</code>。Active Objective 的 narrative 已經與 Day 1 有 substantial diff。AI 偵測到 substantive task evolution signal,自動 maintain 條件 b 觸發,自動 append entry 至 <code>## Evolution Timeline</code> —— 同時 reflect Integration registry 增加了兩個 entries。</p>
 
       <div class="chat">
         <div class="chat-row user">

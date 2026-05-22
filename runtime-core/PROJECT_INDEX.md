@@ -49,9 +49,52 @@ Reachable means the source can be found. It does not mean the source has been re
 
 ## External Sources
 
-| Source | Role | Required before | Access method | Write-back rule | Last verified |
-|---|---|---|---|---|---|
-| TBD | source of truth / mirror / index / attachment store | TBD | URL, connector, or manual packet | read-back required / manual only / no write | TBD |
+| Source | Role | Required before | Access method | `via` | Write-back rule | Last verified |
+|---|---|---|---|---|---|---|
+| TBD | source of truth / mirror / index / attachment store | TBD | URL, connector, or manual packet | `Notion Connector` / `Drive Connector` / `manual paste` / etc — must match an entry under `## Installed Integrations` | read-back required / manual only / no write | TBD |
+
+> `via` column 紀律：每行 External Sources 必引用 `## Installed Integrations` 嘅 entry 名稱（譬如 `Notion Connector`、`Drive Connector`），確認該 source 經邊個 integration 訪問；無 declared Integration 嘅 source 用 `manual paste`。Cross-section consistency 由 doctor + qa:release 強制 enforce。
+
+## Installed Integrations
+
+> ⚠️ **機密分離原則**：本 section 只記錄 **項目使用紀錄** + **公開參考座標**（Notion DB 名 / URL / folder path 等），**絕對不記錄 API key / OAuth token / 任何 credential value**。Credential 應由 AI 工具自身 secure storage 管理（譬如 Claude Desktop Extensions 嘅 OS Keychain / Claude Code MCP config）。AI 寫入本 section 前必 self-check 確認無 credential leak；doctor 對本 section + SESSION_HANDOFF + SESSION_LOG 強制 grep credential prefix patterns（`sk-` / `ntn_` / `ya29.` / `xoxp-` / `ghp_` / `sl.` / `AKIA` / `AIza` 等）。
+
+> 用途：新 AI session 開工讀本 section 知道項目可用嘅外部工具能力 + 各自分工。Declare 一次後跨 session AI 都會 leverage；每個 entry 必含 `Declared` + `Last Verified` 防漂移。
+
+### Connectors（Anthropic 官方 vetted）
+
+| Tool | Project Usage | Access Scope | Specific Instance | Credential Location | Declared | Last Verified |
+|------|---------------|--------------|-------------------|---------------------|----------|---------------|
+| TBD | TBD（譬如 DB Index 記真源 path / 持久化參考檔儲存） | read / read+write | TBD（譬如 DB 名 + URL / folder path） | TBD（譬如 `Claude Desktop Extensions`） | TBD | TBD |
+
+### MCPs（community / custom）
+
+| Server | Source | Project Usage | Credential Location | Declared | Last Verified |
+|--------|--------|---------------|---------------------|----------|---------------|
+| TBD | TBD（譬如 GitHub repo URL） | TBD | TBD（譬如 `Claude Code MCP config + env var`） | TBD | TBD |
+
+### Plugins（Claude Code plugin bundle）
+
+| Name | Bundle Content（Skills + MCP + hooks） | When Triggered | Last Verified |
+|------|----------------------------------------|----------------|---------------|
+| TBD | TBD | TBD | TBD |
+
+### Skills（SKILL.md instruction set）
+
+| Name | Source | When Triggered | Last Verified |
+|------|--------|----------------|---------------|
+| TBD | TBD（譬如 plugin bundle / user-level install） | TBD | TBD |
+
+### Source-of-truth Architecture（多層持久化組合）
+
+> 當項目用多個整合構成 source-of-truth 架構（譬如 Notion DB Index + 本機真源 + Drive 參考檔），本表描述每層分工，避免 AI 跨層越界。
+
+| Layer | Surface（具體 instance） | Role | Write Direction |
+|-------|--------------------------|------|-----------------|
+| 真源（source of truth） | TBD（譬如 本機 `~/project/reference/`） | 原始可審計 reference 內容 | 用戶手動置入；AI 不直接寫入 |
+| Index | TBD（譬如 Notion DB「Project Index」） | 登記每份真源檔 metadata + 摘要 + tag | AI 經 Connector 直接讀寫 |
+| 持久化參考檔（mirror） | TBD（譬如 Drive folder「Project Reference/」） | 防本機 disk failure / 跨裝置 access | 用戶手動同步；AI 唔自動 push |
+| Working draft | TBD（譬如 本機 `~/project/output/`） | AI 寫 task output | AI 直接 read + write 本機 |
 
 ## Local QC Commands
 
