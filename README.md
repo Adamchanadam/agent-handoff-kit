@@ -199,6 +199,15 @@ npm package 只包含安裝所需內容：
 
 GitHub Pages 上的兩個 onboarding 頁 —— [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html)（60 秒入門）與 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)（實操指南）—— 由原始碼倉庫根目錄發佈；兩個 HTML 與 `images/` 是原始碼倉庫資產，不會安裝到你的專案。
 
+## 配合 Adam-AI-Instructions 使用
+
+Agent Handoff Kit 同 [Adam-AI-Instructions](https://github.com/prompt-templates/Adam-AI-Instructions)（Meta Instruction for AI）配合使用效果最好。兩者分工互補，不重疊：
+
+- **Adam-AI-Instructions** 負責 AI 喺**單一對話**內嘅做事規矩：語氣、做事優先序、回覆骨架、計算紀律、用語紀律、安全護欄、輸出層分工。屬「AI 應該點答你」嘅持久基準。
+- **Agent Handoff Kit** 負責 AI 喺**對話之間**嘅接力：當前狀態、下一步、檔案登記、收工同下次開工。屬「AI 對話之間點記憶你個項目」嘅持久基準。
+
+到該 repo 嘅「**五、Prompt 索引**」揀啱你 AI 工具嘅 prompt（Claude Cowork / Claude Code / OpenAI Codex / ChatGPT 等），複製對應子目錄嘅 `prompt.md` 全文，貼入 AI 工具嘅 system prompt、personal preferences 或 project instructions（例如 Claude Cowork 的 Global Instructions、Claude Code 的 `~/.claude/CLAUDE.md`、ChatGPT 的 Custom Instructions）。然後再喺項目資料夾跑 `npx @adamchanadam/agent-handoff-kit init` 安裝呢套 Kit。兩者配合就能涵蓋「單次對話質素」+「跨對話接力」兩個維度。
+
 ## 目前限制
 
 - `v0.1.8` 是 GitHub 與 npm 同步發佈版本。
