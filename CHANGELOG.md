@@ -1,5 +1,55 @@
 # 變更紀錄
 
+## v0.2.2 — 2026-05-22
+
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。屬 v0.2.1 嘅 immediate follow-up patch，修補 internal reference IDs（v2-specific governance jargon）泄露於 user-facing surface 嘅 gap。Adam catch 揭發 R-026 forbidden vocabulary sweep 第三次 design gap —— scope expansion 仍不夠 comprehensive。
+
+### Critical fix（R-029.4 — Internal reference ID leak on user-facing surfaces）
+
+v0.2.0 + v0.2.1 release 落地時，user-facing surfaces（README + agent-handoff-kit-intro.html + agent-handoff-kit-guide.html）大量混入 v2-specific internal governance references：
+
+- R-XXX explicit IDs（R-010 / R-026 / R-028 / R-029 等）—— 10+ 處
+- 「closeout step 12」/「closeout step N」internal step numbering —— 多處
+- 「strict mechanical」internal discipline jargon —— 多處
+
+R-026 forbidden vocabulary sweep 嘅 v0.2.0 + v0.2.1 scope **只 cover 自貶 phrase**（譬如 v0.1.X 時期 retired 嘅特定 wording），**唔 cover internal governance jargon**。Adam observation 揭發呢個 silent gap。
+
+v0.2.2 修補：
+
+- **User-facing surface 全部 internal references normalize 為人話**：
+  - `R-029 onboarding trigger` → 「新手引導 trigger」
+  - `SESSION_LOG 接力角色紀律(R-010)` → 「SESSION_LOG 接力角色紀律（自動整理機制）」
+  - `closeout step 12 (a)/(b) trigger` → 「AI 收工時嘅自動 maintain 條件 a/b」
+  - `R-028 紀律` → 「AI 嘅自動 maintain 紀律」
+  - `Split 紀律 strict mechanical` → 「Split 紀律屬硬性自動執行」
+- **R-026 sweep scope 第三次擴展**：`scripts/check-release-readiness.mjs` 加 `internalReferenceForbidden` patterns（`/R-\d{3}/` + `/closeout step \d+/` + `/strict mechanical/i`），對 3 個 user-facing surface（README + intro + guide）強制 grep 0 命中。違反即 throw error，release 阻擋。永久 enforce internal jargon block。
+- **CHANGELOG 嘅 historical entries 自然 reference R-XXX**（屬 release 敘事必要），由既有 anchor-bounded grep 排除 historical sections（v0.2.2 release notes 本身列 R-029.4 + earlier R-XXX，仍係 latest section，但 internal-reference sweep scope 排除 CHANGELOG）。
+
+### Honest reflection（R-026 設計再次 demonstrate scope insufficient）
+
+R-026 forbidden vocabulary sweep 三次 design gap 累積揭發：
+
+1. **v0.1.7 落地時**：scope = CLI source only（`bin/agent-handoff-kit.mjs`）
+2. **v0.2.0 expansion**：scope 擴展 release artifacts（README + onboarding HTML + CHANGELOG anchor-bounded）—— 但 only enforce 既有自貶 phrase patterns
+3. **v0.2.1 cross-surface alignment**：加 canonical trigger phrase positive consistency check —— 但仍未 enforce internal reference ID block
+4. **v0.2.2 internal reference block（本 patch）**：加 internal ID + step numbering + discipline jargon patterns enforcement
+
+呢個 progressive scope expansion pattern 反映 v2 governance 設計嘅 systemic 教訓：**R-026 嘅 forbidden vocabulary 設計從一開始應該 separate concerns**：
+
+- **自貶 vocabulary**（譬如 v0.1.X 時期 retired 嘅特定 wording）—— 屬語氣紀律
+- **Internal reference ID**（R-XXX / closeout step N）—— 屬 surface 隔離紀律
+- **Cross-surface canonical phrase**（R-029 trigger phrase）—— 屬一致性紀律
+
+三者唔應該全部 ad-hoc 加入同一個 sweep helper —— 應該 separate 為 3 個 forbidden categories。但既有 design 已混入 `checkForbiddenVocabulary()` helper 入面，v0.2.2 沿用同樣 pattern（加 `internalReferenceForbidden` array），future refactor 可以重組為 categorical sweeps。
+
+### Migration path（v0.2.0 / v0.2.1 → v0.2.2）
+
+既有用戶 upgrade 無影響：
+
+1. v0.2.2 嘅改動限於 release artifact wording + scripts QA sweep；唔影響 runtime behavior
+2. `upgrade` action 對 v0.2.0 / v0.2.1 既有 install state 行為一致
+3. RULE_PACKS.md routing table 已喺 v0.2.1 force-refresh，無需再做
+
 ## v0.2.1 — 2026-05-22
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。屬 v0.2.0 嘅 critical patch release，修補 R-029 落地時嘅 cross-surface wording inconsistency + 升級流程 routing table 漏網 + QC 流程粗疏 gap。

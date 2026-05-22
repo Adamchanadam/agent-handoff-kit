@@ -454,7 +454,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.2.1 · 七步流程完整示範 + 長期項目演進</span>
+    <span class="kicker">v0.2.2 · 七步流程完整示範 + 長期項目演進</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">兩個日常情景 —— 整理電腦下載目錄、開咖啡店的市場調查 —— 完整示範 Agent Handoff Kit 的七步流程。每一步都會見到 AI 主動宣告載入哪個工作模式、寫入哪份交接文件、輸出哪段下次開工提示。</p>
   </div>
@@ -465,7 +465,7 @@
     <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
       <div style="background: var(--yellow); color: var(--ink); padding: 10px 16px; font-family: var(--font-mono); font-weight: 700; font-size: 14px; letter-spacing: 0.05em;">🚀 第一次用?</div>
       <div style="flex: 1; min-width: 280px;">
-        <p style="margin: 0 0 12px; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>安裝完成後,在 AI 對話中貼上 CLI 顯示的 R-029 onboarding trigger prompt:</p>
+        <p style="margin: 0 0 12px; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>安裝完成後,在 AI 對話中貼上 CLI 顯示的新手引導 prompt:</p>
         <p style="margin: 0 0 12px; font-family: var(--font-mono); font-size: 13px; background: rgba(255,255,255,0.15); padding: 8px 12px;">Work in &lt;你的資料夾&gt;. I just installed agent-handoff-kit. Help me get started.</p>
         <p style="margin: 0; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會自動載入 onboarding pack,引導你選擇情景並一步一步帶你做第一個任務。<strong>下方 Case A/B/C 屬已熟悉 v2 的 advanced user path</strong>(用戶直接描述任務,AI 直接載入工作模式)。本指南是參考對照,你可以之後或者想看 narrative example 時再開。</p>
       </div>
@@ -848,7 +848,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
           <li><strong>對賬式更新</strong>:AI 不會將新狀態追加在舊狀態下面 —— 必須逐段對賬 <code>SESSION_HANDOFF</code> 的 current state、改為當前事實,避免新日期配舊快照。</li>
           <li><strong>fenced text 開工提示</strong>:輸出的下次開工文字一定包在 <code>```text</code> code block 裡面 —— 讓你可以一鍵複製,不會挾走前後的閒文。</li>
           <li><strong>START_NEXT_SESSION_PROMPT.txt 自動同步</strong>:fenced text 的內容會同時寫入這個副本 —— 下次新對話打開,你可以直接在檔案 cat / copy。<code>SESSION_HANDOFF.md</code> 仍是權威真源,副本只是方便。</li>
-          <li><strong>SESSION_LOG 接力角色紀律(R-010)</strong>:接力靠 <code>SESSION_HANDOFF.md</code>,<code>SESSION_LOG.md</code> 屬 trace-back 冷資料層。每次收工,AI 自動執行 N 規則(N = session 數):N=1-3 留 full 做 safety buffer;N=4-10 已吸收的降短索引(reference 用結構 anchor);N=11+ archive 至 <code>dev/SESSION_LOG_archive/archive_&lt;batch&gt;_&lt;date_range&gt;.md</code>,主檔末尾留 archive index 段。主檔長期保持短小;若要 trace 歷史則前往 archive 目錄。<code>doctor</code> 會在主檔過長時 warn(warn-only,不阻 release)。</li>
+          <li><strong>SESSION_LOG 接力角色紀律（自動整理機制）</strong>:接力靠 <code>SESSION_HANDOFF.md</code>,<code>SESSION_LOG.md</code> 屬 trace-back 冷資料層。每次收工,AI 自動執行 N 規則(N = session 數):N=1-3 留 full 做 safety buffer;N=4-10 已吸收的降短索引(reference 用結構 anchor);N=11+ archive 至 <code>dev/SESSION_LOG_archive/archive_&lt;batch&gt;_&lt;date_range&gt;.md</code>,主檔末尾留 archive index 段。主檔長期保持短小;若要 trace 歷史則前往 archive 目錄。<code>doctor</code> 會在主檔過長時 warn(warn-only,不阻 release)。</li>
         </ul>
       </div>
     </div>
@@ -1478,7 +1478,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
         <span class="label">Kit 內置邏輯</span>
         <h3>Day 1 PROJECT_DECISIONS.md 為何保持 (empty)?</h3>
         <ul>
-          <li><strong>短期 vs 長期信號</strong>:AI 開工時 smart-detect 項目特性。Session count = 1、Active Objective 簡單清晰、Confirmed Decisions = 0 —— 全部屬短期信號。Closeout step 12 的 4 個 trigger 條件 (a)/(b)/(c)/(d) 全部未觸發,本檔保持 no-op default。</li>
+          <li><strong>短期 vs 長期信號</strong>:AI 開工時 smart-detect 項目特性。Session count = 1、Active Objective 簡單清晰、Confirmed Decisions = 0 —— 全部屬短期信號。AI 收工時的 4 個自動 maintain trigger 條件 (a)/(b)/(c)/(d) 全部未觸發,本檔保持 no-op default。</li>
           <li><strong>用戶感知 transparent</strong>:你不需要打開 PROJECT_DECISIONS.md,亦不需要知道它存在。AI 收工時不會 mention 本檔,因為沒有 narrative 要 archive。</li>
           <li><strong>schema 已建立</strong>:即使本檔 (empty),4 個 H2 section heading 已由 installer 建立。日後若項目演進為長期形態,AI 可即時開始 append,無需 schema migration。</li>
         </ul>
@@ -1491,7 +1491,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
     <div class="wrap">
       <span class="badge">DAY 30 · CASE C</span>
       <h2>需求演進 —— AI 偵測到任務轉向,自動 append Evolution Timeline</h2>
-      <p class="narrative">過了一個月,經過 5-6 個 session,你的需求慢慢演進:由「markdown 校對」變成「markdown + LaTeX + 程式碼註釋校對」,再加入「協同編輯模式」。Active Objective 的 narrative 已經與 Day 1 有 substantial diff。AI 偵測到 substantive task evolution signal,closeout step 12 (b) trigger 啟動,自動 append entry 至 <code>## Evolution Timeline</code>。</p>
+      <p class="narrative">過了一個月,經過 5-6 個 session,你的需求慢慢演進:由「markdown 校對」變成「markdown + LaTeX + 程式碼註釋校對」,再加入「協同編輯模式」。Active Objective 的 narrative 已經與 Day 1 有 substantial diff。AI 偵測到 substantive task evolution signal,自動 maintain 條件 b 觸發,自動 append entry 至 <code>## Evolution Timeline</code>。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1509,7 +1509,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
               <li>Session count 已達 6,Confirmed Decisions 累積 4 條</li>
               <li>長期項目信號出現 —— 我將更主動 detect (b)/(c)/(d) trigger</li>
             </ul>
-            <p>R-028 closeout step 12 (b) 觸發:append entry 至 PROJECT_DECISIONS.md <code>## Evolution Timeline</code>:</p>
+            <p>AI 自動偵測到任務需求演進,觸發 append entry 至 PROJECT_DECISIONS.md <code>## Evolution Timeline</code>:</p>
 <pre style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:14px;">### 2026-XX-XX: 需求由 markdown MVP 演進為多語法 + 協同編輯
 原 Day 1 Active Objective: 「markdown MVP 校對與風格建議」
 經 6 session 演進: 加入 LaTeX 支援 (Session 2)、程式碼註釋校對 (Session 4)、協同編輯模式 (Session 6)。
@@ -1537,7 +1537,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
     <div class="wrap">
       <span class="badge">DAY 60 · CASE C</span>
       <h2>決策累積 —— Confirmed Decisions 達 30 條,AI 自動 split 落 Decisions Archive</h2>
-      <p class="narrative">再過一個月,Session count 累積至 15,SESSION_HANDOFF 的「Confirmed Decisions」段累積至 32 條。R-028 closeout step 12 (a) trigger 觸發:AI 自動 split 最舊的條目落 PROJECT_DECISIONS.md <code>## Decisions Archive</code>,保留最近 8-22 條在 HANDOFF hot tier。</p>
+      <p class="narrative">再過一個月,Session count 累積至 15,SESSION_HANDOFF 的「Confirmed Decisions」段累積至 32 條。AI 自動偵測到 Confirmed Decisions 累積邊界,觸發自動 split:最舊的條目落 PROJECT_DECISIONS.md <code>## Decisions Archive</code>,保留最近 8-22 條在 HANDOFF hot tier。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1552,7 +1552,7 @@ After reading SESSION_HANDOFF, recommend next concrete step.</pre>
             <p>進行 closeout 流程。檢測到:</p>
             <ul>
               <li>SESSION_HANDOFF Confirmed Decisions 累積至 32 條,超過 30 split 邊界</li>
-              <li>R-028 closeout step 12 (a) trigger 啟動</li>
+              <li>自動 split 條件啟動 (Confirmed Decisions ≥ 30)</li>
             </ul>
             <p>執行 split:</p>
 <pre style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:14px;">保留在 HANDOFF hot tier (最近 12 條): #21 - #32
@@ -1573,7 +1573,7 @@ Rationale: 長文本 200k context window 對程式碼註釋校對任務更穩定
         <span class="label">Kit 內置邏輯</span>
         <h3>(a) split + (c) architecture append 同時觸發</h3>
         <ul>
-          <li><strong>Split 紀律 strict mechanical</strong>:30 條為硬性閾值。HANDOFF Confirmed Decisions 累積至 30+ 必 split,不會因 session 性質而豁免。保留 8-22 條在 hot tier,具體保留數視乎 narrative coherence (避免突兀切斷一個 cluster of decisions)。</li>
+          <li><strong>Split 紀律屬硬性自動執行</strong>:30 條為硬性閾值。HANDOFF Confirmed Decisions 累積至 30+ 必 split,不會因 session 性質而豁免。保留 8-22 條在 hot tier,具體保留數視乎 narrative coherence (避免突兀切斷一個 cluster of decisions)。</li>
           <li><strong>Multi-option trade-off 的明確 trigger</strong>:plan 階段列出 ≥ 2 候選路徑 + 選擇其中一條 + 記錄 rationale —— 三個條件同時滿足才觸發 (c) trigger。簡單「我選 A 或 B」式 binary choice 不觸發,因為缺 rationale 紀律。</li>
           <li><strong>HANDOFF 仍是接力真源</strong>:即使 Confirmed Decisions split 過,HANDOFF 仍含當前 active decisions。新 AI session 接力只需讀 HANDOFF + PROJECT_INDEX + 相關 R 表,不需要讀 PROJECT_DECISIONS。後者只在「之前為何這樣做」的 retrospective 查詢時才被讀。</li>
         </ul>
@@ -1615,7 +1615,7 @@ Rationale: 長文本 200k context window 對程式碼註釋校對任務更穩定
         <h3>Retrospective query 的完整 flow</h3>
         <ul>
           <li><strong>HANDOFF + PROJECT_INDEX 不夠就查 warm tier</strong>:AI 開工讀 hot tier 已足夠處理當前任務。當用戶提出 retrospective question(「之前為何」「最初設計是甚麼」「哪個 session 改了這項」),AI 自動 reach into PROJECT_DECISIONS warm tier。</li>
-          <li><strong>不需要用戶記得文件名</strong>:你只需要問問題,AI 自己會去 PROJECT_DECISIONS 找。你不需要記 4 個 H2 section name,亦不需要記 R-028 紀律。</li>
+          <li><strong>不需要用戶記得文件名</strong>:你只需要問問題,AI 自己會去 PROJECT_DECISIONS 找。你不需要記 4 個 H2 section name,亦不需要記 AI 的自動 maintain 紀律。</li>
           <li><strong>SESSION_LOG archive trace-back</strong>:若 PROJECT_DECISIONS 的 entry 不夠詳細,AI 可進一步查 SESSION_LOG_archive 對應 batch,找到當時 closeout 的完整 narrative。Hot → Warm → Cold 三層 fallback 完整。</li>
           <li><strong>新手用戶完全 transparent</strong>:你從來沒有打開過 PROJECT_DECISIONS.md,亦沒有打開過 SESSION_LOG_archive 目錄,沒有記住 schema —— 但你的項目歷史 narrative 全部完整保留,AI 隨時可以幫你 retrieve。</li>
         </ul>
@@ -1654,7 +1654,7 @@ Rationale: 長文本 200k context window 對程式碼註釋校對任務更穩定
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.2.1 · MIT License</p>
+      <p>v0.2.2 · MIT License</p>
     </div>
   </div>
 </footer>

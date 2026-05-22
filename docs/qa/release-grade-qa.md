@@ -117,6 +117,14 @@ npm package 由 `package.json` 的 `files` 控制：
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
 
+## v0.2.2 發佈狀態
+
+- 發佈版本：`0.2.2`。
+- release notes：`CHANGELOG.md` 的 `v0.2.2` 段落。
+- 發佈內容：Critical patch release 修補 v0.2.0 + v0.2.1 release 落地時嘅 **internal reference ID leak on user-facing surfaces** —— R-XXX explicit IDs / closeout step N internal numbering / strict mechanical discipline jargon 大量混入 README + intro.html + guide.html。R-026 forbidden vocabulary sweep 第三次 design gap：scope 只 cover「人話解讀」自貶 phrase，唔 cover internal governance jargon。**v0.2.2 修補**：(a) 10+ 處 user-facing surface internal references normalize 為人話（R-029 → 新手引導 / R-028 紀律 → AI 自動 maintain 紀律 / closeout step 12 → AI 收工時嘅自動 maintain 條件 / strict mechanical → 硬性自動執行 等）；(b) `scripts/check-release-readiness.mjs` 加 `internalReferenceForbidden` patterns 對 3 個 user-facing surface 強制 grep 0 命中（R-\d{3} / closeout step \d+ / strict mechanical patterns）；(c) CHANGELOG historical entries 自然 reference R-XXX 屬 release 敘事必要，由既有 anchor-bounded grep strategy 排除（internal-reference sweep scope 不 cover CHANGELOG）。Honest reflection：R-026 forbidden vocabulary 設計從一開始應該 separate concerns（自貶 vocab / internal ID / canonical phrase），但既有 ad-hoc 累加 pattern 沿用，future refactor 可重組為 categorical sweeps。
+- 發佈前驗收：qa:release 全綠（既有 18 assertion + 3 個新 internal-reference sweep verifications，總 21 個 assertion）+ post-install CLI output 含 canonical R-029 trigger phrase（沿用 v0.2.1 紀律）+ chain test RULE_PACKS routing row 強制 assertion 通過。
+- npm 狀態：已 npm publish；npm latest 為 `0.2.2`；package fileCount 23（不變 by R-029.4 design — patch 屬 wording/QC discipline，唔加新 file）。
+
 ## v0.2.1 發佈狀態
 
 - 發佈版本：`0.2.1`。

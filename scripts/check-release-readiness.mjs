@@ -204,6 +204,21 @@ function main() {
   checkForbiddenVocabulary("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), r026Forbidden);
   checkForbiddenVocabularyInChangelogLatestSection(read("CHANGELOG.md"), r026Forbidden);
 
+  // v0.2.2 R-029.4: Internal reference ID sweep. v2-specific governance IDs (R-XXX) and
+  // step numbering ("closeout step N") and discipline jargon ("strict mechanical") must
+  // not appear on user-facing surfaces. v0.2.0 + v0.2.1 release shipped with R-028 / R-029 /
+  // R-010 etc explicit IDs leaking into onboarding HTML — these are maintainer-only
+  // governance references that have no meaning to end users. v0.2.2 patches this by
+  // extending R-026 forbidden vocabulary scope to include internal jargon patterns,
+  // permanently enforced across user-facing surfaces. CHANGELOG historical sections
+  // and the v0.2.2 release notes itself naturally reference R-029.4 + earlier R-XXX
+  // IDs as part of the release narrative, so the latest CHANGELOG section is excluded
+  // from this sweep (R-026 anchor-bounded pattern reused).
+  const internalReferenceForbidden = [/R-\d{3}/, /closeout step \d+/, /strict mechanical/i];
+  checkForbiddenVocabulary("README.md", read("README.md"), internalReferenceForbidden);
+  checkForbiddenVocabulary("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), internalReferenceForbidden);
+  checkForbiddenVocabulary("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), internalReferenceForbidden);
+
   // Onboarding HTML book-language discipline — Cantonese spoken characters must not appear
   // in user-facing HTML (Wording style: 繁體中文書面語). Triggers if any of the listed
   // characters appear outside explicitly allowed contexts.
