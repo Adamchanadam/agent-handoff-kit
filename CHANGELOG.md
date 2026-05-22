@@ -1,5 +1,58 @@
 # 變更紀錄
 
+## v0.2.1 — 2026-05-22
+
+狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。屬 v0.2.0 嘅 critical patch release，修補 R-029 落地時嘅 cross-surface wording inconsistency + 升級流程 routing table 漏網 + QC 流程粗疏 gap。
+
+### Critical fixes (R-029.1 + R-029.2 + R-029.3)
+
+#### R-029.1 — Cross-surface wording inconsistency fix
+
+v0.2.0 release 落地時，R-029 嘅 onboarding trigger phrase（「I just installed agent-handoff-kit. Help me get started.」）只出現於 README + onboarding HTML 嘅新加 R-029 callouts。**CLI 安裝後 print 出嚟嘅 next-step prompt 仍係 legacy v0.1.X wording**（「Read AGENTS.md and follow it. Before changing anything, tell me current state...」）—— 用戶跑完 npm install 見到嘅 default prompt **唔會 trigger R-029 onboarding pack**。R-029 design intent 對 default user behavior 失效。
+
+v0.2.1 修補：
+
+- `bin/agent-handoff-kit.mjs` `printInstallNextSteps` 更新 post-install prompt 至 canonical R-029 trigger：`Work in <root>. I just installed agent-handoff-kit. Help me get started.`（雙 signal trigger：「I just installed」+「Help me get started」，AI startup detection 必 fire）
+- `bin/agent-handoff-kit.mjs` `printHelp` "After install" 段對齊 R-029 vision
+- 既有 returning-user prompt 保留為 fallback option（喺 install output 第二段呈現）
+- `README.md` 三步上手 step 2 對齊：first-time = R-029 trigger，returning = legacy prompt
+- `agent-handoff-kit-intro.html` #howto Step 2 + #recap cell 1 對齊
+- `agent-handoff-kit-guide.html` hero R-029 callout 加 disclaimer：「下方 Case A/B/C 屬已熟悉 v2 嘅 advanced user path（用戶直接描述任務）」明確 distinction
+
+#### R-029.2 — Upgrade flow routing table propagation gap fix
+
+v0.2.0 既有 upgrade 紀律對 `dev/RULE_PACKS.md` 沿用 default `skip "preserve existing file"` —— 即 v0.1.X 用戶 upgrade 至 v0.2.0 後，routing table **仍係舊版**，唔含 R-029 嘅「First-time user signals」routing row。Doctor PASS but routing inconsistent —— silent degradation。
+
+v0.2.1 修補：
+
+- `bin/agent-handoff-kit.mjs` `classifyExistingFile`：對 `dev/RULE_PACKS.md` 加 force-update merge logic。當 stale state (targetText 唔含「First-time user signals」) detected，trigger `action: "merge"` 用 latest source 覆寫。
+- Architectural reclassification：`dev/RULE_PACKS.md` 由 user customization target 重新歸類為 **maintainer-owned routing table**（同 AGENTS.md managed core block 同類紀律）—— 用戶 customization 應歸入 pack 自身（packs/*.md），唔屬 routing table。
+- `bin/agent-handoff-kit.mjs` schemaChecks for `dev/RULE_PACKS.md` 加 strict anchor `First-time user signals` + `dev/rules/onboarding.md` —— enforce v0.2.x routing 紀律。
+- `scripts/check-upgrade-safety.mjs` chain test final hop 加 assertion：upgrade 完成後 `dev/RULE_PACKS.md` 必含 R-029 routing row。
+
+#### R-029.3 — QC 流程 process gap fix
+
+v0.2.0 release ceremony 嘅 QC 流程**漏咗幾個 dimension**：
+
+- Plan scope coverage matrix 嘅三層（content / script / source）未 cover cross-surface wording alignment（第四 dim）
+- qa:upgrade chain test 只驗 doctor PASS，唔驗 routing 紀律 propagation
+- Doctor schema check 對 routing table 唔 strict
+- 🟡 發佈檢 6 項唔含 cross-surface wording verification
+
+v0.2.1 修補 QC process：
+
+- `scripts/check-release-readiness.mjs` 加 `checkCrossSurfaceWordingConsistency()` helper —— 對 4 個 surface（CLI source + README + intro.html + guide.html）grep canonical R-029 trigger phrase 一致
+- `scripts/check-public-prototype.mjs` 加 post-install CLI output 含 R-029 trigger phrase assertion
+- `scripts/check-upgrade-safety.mjs` chain test 加 RULE_PACKS.md routing row 強制 verification
+- `docs/qa/release-grade-qa.md` 治理 QA 缺口矩陣加新 dim「Cross-surface wording alignment」
+- `docs/qa/release-grade-qa.md` 加 Cross-surface Wording Consistency Sweep section
+- 🟡 發佈檢由 6 項擴展為 7 項（第 7 項為 cross-surface wording consistency）
+- 補丁前置狀態枚舉加 R-029.1 row（覆蓋 first-time install / upgrade from v0.1.X / advanced returning user 三態）
+
+### Honest reflection
+
+v0.2.0 release 嘅 wording disconnect 屬 critical user-facing 缺陷 —— R-029 design intent（「用戶安裝後講『help me start』即可由 AI 主動帶」）對 default user behavior 失效，因為 CLI 印嘅 next-step prompt 仍係 legacy wording。v0.2.1 patch 雖然 close 主要 surface inconsistency，但根本問題在 QC process 漏咗 cross-surface alignment 嘅 verification dimension。v0.2.1 同時建立 long-term QC 紀律改善：(a) Plan scope coverage matrix 加第四 dim；(b) qa:upgrade chain test 強制 routing table propagation；(c) 🟡 發佈檢加 cross-surface wording 強制 verification；(d) RULE_PACKS.md 重新歸類為 routing table (maintainer-owned)。
+
 ## v0.2.0 — 2026-05-22
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。屬 v2 嘅第一個 major version bump（v0.1.8 → v0.2.0），反映 **R-028 用戶項目治理擴展 + R-029 新手 onboarding AI driven walk-through** 二合一 architectural improvement。

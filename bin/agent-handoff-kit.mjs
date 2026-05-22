@@ -302,7 +302,12 @@ const schemaChecks = [
       includes("dev/rules/safety.md"),
       includes("dev/rules/coding.md"),
       includes("dev/rules/research.md"),
-      includes("dev/rules/release.md")
+      includes("dev/rules/release.md"),
+      // R-029 v0.2.1+: routing table must include onboarding pack first-time signal row.
+      // Without this anchor, the upgrade flow may silently leave v0.1.X users with a
+      // stale routing table that does not route onboarding signals.
+      includes("First-time user signals"),
+      includes("dev/rules/onboarding.md")
     ]
   },
   {
@@ -762,6 +767,21 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergeManagedBlock(targetText, sourceText)
     };
   }
+  // R-029 v0.2.0+: RULE_PACKS.md is a routing table, not a user customization target.
+  // Stale v0.1.X versions miss the "First-time user signals" onboarding routing row.
+  // Force-refresh during upgrade so R-029 onboarding routing propagates to existing users.
+  // Any user-added custom routing rows will be lost on upgrade — this is by design;
+  // RULE_PACKS.md is treated as a maintainer-owned routing table, similar to the
+  // AGENTS.md managed-core block. User customizations belong in pack rule files
+  // (packs/*.md), not in the routing table.
+  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("First-time user signals")) {
+    return {
+      ...base,
+      action: "merge",
+      reason: "refresh stale routing table to include v0.2.0+ rows (R-029 onboarding signal routing)",
+      mergedText: sourceText
+    };
+  }
   if ((targetRel === "CLAUDE.md" || targetRel === "GEMINI.md") && !targetText.includes("AGENTS.md")) {
     return { ...base, action: "conflict", reason: "existing bridge does not route to AGENTS.md" };
   }
@@ -1205,11 +1225,14 @@ function printInstallNextSteps(root, conflictCount) {
   console.log("⚠️  請注意：下面文字不是 Terminal 指令。");
   console.log("📋 請打開你要使用的 AI 工具，新增一段對話，貼上下面一句：");
   console.log("------------------------------------------------------------");
-  console.log(`Work in ${root}. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.`);
+  console.log(`Work in ${root}. I just installed agent-handoff-kit. Help me get started.`);
   console.log("------------------------------------------------------------");
   console.log("");
-  console.log("🚀 然後直接描述你的任務，例如：");
-  console.log("   整理這個專案，先告訴我你讀到的目前狀態與下一步。");
+  console.log("🚀 AI 會主動引導你選擇情景（寫代碼 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），");
+  console.log("   一步一步帶你做第一個任務（由 R-029 onboarding pack 主動接管）。");
+  console.log("");
+  console.log("💡 之後 session（你已熟悉 v2 之後）可改用更直接 prompt:");
+  console.log(`   Work in ${root}. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.`);
   console.log("");
   console.log("🩺 如要檢查安裝是否完整，可在 Terminal 執行：");
   console.log("   npx @adamchanadam/agent-handoff-kit doctor");
@@ -1250,9 +1273,11 @@ Commands:
   🩺 doctor    檢查必要文件與交接結構是否完整。
 
 After install:
-  Do not type "Follow AGENTS.md" into Terminal.
-  Open your AI tool, start a new chat, paste the shown Work in ... message,
-  then describe your task in normal language.
+  Do not type the shown "Work in ..." message into Terminal.
+  Open your AI tool, start a new chat, and paste it there.
+  The default post-install prompt triggers the R-029 onboarding pack — AI
+  will guide you through scenario selection (coding / research / knowledge /
+  learning / other) and walk you through your first task in 5 steps.
 `);
   console.log(`📦 版本：v${version}`);
   console.log(`🛠️  模式：help ready`);

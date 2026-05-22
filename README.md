@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：`v0.2.0` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
+狀態：`v0.2.1` 已正式發佈到 GitHub 與 npm。這是早期可用版本，尚未宣稱所有需求已完成。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -49,7 +49,17 @@ npx @adamchanadam/agent-handoff-kit init
 
 ### 二、開工
 
-打開你想用的 AI 工具，在新對話貼上安裝工具顯示的文字。沒有那段文字時，可貼這句：
+打開你想用的 AI 工具，在新對話貼上安裝工具顯示的文字。
+
+**第一次用（R-029 onboarding trigger）**：
+
+```text
+Work in <你的專案資料夾>. I just installed agent-handoff-kit. Help me get started.
+```
+
+AI 會自動載入 onboarding pack，引導你選擇情景（寫代碼 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），然後一步一步帶你做第一個任務。
+
+**之後 session（你已熟悉 v2 之後）可用更直接 prompt**：
 
 ```text
 Work in <你的專案資料夾>. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.
@@ -252,7 +262,7 @@ Agent Handoff Kit 同 [Adam-AI-Instructions](https://github.com/prompt-templates
 
 ## 目前限制
 
-- `v0.2.0` 是 GitHub 與 npm 同步發佈版本。
+- `v0.2.1` 是 GitHub 與 npm 同步發佈版本。
 - 這是早期可用版本，尚未宣稱完整穩定。
 - 升級合併仍是窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

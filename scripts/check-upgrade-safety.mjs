@@ -234,6 +234,14 @@ function main() {
   assert(chainFinal.stdout.includes("upgrade self-check"), "chain final upgrade must run doctor self-check");
   assert(chainFinal.stdout.includes("status: passed"), "chain final self-check must pass (R-025 chain acceptance)");
 
+  // v0.2.1 R-029.1: chain test must verify the stale v0.1.X RULE_PACKS.md was force-refreshed
+  // to include the v0.2.0+ onboarding signal routing row. Without this assertion, the upgrade
+  // flow may silently leave v0.1.X users with a stale routing table (the gap that triggered
+  // the v0.2.1 patch).
+  const chainFinalRulePacks = read(path.join(chainRoot, "dev/RULE_PACKS.md"));
+  assert(chainFinalRulePacks.includes("First-time user signals"), "chain final RULE_PACKS.md missing R-029 onboarding signal routing row (v0.2.1 force-refresh failed)");
+  assert(chainFinalRulePacks.includes("dev/rules/onboarding.md"), "chain final RULE_PACKS.md missing onboarding pack reference (v0.2.1 force-refresh failed)");
+
   console.log("");
   console.log("Agent Handoff Kit upgrade safety QA passed");
   console.log(`merge root: ${mergeRoot}`);

@@ -25,6 +25,7 @@
 | Release Artifact Vocabulary Sweep | 已併入 `npm run qa:release` | 對 `bin/agent-handoff-kit.mjs` + `README.md` + `agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html` 跑禁忌字眼 grep（「人話解讀」「人話補一句」「人話解釋」）；對 `CHANGELOG.md` 限 latest version section (anchor-bounded by `## v` heading) 跑相同 grep；命中數必為 0。 | 是 |
 | Onboarding HTML 書面語紀律 | 已併入 `npm run qa:release` | 對 `agent-handoff-kit-intro.html` 與 `agent-handoff-kit-guide.html` 跑廣東口語字符 grep（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）；命中數必為 0（onboarding HTML 必為繁體中文書面語）。 | 是 |
 | Onboarding Pack 結構驗收 (R-029) | 已併入 `doctor` 與 `npm run qa:release` 與 `npm run qa:packs` | 檢查 `dev/rules/onboarding.md` 含 H2 sections（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）並保持順序；含 5 個 Scenario H3 heading（A 寫 / 改代碼項目 / B 整理研究資料 / C 整理電腦檔案 / D 學寫代碼 / E 其他）；含 transient pack + 5-step walk-through pattern wording；含 Tone Discipline 5 條（書面語 / 講人話 / 敍事+解釋 / 不過度解釋 internals / 鼓勵性而非考試）。 | 是 |
+| Cross-surface wording consistency 驗收 (R-029.1, v0.2.1+) | 已併入 `npm run qa:release` 與 `npm run qa:prototype` 與 `npm run qa:upgrade` | 對 4 個 user-facing surface（`bin/agent-handoff-kit.mjs` printInstallNextSteps + `README.md` first-screen R-029 callout 同三步上手 step 2 + `agent-handoff-kit-intro.html` #howto Step 2 + #recap cell 1 + `agent-handoff-kit-guide.html` hero R-029 callout）grep canonical R-029 trigger phrase「I just installed agent-handoff-kit. Help me get started.」一致；每個 surface count ≥ 1；post-install CLI output 必含此 phrase；qa:upgrade chain test final hop 嘅 `dev/RULE_PACKS.md` 必含「First-time user signals」+「dev/rules/onboarding.md」routing row。 | 是 |
 
 ## 規則包場景覆蓋
 
@@ -61,6 +62,8 @@
 | Project Decisions discipline（R-028） | 每次 release 前須驗證：（a）`runtime-core/PROJECT_DECISIONS.md` template 含 4 個 H2 section heading 順序正確 + 檔頭 onboarding 句式；（b）`runtime-core/AGENTS.core.md` closeout step 12 wording 命中（含「Maintain `dev/PROJECT_DECISIONS.md`」、「R-028 project narrative discipline」、4 個 H2 section name）；（c）`bin/agent-handoff-kit.mjs` mappings 含 `runtime-core/PROJECT_DECISIONS.md` → `dev/PROJECT_DECISIONS.md`；（d）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 `dev/PROJECT_DECISIONS.md` rule + group；（e）Fresh install 後 `dev/PROJECT_DECISIONS.md` 存在且 doctor 「project decisions log structure」schema check pass；（f）Upgrade 既有專案後 `dev/PROJECT_DECISIONS.md` 自動建立（若不存在）或保留（若用戶已有 content）。`npm run qa:release` 自動驗 (a)-(e)；(f) 由 `npm run qa:upgrade` mergeRoot scenario 嘅 existsSync assertion 驗。 |
 | 書面語紀律（HTML 輸出） | 對外 onboarding HTML（`agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html`）必為繁體中文書面語，廣東口語字符（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）grep 命中數必為 0。Release 前 `npm run qa:release` 自動驗。違反即視為 release artifact 質量落差，需逐句修正後再 release。 |
 | Onboarding UX discipline（R-029） | 每次 release 前須驗證：（a）`packs/onboarding.md` template 含 7 個 H2 section（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）+ 5 個 Scenario H3 + Anti-pattern table；（b）`runtime-core/AGENTS.core.md` `## 1. Startup Reads` 含 first-time-user signal detection wording + onboarding pack proactive load 紀律；（c）`runtime-core/RULE_PACKS.md` 含 onboarding signal routing row；（d）`bin/agent-handoff-kit.mjs` mappings 含 `packs/onboarding.md` → `dev/rules/onboarding.md`；（e）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 onboarding pack rule + group；（f）Fresh install 後 `dev/rules/onboarding.md` 存在且 doctor schema check pass；（g）`npm run qa:packs` 嘅 onboarding routing scenario + first-time onboarding to first task mixed scenario 通過。`npm run qa:release` 自動驗 (a)-(f)；(g) 由 `qa:packs` 驗。 |
+| Cross-surface wording alignment（R-029.1，v0.2.1 新加 dim） | v0.2.0 release ceremony 嘅 critical QC gap：plan scope coverage matrix 嘅三層（content / script / source）唔 cover cross-surface wording alignment。R-029 嘅 onboarding trigger phrase 跨 5 個 surface（CLI source + README + intro.html + guide.html + onboarding pack 自身），但 v0.2.0 release 時 CLI source 仍係 legacy wording 而其他 surface 已 update —— silent disconnect。v0.2.1 起加新 dim（第四 layer）：每次涉及 user-facing prompt / wording / canonical trigger phrase 嘅 release plan 必明文驗證跨 surface 一致。`scripts/check-release-readiness.mjs` 嘅 `checkCrossSurfaceWordingConsistency()` helper 自動 enforce canonical R-029 trigger phrase 喺 4 個 surface（bin + README + intro + guide）一致。違反即 throw error，release 阻擋。 |
+| Routing table propagation discipline（R-029.2，v0.2.1 新加 dim） | v0.2.0 既有 upgrade 紀律對 `dev/RULE_PACKS.md` 沿用 default `skip "preserve existing file"`，導致 v0.1.X 用戶 upgrade 後 routing table 仍係舊版（silent missing R-029 onboarding routing row）。Architectural reclassification：`dev/RULE_PACKS.md` 由 user customization target 重新歸類為 **maintainer-owned routing table**（同 AGENTS.md managed core block 同類紀律）。v0.2.1 起 `bin/agent-handoff-kit.mjs` `classifyExistingFile` 加 force-update merge logic：當 stale state detected (targetText 唔含 v0.2.0+ 嘅 routing rows)，trigger `action: "merge"` 用 latest source 覆寫。`scripts/check-upgrade-safety.mjs` chain test final hop 加 RULE_PACKS.md routing row 強制 assertion。Doctor schema check 加 strict anchor enforce routing table 一致性。 |
 
 ## 套件邊界
 
@@ -113,6 +116,14 @@ npm package 由 `package.json` 的 `files` 控制：
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
+
+## v0.2.1 發佈狀態
+
+- 發佈版本：`0.2.1`。
+- release notes：`CHANGELOG.md` 的 `v0.2.1` 段落。
+- 發佈內容：Critical patch release 修補 v0.2.0 R-029 落地時嘅 cross-surface wording inconsistency + upgrade flow routing table propagation gap + QC 流程粗疏 dimension。**R-029.1**（cross-surface wording fix）：`bin/agent-handoff-kit.mjs` `printInstallNextSteps` + `printHelp` 對齊 canonical R-029 trigger phrase；README + intro.html + guide.html user prompt examples 統一；既有 legacy prompt 保留為 fallback。**R-029.2**（upgrade flow routing table propagation）：`bin/agent-handoff-kit.mjs` `classifyExistingFile` 加 `dev/RULE_PACKS.md` force-update merge logic；schemaChecks 加 strict anchor「First-time user signals」+「dev/rules/onboarding.md」；`scripts/check-upgrade-safety.mjs` chain test final hop 加 RULE_PACKS.md routing row assertion。**R-029.3**（QC process gap fix）：`scripts/check-release-readiness.mjs` 加 `checkCrossSurfaceWordingConsistency()` helper；`scripts/check-public-prototype.mjs` 加 post-install CLI output canonical phrase assertion；docs/qa/release-grade-qa.md 加新 Cross-surface Wording Consistency Sweep section + 治理 QA 缺口矩陣加 2 新 dim（Cross-surface wording alignment + Routing table propagation discipline）+ 補丁前置狀態枚舉加 R-029.1 row；🟡 發佈檢由 6 項擴展為 7 項。Architectural reclassification：`dev/RULE_PACKS.md` 由 user customization target 重新歸類為 maintainer-owned routing table。
+- 發佈前驗收：完整四條 QA + R-029.1 cross-surface wording sweep 通過 + chain test final hop RULE_PACKS.md routing row assertion 通過 + R-005 quick re-walk verify 緊張可控 + Cross-surface wording consistency Sweep 全部 grep 命中。
+- npm 狀態：已 npm publish；npm latest 為 `0.2.1`；package fileCount 23（不變）。
 
 ## v0.2.0 發佈狀態
 
@@ -225,6 +236,7 @@ npm package 由 `package.json` 的 `files` 控制：
 | R-026 | 全部 `init`／`upgrade`／`doctor` 完成輸出（含 first-install / upgrade-existing / healthy / needs-fix / partial 模式）；`help` 命令完成輸出（version + mode + next）；v0.2.0 起擴 scope 至對外 release artifacts (README + onboarding HTML + CHANGELOG anchor-bounded latest section)。 | 中間進度行（如 `ok: create` 之類）唔強制四項契約；`migration-report.md` 內容契約唔屬 CLI Output Contract 範圍（migration report 有獨立 schema）；CHANGELOG historical sections（latest 段之前）唔受 R-026 scope 限制（historical fact 不可改）；內部 governance docs (SESSION_LOG / HANDOFF / DECISION_LOG) 不受 R-026 scope 限制。 |
 | R-028 | （a）first-install fresh project：installer create `dev/PROJECT_DECISIONS.md` 為 4 H2 section template + 檔頭 onboarding tone；（b）upgrade from v0.1.X：用戶 dev/ 缺 PROJECT_DECISIONS.md，upgrade auto-create empty template；（c）upgrade existing PROJECT_DECISIONS.md：用戶手動加過 narrative，upgrade preserve（同 SESSION_HANDOFF.md / SESSION_LOG.md preserve discipline 一致）。 | （d）retro-archive sweep：用戶 explicit trigger AI scan SESSION_LOG 舊條目 reclassify 入 PROJECT_DECISIONS 屬 v0.2.x opt-in feature，唔屬 v0.2.0 critical path；（e）file-level conflict：用戶嘅 `dev/PROJECT_DECISIONS.md` 完全不可讀（permission / encoding）— 屬人工介入範疇，唔由 upgrade auto-merge 處理。 |
 | R-029 | （a）First-time user fresh install：用戶安裝後第一句 message 含 onboarding signal keyword 或 vague description，AI 主動 load `dev/rules/onboarding.md` proactively，offer Scenario A-E selection；（b）First-time user 揀 Scenario X：AI 跑 5-step walk-through pattern (Step 1 確認 context / Step 2 解釋 v2 fit / Step 3 ask task scope / Step 4 suggest minimum viable / Step 5 confirm + transition)；（c）Onboarding completion：AI 完成 walk-through 後 unload onboarding pack + load 對應 regular scenario pack；（d）Returning user：用戶已熟悉 v2，無 onboarding signal，AI 直接進入 regular work loop 跳過 onboarding pack。 | （e）用戶 mid-session 觸發 onboarding signal（譬如已 progress 至 Step 4，但突然 say「教我用」）— AI 應 ask user about clarification 是否真係想 restart onboarding，唔自動 reload；（f）Onboarding pack 嘅 internal sample wording 字面 mismatch（譬如 AI adapt wording 過分背離 anchor）— 屬語意 drift，不可機器驗，由人工終讀承擔。 |
+| R-029.1 (v0.2.1 critical patch) | （a）Fresh install v0.2.1+：CLI printInstallNextSteps 印出 canonical R-029 trigger phrase（「Work in <root>. I just installed agent-handoff-kit. Help me get started.」）；用戶貼上後 AI 必 trigger onboarding pack；（b）Upgrade v0.1.X → v0.2.1：`dev/RULE_PACKS.md` force-refresh 含 R-029 routing row；doctor schema check enforce「First-time user signals」+「dev/rules/onboarding.md」anchor；（c）Returning user upgrade v0.2.0 → v0.2.1：CLI prompt + routing table 自動同步至 v0.2.1 canonical state；（d）Advanced user 直接描述任務：保留 legacy prompt「Read AGENTS.md and follow it...」作 fallback option（CLI install output 印出 second-tier prompt + intro/guide 嘅 advanced disclaimer）。 | （e）User manually customizes `dev/RULE_PACKS.md` (e.g. adds custom domain pack row)：v0.2.1 force-update 會 lose custom rows —— architectural design decision，RULE_PACKS.md 屬 maintainer-owned routing table；user customization 應入 packs/*.md 自身。（f）CLI 跨 OS / locale 嘅 trigger phrase 字符 encoding：屬 OS-level concern，唔屬 R-029.1 scope。 |
 
 ## Release Artifact Vocabulary Sweep（R-026，v0.2.0 起 scope 擴展）
 
@@ -364,6 +376,32 @@ Pack scenario routing 驗證（由 `npm run qa:packs` mergeRoot scenario 自動�
 - 5 個 Scenario 嘅 step 5 「ask user about confirm + 進入 work loop」明文 transition 至對應 regular pack（A → coding+writing；B → research+writing+knowledge；C → knowledge+safety；D → coding+safety；E → custom）。
 - Cross-reference to guide.html 嘅 wording 明確「不需要先讀本指南」，避免用戶誤以為要 mandatory reading。
 - Anti-pattern table 列 6 個明確 anti-pattern，每個含 「點解唔做」+「正確做法」對照。
+
+## Cross-surface Wording Consistency Sweep（R-029.1，v0.2.1 起新加）
+
+v0.2.0 release ceremony 嘅 critical QC gap：plan scope coverage matrix 嘅三層（content / script / source）唔 cover cross-surface wording alignment。R-029 嘅 canonical onboarding trigger phrase 跨 4 個 user-facing surface，但 v0.2.0 release 時 CLI source 仍係 legacy wording 而其他 surface 已 update —— silent disconnect 令 R-029 design intent 對 default user behavior 失效。
+
+v0.2.1 起，發佈前須對以下 4 個 surface grep canonical R-029 trigger phrase，每個 surface count ≥ 1：
+
+```text
+grep -c "I just installed agent-handoff-kit. Help me get started." bin/agent-handoff-kit.mjs       # 期望 ≥ 1 (CLI printInstallNextSteps)
+grep -c "I just installed agent-handoff-kit. Help me get started." README.md                       # 期望 ≥ 1 (first-screen R-029 callout + 三步上手 step 2)
+grep -c "I just installed agent-handoff-kit. Help me get started." agent-handoff-kit-intro.html    # 期望 ≥ 1 (#howto Step 2 + #recap cell 1)
+grep -c "I just installed agent-handoff-kit. Help me get started." agent-handoff-kit-guide.html    # 期望 ≥ 1 (hero R-029 callout)
+```
+
+由 `scripts/check-release-readiness.mjs` 嘅 `checkCrossSurfaceWordingConsistency()` helper 自動 enforce；違反即 throw error，release 阻擋。
+
+額外 verification：
+
+- post-install CLI output 必印出 canonical phrase（由 `scripts/check-public-prototype.mjs` enforce）
+- qa:upgrade chain test final hop 嘅 `dev/RULE_PACKS.md` 必含 R-029 routing row（force-refresh 紀律驗證）
+
+紀律邊界：
+
+- Canonical trigger phrase 屬 user-facing surface 嘅 first-time install entry point；其他 surface (e.g. CHANGELOG / DECISION_LOG / SESSION_LOG) 唔 enforce
+- Legacy fallback prompt（「Read AGENTS.md and follow it...」）允許 second-tier 出現喺 install output + intro/guide 嘅 advanced user note
+- guide.html Case A/B/C user bubbles 保留既有 v0.1.X wording —— 屬 narrative 演示 advanced-user path（用戶已 onboarded 直接描述任務）；hero callout 加 disclaimer 明示 distinction
 
 ## SESSION_LOG handoff-role discipline Sweep（R-010）
 

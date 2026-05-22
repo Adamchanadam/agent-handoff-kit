@@ -454,7 +454,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.2.0 · 七步流程完整示範 + 長期項目演進</span>
+    <span class="kicker">v0.2.1 · 七步流程完整示範 + 長期項目演進</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">兩個日常情景 —— 整理電腦下載目錄、開咖啡店的市場調查 —— 完整示範 Agent Handoff Kit 的七步流程。每一步都會見到 AI 主動宣告載入哪個工作模式、寫入哪份交接文件、輸出哪段下次開工提示。</p>
   </div>
@@ -465,7 +465,9 @@
     <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
       <div style="background: var(--yellow); color: var(--ink); padding: 10px 16px; font-family: var(--font-mono); font-weight: 700; font-size: 14px; letter-spacing: 0.05em;">🚀 第一次用?</div>
       <div style="flex: 1; min-width: 280px;">
-        <p style="margin: 0; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>安裝完成後,在 AI 對話中講一句 <code style="background: rgba(255,255,255,0.15); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">help me start</code>(或者「教我用」/「我是新手」),AI 會自動引導你選擇情景,一步一步帶你做第一個任務。本指南是參考對照,你可以之後或者想看 narrative example 時再開。</p>
+        <p style="margin: 0 0 12px; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>安裝完成後,在 AI 對話中貼上 CLI 顯示的 R-029 onboarding trigger prompt:</p>
+        <p style="margin: 0 0 12px; font-family: var(--font-mono); font-size: 13px; background: rgba(255,255,255,0.15); padding: 8px 12px;">Work in &lt;你的資料夾&gt;. I just installed agent-handoff-kit. Help me get started.</p>
+        <p style="margin: 0; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會自動載入 onboarding pack,引導你選擇情景並一步一步帶你做第一個任務。<strong>下方 Case A/B/C 屬已熟悉 v2 的 advanced user path</strong>(用戶直接描述任務,AI 直接載入工作模式)。本指南是參考對照,你可以之後或者想看 narrative example 時再開。</p>
       </div>
     </div>
   </div>
@@ -1652,7 +1654,7 @@ Rationale: 長文本 200k context window 對程式碼註釋校對任務更穩定
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.2.0 · MIT License</p>
+      <p>v0.2.1 · MIT License</p>
     </div>
   </div>
 </footer>

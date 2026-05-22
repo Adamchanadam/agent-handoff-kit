@@ -106,7 +106,11 @@ function main() {
     "R-028 project narrative discipline",
     "Onboarding Pack 結構驗收 (R-029)",
     "Onboarding Pack Discipline Sweep（R-029",
-    "Onboarding UX discipline（R-029）"
+    "Onboarding UX discipline（R-029）",
+    "Cross-surface wording consistency 驗收 (R-029.1",
+    "Cross-surface Wording Consistency Sweep",
+    "Cross-surface wording alignment（R-029.1",
+    "Routing table propagation discipline（R-029.2"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -207,9 +211,34 @@ function main() {
   checkBookLanguage("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), cantoneseSpokenChars);
   checkBookLanguage("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), cantoneseSpokenChars);
 
+  // R-029.1 v0.2.1: Cross-surface wording consistency sweep. The R-029 onboarding trigger
+  // phrase must appear identically across all user-facing surfaces (CLI post-install output
+  // + README + onboarding HTML) so first-time users see the same prompt regardless of which
+  // surface they encounter first. v0.2.0 release shipped with inconsistency (CLI output used
+  // legacy "Read AGENTS.md and follow it..." while R-029 callouts used "help me start") —
+  // v0.2.1 patches this by enforcing a single canonical trigger phrase.
+  checkCrossSurfaceWordingConsistency();
+
   console.log("");
   console.log("Agent Handoff Kit release readiness QA passed");
   console.log(`user-flow root: ${tempRoot}`);
+}
+
+function checkCrossSurfaceWordingConsistency() {
+  const canonicalTriggerPhrase = "I just installed agent-handoff-kit. Help me get started.";
+  const surfaces = [
+    { file: "bin/agent-handoff-kit.mjs", role: "CLI printInstallNextSteps" },
+    { file: "README.md", role: "README first-screen R-029 callout + 三步上手 step 2" },
+    { file: "agent-handoff-kit-intro.html", role: "intro #howto Step 2 + #recap cell 1" },
+    { file: "agent-handoff-kit-guide.html", role: "guide hero R-029 callout" }
+  ];
+  for (const surface of surfaces) {
+    const text = read(surface.file);
+    if (!text.includes(canonicalTriggerPhrase)) {
+      throw new Error(`Cross-surface wording inconsistency (R-029.1): canonical R-029 trigger phrase missing in ${surface.file} (${surface.role}). Expected phrase: "${canonicalTriggerPhrase}"`);
+    }
+    console.log(`ok: ${surface.file} cross-surface R-029 trigger phrase`);
+  }
 }
 
 function checkForbiddenVocabulary(label, text, patterns) {

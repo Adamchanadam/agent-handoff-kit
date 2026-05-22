@@ -41,7 +41,13 @@ main().catch((error) => {
 async function main() {
   mkdirSync(tempRoot, { recursive: true });
 
-  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "install templates");
+  const initResult = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "install templates");
+  // R-029.1 v0.2.1: post-install CLI output must contain the canonical R-029 trigger phrase
+  // so first-time users see the onboarding-triggering prompt by default. v0.2.0 shipped with
+  // CLI printing the legacy "Read AGENTS.md and follow it..." which did not trigger R-029
+  // onboarding pack — v0.2.1 patches this so the post-install message matches README/intro/
+  // guide canonical wording.
+  assert(initResult.stdout.includes("I just installed agent-handoff-kit. Help me get started."), "post-install CLI output missing canonical R-029 trigger phrase (R-029.1)");
   const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor installed templates");
   assert(doctor.stdout.includes("status: passed"), "doctor output did not include status: passed");
   assert(doctor.stdout.includes("✅ 檢查通過"), "doctor output missing beginner-friendly passed message");
