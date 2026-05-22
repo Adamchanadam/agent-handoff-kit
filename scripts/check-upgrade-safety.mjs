@@ -162,7 +162,7 @@ function main() {
   // current CLI upgrade. The legacy core must be replaced into a managed
   // block, single core, and the automatic doctor self-check must pass.
   const realFixtureRoots = [];
-  for (const ver of ["v0.1.4", "v0.1.5", "v0.1.6"]) {
+  for (const ver of ["v0.1.4", "v0.1.5", "v0.1.6", "v0.1.7", "v0.1.8"]) {
     const fixtureDir = path.join(fixturesRoot, ver);
     assert(existsSync(path.join(fixtureDir, "AGENTS.md")), `missing fixture: ${ver}/AGENTS.md (re-run npm run qa:fixtures)`);
     assert(existsSync(path.join(fixtureDir, "dev/PROJECT_INDEX.md")), `missing fixture: ${ver}/dev/PROJECT_INDEX.md`);
@@ -213,7 +213,9 @@ function main() {
   const chainSteps = [
     { ref: "v0.1.4", command: "init" },
     { ref: "v0.1.5", command: "upgrade" },
-    { ref: "v0.1.6", command: "upgrade" }
+    { ref: "v0.1.6", command: "upgrade" },
+    { ref: "v0.1.7", command: "upgrade" },
+    { ref: "v0.1.8", command: "upgrade" }
   ];
   for (const step of chainSteps) {
     withWorktree(step.ref, (worktreePath) => {

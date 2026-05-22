@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 
-const TARGETS = ["v0.1.4", "v0.1.5", "v0.1.6"];
+const TARGETS = ["v0.1.4", "v0.1.5", "v0.1.6", "v0.1.7", "v0.1.8"];
 
 // Key files needed to reproduce older-version core states for R-024 / R-025.
 // AGENTS.md carries the core runtime form (with or without managed markers);
