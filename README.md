@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：`v0.3.2` 已正式發佈到 GitHub 與 npm。這是早期可用版本，仍在持續完善中。
+狀態：`v0.3.3` 已正式發佈到 GitHub 與 npm。這是早期可用版本，仍在持續完善中。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 

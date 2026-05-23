@@ -467,6 +467,23 @@ async function runInstall(command, root, options, version) {
     return;
   }
 
+  // R-031.3 v0.3.3+: For upgrade scenarios, capture pre-upgrade root template version
+  // before the create/merge/inject loops mutate PROJECT_INDEX. This snapshot is later
+  // passed to printWhatsnew so the version range narrative reflects the actual user
+  // journey (v{pre-upgrade} → v{current CLI}), not the post-inject state which would
+  // make printWhatsnew see fromVersion == toVersion and skip the summary entirely.
+  let preUpgradeRootVersion = null;
+  if (command === "upgrade") {
+    try {
+      const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
+      const text = await readFile(indexPath, "utf8");
+      const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+      if (m) preUpgradeRootVersion = m[1];
+    } catch {
+      // ignore
+    }
+  }
+
   printPlan(command, root, mode, plan, version);
 
   if (options.dryRun) {
@@ -498,12 +515,15 @@ async function runInstall(command, root, options, version) {
     created.push(item.targetRel);
   }
 
-  // R-031.2 v0.3.2+: For freshly-created PROJECT_INDEX (fresh install), inject the
-  // current CLI version into the template version metadata row. Template ships with
-  // a hardcoded historical version (0.1.7) which is preserved by R-016 during upgrades
-  // but should NOT confuse a fresh installer about which version they just installed.
-  // Only triggers when PROJECT_INDEX was just created (not preserved/merged).
-  if (created.includes("dev/PROJECT_INDEX.md")) {
+  // R-031.3 v0.3.3+: Inject current CLI version into PROJECT_INDEX template version
+  // metadata row — triggers for both fresh install AND upgrade substantive scenarios.
+  // The metadata row tracks template structure version (maintainer-owned), distinct
+  // from user content rows (External Sources / Fact Base etc.) which R-016 protects.
+  // Without inject on upgrade, user just upgraded but doctor's "項目狀態速覽"
+  // immediately prints "root 落後 CLI" — contradicting the just-completed upgrade
+  // narrative. Compare-semver guard prevents downgrade overwrite (e.g. someone
+  // running an older CLI). User content rows are preserved untouched.
+  if (command === "upgrade" || created.includes("dev/PROJECT_INDEX.md")) {
     const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
     try {
       const text = await readFile(indexPath, "utf8");
@@ -516,8 +536,7 @@ async function runInstall(command, root, options, version) {
         await writeFile(indexPath, updated, "utf8");
       }
     } catch {
-      // ignore — fresh install will still pass doctor because the anchor (R-016) only
-      // checks for the row's existence, not a specific version.
+      // ignore — doctor anchor (R-016) only checks row existence, not specific value.
     }
   }
 
@@ -555,12 +574,12 @@ async function runInstall(command, root, options, version) {
     reportRel: path.relative(root, report)
   });
 
-  // R-031 v0.3.1+: install vs upgrade narrative split. Upgrade substantive uses
-  // "升級完成" framing (not "安裝完成") and offers optional review prompt instead of
-  // pushing first-time onboarding canonical phrase.
-  // R-031.2 v0.3.2+: printUpgradeNextSteps now async (awaits inline whatsnew print).
+  // R-031 v0.3.1+: install vs upgrade narrative split.
+  // R-031.2 v0.3.2+: printUpgradeNextSteps async (awaits inline whatsnew print).
+  // R-031.3 v0.3.3+: pass preUpgradeRootVersion so whatsnew narrative reflects the
+  // actual user journey (v{pre-upgrade} → v{current}), not the post-inject state.
   if (command === "upgrade") {
-    await printUpgradeNextSteps(root, conflicts.length, version);
+    await printUpgradeNextSteps(root, conflicts.length, version, preUpgradeRootVersion);
   } else {
     printInstallNextSteps(root, conflicts.length);
   }
@@ -1623,7 +1642,7 @@ function printInstallNextSteps(root, conflictCount) {
 // R-031 v0.3.1+: Upgrade substantive next-step block. Distinct from install
 // (`printInstallNextSteps`) because the user is not first-time; pushing them through
 // the onboarding canonical phrase resets context they already have.
-async function printUpgradeNextSteps(root, conflictCount, version) {
+async function printUpgradeNextSteps(root, conflictCount, version, preUpgradeRootVersion) {
   console.log("");
   console.log("============================================================");
   console.log("✅ 升級完成：管治架構檔案已更新到最新版本");
@@ -1635,10 +1654,11 @@ async function printUpgradeNextSteps(root, conflictCount, version) {
     console.log("");
   }
   // R-031.2 v0.3.2+: Inline whatsnew summary — directly surface what changed in this
-  // version (and any intermediate versions the user skipped), without requiring the
-  // user to ask AI separately. Treats user as collaborator who deserves to know what's
-  // shipped, not reactive recipient who must opt-in to discovery.
-  await printWhatsnew(root, version);
+  // version (and any intermediate versions the user skipped).
+  // R-031.3 v0.3.3+: fromVersion now uses pre-upgrade snapshot (captured before
+  // inject mutated PROJECT_INDEX), so the range narrative reflects actual user
+  // journey instead of degenerate v{current} → v{current}.
+  await printWhatsnew(root, version, preUpgradeRootVersion);
   console.log("📋 如你正在進行中的工作 session 已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
   console.log("");
   console.log("💡 如想了解本版本新加了甚麼功能，可選用以下開工句（非強制）：");
@@ -1655,15 +1675,20 @@ async function printUpgradeNextSteps(root, conflictCount, version) {
 // upgrade; R-016 preserves this row so it still reflects the prior state after
 // upgrade finishes). toVersion = current CLI version. Range is exclusive-fromVersion
 // inclusive-toVersion. Limit to first + last when crossing > 3 versions (elide middle).
-async function printWhatsnew(root, toVersion) {
-  const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
-  let fromVersion = null;
-  try {
-    const text = await readFile(indexPath, "utf8");
-    const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
-    if (m) fromVersion = m[1];
-  } catch {
-    return;
+async function printWhatsnew(root, toVersion, fromVersionOverride) {
+  // R-031.3 v0.3.3+: fromVersion sourced from explicit override (pre-upgrade snapshot)
+  // when called from upgrade flow; falls back to reading current PROJECT_INDEX
+  // template version row otherwise.
+  let fromVersion = fromVersionOverride ?? null;
+  if (!fromVersion) {
+    const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
+    try {
+      const text = await readFile(indexPath, "utf8");
+      const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+      if (m) fromVersion = m[1];
+    } catch {
+      return;
+    }
   }
   if (!fromVersion || !isStableSemver(fromVersion) || compareSemver(fromVersion, toVersion) >= 0) {
     return;
@@ -1692,7 +1717,23 @@ async function printWhatsnew(root, toVersion) {
     return;
   }
 
-  console.log(`📰 本次升級（v${fromVersion} → v${toVersion}）涵蓋 ${relevant.length} 個版本嘅 release notes：`);
+  // R-031.3 v0.3.3+: Deep range narrative — if fromVersion considerably older than
+  // the oldest available whatsnew, explicitly tell user this is a multi-version
+  // upgrade where older changelog only lives on GitHub Release (not shipped).
+  // Heuristic: deep range if fromVersion's major < oldest's major, or same major
+  // but minor differs by ≥ 1 (i.e. fromVersion is at least one minor release older
+  // than the oldest available whatsnew).
+  const oldestAvailable = relevant[0];
+  const [fromMajor, fromMinor] = fromVersion.split(".").map((n) => Number.parseInt(n, 10));
+  const [oldMajor, oldMinor] = oldestAvailable.split(".").map((n) => Number.parseInt(n, 10));
+  const isDeepRange = (fromMajor < oldMajor) || (fromMajor === oldMajor && fromMinor < oldMinor);
+  if (isDeepRange) {
+    console.log(`💡 注意：本次升級 v${fromVersion} → v${toVersion} 跨度較大；本工具 release notes 庫只 cover 由 v${oldestAvailable} 起嘅 ${relevant.length} 個版本。較舊版本（v${fromVersion} 至 v${oldestAvailable} 之前）嘅完整變更見：`);
+    console.log(`   https://github.com/Adamchanadam/agent-handoff-kit/releases`);
+    console.log("");
+  }
+
+  console.log(`📰 本次升級涵蓋 ${relevant.length} 個版本嘅 release notes（${isDeepRange ? `由 v${oldestAvailable} 起` : `v${fromVersion} → v${toVersion}`}）：`);
   console.log("");
 
   const toShow = relevant.length <= 3 ? relevant : [relevant[0], relevant[relevant.length - 1]];

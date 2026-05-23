@@ -149,6 +149,25 @@ npm package 由 `package.json` 的 `files` 控制：
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
 
+## v0.3.3 發佈狀態
+
+- 發佈版本：`0.3.3`。
+- release notes：`CHANGELOG.md` 的 `v0.3.3` 段落 + `docs/whatsnew/v0.3.3.md`。
+- 發佈內容：修補 v0.3.2 用戶實測（Adam 跑 `npx ... upgrade` 喺 v0.1.3 root → CLI v0.3.2）即時揭發嘅兩個 user journey narrative coherence bug。(1) Upgrade 完成後 doctor 自相矛盾 —— 用戶剛跑完 upgrade，self-check doctor 立刻講「root 落後 CLI，可執行 upgrade」；root cause 係 v0.3.2 inject logic 只 cover fresh install scenario。(2) 跨多版本 upgrade 嘅 whatsnew range narrative misleading —— output 講「涵蓋 2 個版本嘅 release notes」未明文話跨度。產品層修補：`bin/agent-handoff-kit.mjs` `doInstallOrUpgrade` PROJECT_INDEX template version inject 條件由 `created.includes` 擴至 `command === "upgrade" || created.includes(...)`；`printWhatsnew` 加 deep range narrative（明文 print「跨度較大 + GitHub Release link」）。QC framework 修補：`scripts/check-release-readiness.mjs` 加 R-031.1 scenario 3 deep range fixture（v0.1.3 root → upgrade → assert template version inject + 無 contradicting hint + deep range narrative 命中）。治理層：`docs/REQUIREMENTS_CONVERGENCE.md` R-016 row 加註「user-owned 指 user content rows，唔包 template version metadata row」+ R-031 row 補 R-031.3 v0.3.3 narrative。
+- 發佈前驗收：qa:release 全綠（既有 26+ assertions + R-031.1 scenario 1/3/4/6 simulation PASS 含新加 scenario 3 deep range + R-031.3 string assertions PASS）。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.3`；package fileCount 27（從 26 增加 1，加 `docs/whatsnew/v0.3.3.md`）。
+
+### Plan-time discipline mandatory（R-031.3，v0.3.3 新加）
+
+**Plan-time user-journey simulation mandatory item** —— 由 v0.3.3 起，任何涉及 user-facing 命令（init / upgrade / doctor / 未來新 sub-command）嘅 release verification，**plan 必明文 simulate 至少一個 deep version range upgrade**（譬如 root template version v0.1.x → 當前 CLI），並 verify：
+
+1. Post-upgrade PROJECT_INDEX template version row 已 inject 為當前 CLI version
+2. 自動跑嘅 self-check doctor 嘅 「項目狀態速覽」narrative 同上一步 upgrade banner coherent（唔出 contradicting hint）
+3. 跨多版本嘅 whatsnew print 含明文 deep range narrative + GitHub Release link
+4. Optional review phrase「I just upgraded」print
+
+呢條紀律屬 framework critique L3 嘅第一步落地 —— 防 reactive default（用 fresh install / 細跨度 fixture 做 verification）重演揭發 cross-version journey gap。違反即視為 L3 critique recurrence。
+
 ## v0.3.2 發佈狀態
 
 - 發佈版本：`0.3.2`。

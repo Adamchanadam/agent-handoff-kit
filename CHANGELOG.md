@@ -1,5 +1,38 @@
 # 變更紀錄
 
+## v0.3.3 — 2026-05-23
+
+狀態：正式發佈版本。由 Adam 喺真實用戶 root 跑 `npx ... upgrade`（root template version v0.1.3 → CLI v0.3.2）即時揭發兩個 user journey narrative coherence bug：
+
+1. **Upgrade 完成後 doctor 自相矛盾**：用戶剛跑完 upgrade、見到「✅ 升級完成」banner，下一秒 self-check doctor 嘅「項目狀態速覽」立刻講「root v0.1.3 落後 CLI v0.3.2，可執行 upgrade」。兩個 message 直接矛盾。Root cause：v0.3.2 嘅 PROJECT_INDEX template version inject logic 只 cover fresh install scenario，upgrade 場景冇 trigger。
+2. **跨多版本 upgrade 嘅 whatsnew 數字 misleading**：用戶由 v0.1.3 升到 v0.3.2，output 講「涵蓋 2 個版本嘅 release notes」—— 事實對（whatsnew folder 只有 v0.3.1.md + v0.3.2.md）但 narrative 缺說明，用戶可能誤以為 v0.1.3 → v0.3.2 之間只改咗呢 2 個版本嘅嘢。
+
+呢兩個 bug 嘅深層 root cause：v0.3.2 ceremony 驗證**只 simulate fresh install + upgrade no-op + upgrade substantive (v0.3.0 → v0.3.2 細跨度)**三個場景，完全冇 simulate「v0.1.x / v0.2.x 真實舊用戶 → 新版 deep range upgrade」嘅 user journey。Adam catch 嘅 second iteration 揭發我 verification approach 嘅同類 blind spot 重演（L3 critique recurrence）。
+
+### 產品層修補
+
+- **`bin/agent-handoff-kit.mjs` `doInstallOrUpgrade` PROJECT_INDEX template version inject 擴 scope** —— 條件由 `created.includes("dev/PROJECT_INDEX.md")` 擴至 `command === "upgrade" || created.includes(...)`。Upgrade 場景現在會 inject CLI 當前 version 入 template version metadata row，但仍 preserve user content rows（External Sources / Fact Base / Workspace Identity 等）。R-016 「user-owned」原意保護 user content；template version metadata row 屬 maintainer-owned 嘅 template structure metadata。
+- **`bin/agent-handoff-kit.mjs` `printWhatsnew` 加 deep range narrative** —— 當 fromVersion 比 oldestAvailable whatsnew 跨多個 minor / major version，明文 print「跨度較大；本工具 release notes 庫只 cover 由 v{oldest} 起嘅 N 個版本；較舊版本見 GitHub Release」。
+
+### QC framework 修補
+
+- **`scripts/check-release-readiness.mjs` R-031.1 scenario 3 加跨多版本 fixture** —— 模擬 root template version v0.1.3 + 刪 v0.2.0+ files → upgrade → assert post-upgrade template version 已 inject 為當前 CLI version + doctor self-check 無「root 落後」hint + whatsnew deep range narrative 命中。
+- **`docs/qa/release-grade-qa.md` 加 plan-time discipline** —— mandatory「未來涉及 user-facing 命令嘅 release verification，必 simulate 至少一個 deep version range upgrade（譬如 v0.1.x → 當前）」，避免 reactive default 重演同類 narrative coherence gap。
+
+### 治理層
+
+- **`docs/REQUIREMENTS_CONVERGENCE.md` R-016 row 加註** —— 明文「user-owned」指 user content rows（External Sources / Fact Base 等），唔包 template version metadata row（屬 maintainer-owned 嘅 template structure metadata）。
+- **`docs/REQUIREMENTS_CONVERGENCE.md` R-031 row 補 R-031.3 v0.3.3 narrative**。
+
+### Migration path（v0.3.2 → v0.3.3 + 跨多版本舊用戶，backward-compat preserved）
+
+- 冇 user-facing template 改動；user dev/ 同 packs/ 維持原狀。
+- 升級後唯一可觀察改動：CLI output narrative coherence 改善 —— upgrade 完成後 doctor 即時對齊。
+- doctor 對既有用戶仍 PASS。
+- fileCount 26 → 27（加 `docs/whatsnew/v0.3.3.md`）。
+
+---
+
 ## v0.3.2 — 2026-05-23
 
 狀態：正式發佈版本。本版本由 Adam 對 v0.3.1 release 後做 user journey critique 觸發 —— Adam 跑 `npx ... doctor` 時揭發「doctor 唔識自動做新版本檢查、唔推薦升新版」嘅 awareness gap，同時對 framework 提出更深 critique：QC 機制設計上粗疏、欠不同情景 user journey 嘅 UX 設計、AI 欠主動引導新手用戶嘅思維。本版本針對 init / upgrade / doctor 三個命令做 user-journey-driven 嘅 UX 重設計。

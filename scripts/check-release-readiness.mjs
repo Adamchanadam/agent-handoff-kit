@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 26"), "npm dry-run did not report expected 26 package files (v0.3.2+ includes docs/whatsnew/v0.3.1.md + v0.3.2.md)");
+  assert(packText.includes("total files: 27"), "npm dry-run did not report expected 27 package files (v0.3.3+ includes docs/whatsnew/v0.3.1.md + v0.3.2.md + v0.3.3.md)");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -57,6 +57,9 @@ function main() {
 
   assertIncludes("CHANGELOG.md", [
     `## v${version} — `,
+    "narrative coherence bug",
+    "PROJECT_INDEX template version inject",
+    "## v0.3.2 — 2026-05-23",
     "user journey UX 改進",
     "項目狀態速覽",
     "## v0.3.1 — 2026-05-23",
@@ -116,7 +119,8 @@ function main() {
     "CLI 場景分流（scenario branching）一致性（R-031.1",
     "CLI Scenario Branching Coverage Sweep（R-031.1",
     "v0.3.1 發佈狀態",
-    "v0.3.2 發佈狀態"
+    "v0.3.2 發佈狀態",
+    "v0.3.3 發佈狀態"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -380,22 +384,24 @@ function simulateScenarioBranching() {
   console.log("CLI scenario branching coverage (R-031.1):");
   const env = { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" };
   const tempBase = path.join(tmpdir(), `ack-r0311-${Date.now()}`);
+  const currentVersion = JSON.parse(read("package.json")).version;
   const s1Root = path.join(tempBase, "scenario-install-fresh");
 
   // Scenario 1: install fresh
+  // R-031.3 v0.3.3+: must-not-have anchored to "✅ 升級完成：" banner format to avoid
+  // false positives from whatsnew historical mentions of "升級完成" in narrative text.
   const s1 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s1Root], "scenario 1 install fresh", { env });
   assertScenarioOutput("scenario 1 (install fresh)", s1.stdout, {
     mustHave: [
-      /安裝完成/,
+      /✅ 安裝完成：/,
       /I just installed agent-handoff-kit\. Help me get started\./,
       /請注意：下面文字不是 Terminal 指令/,
-      // R-031.2 v0.3.2+: mini-checklist 答「我裝啱咗嗎」嘅 anxiety
       /點 confirm 你裝啱咗/,
       /background harness/,
       /連住至少一個 AI tool/
     ],
     mustNotHave: [
-      /升級完成/,
+      /✅ 升級完成：/,
       /你已經是最新版本/,
       /I just upgraded agent-handoff-kit/
     ]
@@ -408,8 +414,8 @@ function simulateScenarioBranching() {
       /你已經是最新版本，沒有檔案需要建立或合併/
     ],
     mustNotHave: [
-      /安裝完成/,
-      /升級完成/,
+      /✅ 安裝完成：/,
+      /✅ 升級完成：/,
       /I just installed agent-handoff-kit\. Help me get started\./,
       /I just upgraded agent-handoff-kit/,
       /migration report:/,
@@ -422,6 +428,55 @@ function simulateScenarioBranching() {
     throw new Error(`scenario 4 (upgrade no-op) output too long: ${s4LineCount} lines (expected ≤ 20). Short-circuit may have failed; check printUpgradeNoopShortCircuit + isUpgradeNoopAtPlanTime logic in bin.`);
   }
   console.log(`ok: scenario 4 output ${s4LineCount} lines (≤ 20 threshold)`);
+
+  // R-031.3 v0.3.3+: Scenario 3 — upgrade substantive with deep version range.
+  // Simulates real-user pattern (v0.1.x root → current CLI) catch by Adam in
+  // v0.3.2 first-test. Verifies (a) post-upgrade PROJECT_INDEX template version
+  // inject + (b) doctor self-check no longer prints "root 落後" contradicting
+  // banner + (c) whatsnew prints deep range narrative + (d) optional review phrase.
+  const s3Root = path.join(tempBase, "scenario-upgrade-deep-range");
+  const s3Init = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s3Root], { encoding: "utf8", env, cwd: root });
+  if (s3Init.status !== 0) {
+    throw new Error(`Scenario 3 init prep failed: ${s3Init.stderr || s3Init.stdout}`);
+  }
+  // Simulate v0.1.3 state: rewrite PROJECT_INDEX template version + remove v0.2.0+ files
+  const s3IndexPath = path.join(s3Root, "dev/PROJECT_INDEX.md");
+  const s3IndexText = readFileSync(s3IndexPath, "utf8");
+  writeFileSync(
+    s3IndexPath,
+    s3IndexText.replace(
+      /\| Agent Handoff Kit template version \| [\d.]+ \|/,
+      "| Agent Handoff Kit template version | 0.1.3 |"
+    ),
+    "utf8"
+  );
+  rmSync(path.join(s3Root, "dev/PROJECT_DECISIONS.md"), { force: true });
+  rmSync(path.join(s3Root, "dev/rules/onboarding.md"), { force: true });
+  rmSync(path.join(s3Root, "dev/rules/integrations.md"), { force: true });
+  const s3 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3Root], "scenario 3 upgrade substantive deep range", { env });
+  assertScenarioOutput("scenario 3 (upgrade substantive deep range)", s3.stdout, {
+    mustHave: [
+      /✅ 升級完成：/,
+      /本次升級/,
+      /v0\.1\.3/,
+      /跨度較大/,
+      /github\.com\/Adamchanadam\/agent-handoff-kit\/releases/,
+      /I just upgraded agent-handoff-kit/
+    ],
+    mustNotHave: [
+      /✅ 安裝完成：/,
+      /I just installed agent-handoff-kit\. Help me get started\./,
+      // R-031.3: self-check doctor 之後唔再 contradicting 講 root 落後
+      /root template metadata 同 CLI 唔對齊/
+    ]
+  });
+  // Post-upgrade verify: PROJECT_INDEX template version row 已 inject 為 currentVersion
+  const s3PostIndex = readFileSync(s3IndexPath, "utf8");
+  const s3VersionMatch = s3PostIndex.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+  if (!s3VersionMatch || s3VersionMatch[1] !== currentVersion) {
+    throw new Error(`scenario 3 post-upgrade: PROJECT_INDEX template version expected v${currentVersion}, got v${s3VersionMatch?.[1] ?? "missing"}`);
+  }
+  console.log(`ok: scenario 3 post-upgrade PROJECT_INDEX template version injected = v${s3VersionMatch[1]}`);
 
   // Scenario 6: doctor healthy & latest
   const s6 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s1Root], "scenario 6 doctor healthy & latest", { env });
