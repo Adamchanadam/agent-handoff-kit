@@ -54,10 +54,13 @@ function main() {
   assert(conflictText.includes("## Conflicts"), "conflict report missing conflicts section");
   assert(conflictText.includes("CLAUDE.md"), "conflict report missing CLAUDE.md");
 
-  // Regression guard for R-016: doctor must not fail just because the
-  // dev/PROJECT_INDEX.md template version row is older than the CLI version.
-  // Upgrade preserves PROJECT_INDEX (user-owned), so an older install must
-  // still pass doctor after upgrade.
+  // Regression guard for R-016 + R-031.3: doctor must pass on an older-version
+  // install + upgrade. R-016 protects user content rows (External Sources / Fact
+  // Base etc.) — those are preserved. R-031.3 v0.3.4+ scopes the template version
+  // metadata row as maintainer-owned (not user content): upgrade INJECTS the
+  // current CLI version into that row, otherwise doctor's 項目狀態速覽 would
+  // contradict the just-completed upgrade. Both invariants are tested here:
+  // (a) row gets injected away from stale 0.1.0; (b) doctor passes post-upgrade.
   const staleRoot = path.join(tmpdir(), `ack-upgrade-stalever-${Date.now()}`);
   mkdirSync(staleRoot, { recursive: true });
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", staleRoot], "init for stale-version scenario");
@@ -70,9 +73,17 @@ function main() {
   assert(read(staleIndexPath).includes("| Agent Handoff Kit template version | 0.1.0 |"), "stale version row was not written");
   const staleUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", staleRoot], "upgrade with stale version row");
   assert(staleUpgrade.stdout.includes("dev/PROJECT_INDEX.md"), "upgrade did not mention PROJECT_INDEX handling");
-  assert(read(staleIndexPath).includes("| Agent Handoff Kit template version | 0.1.0 |"), "upgrade must preserve the user PROJECT_INDEX version row");
+  // R-031.3 v0.3.4+: upgrade must INJECT current CLI version into the template
+  // version metadata row (not preserve the stale 0.1.0). Without inject, the
+  // doctor 項目狀態速覽 would contradict the just-completed upgrade banner.
+  const staleAfterUpgrade = read(staleIndexPath);
+  assert(!staleAfterUpgrade.includes("| Agent Handoff Kit template version | 0.1.0 |"),
+    "upgrade must inject current CLI version into PROJECT_INDEX template version row (R-031.3), not preserve the stale 0.1.0");
+  const staleVersionMatch = staleAfterUpgrade.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+  assert(staleVersionMatch && staleVersionMatch[1] !== "0.1.0",
+    "upgrade must inject a non-stale version into the template version metadata row (R-031.3)");
   const staleDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", staleRoot], "doctor after stale-version upgrade");
-  assert(staleDoctor.stdout.includes("status: passed"), "doctor must pass even when PROJECT_INDEX version row is older than the CLI (R-016)");
+  assert(staleDoctor.stdout.includes("status: passed"), "doctor must pass after stale-version upgrade (R-016 user content preservation + R-031.3 metadata row inject combined)");
 
   // Regression guard for R-023: older Agent Handoff Kit core files did not
   // include managed-core markers. Upgrade must replace that stale core rather
@@ -225,9 +236,21 @@ function main() {
     { ref: "v0.2.0", command: "upgrade" },
     { ref: "v0.2.1", command: "upgrade" },
     { ref: "v0.2.2", command: "upgrade" },
-    { ref: "v0.2.3", command: "upgrade" }
+    { ref: "v0.2.3", command: "upgrade" },
+    { ref: "v0.3.0", command: "upgrade" },
+    { ref: "v0.3.1", command: "upgrade" },
+    { ref: "v0.3.2", command: "upgrade" },
+    { ref: "v0.3.3", command: "upgrade" },
+    { ref: "v0.3.4", command: "upgrade", source: "current-head" }
   ];
+  let chainFinal = null;
   for (const step of chainSteps) {
+    if (step.source === "current-head") {
+      chainFinal = run(process.execPath, ["bin/agent-handoff-kit.mjs", step.command, "--yes", "--root", chainRoot], `chain step: ${step.command} via ${step.ref} current HEAD CLI`);
+      const stepDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", chainRoot], `chain doctor: ${step.ref} current HEAD CLI after ${step.command}`);
+      assert(stepDoctor.stdout.includes("status: passed"), `chain doctor must pass after ${step.ref} ${step.command}`);
+      continue;
+    }
     withWorktree(step.ref, (worktreePath) => {
       const cli = path.join(worktreePath, "bin/agent-handoff-kit.mjs");
       run(process.execPath, [cli, step.command, "--yes", "--root", chainRoot], `chain step: ${step.command} via ${step.ref} CLI`);
@@ -235,8 +258,7 @@ function main() {
       assert(stepDoctor.stdout.includes("status: passed"), `chain doctor must pass after ${step.ref} ${step.command}`);
     });
   }
-  // Final hop: current HEAD CLI upgrade with its R-024 / R-026 enforcement.
-  const chainFinal = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", chainRoot], "chain final: upgrade via current HEAD CLI");
+  assert(chainFinal, "chain final current HEAD hop did not run");
   const chainFinalAgents = read(path.join(chainRoot, "AGENTS.md"));
   assertSingleCore(chainFinalAgents, "chain final state must be single core");
   assert(count(chainFinalAgents, "BEGIN Agent Handoff Kit managed core") === 1, "chain final state must have one managed marker pair");

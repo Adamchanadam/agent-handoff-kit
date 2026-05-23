@@ -58,7 +58,7 @@
 | 補丁前置狀態枚舉 | 每個 `R-XXX` 補丁必須明文列覆蓋與唔覆蓋嘅前置狀態枚舉，唔填唔放行。例：R-024 覆蓋「夾心 managed + stale」「legacy single core」「無 core」三態，唔覆蓋「managed marker 不成對」（屬 conflict，由人工處理）。 |
 | CLI Output Contract 一致性 | 每次 release 前 sweep `bin/agent-handoff-kit.mjs`：（a）`init`／`upgrade`／`doctor` 完成輸出必含版本（v0.X.Y）、模式（mode）、剛做咗乜（counts）、下一步四項；（b）禁忌用語清單命中 = 0（含「人話解讀」等自貶字眼）；（c）內部 action 名（create／merge／skip／conflict／status）保留唔變。 |
 | SESSION_LOG handoff-role discipline（R-010）| 每次 release 前 grep `bin/agent-handoff-kit.mjs` 含 `assessSessionLogDiscipline` 函數 + doctor 集成；grep `runtime-core/AGENTS.core.md` closeout step list 含「Advance the SESSION_LOG N-rule」+「R-010 SESSION_LOG handoff-role discipline」；grep `runtime-core/SESSION_LOG.md` template 含「Handoff role」blockquote。Fresh install + doctor 跑出「SESSION_LOG discipline (R-010): ok」（warn-only：N=11+ warn，doctor exit 不變 0）。 |
-| Plan scope coverage matrix | 每次 release 嘅 plan 必明文列出三層 artifact families 嘅對齊範圍：（a）**Content layer** — `README.md` 版本字串 + `已正式發佈` 句、`CHANGELOG.md` prepend 新版本段、`package.json` version bump、`docs/qa/release-grade-qa.md` prepend 新版本「發佈狀態」段、對外 onboarding HTML（intro / guide）版本字串 + 任何因 release notes 觸發嘅描述更新；（b）**Script layer** — `scripts/check-release-readiness.mjs` 嘅 release baseline assertion + tarball name + README/CHANGELOG/release-grade-qa.md required string、`scripts/check-public-prototype.mjs` 嘅 tarball name + update notice mock newer version；（c）**Source layer** — `runtime-core/*.md` 嘅模板更新、`bin/agent-handoff-kit.mjs` 嘅功能改動、`packs/*.md` 嘅工作模式紀律。Plan 漏列任何 family 即視為 plan design gap，需 root-fix 或補 plan amend 後再 release。本維度由 v0.1.8 R-005 治理健康檢查（`outputs/governance-health-check-20260522.md`）落地：v0.1.7 → v0.1.8 plan 初版漏咗 script layer，qa:release fail 揭發後加 root-fix（dynamic baseline refactor），令 script layer 之後自動同 package.json 對齊；future release plan 仍必明文列三層 families 做覆蓋自驗。 |
+| Plan scope coverage matrix | 每次 release 嘅 plan 必明文列出三層 artifact families 嘅對齊範圍：（a）**Content layer** — `README.md` 版本字串 + `已正式發佈` 句、`CHANGELOG.md` prepend 新版本段、`package.json` version bump、`docs/qa/release-grade-qa.md` prepend 新版本「發佈狀態」段、對外 onboarding HTML（intro / guide）版本字串 + 任何因 release notes 觸發嘅描述更新；（b）**Script layer** — `scripts/check-release-readiness.mjs` 嘅 release baseline assertion + tarball name + README/CHANGELOG/release-grade-qa.md required string、`scripts/check-public-prototype.mjs` 嘅 tarball name + update notice mock newer version；（c）**Source layer** — `runtime-core/*.md` 嘅模板更新、`bin/agent-handoff-kit.mjs` 嘅功能改動、`packs/*.md` 嘅工作模式紀律。Plan 漏列任何 family 即視為 plan design gap，需 root-fix 或補 plan amend 後再 release。本維度由 v0.1.8 R-005 治理健康檢查（維護者側紀錄，2026-05-22）落地：v0.1.7 → v0.1.8 plan 初版漏咗 script layer，qa:release fail 揭發後加 root-fix（dynamic baseline refactor），令 script layer 之後自動同 package.json 對齊；future release plan 仍必明文列三層 families 做覆蓋自驗。 |
 | Project Decisions discipline（R-028） | 每次 release 前須驗證：（a）`runtime-core/PROJECT_DECISIONS.md` template 含 4 個 H2 section heading 順序正確 + 檔頭 onboarding 句式；（b）`runtime-core/AGENTS.core.md` closeout step 12 wording 命中（含「Maintain `dev/PROJECT_DECISIONS.md`」、「R-028 project narrative discipline」、4 個 H2 section name）；（c）`bin/agent-handoff-kit.mjs` mappings 含 `runtime-core/PROJECT_DECISIONS.md` → `dev/PROJECT_DECISIONS.md`；（d）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 `dev/PROJECT_DECISIONS.md` rule + group；（e）Fresh install 後 `dev/PROJECT_DECISIONS.md` 存在且 doctor 「project decisions log structure」schema check pass；（f）Upgrade 既有專案後 `dev/PROJECT_DECISIONS.md` 自動建立（若不存在）或保留（若用戶已有 content）。`npm run qa:release` 自動驗 (a)-(e)；(f) 由 `npm run qa:upgrade` mergeRoot scenario 嘅 existsSync assertion 驗。 |
 | 書面語紀律（HTML 輸出） | 對外 onboarding HTML（`agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html`）必為繁體中文書面語，廣東口語字符（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）grep 命中數必為 0。Release 前 `npm run qa:release` 自動驗。違反即視為 release artifact 質量落差，需逐句修正後再 release。 |
 | Onboarding UX discipline（R-029） | 每次 release 前須驗證：（a）`packs/onboarding.md` template 含 7 個 H2 section（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）+ 5 個 Scenario H3 + Anti-pattern table；（b）`runtime-core/AGENTS.core.md` `## 1. Startup Reads` 含 first-time-user signal detection wording + onboarding pack proactive load 紀律；（c）`runtime-core/RULE_PACKS.md` 含 onboarding signal routing row；（d）`bin/agent-handoff-kit.mjs` mappings 含 `packs/onboarding.md` → `dev/rules/onboarding.md`；（e）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 onboarding pack rule + group；（f）Fresh install 後 `dev/rules/onboarding.md` 存在且 doctor schema check pass；（g）`npm run qa:packs` 嘅 onboarding routing scenario + first-time onboarding to first task mixed scenario 通過。`npm run qa:release` 自動驗 (a)-(f)；(g) 由 `qa:packs` 驗。 |
@@ -81,19 +81,20 @@
 
 對應治理 QA 缺口矩陣第 9 項 dim「CLI 場景分流（scenario branching）一致性」嘅 automated enforcement Sweep。`scripts/check-release-readiness.mjs` 真實 invoke `bin/agent-handoff-kit.mjs` 喺各場景 fixture，並 assert output 嘅 must-have / must-not-have 規則：
 
-**七個場景嘅 output contract**：
+**七個場景嘅 output contract（scenario 3 由 v0.3.4 起拆成 3a / 3b 兩條驗收路徑）**：
 
 | # | 場景 | must-have（用戶必睇到） | must-NOT-have（避免事實錯誤） |
 |---|---|---|---|
 | 1 | install fresh（新目錄首次 init） | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（新手起步句）/「請注意：下面文字不是 Terminal 指令」 | 「升級完成」/「你已經是最新版本」 |
 | 2 | install with conflict | 「conflict」count > 0 / 「migration report」/「工具已停手，沒有覆寫」 | 「全部通過」 |
-| 3 | upgrade fresh substantive（v0.x.x → 當前，含 create + merge） | 「升級完成」/「進行中嘅 session 已熟悉本工具可繼續使用原本開工方式」/「I just upgraded agent-handoff-kit」（可選 review 起步句） | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（避免重做 onboarding 誤導） |
-| 4 | upgrade no-op（已 latest 零改動） | 「你已經是最新版本，沒有檔案需要建立或合併」/ output 行數 ≤ 15 行 | 「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/「migration report」/「upgrade self-check」 |
+| 3a | upgrade metadata-only stale（結構已最新，只有 template version metadata 過期） | 「升級完成」/ metadata 更新紀錄 / template version metadata 更新為當前版本 / doctor self-check 不再提示 root 落後 CLI | 「你已經是最新版本，沒有檔案需要建立或合併」/「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（避免重做 onboarding 誤導） |
+| 3b | upgrade structurally stale（真實舊版 fixture → 當前，含 create + merge） | 「升級完成」/「進行中嘅 session 已熟悉本工具可繼續使用原本開工方式」/「I just upgraded agent-handoff-kit」（可選 review 起步句）/ template version metadata 更新為當前版本 | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（避免重做 onboarding 誤導） |
+| 4 | upgrade no-op（已 latest 零改動） | 「你已經是最新版本，沒有檔案需要建立或合併」/ output 行數 ≤ 20 行 | 「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/「migration report」/「upgrade self-check」 |
 | 5 | upgrade with conflict | 「conflict」count > 0 / 「migration report」/「工具已停手，沒有覆寫」 | 「升級完成」 |
 | 6 | doctor healthy & latest（已係最新版） | 「status: passed」/「繼續日常使用即可」 | 「如要升級到較新版」（避免叫剛升完嘅用戶再升） |
 | 7 | doctor healthy with newer available | startup `maybePrintUpdateNotice` 嘅升級通知 / 「status: passed」 | doctor 結尾再講一次升級指令（避免 redundant） |
 
-**Automated simulation 範圍（v0.3.1 first land）**：場景 1 / 3 / 4 / 6 為 automated。場景 2 / 5 / 7 屬 conditional state，留下次 minor follow-up 補 automated（fixture 構造較複雜，目前由人工驗收清單覆蓋）。
+**Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3）**：場景 1 / 3a / 3b / 4 / 6 為 automated。場景 2 / 5 / 7 屬 conditional state，留下次 minor follow-up 補 automated（fixture 構造較複雜，目前由人工驗收清單覆蓋）。
 
 **未來新加 user-invocable surface 嘅紀律**：每加一個新 CLI sub-command 或新場景分流，必同步加 dim row + Sweep row + automated simulation；違反即視為 audit-time blind spot 重演（同 v0.3.0 R-030 5 支柱嘅 P4 紀律一致）。
 
@@ -149,6 +150,30 @@ npm package 由 `package.json` 的 `files` 控制：
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
 
+## v0.3.4 發佈狀態
+
+- 發佈版本：`0.3.4`。
+- release notes：`CHANGELOG.md` 的 `v0.3.4` 段落 + `docs/whatsnew/v0.3.4.md`。
+- 發佈內容：修補 v0.3.3 發佈後由真實用戶測試揭發的升級敘事錯誤。舊流程在 merge 前注入 `PROJECT_INDEX` template version，當 `PROJECT_INDEX` 同時需要結構合併時，merge 會把版本列覆蓋回舊值；本版改為 create / merge 完成後再注入。同步補上 metadata-only no-op guard，避免只有版本資料列過期時誤報「已經是最新版本」。migration report 新增 metadata section，記錄 `Agent Handoff Kit template version` 的更新軌跡。`scripts/check-upgrade-safety.mjs` 的 staleRoot 驗收口徑同步改為：template version metadata 屬維護者管理的模板資料，不屬 External Sources、Fact Base、Workspace Identity 等使用者內容；此口徑不削弱使用者內容保護。
+- QC framework 修補：`scripts/check-release-readiness.mjs` 將 scenario 3 拆成 scenario 3a（metadata-only stale）與 scenario 3b（structurally stale via real v0.1.7 fixture）。scenario 3b 使用真實 `test-fixtures/v0.1.7/dev/PROJECT_INDEX.md`，不再只用目前版本 init 後手動改字串的合成狀態。Loop 1 code review 另抓到兩個高信心缺口：`scripts/check-upgrade-safety.mjs` 的 `chainSteps` 漏 v0.3.x 路徑，以及 `scripts/check-release-readiness.mjs` 的 scenario docblock 仍停在 3 個自動場景；兩者已修補。
+- 發佈前驗收：本次 ship-prep 後 `npm run qa:release` 重新通過；Loop 1 修補後 `npm run qa:release` 與 `npm run qa:upgrade` 亦已重新通過。重點覆蓋 scenario 3a / 3b、scenario 6 doctor healthy、staleRoot R-031.3 v0.3.4 policy、v0.3.0 → v0.3.4 prior-version chain coverage，以及 package fileCount 28。
+- npm 狀態：待 maintainer 明確批准後才可 publish；發佈後 npm latest 為 `0.3.4`；package fileCount 28（從 27 增加 1，加 `docs/whatsnew/v0.3.4.md`）。
+- 🟡 發佈檢：pending post-publish。完成 GitHub Release 與 npm publish 後，仍須按 WORK `AGENTS.md` 的發佈檢七項 post-publish verification 執行；目前不得視為 post-publish 發佈檢已完成。
+
+### Cross-mind evidence 9-trigger table（v0.3.4）
+
+| Trigger condition | Required (yes/no) | Result (passed / iterated / blocked) | Follow-up (assertion ID / checklist item / accepted risk reason) |
+|---|---|---|---|
+| 1. 發佈說明使用「已驗證／已修復／可持續／sustainable」等強聲明 | yes | iterated | 發佈敘事使用「修補／通過／可發佈」等強口徑，已經 7 round Codex audit + sub-agent audit 交叉檢查；維護者側 audit trail 保留 prompt / response 原文，公開 repo 只保留本表摘要，避免把大型審查上下文納入發佈內容。 |
+| 2. 同類 bug 連續兩版出現 | yes | iterated | v0.3.3 已修補 upgrade / doctor 敘事一致性，v0.3.4 再由真實用戶抓到同類 production gap；Round 1-2 將根因收斂為 inject-vs-merge ordering + metadata-only no-op guard；機器覆蓋落點為 `scripts/check-release-readiness.mjs` scenario 3a / 3b 與 `scripts/check-upgrade-safety.mjs` staleRoot policy assertion。 |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：`bin/agent-handoff-kit.mjs`；測試層：`scripts/check-release-readiness.mjs` + `scripts/check-upgrade-safety.mjs`；發佈敘事層：`CHANGELOG.md` + `docs/whatsnew/v0.3.4.md` + 本段。Round 7 實作審核 verdict: ship；維護者側 audit trail 保留實作審核原文。 |
+| 4. 三個以上治理檔同步改動 | no — not required: v0.3.4 ship-prep 只更新一個公開驗收治理檔 `docs/qa/release-grade-qa.md`；先前 WORK 多治理檔更新屬 cross-AI governance integration，已另行審核 | not required | 接受風險原因：本 release 的必要治理落點是本文件的發佈狀態與九觸發表，不新增三個以上治理真源；相關 governance integration 已於維護者側 audit trail 覆核，公開 repo 不提交該大型上下文。 |
+| 5. 公開可見發佈儀式 | yes | passed | 本任務明確禁止 commit / push / tag / GitHub Release / npm publish；ceremony 須待 maintainer 批准。pre-ceremony 發佈材料與 QC 已準備；post-publish 發佈檢仍 pending。ship-prep audit 已於維護者側保留，本公開表保留結論與 gating 狀態。 |
+| 6. 存在人工語意判斷而無機器斷言 | yes | passed | Loop 1：`chainSteps` 補上 v0.3.0 / v0.3.1 / v0.3.2 / v0.3.3 / v0.3.4（v0.3.4 以 current HEAD pre-tag hop 執行），兩處 `simulateScenarioBranching` docblock 改為 5 個自動場景並移除已過期 delegation claim。Loop 2：刪除 stale final-hop comment、明確排除未提交 `outputs` 證據目錄、將本文件七場景表同步為 3a / 3b 與 5 個自動場景。Loop 3：第三輪 code review 抓到場景 4 表格門檻誤寫為 ≤ 15；已按 `scripts/check-release-readiness.mjs` scenario 4 機器斷言對齊為 ≤ 20，避免文件門檻低於實際驗收。Loop 4：逐列對照七場景表與 `simulateScenarioBranching()` 實際斷言，確認場景 1 / 3b / 4 / 6 與程式一致，場景 2 / 5 / 7 屬人工驗收列；修正場景 3a 由錯誤 no-op 敘事改為升級路徑 + metadata 更新 + doctor 不再提示 root 落後 CLI，並新增 `qa:release` 內建七場景表對齊檢查，防止同類表格漂移重演。重驗：`npm run qa:release` + `npm run qa:upgrade`。 |
+| 7. 發佈後上一版由真實用戶抓 bug | yes | iterated | v0.3.3 發佈後由 Adam 真實 root 測試抓到 v0.1.7 template version stuck + doctor contradiction；本版以真實舊版 fixture 補測。WORK `dev/SESSION_HANDOFF.md` 保留 current baseline；公開驗收證據落點為 scenario 3b 的真實 `test-fixtures/v0.1.7/dev/PROJECT_INDEX.md`。 |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | 原 scenario 3 使用 current init + manual string edit，未覆蓋 merge path；本版保留 3a 作 metadata-only 邊界測試，新增 3b 使用真實 `test-fixtures/v0.1.7/dev/PROJECT_INDEX.md` 覆蓋 structurally stale path。機器斷言：`scripts/check-release-readiness.mjs` scenario 3a / 3b。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | iterated | 四個產品聲明已對應到斷言或人工 checklist：inject-after-merge → scenario 3b；metadata-only no-op guard → scenario 3a；migration report extension → release narrative + non-blocking reviewer check；staleRoot policy → `scripts/check-upgrade-safety.mjs` staleRoot assertion。維護者側 ship-prep audit 保留 reviewer discussion；公開 repo 保留本摘要與斷言落點。 |
+
 ## v0.3.3 發佈狀態
 
 - 發佈版本：`0.3.3`。
@@ -167,6 +192,33 @@ npm package 由 `package.json` 的 `files` 控制：
 4. Optional review phrase「I just upgraded」print
 
 呢條紀律屬 framework critique L3 嘅第一步落地 —— 防 reactive default（用 fresh install / 細跨度 fixture 做 verification）重演揭發 cross-version journey gap。違反即視為 L3 critique recurrence。
+
+**Cross-mind evidence sub-rule（v0.3.4 起新加，作為 R-031.3 plan-time discipline 嘅子規則）**
+
+每 release plan 須對 stateless-cross-ai-audit skill 嘅 9 個 trigger conditions 逐一登記證據。**缺表、漏行、空欄、blocked 未處理 = release gate fail；不得進入 commit / tag / publish 或等效發佈步驟**。Skip 屬 explicit decision，必填「not required + reason」，唔可空白。
+
+| Trigger condition | Required (yes/no) | Result (passed / iterated / blocked) | Follow-up (assertion ID / checklist item / accepted risk reason) |
+|---|---|---|---|
+| 1. 發佈說明使用「已驗證／已修復／可持續／sustainable」等強聲明 |  |  |  |
+| 2. 同類 bug 連續兩版出現 |  |  |  |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 |  |  |  |
+| 4. 三個以上治理檔同步改動 |  |  |  |
+| 5. 公開可見發佈儀式 |  |  |  |
+| 6. 存在人工語意判斷而無機器斷言 |  |  |  |
+| 7. 發佈後上一版由真實用戶抓 bug |  |  |  |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） |  |  |  |
+| 9. 發佈聲明與測試斷言不是一對一映射 |  |  |  |
+
+每 trigger 嘅 Result 必填以下三者之一：
+- `passed` — cross-AI audit 已跑且 ship-ready
+- `iterated` — cross-AI 揭發要 iterate；revised plan 已 incorporate 並重 audit
+- `blocked` — cross-AI 揭發 design 性問題未解決；release blocked
+
+Skip 嘅 record 必含具體 reason（譬如「Trigger 7 not required: 上一版冇用戶 catch bug」），唔接受空白或單字「N/A」。
+
+證據追溯：cross-AI audit 嘅 prompt + response 必保留喺維護者側 `outputs` audit trail；除非 release plan 明確決定 versioned audit artifacts 屬公開交付物，公開 repo 不提交大型審查上下文。公開 Follow-up 欄應引用摘要、機器斷言落點、人工 checklist item 或 DECISION_LOG entry；不得引用未提交嘅 repository path。
+
+呢個 sub-rule 屬 R-031.3 plan-time discipline 嘅 operational sub-item；違反同 R-031.3 違反同等視為 L3 critique recurrence，blocks release。
 
 ## v0.3.2 發佈狀態
 

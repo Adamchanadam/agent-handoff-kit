@@ -1,5 +1,31 @@
 # 變更紀錄
 
+## v0.3.4 — 2026-05-23
+
+狀態：正式發佈版本。本版本修補 v0.3.3 發佈後由真實用戶測試揭發的升級敘事錯誤：專案由舊版本升級後，`dev/PROJECT_INDEX.md` 的 template version metadata 仍可能停留在舊版本，導致 `doctor` 在剛升級完成後又提示 root 落後 CLI。
+
+### 產品層修補
+
+- **`PROJECT_INDEX` template version 注入順序改為合併之後執行**：舊流程先更新版本列，再執行合併；若 `PROJECT_INDEX` 本身也需要合併，合併結果會把剛更新的版本列覆蓋回舊值。本版改為所有 create / merge 動作完成後，再重讀 `PROJECT_INDEX` 並更新版本列，確保最終落地狀態與 CLI 版本一致。
+- **metadata-only no-op guard**：升級前會先檢查 `PROJECT_INDEX` 的 template version metadata 是否過期。若只有這一列過期，即使 create / merge / conflict 數量全為 0，也不會走「已經是最新版本」短路訊息，而會完成版本列更新與自動 self-check。
+- **migration report 新增 metadata section**：升級紀錄現在會列出 `dev/PROJECT_INDEX.md` 的 `Agent Handoff Kit template version` 是否由舊值更新到目前版本，避免日後追溯時只看到 create / merge 數字而看不到 metadata 變更。
+- **staleRoot 驗收口徑重寫**：`PROJECT_INDEX` 的 template version metadata 屬維護者管理的模板資料，不屬使用者內容。這一點與 R-016 保護 External Sources、Fact Base、Workspace Identity 等使用者資料列並不衝突。
+
+### QC framework 修補
+
+- **scenario 3 拆成 3a / 3b**：scenario 3a 覆蓋「結構已最新、只有 metadata 過期」的短路防線；scenario 3b 使用真實 `test-fixtures/v0.1.7/dev/PROJECT_INDEX.md` 覆蓋「結構過期、需要合併」的注入順序防線。
+- **fixture 真實性補強**：v0.3.3 的測試曾用「目前版本 init 後再手動改字串」製造舊版本狀態，結果沒有覆蓋真實舊版 `PROJECT_INDEX` 合併路徑。本版改用真實 v0.1.7 fixture 驗證結構過期場景。
+- **prior-version chain coverage 補齊**：`qa:upgrade` 的鏈式升級路徑補上 v0.3.0 / v0.3.1 / v0.3.2 / v0.3.3 / v0.3.4，避免 v0.3.x 使用者升級到 v0.3.4 的路徑停留在人工信念而無自動驗收。
+- **Cross-mind evidence 9-trigger table 補齊**：發佈前驗收文件新增 v0.3.4 狀態段，逐列登記九個跨心智審核觸發條件、是否適用、審核結果與證據來源。
+
+### Migration path（v0.3.3 → v0.3.4，backward-compat preserved）
+
+- 不新增使用者專案模板檔案；既有使用者內容保持不變。
+- 升級後可觀察變化：`dev/PROJECT_INDEX.md` 的 template version metadata 更新為目前 CLI 版本；migration report 會顯示 metadata 更新紀錄；`doctor` 不應再於升級完成後提示 root 落後 CLI。
+- fileCount 27 → 28（新增 `docs/whatsnew/v0.3.4.md`）。
+
+---
+
 ## v0.3.3 — 2026-05-23
 
 狀態：正式發佈版本。由 Adam 喺真實用戶 root 跑 `npx ... upgrade`（root template version v0.1.3 → CLI v0.3.2）即時揭發兩個 user journey narrative coherence bug：

@@ -434,6 +434,25 @@ function parseArgs(args) {
   return { command, options };
 }
 
+// R-031.3 v0.3.4+: Helper to detect if PROJECT_INDEX template version metadata
+// row is stale relative to current CLI version. Used by plan-time no-op detection
+// guard to ensure metadata-only stale roots still trigger the upgrade ceremony
+// (otherwise plan-time short-circuit returns before inject can run).
+async function needsProjectIndexVersionInject(root, command, version) {
+  if (command !== "upgrade") return false;
+  try {
+    const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
+    const text = await readFile(indexPath, "utf8");
+    const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+    if (m && isStableSemver(m[1]) && compareSemver(m[1], version) < 0) {
+      return true;
+    }
+  } catch {
+    // ignore — silent if PROJECT_INDEX missing or unreadable
+  }
+  return false;
+}
+
 async function runInstall(command, root, options, version) {
   const mode = await detectMode(root);
   const plan = await buildPlan(root, command);
@@ -446,10 +465,17 @@ async function runInstall(command, root, options, version) {
   const planMergeCount = plan.filter((item) => item.action === "merge").length;
   const planConflictCount = plan.filter((item) => item.action === "conflict").length;
   const planSkipCount = plan.filter((item) => item.action === "skip").length;
+  // R-031.3 v0.3.4+: metadata-only stale guard. If PROJECT_INDEX template version
+  // row is stale but structure is fully current (all v0.2.0+ files already present),
+  // plan create/merge/conflict are all 0 — but inject still needs to run. Without
+  // this guard, plan-time short-circuit returns before inject can fire, leaving
+  // root on stale version forever.
+  const projectIndexVersionNeedsInject = await needsProjectIndexVersionInject(root, command, version);
   const isUpgradeNoopAtPlanTime = command === "upgrade"
     && planCreateCount === 0
     && planMergeCount === 0
-    && planConflictCount === 0;
+    && planConflictCount === 0
+    && !projectIndexVersionNeedsInject;
 
   if (isUpgradeNoopAtPlanTime) {
     printCard(version, "continuity ready", "o.o");
@@ -515,14 +541,24 @@ async function runInstall(command, root, options, version) {
     created.push(item.targetRel);
   }
 
-  // R-031.3 v0.3.3+: Inject current CLI version into PROJECT_INDEX template version
-  // metadata row — triggers for both fresh install AND upgrade substantive scenarios.
-  // The metadata row tracks template structure version (maintainer-owned), distinct
-  // from user content rows (External Sources / Fact Base etc.) which R-016 protects.
-  // Without inject on upgrade, user just upgraded but doctor's "項目狀態速覽"
-  // immediately prints "root 落後 CLI" — contradicting the just-completed upgrade
-  // narrative. Compare-semver guard prevents downgrade overwrite (e.g. someone
-  // running an older CLI). User content rows are preserved untouched.
+  for (const item of plan) {
+    if (item.action !== "merge") continue;
+    const backupPath = path.join(backupDir, item.targetRel);
+    await mkdir(path.dirname(backupPath), { recursive: true });
+    await copyFile(item.targetAbs, backupPath);
+    await writeFile(item.targetAbs, item.mergedText, "utf8");
+    merged.push(item.targetRel);
+  }
+
+  // R-031.3 v0.3.4+: Inject current CLI version into PROJECT_INDEX template version
+  // metadata row — placed AFTER the merge loop to avoid the ordering bug where merge
+  // overwrites inject. Merge writes item.mergedText computed at plan-build phase
+  // (which contains the pre-inject stale version row); if inject ran before merge,
+  // merge would silently revert it. R-016 still protected: only the metadata row
+  // mutates, user content rows (External Sources / Fact Base etc.) preserved.
+  // The captured metadataUpdated object is passed to writeMigrationReport so the
+  // audit trail records this mutation alongside file create/merge operations.
+  let metadataUpdated = null;
   if (command === "upgrade" || created.includes("dev/PROJECT_INDEX.md")) {
     const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
     try {
@@ -534,19 +570,16 @@ async function runInstall(command, root, options, version) {
           `| Agent Handoff Kit template version | ${version} |`
         );
         await writeFile(indexPath, updated, "utf8");
+        metadataUpdated = {
+          file: "dev/PROJECT_INDEX.md",
+          field: "Agent Handoff Kit template version",
+          from: m[1],
+          to: version
+        };
       }
     } catch {
       // ignore — doctor anchor (R-016) only checks row existence, not specific value.
     }
-  }
-
-  for (const item of plan) {
-    if (item.action !== "merge") continue;
-    const backupPath = path.join(backupDir, item.targetRel);
-    await mkdir(path.dirname(backupPath), { recursive: true });
-    await copyFile(item.targetAbs, backupPath);
-    await writeFile(item.targetAbs, item.mergedText, "utf8");
-    merged.push(item.targetRel);
   }
 
   const skippedCount = plan.filter((item) => item.action === "skip").length;
@@ -554,17 +587,22 @@ async function runInstall(command, root, options, version) {
   // R-031 v0.3.1+: scenario branching. Upgrade no-op (零改動) short-circuits — skip
   // migration report, self-check doctor, install banner, onboarding canonical phrase.
   // Prevents misleading "安裝完成" framing when user is just verifying they are latest.
+  // R-031.3 v0.3.4+: also short-circuit only when metadata is current. If only the
+  // metadata row was stale (counts 0/0/0 but metadataUpdated truthy), user just
+  // received a substantive upgrade — proceed through full ceremony so doctor
+  // self-check confirms the inject result.
   const isUpgradeNoop = command === "upgrade"
     && created.length === 0
     && merged.length === 0
-    && conflicts.length === 0;
+    && conflicts.length === 0
+    && !metadataUpdated;
 
   if (isUpgradeNoop) {
     printUpgradeNoopShortCircuit(version);
     return;
   }
 
-  const report = await writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir);
+  const report = await writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir, metadataUpdated);
   printInstallSummary(version, command, mode, root, {
     created: created.length,
     merged: merged.length,
@@ -1460,7 +1498,7 @@ async function confirmWrite() {
   }
 }
 
-async function writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir) {
+async function writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir, metadataUpdated = null) {
   const reportPath = path.join(migrationDir, "migration-report.md");
   await mkdir(migrationDir, { recursive: true });
   const skipped = plan.filter((item) => item.action === "skip").map((item) => item.targetRel);
@@ -1484,12 +1522,22 @@ async function writeMigrationReport(root, command, mode, plan, created, merged, 
     "## Conflicts",
     ...listOrNone(conflicts.map((item) => `${item.targetRel} - ${item.reason}`)),
     "",
+    // R-031.3 v0.3.4+: metadata updates are tracked separately from file create/merge
+    // because they mutate specific rows inside an otherwise user-owned file rather
+    // than replacing or merging the file as a whole. Audit trail completeness
+    // requires this section even when create/merge/conflict counts are all 0.
+    "## Metadata Updates",
+    metadataUpdated
+      ? `- ${metadataUpdated.file}: ${metadataUpdated.field} ${metadataUpdated.from} → ${metadataUpdated.to}`
+      : "- none",
+    "",
     "## Backup",
     merged.length > 0 ? `- ${path.relative(root, backupDir)}` : "- none",
     "",
     "## Notes",
     "- Existing files are preserved unless the installer can perform a bounded merge.",
-    "- Files that cannot be safely merged are reported as conflicts and are not overwritten."
+    "- Files that cannot be safely merged are reported as conflicts and are not overwritten.",
+    "- Metadata Updates section tracks row-level mutations (R-031.3) distinct from file-level changes."
   ].join("\n");
   await writeFile(reportPath, `${text}\n`, "utf8");
   return reportPath;

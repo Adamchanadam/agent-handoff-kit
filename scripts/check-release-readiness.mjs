@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 27"), "npm dry-run did not report expected 27 package files (v0.3.3+ includes docs/whatsnew/v0.3.1.md + v0.3.2.md + v0.3.3.md)");
+  assert(packText.includes("total files: 28"), "npm dry-run did not report expected 28 package files (v0.3.4+ includes docs/whatsnew/v0.3.1.md + v0.3.2.md + v0.3.3.md + v0.3.4.md)");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -59,6 +59,8 @@ function main() {
     `## v${version} — `,
     "narrative coherence bug",
     "PROJECT_INDEX template version inject",
+    "scenario 3a",
+    "scenario 3b",
     "## v0.3.2 — 2026-05-23",
     "user journey UX 改進",
     "項目狀態速覽",
@@ -120,6 +122,8 @@ function main() {
     "CLI Scenario Branching Coverage Sweep（R-031.1",
     "v0.3.1 發佈狀態",
     "v0.3.2 發佈狀態",
+    "v0.3.4 發佈狀態",
+    "Cross-mind evidence 9-trigger table",
     "v0.3.3 發佈狀態"
   ]);
 
@@ -344,11 +348,11 @@ function main() {
   // v0.2.1 patches this by enforcing a single canonical trigger phrase.
   checkCrossSurfaceWordingConsistency();
 
-  // R-031.1 v0.3.1+: CLI Scenario Branching Coverage Sweep. Real-invoke bin in 3
-  // automated scenarios (install fresh / upgrade no-op / doctor healthy & latest)
-  // and assert must-have / must-not-have output patterns per scenario contract.
-  // Scenario 3 (upgrade substantive) requires v0.2.x state fixture and is covered
-  // by `scripts/check-upgrade-safety.mjs` chain test as a follow-up.
+  // R-031.1 v0.3.1+: CLI Scenario Branching Coverage Sweep. Real-invoke bin in 5
+  // automated scenarios (install fresh / upgrade no-op / upgrade metadata-only stale /
+  // upgrade structurally stale / doctor healthy & latest) and assert must-have /
+  // must-not-have output patterns per scenario contract.
+  checkScenarioBranchingDocAlignment();
   simulateScenarioBranching();
 
   console.log("");
@@ -373,10 +377,116 @@ function checkCrossSurfaceWordingConsistency() {
   }
 }
 
-// R-031.1 v0.3.1+: CLI scenario branching simulation. Real-invoke bin in 3 automated
+function checkScenarioBranchingDocAlignment() {
+  const qaDoc = read("docs/qa/release-grade-qa.md");
+  const rows = [
+    {
+      id: "1",
+      snippets: [
+        "install fresh",
+        "安裝完成",
+        "I just installed agent-handoff-kit. Help me get started.",
+        "請注意：下面文字不是 Terminal 指令",
+        "升級完成",
+        "你已經是最新版本"
+      ]
+    },
+    {
+      id: "2",
+      snippets: [
+        "install with conflict",
+        "conflict",
+        "migration report",
+        "工具已停手，沒有覆寫",
+        "全部通過"
+      ]
+    },
+    {
+      id: "3a",
+      snippets: [
+        "upgrade metadata-only stale",
+        "升級完成",
+        "metadata 更新紀錄",
+        "template version metadata 更新為當前版本",
+        "doctor self-check 不再提示 root 落後 CLI",
+        "你已經是最新版本，沒有檔案需要建立或合併",
+        "安裝完成",
+        "I just installed agent-handoff-kit. Help me get started."
+      ]
+    },
+    {
+      id: "3b",
+      snippets: [
+        "upgrade structurally stale",
+        "升級完成",
+        "進行中嘅 session 已熟悉本工具可繼續使用原本開工方式",
+        "I just upgraded agent-handoff-kit",
+        "template version metadata 更新為當前版本",
+        "安裝完成",
+        "I just installed agent-handoff-kit. Help me get started."
+      ]
+    },
+    {
+      id: "4",
+      snippets: [
+        "upgrade no-op",
+        "你已經是最新版本，沒有檔案需要建立或合併",
+        "output 行數 ≤ 20 行",
+        "安裝完成",
+        "升級完成",
+        "I just installed",
+        "I just upgraded",
+        "migration report",
+        "upgrade self-check"
+      ]
+    },
+    {
+      id: "5",
+      snippets: [
+        "upgrade with conflict",
+        "conflict",
+        "migration report",
+        "工具已停手，沒有覆寫",
+        "升級完成"
+      ]
+    },
+    {
+      id: "6",
+      snippets: [
+        "doctor healthy & latest",
+        "status: passed",
+        "繼續日常使用即可",
+        "如要升級到較新版"
+      ]
+    },
+    {
+      id: "7",
+      snippets: [
+        "doctor healthy with newer available",
+        "maybePrintUpdateNotice",
+        "status: passed",
+        "doctor 結尾再講一次升級指令"
+      ]
+    }
+  ];
+
+  for (const row of rows) {
+    const line = qaDoc.split(/\r?\n/).find((candidate) => candidate.startsWith(`| ${row.id} |`));
+    assert(line, `docs/qa/release-grade-qa.md missing scenario ${row.id} row in seven-scenario table`);
+    for (const snippet of row.snippets) {
+      assert(line.includes(snippet), `docs/qa/release-grade-qa.md scenario ${row.id} row is not aligned with release scenario contract; missing: ${snippet}`);
+    }
+  }
+  assert(qaDoc.includes("場景 1 / 3a / 3b / 4 / 6 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list scenario 1 / 3a / 3b / 4 / 6");
+  assert(qaDoc.includes("場景 2 / 5 / 7 屬 conditional state"), "docs/qa/release-grade-qa.md human-review scope must list scenario 2 / 5 / 7");
+  console.log("ok: docs/qa/release-grade-qa.md seven-scenario table aligned with CLI scenario contract");
+}
+
+// R-031.1 v0.3.1+: CLI scenario branching simulation. Real-invoke bin in 5 automated
 // scenarios and assert must-have / must-not-have output per scenario contract.
-// Scenario 3 (upgrade substantive) requires v0.2.x state fixture — covered by
-// `scripts/check-upgrade-safety.mjs` chain test final hop as a follow-up.
+// Scenario 3 is split inline into 3a metadata-only stale and 3b structurally stale
+// via a real v0.1.7 fixture, so the upgrade-substantive path is no longer delegated
+// to `scripts/check-upgrade-safety.mjs`.
 // Scenarios 2 / 5 / 7 (install with conflict / upgrade with conflict / doctor outdated)
 // require more elaborate state setup and remain on the human review checklist for now.
 function simulateScenarioBranching() {
@@ -429,36 +539,75 @@ function simulateScenarioBranching() {
   }
   console.log(`ok: scenario 4 output ${s4LineCount} lines (≤ 20 threshold)`);
 
-  // R-031.3 v0.3.3+: Scenario 3 — upgrade substantive with deep version range.
-  // Simulates real-user pattern (v0.1.x root → current CLI) catch by Adam in
-  // v0.3.2 first-test. Verifies (a) post-upgrade PROJECT_INDEX template version
-  // inject + (b) doctor self-check no longer prints "root 落後" contradicting
-  // banner + (c) whatsnew prints deep range narrative + (d) optional review phrase.
-  const s3Root = path.join(tempBase, "scenario-upgrade-deep-range");
-  const s3Init = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s3Root], { encoding: "utf8", env, cwd: root });
-  if (s3Init.status !== 0) {
-    throw new Error(`Scenario 3 init prep failed: ${s3Init.stderr || s3Init.stdout}`);
+  // R-031.3 v0.3.4+: Scenario 3 split into 3a (metadata-only stale) + 3b (structurally
+  // stale via real test-fixtures/v0.1.7 fixture) per minimum-correct fix from cross-AI
+  // root-fix audit. Old single scenario used `init + rewrite version row` which left
+  // structure fully current — never tested the inject-vs-merge ordering bug because
+  // PROJECT_INDEX kept its v0.3.x `## Installed Integrations` section, so upgrade plan
+  // marked it `skip` not `merge`. Real-user case (Adam v0.3.3 first-test) had both
+  // metadata + structure stale; the new 3a + 3b split covers each axis independently.
+
+  // Scenario 3a — metadata-only stale: current init + only rewrite version row.
+  // Plan create/merge/conflict all 0. Catches the metadata-only no-op short-circuit
+  // bug — without `projectIndexVersionNeedsInject` guard, plan-time short-circuit
+  // returns before inject can fire.
+  const s3aRoot = path.join(tempBase, "scenario-upgrade-metadata-only");
+  const s3aInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s3aRoot], { encoding: "utf8", env, cwd: root });
+  if (s3aInit.status !== 0) {
+    throw new Error(`Scenario 3a init prep failed: ${s3aInit.stderr || s3aInit.stdout}`);
   }
-  // Simulate v0.1.3 state: rewrite PROJECT_INDEX template version + remove v0.2.0+ files
-  const s3IndexPath = path.join(s3Root, "dev/PROJECT_INDEX.md");
-  const s3IndexText = readFileSync(s3IndexPath, "utf8");
+  const s3aIndexPath = path.join(s3aRoot, "dev/PROJECT_INDEX.md");
+  const s3aIndexText = readFileSync(s3aIndexPath, "utf8");
   writeFileSync(
-    s3IndexPath,
-    s3IndexText.replace(
+    s3aIndexPath,
+    s3aIndexText.replace(
       /\| Agent Handoff Kit template version \| [\d.]+ \|/,
-      "| Agent Handoff Kit template version | 0.1.3 |"
+      "| Agent Handoff Kit template version | 0.2.9 |"
     ),
     "utf8"
   );
-  rmSync(path.join(s3Root, "dev/PROJECT_DECISIONS.md"), { force: true });
-  rmSync(path.join(s3Root, "dev/rules/onboarding.md"), { force: true });
-  rmSync(path.join(s3Root, "dev/rules/integrations.md"), { force: true });
-  const s3 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3Root], "scenario 3 upgrade substantive deep range", { env });
-  assertScenarioOutput("scenario 3 (upgrade substantive deep range)", s3.stdout, {
+  const s3a = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3aRoot], "scenario 3a upgrade metadata-only stale", { env });
+  assertScenarioOutput("scenario 3a (upgrade metadata-only stale)", s3a.stdout, {
+    mustHave: [
+      /✅ 升級完成：/
+    ],
+    mustNotHave: [
+      // 確認 metadata-only stale case 唔被 plan-time no-op short-circuit 截走
+      // 用真正 short-circuit banner format (書面中文「你已經是」) 而非 whatsnew
+      // historical mention 嘅廣東口語 wording，防 false positive
+      /✅ 結果：你已經是最新版本/,
+      // 確認 inject 真正生效，doctor self-check 之後唔再講 root 落後
+      /root template metadata 同 CLI 唔對齊/
+    ]
+  });
+  const s3aPostIndex = readFileSync(s3aIndexPath, "utf8");
+  const s3aVersionMatch = s3aPostIndex.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+  if (!s3aVersionMatch || s3aVersionMatch[1] !== currentVersion) {
+    throw new Error(`scenario 3a post-upgrade: PROJECT_INDEX template version expected v${currentVersion}, got v${s3aVersionMatch?.[1] ?? "missing"}`);
+  }
+  console.log(`ok: scenario 3a (metadata-only stale) post-upgrade template version = v${s3aVersionMatch[1]}`);
+
+  // Scenario 3b — structurally stale via real test-fixtures/v0.1.7 fixture:
+  // PROJECT_INDEX comes from actual v0.1.7 init output, lacks v0.2.0+
+  // `## Installed Integrations` section, so upgrade plan marks it for `merge`.
+  // Catches the inject-vs-merge ordering bug — without inject-after-merge fix,
+  // merge writes mergedText (with v0.1.7 row) AFTER inject, leaving root stale.
+  const s3bRoot = path.join(tempBase, "scenario-upgrade-structurally-stale");
+  const s3bInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s3bRoot], { encoding: "utf8", env, cwd: root });
+  if (s3bInit.status !== 0) {
+    throw new Error(`Scenario 3b init prep failed: ${s3bInit.stderr || s3bInit.stdout}`);
+  }
+  const s3bIndexPath = path.join(s3bRoot, "dev/PROJECT_INDEX.md");
+  copyFileSync(path.join(root, "test-fixtures/v0.1.7/dev/PROJECT_INDEX.md"), s3bIndexPath);
+  rmSync(path.join(s3bRoot, "dev/PROJECT_DECISIONS.md"), { force: true });
+  rmSync(path.join(s3bRoot, "dev/rules/onboarding.md"), { force: true });
+  rmSync(path.join(s3bRoot, "dev/rules/integrations.md"), { force: true });
+  const s3b = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3bRoot], "scenario 3b upgrade structurally-stale (real v0.1.7 fixture)", { env });
+  assertScenarioOutput("scenario 3b (upgrade structurally-stale via real v0.1.7 fixture)", s3b.stdout, {
     mustHave: [
       /✅ 升級完成：/,
       /本次升級/,
-      /v0\.1\.3/,
+      /v0\.1\.7/,
       /跨度較大/,
       /github\.com\/Adamchanadam\/agent-handoff-kit\/releases/,
       /I just upgraded agent-handoff-kit/
@@ -466,17 +615,15 @@ function simulateScenarioBranching() {
     mustNotHave: [
       /✅ 安裝完成：/,
       /I just installed agent-handoff-kit\. Help me get started\./,
-      // R-031.3: self-check doctor 之後唔再 contradicting 講 root 落後
       /root template metadata 同 CLI 唔對齊/
     ]
   });
-  // Post-upgrade verify: PROJECT_INDEX template version row 已 inject 為 currentVersion
-  const s3PostIndex = readFileSync(s3IndexPath, "utf8");
-  const s3VersionMatch = s3PostIndex.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
-  if (!s3VersionMatch || s3VersionMatch[1] !== currentVersion) {
-    throw new Error(`scenario 3 post-upgrade: PROJECT_INDEX template version expected v${currentVersion}, got v${s3VersionMatch?.[1] ?? "missing"}`);
+  const s3bPostIndex = readFileSync(s3bIndexPath, "utf8");
+  const s3bVersionMatch = s3bPostIndex.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+  if (!s3bVersionMatch || s3bVersionMatch[1] !== currentVersion) {
+    throw new Error(`scenario 3b post-upgrade: PROJECT_INDEX template version expected v${currentVersion}, got v${s3bVersionMatch?.[1] ?? "missing"}`);
   }
-  console.log(`ok: scenario 3 post-upgrade PROJECT_INDEX template version injected = v${s3VersionMatch[1]}`);
+  console.log(`ok: scenario 3b (structurally stale) post-upgrade template version = v${s3bVersionMatch[1]}`);
 
   // Scenario 6: doctor healthy & latest
   const s6 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s1Root], "scenario 6 doctor healthy & latest", { env });
@@ -485,8 +632,11 @@ function simulateScenarioBranching() {
       /status: passed/,
       /繼續日常使用即可/,
       // R-031.2 v0.3.2+: 項目狀態速覽（三向 version + 距上次 closeout + 項目首次安裝）
+      // Loosened from /📦 版本：CLI v/ to /📦 版本：CLI/ — aligned branch wording is
+      // "CLI / root / npm latest 三向對齊 vX" where "CLI" is followed by "/" not "v",
+      // so the original anchor missed the aligned case when network fetch succeeded.
       /項目狀態速覽/,
-      /📦 版本：CLI v/,
+      /📦 版本：CLI/,
       /📅 上次 closeout/,
       /🌱 項目首次安裝距今/
     ],
