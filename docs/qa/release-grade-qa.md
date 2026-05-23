@@ -65,6 +65,7 @@
 | Cross-surface wording alignment（R-029.1，v0.2.1 新加 dim） | v0.2.0 release ceremony 嘅 critical QC gap：plan scope coverage matrix 嘅三層（content / script / source）唔 cover cross-surface wording alignment。R-029 嘅 onboarding trigger phrase 跨 5 個 surface（CLI source + README + intro.html + guide.html + onboarding pack 自身），但 v0.2.0 release 時 CLI source 仍係 legacy wording 而其他 surface 已 update —— silent disconnect。v0.2.1 起加新 dim（第四 layer）：每次涉及 user-facing prompt / wording / canonical trigger phrase 嘅 release plan 必明文驗證跨 surface 一致。`scripts/check-release-readiness.mjs` 嘅 `checkCrossSurfaceWordingConsistency()` helper 自動 enforce canonical R-029 trigger phrase 喺 4 個 surface（bin + README + intro + guide）一致。違反即 throw error，release 阻擋。 |
 | Routing table propagation discipline（R-029.2，v0.2.1 新加 dim） | v0.2.0 既有 upgrade 紀律對 `dev/RULE_PACKS.md` 沿用 default `skip "preserve existing file"`，導致 v0.1.X 用戶 upgrade 後 routing table 仍係舊版（silent missing R-029 onboarding routing row）。Architectural reclassification：`dev/RULE_PACKS.md` 由 user customization target 重新歸類為 **maintainer-owned routing table**（同 AGENTS.md managed core block 同類紀律）。v0.2.1 起 `bin/agent-handoff-kit.mjs` `classifyExistingFile` 加 force-update merge logic：當 stale state detected (targetText 唔含 v0.2.0+ 嘅 routing rows)，trigger `action: "merge"` 用 latest source 覆寫。`scripts/check-upgrade-safety.mjs` chain test final hop 加 RULE_PACKS.md routing row 強制 assertion。Doctor schema check 加 strict anchor enforce routing table 一致性。 |
 | Upgrade migration safety from prior minor versions（R-030，v0.3.0 新加 dim） | v0.3.0 audit 揭發 systemic QC gap：`scripts/check-upgrade-safety.mjs` chain test fixture 只 cover `v0.1.4 → v0.1.5 → v0.1.6 → v0.1.7 → v0.1.8`，**跳過 v0.2.0 / v0.2.1 / v0.2.2 / v0.2.3 整個 state**，所以 v0.2.x → v0.3.0 嘅 upgrade-time migration / requiredAnchors propagation / user-data preservation 完全冇 automated test。v0.3.0 release Phase 5.5 🔴 全面檢 初版 audit miss 咗 5 個 upgrade pitfalls（External Sources 用戶 rows overwrite / doctor schema 7-col mismatch / v0.2.x doctor without upgrade fail / onboarding.md upgrade 後 doctor anchor fail / AGENTS.md managed-core R-030 propagation skip），由 Adam catch 才補。同類 pattern 同 v0.2.1 RULE_PACKS.md propagation gap 一致：每次 release reactive 發現，QC framework 唔自我擴展。v0.3.0 起 5 支柱 sustainable mechanism 落地：(P1) chain test extension —— chainSteps append 全部已 release minor / patch versions（v0.2.0 / v0.2.1 / v0.2.2 / v0.2.3），future release 必同步 append 新 tag；(P2) user-data-preservation regression fixture（`test-fixtures/user-data/`）—— PROJECT_INDEX 含用戶填過 External Sources / Fact Base / Workspace Identity 完整 rows，upgrade 後 8+ assertion 驗證 rows 全部 preserved；(P3) prior-version requiredAnchors propagation test —— chain final 後 explicit assert AGENTS.md 含當前 major release 新 anchors（譬如 v0.3.0「startup availability probe」/「dev/rules/integrations.md」/「Credential separation」）+ onboarding.md 含 Scenario F；(P4) docs/qa/release-grade-qa.md 加本 dim + Upgrade Migration Safety Sweep section；(P5) WORK AGENTS.md `## QC Trigger Vocabulary` 🔴 全面檢 條目加新 mandatory item + 長期記憶 codify。Future major bump 必 cover 呢 5 支柱，違反即視為 audit-time blind spot。 |
+| CLI 場景分流（scenario branching）一致性（R-031.1，v0.3.1 新加 dim） | v0.3.1 第一個真實 v0.3.0 用戶 session 揭發 systemic QC gap：CLI output 喺唔同場景下重用同一 banner，未按場景分流。實際事故：upgrade 完成印「✅ 安裝完成」+ 推送新手起步句「I just installed agent-handoff-kit」；第二次 upgrade（零改動）仍跑完整 ceremony 寫 migration report + self-check doctor；doctor 結尾叫人「如要升級到較新版」但 startup `maybePrintUpdateNotice` 已印過更新通知。Root cause：既有 R-026 CLI Output Contract sweep helper 屬 **lexical / structural layer**（grep token 存在性 + R-026 contract 四項 + forbidden vocabulary），未 cover **semantic / scenario-fit layer**（同一字串喺場景 X 出現係咪事實正確 + 用戶可行動）。譬如「安裝完成」字串本身合法（唔屬 forbidden），但喺 upgrade no-op 場景印屬事實錯誤；grep miss 因為 grep 只 sweep token，唔 sweep 場景。 v0.3.1 起加新 dim「CLI 場景分流（scenario branching）一致性」+ 配套 CLI Scenario Branching Coverage Sweep（automated）。列舉七個 user-invocable 場景：(1) install fresh / (2) install with conflict / (3) upgrade fresh substantive（首次升級含 create+merge）/ (4) upgrade no-op（已 latest 零改動）/ (5) upgrade with conflict / (6) doctor healthy & latest / (7) doctor healthy with newer available。每個場景定 output contract（must-have / must-not-have / context-appropriate），simulation 真實 invoke 驗收。同 5 支柱 sustainable QC 同層擴展。 |
 
 ### Upgrade Migration Safety Sweep（R-030，v0.3.0 新加 Sweep）
 
@@ -75,6 +76,26 @@
 - (c) **Prior-version requiredAnchors propagation test**：chain final 後 explicit assert AGENTS.md 含當前 major release 新 anchors（v0.3.0：「startup availability probe」/「dev/rules/integrations.md」/「Credential separation」）+ onboarding.md 含 Scenario F（v0.3.0 R-030 anchor）—— 確認 managed-core merge + smart-merge 對 v(N-1) state propagation 觸發。
 
 違反任何 (a) / (b) / (c) 即 throw error，release 阻擋。
+
+### CLI Scenario Branching Coverage Sweep（R-031.1，v0.3.1 新加 Sweep）
+
+對應治理 QA 缺口矩陣第 9 項 dim「CLI 場景分流（scenario branching）一致性」嘅 automated enforcement Sweep。`scripts/check-release-readiness.mjs` 真實 invoke `bin/agent-handoff-kit.mjs` 喺各場景 fixture，並 assert output 嘅 must-have / must-not-have 規則：
+
+**七個場景嘅 output contract**：
+
+| # | 場景 | must-have（用戶必睇到） | must-NOT-have（避免事實錯誤） |
+|---|---|---|---|
+| 1 | install fresh（新目錄首次 init） | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（新手起步句）/「請注意：下面文字不是 Terminal 指令」 | 「升級完成」/「你已經是最新版本」 |
+| 2 | install with conflict | 「conflict」count > 0 / 「migration report」/「工具已停手，沒有覆寫」 | 「全部通過」 |
+| 3 | upgrade fresh substantive（v0.x.x → 當前，含 create + merge） | 「升級完成」/「進行中嘅 session 已熟悉本工具可繼續使用原本開工方式」/「I just upgraded agent-handoff-kit」（可選 review 起步句） | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（避免重做 onboarding 誤導） |
+| 4 | upgrade no-op（已 latest 零改動） | 「你已經是最新版本，沒有檔案需要建立或合併」/ output 行數 ≤ 15 行 | 「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/「migration report」/「upgrade self-check」 |
+| 5 | upgrade with conflict | 「conflict」count > 0 / 「migration report」/「工具已停手，沒有覆寫」 | 「升級完成」 |
+| 6 | doctor healthy & latest（已係最新版） | 「status: passed」/「繼續日常使用即可」 | 「如要升級到較新版」（避免叫剛升完嘅用戶再升） |
+| 7 | doctor healthy with newer available | startup `maybePrintUpdateNotice` 嘅升級通知 / 「status: passed」 | doctor 結尾再講一次升級指令（避免 redundant） |
+
+**Automated simulation 範圍（v0.3.1 first land）**：場景 1 / 3 / 4 / 6 為 automated。場景 2 / 5 / 7 屬 conditional state，留下次 minor follow-up 補 automated（fixture 構造較複雜，目前由人工驗收清單覆蓋）。
+
+**未來新加 user-invocable surface 嘅紀律**：每加一個新 CLI sub-command 或新場景分流，必同步加 dim row + Sweep row + automated simulation；違反即視為 audit-time blind spot 重演（同 v0.3.0 R-030 5 支柱嘅 P4 紀律一致）。
 
 ## 套件邊界
 
@@ -127,6 +148,14 @@ npm package 由 `package.json` 的 `files` 控制：
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
+
+## v0.3.1 發佈狀態
+
+- 發佈版本：`0.3.1`。
+- release notes：`CHANGELOG.md` 的 `v0.3.1` 段落。
+- 發佈內容：第一個真實 v0.3.0 用戶 session 揭發 CLI 升級流程 messaging gap：升級完成印「✅ 安裝完成」+ 推送新手起步句、第二次升級（零改動）仍跑完整 ceremony、doctor 結尾叫人升級但 startup 已印 update notice。Root cause：R-026 CLI Output Contract sweep helper 屬 lexical layer，未 cover scenario-fit layer。v0.3.1 修補 `bin/agent-handoff-kit.mjs` —— `runInstall` 加 plan-time upgrade no-op detection（zero create / merge / conflict 即短路）+ `printInstallNextSteps` split 為 install / upgrade-substantive / upgrade-noop 三個 helper + `runDoctor` 結尾 next-step 唔再 unconditional 推送 upgrade。同步擴展 QC framework：`docs/qa/release-grade-qa.md` 加新治理 QA 缺口矩陣 dim「CLI 場景分流（scenario branching）一致性」+ 配套 CLI Scenario Branching Coverage Sweep（automated simulation 場景 1 / 3 / 4 / 6 first land），防同類 audit blind spot 重演。
+- 發佈前驗收：qa:release 全綠（既有 26+ assertions + 新加場景 simulation assertions）。Doctor schema check 同 anchor check 未變仍全部通過。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.1`；package fileCount 維持 24（本次無新加檔案入 npm package）。
 
 ## v0.3.0 發佈狀態
 

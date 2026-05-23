@@ -1,5 +1,47 @@
 # 變更紀錄
 
+## v0.3.1 — 2026-05-23
+
+狀態：正式發佈版本。本版本修補 CLI 升級流程的 messaging gap，並擴展 QC 框架至「CLI 場景分流（scenario branching）一致性」維度，防止同類 audit blind spot 在未來的釋出版本重演。
+
+### CLI messaging gap fix
+
+第一個 v0.3.0 用戶實測揭發升級流程的事實錯誤訊息：
+
+1. 升級完成後印「✅ 安裝完成：下一步請在 AI 對話中操作」大型 banner，但用戶並非首次安裝，係升級。
+2. 升級完成嘅 banner 內推送新手引導起步句「I just installed agent-handoff-kit. Help me get started.」，但升級中嘅用戶可能正在進行長期 session，貼此句會誤觸發新手引導包重做 onboarding。
+3. 第二次升級（已 latest，零改動）仍跑完整 ceremony：寫 migration report、跑 self-check doctor、印「安裝完成」banner。實際無檔案改動，呢啲動作純屬 noise。
+4. `doctor` 結尾叫人「如要升級到較新版，執行 npx ... upgrade」，但啟動本工具時已 `maybePrintUpdateNotice` 印過更新通知，doctor 結尾再叫人升級屬重複加誤導（用戶啱啱升完做 doctor）。
+5. 升級完成嘅「剛做咗」摘要純機械 count（create 3 / merge 3 / skip 14），未提供本版本新加咩功能、用戶應留意咩、新加咗咩 section 嘅 substantive narrative。
+
+v0.3.1 修補：
+
+- **`bin/agent-handoff-kit.mjs` `runInstall` 加 plan-time upgrade no-op detection** — 當 upgrade 嘅 plan 顯示零 create / 零 merge / 零 conflict（純 skip），直接跳過 plan listing + confirmWrite + migration report + self-check doctor，改印短訊「你已經是最新版本，沒有檔案需要建立或合併」。
+- **`bin/agent-handoff-kit.mjs` `printInstallNextSteps` split** — install 場景保留現有實作（含「安裝完成」+ 新手起步句）；新加 `printUpgradeNextSteps` 替 upgrade substantive 用，narrative 改為「升級完成：管治架構檔案已更新到最新版本」+ 提示「進行中嘅 session 已熟悉本工具可繼續使用原本開工方式」+ 選用嘅 review 起步句（非強推 onboarding）。
+- **`bin/agent-handoff-kit.mjs` 新加 `printUpgradeNoopShortCircuit`** — 升級零改動場景嘅極短 banner（約 8 行），跳全部 ceremony，避免噪音。
+- **`bin/agent-handoff-kit.mjs` `runDoctor` 結尾 next-step 紀律** — 健康狀態下唔再 unconditional 講「如要升級到較新版」，改為「繼續日常使用即可。如有新版本發佈，啟動本工具時會自動顯示升級通知」。
+
+### QC framework expansion（防同類 gap 重演）
+
+R-026 CLI Output Contract sweep helper 既有 assertion 屬 lexical / structural layer（grep token 存在性），未 cover semantic / scenario-fit layer（同一字串喺場景 X 出現係咪事實正確 + 用戶可行動）。譬如「安裝完成」字串本身合法，但喺 upgrade no-op 場景印屬事實錯誤；既有 grep 抓唔到。
+
+呢個 gap 同 v0.3.0 揭發嘅 upgrade migration safety gap 同 root cause：QC framework 未自我擴展 cover 新 surface 類型。v0.3.1 落地：
+
+- **`docs/qa/release-grade-qa.md` 加新治理 QA 缺口矩陣 dim「CLI 場景分流（scenario branching）一致性」** —— 列出七個 user-invocable 場景（install fresh / install with conflict / upgrade fresh substantive / upgrade no-op / upgrade with conflict / doctor healthy & latest / doctor healthy with newer available），每場景定 output contract（must-have / must-not-have / context-appropriate）+ 配套 Sweep section 描述 automated enforcement 範圍。
+- **`scripts/check-release-readiness.mjs` 加場景 simulation assertions** —— 真實 invoke bin/agent-handoff-kit.mjs 喺各場景 fixture，verify output 唔跨場景錯用（譬如 grep upgrade no-op output 唔含「安裝完成」「I just installed」；grep doctor healthy output 唔含「如要升級到較新版」）。
+- **`runtime-core/AGENTS.core.md` 同 `runtime-core/RULE_PACKS.md` 不變**，本次紀律屬 release QA framework expansion，未改 user-facing runtime template。
+
+### Migration path（v0.3.0 → v0.3.1，backward-compat preserved）
+
+既有 v0.3.0 用戶 upgrade 影響：
+
+1. **冇 user-facing template 改動**，所有 `runtime-core/*.md` 同 `packs/*.md` 維持 v0.3.0 狀態。
+2. **upgrade 後唯一可觀察改動**：CLI output messaging 流暢度提升 —— 升級完成後睇到「升級完成」而非「安裝完成」+ 升級零改動場景睇到短訊而非完整 ceremony + doctor 結尾唔再叫你升級。
+3. **doctor 對既有用戶仍 PASS** —— 因為 doctor schema check 同 anchor check 未變。
+4. **fileCount 維持 24** —— 本次無新加檔案入 npm package。
+
+---
+
 ## v0.3.0 — 2026-05-22
 
 狀態:正式發佈版本。此版本已建立 tag、GitHub Release,並已 npm publish。**v2 嘅 second major version bump**(v0.2.x → v0.3.0),引入 first-class **Integration governance framework**(R-030):支持 Connectors / MCPs / Plugins / Skills 跨 session 治理 + 機密分離原則 + 多層持久化 source-of-truth architecture + cross-tool resilience。

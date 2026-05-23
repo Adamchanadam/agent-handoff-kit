@@ -437,6 +437,36 @@ function parseArgs(args) {
 async function runInstall(command, root, options, version) {
   const mode = await detectMode(root);
   const plan = await buildPlan(root, command);
+
+  // R-031 v0.3.1+: plan-time upgrade no-op detection. When upgrade has zero
+  // create/merge/conflict actions (skip-only), skip the full plan listing +
+  // confirmWrite + ceremony. The plan listing in this scenario is pure noise —
+  // user is already at latest and just verifying status.
+  const planCreateCount = plan.filter((item) => item.action === "create").length;
+  const planMergeCount = plan.filter((item) => item.action === "merge").length;
+  const planConflictCount = plan.filter((item) => item.action === "conflict").length;
+  const planSkipCount = plan.filter((item) => item.action === "skip").length;
+  const isUpgradeNoopAtPlanTime = command === "upgrade"
+    && planCreateCount === 0
+    && planMergeCount === 0
+    && planConflictCount === 0;
+
+  if (isUpgradeNoopAtPlanTime) {
+    printCard(version, "continuity ready", "o.o");
+    console.log(`command: ${command}`);
+    console.log(`current directory: ${process.cwd()}`);
+    console.log(`selected root: ${root}`);
+    console.log(`mode: ${mode}`);
+    console.log("");
+    console.log(`📋 計劃預覽：create 0 / merge 0 / skip ${planSkipCount} / conflict 0 — 沒有檔案需要建立或合併。`);
+    if (options.dryRun) {
+      console.log("");
+      console.log("dry-run: no files written");
+    }
+    printUpgradeNoopShortCircuit(version);
+    return;
+  }
+
   printPlan(command, root, mode, plan, version);
 
   if (options.dryRun) {
@@ -477,8 +507,22 @@ async function runInstall(command, root, options, version) {
     merged.push(item.targetRel);
   }
 
-  const report = await writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir);
   const skippedCount = plan.filter((item) => item.action === "skip").length;
+
+  // R-031 v0.3.1+: scenario branching. Upgrade no-op (零改動) short-circuits — skip
+  // migration report, self-check doctor, install banner, onboarding canonical phrase.
+  // Prevents misleading "安裝完成" framing when user is just verifying they are latest.
+  const isUpgradeNoop = command === "upgrade"
+    && created.length === 0
+    && merged.length === 0
+    && conflicts.length === 0;
+
+  if (isUpgradeNoop) {
+    printUpgradeNoopShortCircuit(version);
+    return;
+  }
+
+  const report = await writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir);
   printInstallSummary(version, command, mode, root, {
     created: created.length,
     merged: merged.length,
@@ -487,9 +531,17 @@ async function runInstall(command, root, options, version) {
     backupRel: merged.length > 0 ? path.relative(root, backupDir) : null,
     reportRel: path.relative(root, report)
   });
-  printInstallNextSteps(root, conflicts.length);
 
-  // R-024 upgrade.done self-check: after upgrade writes, run doctor automatically.
+  // R-031 v0.3.1+: install vs upgrade narrative split. Upgrade substantive uses
+  // "升級完成" framing (not "安裝完成") and offers optional review prompt instead of
+  // pushing first-time onboarding canonical phrase.
+  if (command === "upgrade") {
+    printUpgradeNextSteps(root, conflicts.length);
+  } else {
+    printInstallNextSteps(root, conflicts.length);
+  }
+
+  // R-024 upgrade.done self-check: after substantive upgrade writes, run doctor automatically.
   // The user must see whether the merged state actually reaches a clean health state.
   if (command === "upgrade" && conflicts.length === 0) {
     console.log("");
@@ -617,7 +669,7 @@ async function runDoctor(root, version, options = {}) {
     nextStep: !credentialResult.ok
       ? "立即從相關檔案 redact credential value + rotate 已泄露 token；credential 應該由 AI 工具自身 secure storage 管理，永不寫入 dev/* 任何檔。"
       : disciplineResult.ok
-      ? "繼續日常使用；如要升級到較新版，執行 npx @adamchanadam/agent-handoff-kit@latest upgrade。"
+      ? "繼續日常使用即可。如有新版本發佈，啟動本工具時會自動顯示升級通知。"
       : "繼續使用；下次 closeout 時 AI 應自動執行 SESSION_LOG N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
   });
   return overallHealthy ? "passed" : "failed";
@@ -1386,6 +1438,48 @@ function printInstallNextSteps(root, conflictCount) {
   console.log("🩺 如要檢查安裝是否完整，可在 Terminal 執行：");
   console.log("   npx @adamchanadam/agent-handoff-kit doctor");
   console.log("============================================================");
+}
+
+// R-031 v0.3.1+: Upgrade substantive next-step block. Distinct from install
+// (`printInstallNextSteps`) because the user is not first-time; pushing them through
+// the onboarding canonical phrase resets context they already have.
+function printUpgradeNextSteps(root, conflictCount) {
+  console.log("");
+  console.log("============================================================");
+  console.log("✅ 升級完成：管治架構檔案已更新到最新版本");
+  console.log("============================================================");
+  if (conflictCount > 0) {
+    console.log("⚠️  狀態：有既有檔案需要人工確認，詳情見 migration report。");
+    console.log("⚠️  這不是檔案壞掉；工具已停手，沒有覆寫 conflict 檔案。");
+    console.log("📋 下一步：把 migration report 或這段輸出貼給 AI，請它幫你判斷怎樣合併。");
+    console.log("");
+  }
+  console.log("📋 如你正在進行中的工作 session 已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
+  console.log("");
+  console.log("💡 如想了解本版本新加了甚麼功能，可選用以下開工句（非強制）：");
+  console.log("------------------------------------------------------------");
+  console.log(`Work in ${root}. I just upgraded agent-handoff-kit. Brief me on what changed in this version and what I should pay attention to.`);
+  console.log("------------------------------------------------------------");
+  console.log("");
+  console.log("🩺 升級驗收會在下方自動跑 doctor；若全綠即升級完成。");
+  console.log("============================================================");
+}
+
+// R-031 v0.3.1+: Upgrade no-op short-circuit. When the user runs upgrade on a root
+// already at latest version (skip all / create 0 / merge 0 / conflict 0), print a
+// short factual message and return. Saves disk (no migration report) + reduces noise
+// (no self-check doctor) + avoids misleading "安裝完成" framing for an idempotent
+// operation where nothing changed.
+function printUpgradeNoopShortCircuit(version) {
+  console.log("");
+  console.log(`📦 版本：v${version}`);
+  console.log("🛠️  模式：upgrade-existing");
+  console.log("🔎 剛做咗：檢查所有管治架構檔案的狀態（含 AGENTS.md、dev/SESSION_HANDOFF.md、dev/PROJECT_INDEX.md 等）。");
+  console.log("✅ 結果：你已經是最新版本，沒有檔案需要建立或合併；用戶填寫的內容全部保留現狀。");
+  console.log("");
+  console.log("🚀 下一步：繼續日常使用即可。如要檢查健康狀態，可執行：");
+  console.log("   npx @adamchanadam/agent-handoff-kit doctor");
+  console.log("");
 }
 
 function listOrNone(items) {

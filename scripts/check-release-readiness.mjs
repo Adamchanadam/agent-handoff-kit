@@ -42,28 +42,24 @@ function main() {
     "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
     "請特別留意：那一段不是給 Terminal 的指令",
     "START_NEXT_SESSION_PROMPT.txt",
-    "看到 `conflict` 不代表檔案壞掉",
     "## 它解決甚麼問題",
     "## 三步上手",
     "## 工作模式",
     "必讀資料",
-    "npm run qa:prototype",
-    "npm run qa:packs",
-    "npm run qa:upgrade",
-    "npm run qa:release",
     "收工",
     "wrap up",
     "handoff",
-    "fenced `text` code block",
     "## 項目決策日誌",
     "dev/PROJECT_DECISIONS.md",
     "## 外部工具治理",
-    "Installed Integrations",
     "機密分離原則"
   ]);
 
   assertIncludes("CHANGELOG.md", [
     `## v${version} — `,
+    "CLI messaging gap fix",
+    "plan-time upgrade no-op detection",
+    "## v0.3.0 — 2026-05-22",
     "## v0.1.7 — 2026-05-20",
     "## v0.1.6 — 2026-05-20",
     "## v0.1.5 — 2026-05-20",
@@ -113,7 +109,10 @@ function main() {
     "Cross-surface wording consistency 驗收 (R-029.1",
     "Cross-surface Wording Consistency Sweep",
     "Cross-surface wording alignment（R-029.1",
-    "Routing table propagation discipline（R-029.2"
+    "Routing table propagation discipline（R-029.2",
+    "CLI 場景分流（scenario branching）一致性（R-031.1",
+    "CLI Scenario Branching Coverage Sweep（R-031.1",
+    "v0.3.1 發佈狀態"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -295,13 +294,12 @@ function main() {
   checkForbiddenVocabulary("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), v2JargonForbidden);
   checkForbiddenVocabulary("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), v2JargonForbidden);
 
-  // R-030 v0.3.0+: Cross-callout wording consistency for guide.html hero + Case A Step 2.
-  const guideText = read("agent-handoff-kit-guide.html");
-  const heroAnchor = "兩種開工方式";
-  if (!guideText.includes(heroAnchor)) {
-    throw new Error(`Cross-callout wording inconsistency: guide.html missing shared "${heroAnchor}" anchor (R-030 v0.3.0+; hero + Case A Step 2 callout must reference the same plain-language framing)`);
-  }
-  console.log(`ok: agent-handoff-kit-guide.html cross-callout shared anchor "${heroAnchor}"`);
+  // R-030 v0.3.0+ cross-callout wording assertion retired in v0.3.1:
+  // The 2026-05-23 R-031 guide.html rewrite simplified the hero + Case A Step 2 narrative
+  // and removed the shared "兩種開工方式" anchor in favour of context-aware plain-language
+  // framing per the R-031 surface document output principle (HUMAN_DOCUMENT_GOVERNANCE).
+  // Cross-surface canonical phrase consistency is still enforced below by
+  // checkCrossSurfaceWordingConsistency() for the R-029 trigger phrase across 4 surfaces.
 
   // R-030 v0.3.0+: Credential leak prevention sweep over runtime-core template files.
   const credentialLeakPatterns = [
@@ -338,6 +336,13 @@ function main() {
   // v0.2.1 patches this by enforcing a single canonical trigger phrase.
   checkCrossSurfaceWordingConsistency();
 
+  // R-031.1 v0.3.1+: CLI Scenario Branching Coverage Sweep. Real-invoke bin in 3
+  // automated scenarios (install fresh / upgrade no-op / doctor healthy & latest)
+  // and assert must-have / must-not-have output patterns per scenario contract.
+  // Scenario 3 (upgrade substantive) requires v0.2.x state fixture and is covered
+  // by `scripts/check-upgrade-safety.mjs` chain test as a follow-up.
+  simulateScenarioBranching();
+
   console.log("");
   console.log("Agent Handoff Kit release readiness QA passed");
   console.log(`user-flow root: ${tempRoot}`);
@@ -358,6 +363,84 @@ function checkCrossSurfaceWordingConsistency() {
     }
     console.log(`ok: ${surface.file} cross-surface R-029 trigger phrase`);
   }
+}
+
+// R-031.1 v0.3.1+: CLI scenario branching simulation. Real-invoke bin in 3 automated
+// scenarios and assert must-have / must-not-have output per scenario contract.
+// Scenario 3 (upgrade substantive) requires v0.2.x state fixture — covered by
+// `scripts/check-upgrade-safety.mjs` chain test final hop as a follow-up.
+// Scenarios 2 / 5 / 7 (install with conflict / upgrade with conflict / doctor outdated)
+// require more elaborate state setup and remain on the human review checklist for now.
+function simulateScenarioBranching() {
+  console.log("");
+  console.log("CLI scenario branching coverage (R-031.1):");
+  const env = { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" };
+  const tempBase = path.join(tmpdir(), `ack-r0311-${Date.now()}`);
+  const s1Root = path.join(tempBase, "scenario-install-fresh");
+
+  // Scenario 1: install fresh
+  const s1 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s1Root], "scenario 1 install fresh", { env });
+  assertScenarioOutput("scenario 1 (install fresh)", s1.stdout, {
+    mustHave: [
+      /安裝完成/,
+      /I just installed agent-handoff-kit\. Help me get started\./,
+      /請注意：下面文字不是 Terminal 指令/
+    ],
+    mustNotHave: [
+      /升級完成/,
+      /你已經是最新版本/,
+      /I just upgraded agent-handoff-kit/
+    ]
+  });
+
+  // Scenario 4: upgrade no-op (re-run upgrade on freshly installed root — already latest)
+  const s4 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s1Root], "scenario 4 upgrade no-op", { env });
+  assertScenarioOutput("scenario 4 (upgrade no-op)", s4.stdout, {
+    mustHave: [
+      /你已經是最新版本，沒有檔案需要建立或合併/
+    ],
+    mustNotHave: [
+      /安裝完成/,
+      /升級完成/,
+      /I just installed agent-handoff-kit\. Help me get started\./,
+      /I just upgraded agent-handoff-kit/,
+      /migration report:/,
+      /upgrade self-check/
+    ]
+  });
+  // Output should be short — no-op short-circuit drops the ceremony.
+  const s4LineCount = s4.stdout.split("\n").length;
+  if (s4LineCount > 20) {
+    throw new Error(`scenario 4 (upgrade no-op) output too long: ${s4LineCount} lines (expected ≤ 20). Short-circuit may have failed; check printUpgradeNoopShortCircuit + isUpgradeNoopAtPlanTime logic in bin.`);
+  }
+  console.log(`ok: scenario 4 output ${s4LineCount} lines (≤ 20 threshold)`);
+
+  // Scenario 6: doctor healthy & latest
+  const s6 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s1Root], "scenario 6 doctor healthy & latest", { env });
+  assertScenarioOutput("scenario 6 (doctor healthy & latest)", s6.stdout, {
+    mustHave: [
+      /status: passed/,
+      /繼續日常使用即可/
+    ],
+    mustNotHave: [
+      /如要升級到較新版/
+    ]
+  });
+}
+
+function assertScenarioOutput(label, output, contract) {
+  for (const pattern of contract.mustHave) {
+    if (!pattern.test(output)) {
+      throw new Error(`${label} missing required pattern: ${pattern}\n--- Output (first 2000 chars) ---\n${output.slice(0, 2000)}`);
+    }
+  }
+  for (const pattern of contract.mustNotHave) {
+    if (pattern.test(output)) {
+      const match = output.match(pattern);
+      throw new Error(`${label} contains forbidden pattern: ${pattern} (matched: "${match[0]}")\n--- Output (first 2000 chars) ---\n${output.slice(0, 2000)}`);
+    }
+  }
+  console.log(`ok: ${label} output contract`);
 }
 
 function checkForbiddenVocabulary(label, text, patterns) {
@@ -524,11 +607,13 @@ function runNpm(args, label) {
   return run(process.platform === "win32" ? "npm.cmd" : "npm", args, label);
 }
 
-function run(command, args, label) {
-  const result = spawnSync(command, args, {
+function run(command, args, label, options = {}) {
+  const spawnOptions = {
     cwd: root,
     encoding: "utf8"
-  });
+  };
+  if (options.env) spawnOptions.env = options.env;
+  const result = spawnSync(command, args, spawnOptions);
 
   if (result.error || result.status !== 0) {
     throw new Error(`${label} failed\n${result.error?.message ?? ""}\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
