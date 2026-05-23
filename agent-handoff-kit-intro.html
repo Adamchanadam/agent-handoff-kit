@@ -789,7 +789,7 @@
 02 · 把本次實際做過的事,寫進工作日誌
 03 · 更新檔案登記:專案索引、同步登錄表
 04 · 接力自測:下一個 AI 能否只憑交接文件接得回去
-05 · 輸出一段 fenced text,你下次開新對話貼回去就能接續
+05 · 輸出一段明顯標示的提示,你下次開新對話貼回去就能接續
       </div>
     </div>
   </section>
@@ -824,7 +824,7 @@
           <div class="mode-icon" aria-hidden="true"></div>
           <span class="mode-tag">knowledge</span>
           <h3>整理 Notion / Google Drive</h3>
-          <p>AI 會先判斷外部文件是真源、索引、附件還是輸出地;寫入之後必定回讀核對。</p>
+          <p>AI 會先判斷外部文件是真源、索引、附件還是輸出地。如已連接 Notion 或 Google Drive 的對應接口,AI 直接讀寫對應資料來源;未連接則產生需要手動同步的內容。寫入之後必定回讀核對。</p>
         </div>
         <div class="mode-cell m5">
           <div class="mode-icon" aria-hidden="true"></div>
@@ -875,8 +875,8 @@
           <h3>開工</h3>
           <p>打開你想用的 AI 工具,在新對話貼以下一段（第一次用,新手引導 trigger）:</p>
           <pre>Work in <span class="hl">&lt;你的資料夾&gt;</span>. I just installed agent-handoff-kit. Help me get started.</pre>
-          <p style="margin-top:12px;">AI 會自動載入 onboarding pack,引導你選擇情景並一步一步帶你做第一個任務。</p>
-          <p style="margin-top:8px;font-size:14px;opacity:0.75;">熟悉 v2 之後的 session 可改用更直接 prompt:<br/><code style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:1px 4px;">Work in &lt;資料夾&gt;. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.</code></p>
+          <p style="margin-top:12px;">AI 會自動載入新手引導,帶你選擇使用情境,再一步一步陪你做第一個任務。</p>
+          <p style="margin-top:8px;font-size:14px;opacity:0.75;">熟悉 Handoff Kit 之後,後續每次開新對話可改用更直接的開工句:<br/><code style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:1px 4px;">Work in &lt;資料夾&gt;. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.</code></p>
         </div>
 
         <div class="step s3">
@@ -904,7 +904,7 @@
     <div class="wrap">
       <span class="eyebrow">06 / 為新手而設的安全護欄</span>
       <h2>就算你不懂代碼,<br/>項目也不會被 AI 弄壞。</h2>
-      <p class="intro">這套工具內置一個叫 safety 的工作模式。任何時候涉及刪檔、Git、雲端寫入、發佈,AI 都會強制加載這個模式,並遵守以下硬性禁區:</p>
+      <p class="intro">這套工具內置一個叫「安全」的工作模式。任何時候涉及刪檔、Git、雲端寫入、發佈,AI 都會強制加載這個模式,並遵守以下硬性禁區:</p>
 
       <div class="safety-grid">
         <div class="safety-text">
@@ -954,7 +954,7 @@
           <h3>🧊 Cold</h3>
           <p style="font-size:14px;"><strong>SESSION_LOG 舊條目</strong></p>
           <p style="font-size:14px;"><strong>SESSION_LOG_archive</strong>:自動冷封存。</p>
-          <p style="font-size:13px;opacity:0.7;">平日不讀,做 audit 或追溯時才打開。AI 收工時自動將舊條目 archive 至此。</p>
+          <p style="font-size:13px;opacity:0.7;">平日不讀,做審計或追溯時才打開。AI 收工時自動將舊條目封存至此。</p>
         </div>
       </div>
     </div>
@@ -970,7 +970,7 @@
         <div class="recap-cell">
           <div class="big">01</div>
           <h3>開新對話,貼一段字</h3>
-          <p>第一次用:"Work in &lt;資料夾&gt;. I just installed agent-handoff-kit. Help me get started." 之後 session 可改用直接 prompt。</p>
+          <p>第一次用:"Work in &lt;資料夾&gt;. I just installed agent-handoff-kit. Help me get started." 之後對話可改用更直接的開工句。</p>
         </div>
         <div class="recap-cell">
           <div class="big">02</div>
@@ -991,7 +991,7 @@
     <div class="wrap">
       <span class="eyebrow">09 / 配合使用</span>
       <h2>單次對話質素 +<br/>跨對話接力。</h2>
-      <p class="intro">這套工具負責 session 之間接力,但 AI 在單一對話內的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)就不包含。配合 Adam-AI-Instructions 使用,兩個維度都覆蓋。</p>
+      <p class="intro">這套工具負責對話之間接力,但 AI 在單一對話內的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)就不包含。配合 Adam-AI-Instructions 使用,兩個維度都覆蓋。</p>
 
       <div class="what-grid">
         <div class="what-cell before">
