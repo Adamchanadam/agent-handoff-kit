@@ -149,6 +149,14 @@ npm package 由 `package.json` 的 `files` 控制：
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
 
+## v0.3.2 發佈狀態
+
+- 發佈版本：`0.3.2`。
+- release notes：`CHANGELOG.md` 的 `v0.3.2` 段落 + `docs/whatsnew/v0.3.2.md`（new structured whatsnew）。
+- 發佈內容：Adam 對 v0.3.1 release 後做 user journey critique 觸發 —— 揭發「doctor 唔識自動做新版本檢查」嘅 awareness gap + framework 三層 systemic critique（QC state-based 唔係 journey-based / AI reactive responder 唔係 proactive anticipator / dev process 把 catch 當 single-data-point absorption）。本版本針對 init / upgrade / doctor 三個命令做 user-journey-driven UX 重設計：(1) init 加 mini-checklist 答「我裝啱咗嗎」；(2) doctor 加「項目狀態速覽」三句（三向 version 對比 + 距上次 closeout + 項目首次安裝距今）；(3) upgrade 加 inline whatsnew summary 直接 surface 本版同跨版本嘅 release notes；(4) fresh install 注入當前 CLI version 入 PROJECT_INDEX template metadata（修補由 v0.1.7 起 hardcoded 0.1.7 嘅 fact-error）。新檔 `docs/whatsnew/v<version>.md` 三段固定 schema（本版新加咗咩 / 對你已有檔案嘅影響 / 建議下一步），每次 release maintainer 必寫。
+- 發佈前驗收：qa:release 全綠（既有 26+ assertions + R-031.1 三場景 simulation + 場景 4 upgrade no-op 行數 ≤ 20 sustained）。Doctor schema check 同 anchor check 未變仍全部通過。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.2`；package fileCount 26（從 24 增加 2，因加 `docs/whatsnew/v0.3.1.md` + `docs/whatsnew/v0.3.2.md`）。
+
 ## v0.3.1 發佈狀態
 
 - 發佈版本：`0.3.1`。

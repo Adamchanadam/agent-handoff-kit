@@ -1,5 +1,40 @@
 # 變更紀錄
 
+## v0.3.2 — 2026-05-23
+
+狀態：正式發佈版本。本版本由 Adam 對 v0.3.1 release 後做 user journey critique 觸發 —— Adam 跑 `npx ... doctor` 時揭發「doctor 唔識自動做新版本檢查、唔推薦升新版」嘅 awareness gap，同時對 framework 提出更深 critique：QC 機制設計上粗疏、欠不同情景 user journey 嘅 UX 設計、AI 欠主動引導新手用戶嘅思維。本版本針對 init / upgrade / doctor 三個命令做 user-journey-driven 嘅 UX 重設計。
+
+### Init / upgrade / doctor 嘅 user journey UX 改進
+
+從用戶嗰刻嘅 mental state 出發，直接 surface 用戶可能想知道嘅資訊，唔等用戶主動 ask AI。
+
+- **`init` 加「點 confirm 你裝啱咗」mini-checklist** — 直接答首次安裝後嘅 anxiety「我裝啱咗嗎」。列三個具體 verify step（跑 doctor / 數 dev/ 檔案數 / 喺 AI tool 開新對話），並講清「Agent Handoff Kit 只係 background harness，需要連住 AI tool 先見到實際 value」。
+- **`doctor` 加「項目狀態速覽」三句** —
+  - **三向 version 對比**：CLI version / root template metadata version / npm latest 三者並列。對應 user mental model「我用緊邊個版本 / 有冇升級需要」。舊版設計依賴 startup `maybePrintUpdateNotice`，但 npx 自動 fetch latest 嗰陣 silently 失效（CLI 已 = npm latest）—— 呢個 gap 由 Adam 喺 v0.3.1 後揭發。
+  - **距上次 closeout 幾耐** — 對應 user mental model「呢個 project 嘅 reflection cycle 健康嗎」。讀 `dev/SESSION_HANDOFF.md` 嘅「Last Updated:」line。
+  - **項目首次安裝距今幾耐** — 對應 user mental model「呢個 project 嘅 continuity awareness」。讀 `dev/governance_migrations/<oldest folder>` 嘅 timestamp。
+- **`upgrade` 加 inline whatsnew summary** — 升級完成時直接 print 本版同跨版本嘅 release notes 摘要，唔等用戶 ask AI 先知道有咩改。新檔 `docs/whatsnew/v<version>.md` 三段固定 schema（本版新加咗咩 / 對你已有檔案嘅影響 / 建議下一步），每次 release maintainer 必寫。
+- **`init` fresh install 注入當前 CLI version 入 PROJECT_INDEX template metadata row** — 由 v0.1.7 起 template 嘅 hardcoded `0.1.7` row 從未 update，導致 fresh install 後三向 version 對比顯示 root v0.1.7（事實錯誤）。本版本只喺 fresh install 場景（`created.includes("dev/PROJECT_INDEX.md")`）注入；upgrade 場景仍 preserve user-owned row（保留 R-016 紀律）。
+
+### Adam 嘅 framework critique 觸發嘅深層教訓
+
+呢個 v0.3.2 唔係單純 patch issue，係對「QC 框架 + AI 思維 + 開發過程」三層 systemic redesign 嘅起步。Adam 嘅 critique 揭發三層 gap：
+
+1. **QC framework 屬 state-based 唔係 journey-based** — 既有 lexical（forbidden vocabulary grep）+ semantic（scenario branching simulation）兩層 sweep 都係 token / state existence check。冇 mechanism cover「用戶喺呢個 state 嘅 mental model 是否被服務」。Doctor scenario 嘅 must-have / must-not-have contract 可以全綠，但 user mental model「我用緊邊個版本」可以完全 missing —— grep 抓唔到。
+2. **AI mental model 預設 reactive responder 唔係 proactive anticipator** — 用戶問 → AI 答。冇主動 anticipate「用戶 next likely 問題係咩 / 我有冇 pre-answer」嘅 plan-time discipline。R-029 onboarding 嘅 proactive thinking 喺其他 entry point（upgrade / doctor / 日常使用 / debug）冇 transferable。
+3. **Development process 把 Adam catch 當 single-data-point absorption** — 每次 catch 即 absorb 入 R 編號 + sweep dim + 長期記憶，但屬個別 issue level；冇做 N-catch-level 嘅 meta-retrospective + lesson cross-check enforcement。教訓 codify 變紀念碑，唔係 living guard rail。
+
+呢三層教訓 codify 入治理層做下一步 framework redesign 嘅起點。本版本 user journey UX 改進屬第一個落地 demonstration —— 用 user-journey-driven mindset 做嘢，唔再 reactive patch token。
+
+### Migration path（v0.3.1 → v0.3.2，backward-compat preserved）
+
+- 冇 user-facing template 改動；user dev/ 同 packs/ 維持 v0.3.1 狀態。
+- 升級後唯一可觀察改動：CLI output（init / upgrade / doctor）narrative 更豐富。
+- doctor 對既有用戶仍 PASS（schema + anchor check 未變）。
+- fileCount 24 → 26（加 `docs/whatsnew/v0.3.1.md` + `v0.3.2.md`）。
+
+---
+
 ## v0.3.1 — 2026-05-23
 
 狀態：正式發佈版本。本版本修補 CLI 升級流程的 messaging gap，並擴展 QC 框架至「CLI 場景分流（scenario branching）一致性」維度，防止同類 audit blind spot 在未來的釋出版本重演。

@@ -2,7 +2,7 @@
 
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -498,6 +498,29 @@ async function runInstall(command, root, options, version) {
     created.push(item.targetRel);
   }
 
+  // R-031.2 v0.3.2+: For freshly-created PROJECT_INDEX (fresh install), inject the
+  // current CLI version into the template version metadata row. Template ships with
+  // a hardcoded historical version (0.1.7) which is preserved by R-016 during upgrades
+  // but should NOT confuse a fresh installer about which version they just installed.
+  // Only triggers when PROJECT_INDEX was just created (not preserved/merged).
+  if (created.includes("dev/PROJECT_INDEX.md")) {
+    const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
+    try {
+      const text = await readFile(indexPath, "utf8");
+      const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+      if (m && isStableSemver(m[1]) && compareSemver(m[1], version) < 0) {
+        const updated = text.replace(
+          /\| Agent Handoff Kit template version \| [\d.]+ \|/,
+          `| Agent Handoff Kit template version | ${version} |`
+        );
+        await writeFile(indexPath, updated, "utf8");
+      }
+    } catch {
+      // ignore — fresh install will still pass doctor because the anchor (R-016) only
+      // checks for the row's existence, not a specific version.
+    }
+  }
+
   for (const item of plan) {
     if (item.action !== "merge") continue;
     const backupPath = path.join(backupDir, item.targetRel);
@@ -535,8 +558,9 @@ async function runInstall(command, root, options, version) {
   // R-031 v0.3.1+: install vs upgrade narrative split. Upgrade substantive uses
   // "升級完成" framing (not "安裝完成") and offers optional review prompt instead of
   // pushing first-time onboarding canonical phrase.
+  // R-031.2 v0.3.2+: printUpgradeNextSteps now async (awaits inline whatsnew print).
   if (command === "upgrade") {
-    printUpgradeNextSteps(root, conflicts.length);
+    await printUpgradeNextSteps(root, conflicts.length, version);
   } else {
     printInstallNextSteps(root, conflicts.length);
   }
@@ -660,6 +684,18 @@ async function runDoctor(root, version, options = {}) {
       console.log(`  CRITICAL: ${finding}`);
     }
   }
+
+  // R-031.2 v0.3.2+: 項目狀態速覽 —— 三向 version 對比 + 距上次 closeout 幾耐 +
+  // 項目首次安裝距今幾耐。從用戶跑 doctor 嗰刻嘅 mental state 出發（confirm health /
+  // suspect drift / curious about version / continuity awareness），唔等用戶 ask AI。
+  console.log("");
+  console.log("項目狀態速覽：");
+  const versionAlignment = await assessVersionAlignment(root, version);
+  printVersionAlignment(versionAlignment);
+  const lastCloseout = await assessLastCloseout(root);
+  printLastCloseout(lastCloseout);
+  const projectAge = await assessProjectAge(root);
+  printProjectAge(projectAge);
 
   const overallHealthy = credentialResult.ok;
   printDoctorSummary(version, root, overallHealthy ? "healthy" : "needs-attention", {
@@ -987,6 +1023,137 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
     return { ...base, action: "conflict", reason: "existing bridge does not route to AGENTS.md" };
   }
   return { ...base, action: "skip", reason: "preserve existing file" };
+}
+
+// R-031.2 v0.3.2+: Version alignment assessment for doctor "項目狀態速覽".
+// Compares CLI version (running), root template metadata version (in dev/PROJECT_INDEX.md),
+// and npm latest. Surfaces drift awareness because previous design relied on startup
+// maybePrintUpdateNotice which silently fails when npx auto-fetches latest (CLI version
+// equals npm latest, so the notice never triggers, leaving user root drift invisible).
+async function assessVersionAlignment(root, cliVersion) {
+  const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
+  let rootVersion = null;
+  try {
+    const text = await readFile(indexPath, "utf8");
+    const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+    if (m) rootVersion = m[1];
+  } catch {
+    // file missing or unreadable; rootVersion stays null
+  }
+
+  let npmLatest = null;
+  try {
+    npmLatest = await fetchLatestVersion();
+  } catch {
+    // network failure; npmLatest stays null
+  }
+
+  return { cliVersion, rootVersion, npmLatest };
+}
+
+function printVersionAlignment(result) {
+  const { cliVersion, rootVersion, npmLatest } = result;
+  if (rootVersion === null) {
+    console.log(`  📦 版本：CLI v${cliVersion} / root metadata 缺失（曾經手動編輯？）/ npm latest ${npmLatest ? "v" + npmLatest : "無法查詢"}`);
+    return;
+  }
+  if (npmLatest === null) {
+    console.log(`  📦 版本：CLI v${cliVersion} / root v${rootVersion} / npm latest 無法查詢（網絡可能不通）`);
+    return;
+  }
+  const aligned = cliVersion === rootVersion && rootVersion === npmLatest;
+  if (aligned) {
+    console.log(`  📦 版本：CLI / root / npm latest 三向對齊 v${cliVersion} ✅`);
+    return;
+  }
+  console.log(`  📦 版本：CLI v${cliVersion} / root v${rootVersion} / npm latest v${npmLatest}`);
+  if (npmLatest && compareSemver(npmLatest, cliVersion) > 0) {
+    console.log(`     npm 有新版（v${npmLatest}）；可執行：npx @adamchanadam/agent-handoff-kit@latest upgrade`);
+  } else if (cliVersion !== rootVersion) {
+    console.log(`     你 root template metadata 同 CLI 唔對齊；兩個版本仍相容 doctor 仍 PASS；如想對齊：npx @adamchanadam/agent-handoff-kit@latest upgrade`);
+  }
+}
+
+// R-031.2 v0.3.2+: Last closeout assessment. Reads dev/SESSION_HANDOFF.md "Last Updated:"
+// line (strict format, reliable). Falls back to dev/SESSION_LOG.md first H2 date if
+// HANDOFF missing or unparseable.
+async function assessLastCloseout(root) {
+  const handoffPath = path.join(root, "dev/SESSION_HANDOFF.md");
+  let date = null;
+  try {
+    const text = await readFile(handoffPath, "utf8");
+    const m = text.match(/Last Updated:\s*(\d{4}-\d{2}-\d{2})/);
+    if (m) date = m[1];
+  } catch {
+    // ignore
+  }
+
+  if (!date) {
+    const logPath = path.join(root, "dev/SESSION_LOG.md");
+    try {
+      const text = await readFile(logPath, "utf8");
+      const m = text.match(/^## (\d{4}-\d{2}-\d{2})/m);
+      if (m) date = m[1];
+    } catch {
+      // ignore
+    }
+  }
+
+  return { date };
+}
+
+function printLastCloseout(result) {
+  if (!result.date) {
+    console.log("  📅 上次 closeout：（仲未 closeout 過。第一次完成 task 後可以講 AI「收工」）");
+    return;
+  }
+  const today = new Date();
+  const closeout = new Date(result.date);
+  const daysDiff = Math.floor((today - closeout) / (1000 * 60 * 60 * 24));
+  if (daysDiff < 0) {
+    console.log(`  📅 上次 closeout：${result.date}（日期超前？檢查系統時鐘）`);
+  } else if (daysDiff === 0) {
+    console.log(`  📅 上次 closeout：今日（${result.date}）`);
+  } else if (daysDiff <= 30) {
+    console.log(`  📅 上次 closeout：${daysDiff} 日前（${result.date}）`);
+  } else {
+    console.log(`  📅 上次 closeout：${daysDiff} 日前（${result.date}）— 建議跑下 closeout 整理進度`);
+  }
+}
+
+// R-031.2 v0.3.2+: Project age assessment. Reads the oldest folder timestamp in
+// dev/governance_migrations/ which records the first install date. Read-only; doctor
+// remains side-effect-free (no new write logic).
+async function assessProjectAge(root) {
+  const migrationsDir = path.join(root, "dev/governance_migrations");
+  try {
+    const entries = await readdir(migrationsDir);
+    const timestamps = entries.filter((name) => /^\d{8}T\d{6}Z$/.test(name)).sort();
+    if (timestamps.length === 0) return { firstInstall: null };
+    const oldest = timestamps[0];
+    // Format: 20260423T112233Z → 2026-04-23
+    const year = oldest.slice(0, 4);
+    const month = oldest.slice(4, 6);
+    const day = oldest.slice(6, 8);
+    return { firstInstall: `${year}-${month}-${day}` };
+  } catch {
+    return { firstInstall: null };
+  }
+}
+
+function printProjectAge(result) {
+  if (!result.firstInstall) {
+    console.log("  🌱 項目首次安裝距今：未知（dev/governance_migrations/ 未有 timestamp）");
+    return;
+  }
+  const today = new Date();
+  const firstInstall = new Date(result.firstInstall);
+  const daysDiff = Math.floor((today - firstInstall) / (1000 * 60 * 60 * 24));
+  if (daysDiff === 0) {
+    console.log(`  🌱 項目首次安裝距今：今日（${result.firstInstall}）`);
+  } else {
+    console.log(`  🌱 項目首次安裝距今：${daysDiff} 日（自 ${result.firstInstall}）`);
+  }
 }
 
 // R-010 SESSION_LOG handoff-role discipline (warn-only doctor check).
@@ -1423,6 +1590,19 @@ function printInstallNextSteps(root, conflictCount) {
     console.log("📋 下一步：把 migration report 或這段輸出貼給 AI，請它幫你判斷怎樣合併。");
     console.log("");
   }
+  // R-031.2 v0.3.2+: 「點 confirm 你裝啱咗」mini-checklist，直接答用戶第一次安裝後嘅
+  // anxiety「我裝啱咗嗎」。三個具體 verify step + 一句講清本工具係 background harness
+  // （冇 GUI、冇 server、需要連住 AI tool 先見到實際 value）。
+  console.log("📋 點 confirm 你裝啱咗：");
+  console.log("");
+  console.log("   1. 跑 npx @adamchanadam/agent-handoff-kit doctor 應該見到「status: passed」");
+  console.log("   2. 你 dev/ folder 應該有起碼 14 個檔（rules / SESSION_HANDOFF / SESSION_LOG 等）");
+  console.log("   3. 喺你 AI tool（Claude Code / Codex / Gemini）開新對話，貼下面起步句先見到實際 value");
+  console.log("");
+  console.log("⚠️  注意：Agent Handoff Kit 只係 background harness —— 喺你 project folder 入面嘅幾類檔案。");
+  console.log("   冇 GUI、唔 run server、唔自動做嘢。你需要連住至少一個 AI tool 嘅對話，AI 先會讀依啲檔案做正事。");
+  console.log("");
+  console.log("------------------------------------------------------------");
   console.log("⚠️  請注意：下面文字不是 Terminal 指令。");
   console.log("📋 請打開你要使用的 AI 工具，新增一段對話，貼上下面一句：");
   console.log("------------------------------------------------------------");
@@ -1443,7 +1623,7 @@ function printInstallNextSteps(root, conflictCount) {
 // R-031 v0.3.1+: Upgrade substantive next-step block. Distinct from install
 // (`printInstallNextSteps`) because the user is not first-time; pushing them through
 // the onboarding canonical phrase resets context they already have.
-function printUpgradeNextSteps(root, conflictCount) {
+async function printUpgradeNextSteps(root, conflictCount, version) {
   console.log("");
   console.log("============================================================");
   console.log("✅ 升級完成：管治架構檔案已更新到最新版本");
@@ -1454,6 +1634,11 @@ function printUpgradeNextSteps(root, conflictCount) {
     console.log("📋 下一步：把 migration report 或這段輸出貼給 AI，請它幫你判斷怎樣合併。");
     console.log("");
   }
+  // R-031.2 v0.3.2+: Inline whatsnew summary — directly surface what changed in this
+  // version (and any intermediate versions the user skipped), without requiring the
+  // user to ask AI separately. Treats user as collaborator who deserves to know what's
+  // shipped, not reactive recipient who must opt-in to discovery.
+  await printWhatsnew(root, version);
   console.log("📋 如你正在進行中的工作 session 已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
   console.log("");
   console.log("💡 如想了解本版本新加了甚麼功能，可選用以下開工句（非強制）：");
@@ -1463,6 +1648,74 @@ function printUpgradeNextSteps(root, conflictCount) {
   console.log("");
   console.log("🩺 升級驗收會在下方自動跑 doctor；若全綠即升級完成。");
   console.log("============================================================");
+}
+
+// R-031.2 v0.3.2+: Print whatsnew summaries for the version range crossed by this
+// upgrade. fromVersion = user root template metadata version (the state before
+// upgrade; R-016 preserves this row so it still reflects the prior state after
+// upgrade finishes). toVersion = current CLI version. Range is exclusive-fromVersion
+// inclusive-toVersion. Limit to first + last when crossing > 3 versions (elide middle).
+async function printWhatsnew(root, toVersion) {
+  const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
+  let fromVersion = null;
+  try {
+    const text = await readFile(indexPath, "utf8");
+    const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+    if (m) fromVersion = m[1];
+  } catch {
+    return;
+  }
+  if (!fromVersion || !isStableSemver(fromVersion) || compareSemver(fromVersion, toVersion) >= 0) {
+    return;
+  }
+
+  const whatsnewDir = path.join(packageRoot, "docs/whatsnew");
+  let entries = [];
+  try {
+    entries = await readdir(whatsnewDir);
+  } catch {
+    console.log(`💡 本版 release notes：https://github.com/Adamchanadam/agent-handoff-kit/releases/tag/v${toVersion}`);
+    console.log("");
+    return;
+  }
+
+  const relevant = entries
+    .filter((name) => /^v\d+\.\d+\.\d+\.md$/.test(name))
+    .map((name) => name.replace(/^v/, "").replace(/\.md$/, ""))
+    .filter((v) => compareSemver(v, fromVersion) > 0 && compareSemver(v, toVersion) <= 0)
+    .sort((a, b) => compareSemver(a, b));
+
+  if (relevant.length === 0) {
+    console.log(`💡 本版 release notes：https://github.com/Adamchanadam/agent-handoff-kit/releases`);
+    console.log(`   （v${fromVersion} → v${toVersion} 跨版本嘅完整變更見 GitHub Release 全列表）`);
+    console.log("");
+    return;
+  }
+
+  console.log(`📰 本次升級（v${fromVersion} → v${toVersion}）涵蓋 ${relevant.length} 個版本嘅 release notes：`);
+  console.log("");
+
+  const toShow = relevant.length <= 3 ? relevant : [relevant[0], relevant[relevant.length - 1]];
+  const elidedCount = relevant.length > 3 ? relevant.length - 2 : 0;
+
+  for (let i = 0; i < toShow.length; i += 1) {
+    const v = toShow[i];
+    const filePath = path.join(whatsnewDir, `v${v}.md`);
+    try {
+      const content = await readFile(filePath, "utf8");
+      console.log(content.trimEnd());
+      console.log("");
+      if (i === 0 && elidedCount > 0) {
+        console.log(`   ⋯ 中間 ${elidedCount} 個版本嘅 release notes 略；完整列表見 https://github.com/Adamchanadam/agent-handoff-kit/releases ⋯`);
+        console.log("");
+      }
+    } catch {
+      console.log(`(v${v} release notes 檔缺失，見 https://github.com/Adamchanadam/agent-handoff-kit/releases/tag/v${v})`);
+      console.log("");
+    }
+  }
+  console.log("------------------------------------------------------------");
+  console.log("");
 }
 
 // R-031 v0.3.1+: Upgrade no-op short-circuit. When the user runs upgrade on a root

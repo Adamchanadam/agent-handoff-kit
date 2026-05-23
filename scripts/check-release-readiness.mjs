@@ -17,7 +17,7 @@ function main() {
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
   const version = packageJson.version;
   assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed (expected semver e.g. 0.1.8)");
-  assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "LICENSE"]), "npm package files boundary changed");
+  assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "docs/whatsnew/", "README.md", "LICENSE"]), "npm package files boundary changed");
   assert(packageJson.scripts["qa:prototype"], "qa:prototype script is missing");
   assert(packageJson.scripts["qa:packs"], "qa:packs script is missing");
   assert(packageJson.scripts["qa:upgrade"], "qa:upgrade script is missing");
@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 24"), "npm dry-run did not report expected 24 package files (v0.3.0+ includes packs/integrations.md)");
+  assert(packText.includes("total files: 26"), "npm dry-run did not report expected 26 package files (v0.3.2+ includes docs/whatsnew/v0.3.1.md + v0.3.2.md)");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -57,6 +57,9 @@ function main() {
 
   assertIncludes("CHANGELOG.md", [
     `## v${version} — `,
+    "user journey UX 改進",
+    "項目狀態速覽",
+    "## v0.3.1 — 2026-05-23",
     "CLI messaging gap fix",
     "plan-time upgrade no-op detection",
     "## v0.3.0 — 2026-05-22",
@@ -112,7 +115,8 @@ function main() {
     "Routing table propagation discipline（R-029.2",
     "CLI 場景分流（scenario branching）一致性（R-031.1",
     "CLI Scenario Branching Coverage Sweep（R-031.1",
-    "v0.3.1 發佈狀態"
+    "v0.3.1 發佈狀態",
+    "v0.3.2 發佈狀態"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -384,7 +388,11 @@ function simulateScenarioBranching() {
     mustHave: [
       /安裝完成/,
       /I just installed agent-handoff-kit\. Help me get started\./,
-      /請注意：下面文字不是 Terminal 指令/
+      /請注意：下面文字不是 Terminal 指令/,
+      // R-031.2 v0.3.2+: mini-checklist 答「我裝啱咗嗎」嘅 anxiety
+      /點 confirm 你裝啱咗/,
+      /background harness/,
+      /連住至少一個 AI tool/
     ],
     mustNotHave: [
       /升級完成/,
@@ -420,7 +428,12 @@ function simulateScenarioBranching() {
   assertScenarioOutput("scenario 6 (doctor healthy & latest)", s6.stdout, {
     mustHave: [
       /status: passed/,
-      /繼續日常使用即可/
+      /繼續日常使用即可/,
+      // R-031.2 v0.3.2+: 項目狀態速覽（三向 version + 距上次 closeout + 項目首次安裝）
+      /項目狀態速覽/,
+      /📦 版本：CLI v/,
+      /📅 上次 closeout/,
+      /🌱 項目首次安裝距今/
     ],
     mustNotHave: [
       /如要升級到較新版/
