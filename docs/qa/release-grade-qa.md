@@ -33,11 +33,11 @@
 
 | 觸發 | 時機 | 覆蓋 | 通過代表 |
 |---|---|---|---|
-| 🟢 快檢 | 日常 source 修改後、commit 前。 | 四條 `npm run qa:*`：`qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`。 | 原始碼層未破壞既有機器驗收。 |
-| 🔴 全面檢 | 發佈前，尤其是候選版本、治理結構改動，或使用者明示要求 full audit。 | 快檢 + 本文件人工審閱清單 + `docs/GOVERNANCE_HEALTH_CHECK.md` 八維度 + CLI output sweep + cross-file read-through + upgrade migration / scenario branching semantic sweep。 | 候選版本可以進入 tag / GitHub Release / npm publish；仍未代表已發佈完成。 |
-| 🟡 發佈檢 | GitHub Release 與 `npm publish` 完成後立即執行。 | 七項 post-publish verification：GitHub Release metadata、npm latest / fileCount、fresh install、published `--help` / `init` / `doctor`、R-029.1 canonical phrase 與 chain-upgrade routing propagation。 | 已公開 artifact 經 registry / release / fresh-install 驗證，release 才算完成。 |
+| 🟢 日常快檢（觸發詞：`快檢`） | 日常 source 修改後、commit 前。 | 四條 `npm run qa:*`：`qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`。 | 原始碼層未破壞既有機器驗收。 |
+| 🔴 發佈前全面檢（觸發詞：`全面檢`） | 發佈前，尤其是候選版本、治理結構改動，或使用者明示要求 full audit。 | 快檢 + 本文件人工審閱清單 + `docs/GOVERNANCE_HEALTH_CHECK.md` 八維度 + CLI output sweep + cross-file read-through + upgrade migration / scenario branching semantic sweep。 | 候選版本可以進入 tag / GitHub Release / npm publish；仍未代表已發佈完成。 |
+| 🟡 發佈後驗證（觸發詞：`發佈檢`） | GitHub Release 與 `npm publish` 完成後立即執行。 | 七項 post-publish verification：GitHub Release metadata、npm latest / fileCount、fresh install、published `--help` / `init` / `doctor`、R-029.1 canonical phrase 與 chain-upgrade routing propagation。 | 已公開 artifact 經 registry / release / fresh-install 驗證，release 才算完成。 |
 
-`全面檢` 是發佈前 gate，不得包含需要已 publish 才能執行的檢查。完整 release closeout 的順序是：先 `全面檢` PASS，取得明確 publish 批准後才 tag / GitHub Release / npm publish，最後跑 `發佈檢`。
+`全面檢` 就是 `發佈前全面檢`，不得包含需要已 publish 才能執行的檢查。`發佈檢` 就是 `發佈後驗證`，只在公開發佈完成後執行。完整 release closeout 的順序是：先 `全面檢` PASS，取得明確 publish 批准後才 tag / GitHub Release / npm publish，最後跑 `發佈檢`。
 
 ## 規則包場景覆蓋
 
