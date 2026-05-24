@@ -34,10 +34,39 @@
 | 觸發 | 時機 | 覆蓋 | 通過代表 |
 |---|---|---|---|
 | 🟢 日常快檢（觸發詞：`快檢`） | 日常 source 修改後、commit 前。 | 四條 `npm run qa:*`：`qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`。 | 原始碼層未破壞既有機器驗收。 |
-| 🔴 發佈前全面檢（觸發詞：`全面檢`） | 發佈前，尤其是候選版本、治理結構改動，或使用者明示要求 full audit。 | 快檢 + 本文件人工審閱清單 + 維護者側 WORK 治理健康檢查八維度 + CLI output sweep + cross-file read-through + upgrade migration / scenario branching semantic sweep。 | 候選版本可以進入 tag / GitHub Release / npm publish；仍未代表已發佈完成。 |
+| 🔴 發佈前全面檢（觸發詞：`全面檢`） | 發佈前，尤其是候選版本、治理結構改動，或使用者明示要求 full audit。 | 快檢 + 本文件人工審閱清單 + 維護者側 WORK 治理健康檢查八維度 + 產品級旅程矩陣 + UX / user journey 審閱 + CLI output sweep + cross-file read-through + upgrade migration / scenario branching semantic sweep + QC gap backflow。 | 候選版本可以進入 tag / GitHub Release / npm publish；仍未代表已發佈完成。 |
 | 🟡 發佈後驗證（觸發詞：`發佈檢`） | GitHub Release 與 `npm publish` 完成後立即執行。 | 七項 post-publish verification：GitHub Release metadata、npm latest / fileCount、fresh install、published `--help` / `init` / `doctor`、R-029.1 canonical phrase 與 chain-upgrade routing propagation。 | 已公開 artifact 經 registry / release / fresh-install 驗證，release 才算完成。 |
 
 `全面檢` 就是 `發佈前全面檢`，不得包含需要已 publish 才能執行的檢查。`發佈檢` 就是 `發佈後驗證`，只在公開發佈完成後執行。完整 release closeout 的順序是：先 `全面檢` PASS，取得明確 publish 批准後才 tag / GitHub Release / npm publish，最後跑 `發佈檢`。
+
+## 產品級發佈前全面檢
+
+🔴 發佈前全面檢要同時驗產品、流程、UX、場景與治理健康。它不是只跑 `qa:release`，也不是只讀文件。每次候選版本都必須留下可審閱的發佈前報告，至少包含：
+
+1. 維護者側 WORK 治理健康八維正式結論：健康 / 緊張 / 不健康 / 過載，並給出繼續 / 合併 / 暫停 / 刪減方向。
+2. 產品旅程矩陣：每個場景標記 automated PASS / manual PASS / blocked / not applicable，並附證據。
+3. UX / user journey 結論：CLI、README、runtime handoff、onboarding pack、whatsnew 是否回答用戶在該步最可能問的下一句問題。
+4. QC gap backflow 結論：本次發現的每個新問題，除產品修補外，是否已轉成自動驗收、人工清單、或有理由的暫時人工阻擋。
+
+### Product Journey Matrix
+
+| 場景 | 必驗問題 | 最低承接 | 未通過時 |
+|---|---|---|---|
+| Fresh install → init → first task | 新用戶安裝後是否知道下一步是在 AI 對話中開始，而不是把提示當 Terminal 指令。 | `qa:release` user-flow + R-029 wording sweep + 人工終讀 | 阻擋 publish，直到 CLI / README / onboarding wording 對齊 |
+| First task → closeout → next session handoff | 收工後下一個 AI 是否不需聊天記憶，也不會重開已完成調查。 | `doctor` handoff lifecycle check + negative fixture + opening-message read-through | 阻擋 publish，並補 lifecycle fixture 或 manual checklist |
+| Existing project upgrade → doctor → closeout | 舊用戶升級後是否不丟本地規則、不覆寫用戶內容、不出現「剛升完又叫再升」矛盾。 | `qa:upgrade` chain + user-data fixture + CLI scenario branching sweep | 阻擋 publish，並補 prior-version fixture / scenario |
+| Non-empty project with local rules | 既有 `AGENTS.md` / `PROJECT_INDEX.md` / `RULE_PACKS.md` 內容是否保留或停手報 conflict。 | `qa:upgrade` merge / custom-row / conflict fixtures | 阻擋 publish，除非明確列為人工-only conflict 類 |
+| Conflict / blocked state | 工具是否清楚停手，說明沒有覆寫，並指出 migration report / 手動處理方向。 | Scenario 2 / 5 manual checklist until automated fixtures exist | 同類第二次出現即必須轉 automated |
+| Doctor healthy / outdated / lifecycle conflict | `doctor` 是否分清健康、可升級、交接矛盾三類，不混成同一個下一步。 | Scenario 6 automated + scenario 7 manual + lifecycle negative fixture | 阻擋 publish，並補 scenario output contract |
+
+### QC Gap Backflow
+
+任何發佈前全面檢、人工終讀、UAT、真實用戶 session 或發佈後驗證發現的新問題，都要同時判斷兩層：
+
+- 產品層：需要修哪個 runtime、template、CLI、pack、README 或 release note。
+- QC 層：為何現有驗收沒有抓到；要補自動 assertion、真實 fixture、scenario simulation、public manual checklist，還是記為暫時人工阻擋。
+
+只修產品 bug 而沒有處理 QC 層，不可宣稱 release-grade。若同一類問題第二次以人工方式被發現，而仍沒有自動或明確 checklist 承接，該候選版本 blocked。
 
 ## 規則包場景覆蓋
 
