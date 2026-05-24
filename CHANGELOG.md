@@ -1,5 +1,14 @@
 # 變更紀錄
 
+## Unreleased
+
+狀態：已推送到 GitHub `main`，尚未發佈到 npm。npm latest 仍為 `0.3.4`。
+
+- `upgrade` 補齊 `dev/RULE_PACKS.md` 的 Kit routing rows 時不再整份覆寫檔案，保留用戶自訂 rows；若 routing table 表頭已被改動、工具無法安全合併，改為 `conflict` 停手。
+- `doctor` 明確說明自己只檢查不修改；版本不齊時先建議 `upgrade --dry-run`，並解釋 `--dry-run` 只預覽、不寫入。
+- `init` / `upgrade` / `doctor` 的使用者可見輸出改為更清楚的書面中文，讓非技術新手更容易分清 Terminal 檢查與 AI 對話下一步。
+- `scripts/check-upgrade-safety.mjs` 新增 `RULE_PACKS.md` 自訂 row 保留、同 pack path 自訂 row、表頭改動 conflict 三個回歸場景。
+
 ## v0.3.4 — 2026-05-23
 
 狀態：正式發佈版本。本版本修補 v0.3.3 發佈後由真實用戶測試揭發的升級敘事錯誤：專案由舊版本升級後，`dev/PROJECT_INDEX.md` 的 template version metadata 仍可能停留在舊版本，導致 `doctor` 在剛升級完成後又提示 root 落後 CLI。

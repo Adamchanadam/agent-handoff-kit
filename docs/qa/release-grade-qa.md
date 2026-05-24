@@ -107,12 +107,13 @@ npm package 由 `package.json` 的 `files` 控制：
   "bin/",
   "runtime-core/",
   "packs/",
+  "docs/whatsnew/",
   "README.md",
   "LICENSE"
 ]
 ```
 
-`docs/qa/`、原始碼設計文件與 `scripts/` 是原始碼倉庫資產。除非未來發佈明確改變套件邊界，否則不應出現在 `npm pack --dry-run` 輸出中。
+`docs/whatsnew/` 是 npm package 內的版本摘要資料；`docs/qa/`、原始碼設計文件、`scripts/` 與 `test-fixtures/` 是原始碼倉庫資產。除非未來發佈明確改變套件邊界，否則不應出現在 `npm pack --dry-run` 輸出中。
 
 ## 目前基線
 
@@ -126,7 +127,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 已檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在 Terminal 繼續輸入。
-- 套件預演目前維持 21 個 package files；新增的 runtime 檔案是 `START_NEXT_SESSION_PROMPT.txt`。
+- 套件預演目前維持 28 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.4.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -135,20 +136,20 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 使用者已明確批准 tag、GitHub Release、push 與 npm publish，並要求 GitHub 與 npm 同版本。 | 通過 |
-| 版本口徑 | 發佈版本採 `0.1.6`，GitHub 與 npm 同版本。 | 通過 |
+| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | 本輪 `3009712` 只批准 push，不代表可 publish |
+| 版本口徑 | `package.json` 目前為 `0.3.4`；`3009712` 是 v0.3.4 之後的 source change，尚未發佈到 npm。 | push 可接受；若要 publish 必須先決定 patch 版本與 release notes |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 僅包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 為 28 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、CHANGELOG、發佈級 QA、package metadata 與 CLI help 已對齊 `v0.1.6` GitHub 與 npm 正式發佈口徑。 | 通過 |
+| 公開文件一致性 | README、package metadata 與 CLI help 仍對齊已發佈的 `v0.3.4`；`CHANGELOG.md` 另有 Unreleased 段記錄已 push 但未 npm 發佈的 source change。 | push 通過；publish 前須轉入新版本發佈段 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬與本地化 handoff 標題。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補 Terminal 成功提示與 README，用戶可分清 Terminal 檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.1.6` 正式發佈變更說明，並保留 `v0.1.5`、`v0.1.4`、`v0.1.3`、`v0.1.2`、`v0.1.1` 與 `v0.1.0` 已發佈紀錄。 | 通過 |
-| 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.1.6` 已發佈。 | 通過 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已保留 `v0.3.4` 正式發佈紀錄，並新增 Unreleased 段標明 `3009712` 尚未 npm 發佈。 | push 通過；publish 前須補新版本發佈材料 |
+| 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.3.4` 已發佈。 | 通過；npm 安裝仍取得 v0.3.4，不含 Unreleased 修補 |
 
 ## v0.3.4 發佈狀態
 
@@ -157,8 +158,8 @@ npm package 由 `package.json` 的 `files` 控制：
 - 發佈內容：修補 v0.3.3 發佈後由真實用戶測試揭發的升級敘事錯誤。舊流程在 merge 前注入 `PROJECT_INDEX` template version，當 `PROJECT_INDEX` 同時需要結構合併時，merge 會把版本列覆蓋回舊值；本版改為 create / merge 完成後再注入。同步補上 metadata-only no-op guard，避免只有版本資料列過期時誤報「已經是最新版本」。migration report 新增 metadata section，記錄 `Agent Handoff Kit template version` 的更新軌跡。`scripts/check-upgrade-safety.mjs` 的 staleRoot 驗收口徑同步改為：template version metadata 屬維護者管理的模板資料，不屬 External Sources、Fact Base、Workspace Identity 等使用者內容；此口徑不削弱使用者內容保護。
 - QC framework 修補：`scripts/check-release-readiness.mjs` 將 scenario 3 拆成 scenario 3a（metadata-only stale）與 scenario 3b（structurally stale via real v0.1.7 fixture）。scenario 3b 使用真實 `test-fixtures/v0.1.7/dev/PROJECT_INDEX.md`，不再只用目前版本 init 後手動改字串的合成狀態。Loop 1 code review 另抓到兩個高信心缺口：`scripts/check-upgrade-safety.mjs` 的 `chainSteps` 漏 v0.3.x 路徑，以及 `scripts/check-release-readiness.mjs` 的 scenario docblock 仍停在 3 個自動場景；兩者已修補。
 - 發佈前驗收：本次 ship-prep 後 `npm run qa:release` 重新通過；Loop 1 修補後 `npm run qa:release` 與 `npm run qa:upgrade` 亦已重新通過。重點覆蓋 scenario 3a / 3b、scenario 6 doctor healthy、staleRoot R-031.3 v0.3.4 policy、v0.3.0 → v0.3.4 prior-version chain coverage，以及 package fileCount 28。
-- npm 狀態：待 maintainer 明確批准後才可 publish；發佈後 npm latest 為 `0.3.4`；package fileCount 28（從 27 增加 1，加 `docs/whatsnew/v0.3.4.md`）。
-- 🟡 發佈檢：pending post-publish。完成 GitHub Release 與 npm publish 後，仍須按 WORK `AGENTS.md` 的發佈檢七項 post-publish verification 執行；目前不得視為 post-publish 發佈檢已完成。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.4`；package fileCount 28（從 27 增加 1，加 `docs/whatsnew/v0.3.4.md`）。
+- 🟡 發佈檢：v0.3.4 post-publish verification 已完成；GitHub Release、npm package metadata、fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase 與 chain-upgrade routing propagation 均已通過。`3009712` 屬 v0.3.4 之後的 Unreleased source change，尚未進入 npm 發佈檢範圍。
 
 ### Cross-mind evidence 9-trigger table（v0.3.4）
 
@@ -168,7 +169,7 @@ npm package 由 `package.json` 的 `files` 控制：
 | 2. 同類 bug 連續兩版出現 | yes | iterated | v0.3.3 已修補 upgrade / doctor 敘事一致性，v0.3.4 再由真實用戶抓到同類 production gap；Round 1-2 將根因收斂為 inject-vs-merge ordering + metadata-only no-op guard；機器覆蓋落點為 `scripts/check-release-readiness.mjs` scenario 3a / 3b 與 `scripts/check-upgrade-safety.mjs` staleRoot policy assertion。 |
 | 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：`bin/agent-handoff-kit.mjs`；測試層：`scripts/check-release-readiness.mjs` + `scripts/check-upgrade-safety.mjs`；發佈敘事層：`CHANGELOG.md` + `docs/whatsnew/v0.3.4.md` + 本段。Round 7 實作審核 verdict: ship；維護者側 audit trail 保留實作審核原文。 |
 | 4. 三個以上治理檔同步改動 | no — not required: v0.3.4 ship-prep 只更新一個公開驗收治理檔 `docs/qa/release-grade-qa.md`；先前 WORK 多治理檔更新屬 cross-AI governance integration，已另行審核 | not required | 接受風險原因：本 release 的必要治理落點是本文件的發佈狀態與九觸發表，不新增三個以上治理真源；相關 governance integration 已於維護者側 audit trail 覆核，公開 repo 不提交該大型上下文。 |
-| 5. 公開可見發佈儀式 | yes | passed | 本任務明確禁止 commit / push / tag / GitHub Release / npm publish；ceremony 須待 maintainer 批准。pre-ceremony 發佈材料與 QC 已準備；post-publish 發佈檢仍 pending。ship-prep audit 已於維護者側保留，本公開表保留結論與 gating 狀態。 |
+| 5. 公開可見發佈儀式 | yes | passed | v0.3.4 已完成 commit / tag / GitHub Release / npm publish；post-publish 發佈檢已完成。`3009712` 屬 v0.3.4 之後的 Unreleased source change，不改寫 v0.3.4 發佈儀式狀態；若要將其發佈到 npm，須另行走新 patch release 流程。 |
 | 6. 存在人工語意判斷而無機器斷言 | yes | passed | Loop 1：`chainSteps` 補上 v0.3.0 / v0.3.1 / v0.3.2 / v0.3.3 / v0.3.4（v0.3.4 以 current HEAD pre-tag hop 執行），兩處 `simulateScenarioBranching` docblock 改為 5 個自動場景並移除已過期 delegation claim。Loop 2：刪除 stale final-hop comment、明確排除未提交 `outputs` 證據目錄、將本文件七場景表同步為 3a / 3b 與 5 個自動場景。Loop 3：第三輪 code review 抓到場景 4 表格門檻誤寫為 ≤ 15；已按 `scripts/check-release-readiness.mjs` scenario 4 機器斷言對齊為 ≤ 20，避免文件門檻低於實際驗收。Loop 4：逐列對照七場景表與 `simulateScenarioBranching()` 實際斷言，確認場景 1 / 3b / 4 / 6 與程式一致，場景 2 / 5 / 7 屬人工驗收列；修正場景 3a 由錯誤 no-op 敘事改為升級路徑 + metadata 更新 + doctor 不再提示 root 落後 CLI，並新增 `qa:release` 內建七場景表對齊檢查，防止同類表格漂移重演。重驗：`npm run qa:release` + `npm run qa:upgrade`。 |
 | 7. 發佈後上一版由真實用戶抓 bug | yes | iterated | v0.3.3 發佈後由 Adam 真實 root 測試抓到 v0.1.7 template version stuck + doctor contradiction；本版以真實舊版 fixture 補測。WORK `dev/SESSION_HANDOFF.md` 保留 current baseline；公開驗收證據落點為 scenario 3b 的真實 `test-fixtures/v0.1.7/dev/PROJECT_INDEX.md`。 |
 | 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | 原 scenario 3 使用 current init + manual string edit，未覆蓋 merge path；本版保留 3a 作 metadata-only 邊界測試，新增 3b 使用真實 `test-fixtures/v0.1.7/dev/PROJECT_INDEX.md` 覆蓋 structurally stale path。機器斷言：`scripts/check-release-readiness.mjs` scenario 3a / 3b。 |
