@@ -889,6 +889,9 @@ function normalizePrompt(text) {
 
 function assessHandoffLifecycleConsistency(text) {
   const fieldValue = fieldValueAfterMarker(text, "lifecycle-conflicts-resolved");
+  if (isAffirmativeLifecycleFieldValue(fieldValue)) {
+    return { ok: true, reason: "" };
+  }
   if (isUnresolvedLifecycleFieldValue(fieldValue)) {
     return { ok: false, reason: "lifecycle field is explicitly unresolved" };
   }
@@ -896,6 +899,11 @@ function assessHandoffLifecycleConsistency(text) {
     return { ok: false, reason: "lifecycle field is still placeholder after handoff content changed" };
   }
   return { ok: true, reason: "" };
+}
+
+function isAffirmativeLifecycleFieldValue(value) {
+  const trimmed = (value || "").trim();
+  return /^(yes|resolved|confirmed|complete|completed|ok|passed|all clear)\b|^(是|已|完成|已完成|已解決|已核對|已確認|通過)\b/i.test(trimmed);
 }
 
 function isUnresolvedLifecycleFieldValue(value) {

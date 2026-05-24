@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 32"), "npm dry-run did not report expected 32 package files (v0.3.8+ includes docs/whatsnew/v0.3.1.md through v0.3.8.md)");
+  assert(packText.includes("total files: 33"), "npm dry-run did not report expected 33 package files (v0.3.9+ includes docs/whatsnew/v0.3.1.md through v0.3.9.md)");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -846,6 +846,14 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
     .replace("- Checks run this session: simulated user-flow value", "- Checks run this session: verified `doctor` / `upgrade` reliability concern is closed.")
     .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: no — completed work still appears as unresolved next work.");
   assert(!isReconciledHandoff(lifecycleConflictHandoff), "explicit unresolved lifecycle field should fail lifecycle consistency");
+  const lifecycleAffirmativeWithPendingHandoff = closedHandoff.replace(
+    "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes",
+    "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes — completed work is resolved; remaining product work is pending and explicitly reclassified as next work."
+  );
+  assert(
+    isReconciledHandoff(lifecycleAffirmativeWithPendingHandoff),
+    "affirmative lifecycle field with pending follow-up wording should pass"
+  );
   const openingMessage = extractOpeningMessage(closedHandoff);
   assert(openingMessage.includes(tempRoot), "simulated opening message missing project root");
   assert(openingMessage.includes("Read in order:"), "simulated opening message missing read order");
@@ -928,11 +936,17 @@ function isReconciledHandoff(text) {
 
 function assessHandoffLifecycleConsistency(text) {
   const fieldValue = fieldValueAfterMarker(text, "lifecycle-conflicts-resolved");
+  if (isAffirmativeLifecycleFieldValue(fieldValue)) return { ok: true };
   if (isUnresolvedLifecycleFieldValue(fieldValue)) return { ok: false };
   if (isPlaceholderLifecycleFieldValue(fieldValue) && hasSubstantiveHandoffState(text)) {
     return { ok: false };
   }
   return { ok: true };
+}
+
+function isAffirmativeLifecycleFieldValue(value) {
+  const trimmed = (value || "").trim();
+  return /^(yes|resolved|confirmed|complete|completed|ok|passed|all clear)\b|^(是|已|完成|已完成|已解決|已核對|已確認|通過)\b/i.test(trimmed);
 }
 
 function isUnresolvedLifecycleFieldValue(value) {

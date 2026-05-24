@@ -1,5 +1,26 @@
 # 變更紀錄
 
+## v0.3.9 — 2026-05-24
+
+狀態：候選發佈版本。本版本修補 v0.3.8 發佈後在真實項目 `AI_Public_Squares` 驗收時揭發的 lifecycle 判斷誤判。
+
+### 本版對用戶有甚麼價值
+
+- 舊項目交接文件若已明確寫出「已解決」，但同一句仍提到仍待處理的下一步，`doctor` 不應再誤判為未完成。
+- `upgrade` 與 `doctor` 的分工維持不變：Kit 檔案更新由 `upgrade` 處理；交接狀態是否乾淨由 `doctor` 指出。
+- 真實項目驗收暴露的詞彙誤判，已轉成自動回歸測試，日後不靠記憶防止重犯。
+
+### Changed
+
+- `doctor` 的 lifecycle 判斷先辨認明確確認句，再判斷未完成佔位語，避免 `yes — ... pending ...` 這類合理句子被誤殺。
+- `scripts/check-release-readiness.mjs` 加入「明確 yes，但後文含 pending follow-up」的回歸案例。
+- package fileCount 32 → 33：新增 `docs/whatsnew/v0.3.9.md`。
+
+### Migration path（v0.3.8 → v0.3.9，backward-compat preserved）
+
+- 既有項目不用重裝；照常執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes`。
+- 若 `doctor` 提示交接狀態未完成，應先請 AI 修 handoff，不要用重裝覆蓋用戶內容。
+
 ## v0.3.8 — 2026-05-24
 
 狀態：正式發佈版本。本版本修補 v0.3.7 真實升級測試揭發的升級與檢查訊息矛盾：`upgrade` 可以判斷檔案已是最新版，但 `doctor` 隨後因交接狀態未完成而失敗。

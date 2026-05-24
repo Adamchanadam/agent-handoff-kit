@@ -147,7 +147,7 @@
 | 6 | doctor healthy & latest（已係最新版） | 「status: passed」/「繼續日常使用即可」 | 「如要升級到較新版」（避免叫剛升完嘅用戶再升） |
 | 7 | doctor healthy with newer available | startup `maybePrintUpdateNotice` 嘅升級通知 / 「status: passed」 | doctor 結尾再講一次升級指令（避免 redundant） |
 
-**Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3；v0.3.8 add handoff-needs-closeout no-op）**：場景 1 / 3a / 3b / 4 / 4b / 6 為 automated。場景 2 / 5 / 7 屬 conditional state，留下次 minor follow-up 補 automated（fixture 構造較複雜，目前由人工驗收清單覆蓋）。
+**Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3；v0.3.8 add handoff-needs-closeout no-op；v0.3.9 add affirmative lifecycle wording regression）**：場景 1 / 3a / 3b / 4 / 4b / 6 為 automated。場景 2 / 5 / 7 屬 conditional state，留下次 minor follow-up 補 automated（fixture 構造較複雜，目前由人工驗收清單覆蓋）。
 
 場景 4b 是通用舊項目旅程，不綁定任何單一用戶目錄。真實項目只能作發現問題的證據；自動驗收必須用可重建 fixture 表達同類狀態，避免把個別專案文字硬寫成產品規則。
 
@@ -194,7 +194,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 已檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在 Terminal 繼續輸入。
-- 套件預演目前維持 32 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.8.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 33 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.9.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -203,20 +203,43 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已批准 v0.3.8 發佈前全面檢與 publish；若全面檢出現 blocker，必須先停下修正 |
-| 版本口徑 | `package.json` 目前為 `0.3.8`；v0.3.8 是 upgrade no-op handoff health root-fix。 | 通過；publish 前須重跑發佈前檢查 |
+| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已批准本輪發佈前全面檢與 publish；若全面檢出現 blocker，必須先停下修正 |
+| 版本口徑 | `package.json` 目前為 `0.3.9`；v0.3.9 是 lifecycle 欄位確認句誤判 root-fix。 | 通過；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 32 files。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 33 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.8.md` 已轉入 v0.3.8 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
+| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.9.md` 已轉入 v0.3.9 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補 Terminal 成功提示與 README，用戶可分清 Terminal 檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.8` 候選段，`docs/whatsnew/v0.3.8.md` 已補本版用戶說明。 | 通過；publish 後須核對 GitHub Release 與 npm metadata |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.8`。 | 通過；publish 後須驗證 npm latest 為 `0.3.8` |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.9` 候選段，`docs/whatsnew/v0.3.9.md` 已補本版用戶說明。 | 通過；publish 後須核對 GitHub Release 與 npm metadata |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.9`。 | 通過；publish 後須驗證 npm latest 為 `0.3.9` |
+
+## v0.3.9 發佈狀態
+
+- 發佈版本：`0.3.9`。
+- release notes：`CHANGELOG.md` 的 `v0.3.9` 段落 + `docs/whatsnew/v0.3.9.md`。
+- 發佈內容：修補 lifecycle 欄位誤判。若欄位明確以 `yes` / `resolved` / 「已完成」等確認語開始，即使後文提到仍有 pending follow-up，也不應被判作未完成。
+- 發佈前驗收重點：真實 `AI_Public_Squares` 實測已揭出問題並通過修補；自動回歸加入「yes + pending follow-up wording」案例，防止同類誤判回來。
+- npm 狀態：候選，未 npm publish；預期 package fileCount 33（從 32 增加 1，加 `docs/whatsnew/v0.3.9.md`）。
+- 🟡 發佈檢：待 publish 後執行；必須確認 GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase、npm README 與 v0.3.8→v0.3.9 chain-upgrade routing propagation 均通過。
+
+### Cross-mind evidence 9-trigger table（v0.3.9）
+
+| Trigger condition | Required (yes/no) | Result (passed / iterated / blocked) | Follow-up (assertion ID / checklist item / accepted risk reason) |
+|---|---|---|---|
+| 1. 發佈說明使用「已驗證／已修復／可持續／sustainable」等強聲明 | yes | iterated | 本版只聲明 lifecycle 欄位確認句誤判已修補；機器落點為 affirmative lifecycle wording regression 與 package fileCount 33。 |
+| 2. 同類 bug 連續兩版出現 | yes | iterated | v0.3.7 / v0.3.8 連續暴露 `doctor` / `upgrade` lifecycle UX 邊界；v0.3.9 把真實項目新缺口收成判斷順序回歸。 |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：lifecycle field affirmative-first 判斷；測試層：yes + pending follow-up 回歸；發佈敘事層：CHANGELOG、whatsnew、本段。 |
+| 4. 三個以上治理檔同步改動 | yes | passed | public release-grade QA、CHANGELOG、whatsnew 與 WORK 紀錄需同步；真實項目 `AI_Public_Squares` 只作驗收證據，不作 public runtime 真源。 |
+| 5. 公開可見發佈儀式 | yes | iterated | Adam 已批准本輪發佈前全面檢與 publish；本表覆蓋 publish 前判斷，publish 後仍須跑 🟡 發佈後驗證。 |
+| 6. 存在人工語意判斷而無機器斷言 | yes | iterated | 「yes 句中可提待辦」屬語意邊界；已轉成 `isAffirmativeLifecycleFieldValue()` 與 release readiness 回歸。 |
+| 7. 發佈後上一版由真實用戶抓 bug | yes | iterated | v0.3.8 發佈後 Adam 在 `AI_Public_Squares` 測到確認句含 `pending` 被誤殺；本版保留真實驗收，同時抽象為通用 fixture。 |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | 自動測試不硬寫 `AI_Public_Squares` 內容，只重建「確認句 + 後續待辦」狀態類型。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | iterated | 主要聲明對應斷言：affirmative lifecycle field with pending follow-up wording should pass；`no` 類 unresolved field 仍 fail。 |
 
 ## v0.3.8 發佈狀態
 
@@ -224,8 +247,8 @@ npm package 由 `package.json` 的 `files` 控制：
 - release notes：`CHANGELOG.md` 的 `v0.3.8` 段落 + `docs/whatsnew/v0.3.8.md`。
 - 發佈內容：修補舊項目 upgrade no-op 與 doctor handoff health 的訊息矛盾。當 Kit 檔案已最新但交接狀態仍需 closeout 核對時，`upgrade` 不再說「繼續日常使用即可」。
 - 發佈前驗收重點：scenario 4b 必須通過，確認本修補是通用 fixture，不綁定任何單一項目或 AI 正文。
-- npm 狀態：候選，未 npm publish；預期 package fileCount 32（從 31 增加 1，加 `docs/whatsnew/v0.3.8.md`）。
-- 🟡 發佈檢：待 publish 後執行；必須確認 GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase、npm README 與 v0.3.7→v0.3.8 chain-upgrade routing propagation 均通過。
+- npm 狀態：已 npm publish；npm latest 曾為 `0.3.8`；package fileCount 32（從 31 增加 1，加 `docs/whatsnew/v0.3.8.md`）。
+- 🟡 發佈檢：v0.3.8 post-publish verification 已完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase、npm README 與 v0.3.7→v0.3.8 chain-upgrade routing propagation 均通過。其後 `AI_Public_Squares` 實測揭出 lifecycle 欄位確認句誤判，轉入 v0.3.9 修補。
 
 ### Cross-mind evidence 9-trigger table（v0.3.8）
 
