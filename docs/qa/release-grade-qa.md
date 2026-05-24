@@ -221,7 +221,7 @@ npm package 由 `package.json` 的 `files` 控制：
 ## v0.3.8 發佈狀態
 
 - 發佈版本：`0.3.8`。
-- release notes：`CHANGELOG.md` 的 `Unreleased — v0.3.8 候選` 段落 + `docs/whatsnew/v0.3.8.md`。
+- release notes：`CHANGELOG.md` 的 `v0.3.8` 段落 + `docs/whatsnew/v0.3.8.md`。
 - 發佈內容：修補舊項目 upgrade no-op 與 doctor handoff health 的訊息矛盾。當 Kit 檔案已最新但交接狀態仍需 closeout 核對時，`upgrade` 不再說「繼續日常使用即可」。
 - 發佈前驗收重點：scenario 4b 必須通過，確認本修補是通用 fixture，不綁定任何單一項目或 AI 正文。
 - npm 狀態：候選，未 npm publish；預期 package fileCount 32（從 31 增加 1，加 `docs/whatsnew/v0.3.8.md`）。
