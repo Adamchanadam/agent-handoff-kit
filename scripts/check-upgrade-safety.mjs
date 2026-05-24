@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const fixturesRoot = path.join(root, "test-fixtures");
+const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 
 main();
 
@@ -242,8 +243,10 @@ function main() {
     { ref: "v0.3.2", command: "upgrade" },
     { ref: "v0.3.3", command: "upgrade" },
     { ref: "v0.3.4", command: "upgrade" },
+    { ref: "v0.3.5", command: "upgrade" },
     { ref: "v0.3.6", command: "upgrade", source: "current-head" }
   ];
+  assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
   for (const step of chainSteps) {
     if (step.source === "current-head") {
@@ -543,6 +546,23 @@ Use \`dev/RULE_PACKS.md\` to decide which pack to read.
 
 New default-core rules are allowed only when they apply to most sessions, protect safety or continuity, cannot live in a pack or registry, and keep the core within budget.
 `;
+}
+
+function assertCurrentReleasePatchChainCovered(chainSteps) {
+  const version = packageJson.version;
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  assert(match, `package.json version must be semver, got ${version}`);
+
+  const finalStep = chainSteps[chainSteps.length - 1];
+  assert(finalStep.source === "current-head", "chainSteps final hop must use current HEAD CLI");
+  assert(finalStep.ref === `v${version}`, `chainSteps final hop must be labeled v${version}`);
+
+  const patch = Number(match[3]);
+  if (patch === 0) return;
+
+  const previousPatchTag = `v${match[1]}.${match[2]}.${patch - 1}`;
+  const releasedRefs = new Set(chainSteps.filter((step) => step.source !== "current-head").map((step) => step.ref));
+  assert(releasedRefs.has(previousPatchTag), `chainSteps missing previous released patch ${previousPatchTag} before current v${version}`);
 }
 
 function assert(condition, message) {
