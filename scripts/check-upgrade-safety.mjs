@@ -279,6 +279,56 @@ function main() {
   // assertions, the upgrade flow may silently leave v0.2.x users without Integration governance
   // discipline support.
   assert(chainFinalRulePacks.includes("dev/rules/integrations.md"), "chain final RULE_PACKS.md missing R-030 integrations pack routing row (v0.3.0 force-refresh failed)");
+
+  // User-added RULE_PACKS rows must survive maintainer row catch-up. Earlier
+  // refresh logic replaced the whole routing table, which restored missing Kit
+  // rows but silently removed local custom routing rows.
+  const customRulePacksRoot = path.join(tmpdir(), `ack-upgrade-rulepacks-custom-${Date.now()}`);
+  mkdirSync(customRulePacksRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", customRulePacksRoot], "rulepacks custom-row bootstrap install");
+  const customRulePacksPath = path.join(customRulePacksRoot, "dev/RULE_PACKS.md");
+  const customRulePacksBefore = read(customRulePacksPath)
+    .replace("First-time user signals", "Legacy first-time signals")
+    .replace(/\| External tool integrations[\s\S]*?dev\/rules\/integrations\.md[\s\S]*?\|\r?\n/, "")
+    + "\n| Custom user workflow | `dev/rules/custom.md` | keep this user row |\n";
+  writeFileSync(customRulePacksPath, customRulePacksBefore, "utf8");
+  const customRulePacksUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", customRulePacksRoot], "rulepacks custom-row preservation upgrade");
+  assert(customRulePacksUpgrade.stdout.includes("merged: 1"), "RULE_PACKS custom-row scenario should merge one routing table file");
+  const customRulePacksAfter = read(customRulePacksPath);
+  assert(customRulePacksAfter.includes("Custom user workflow"), "RULE_PACKS custom user row was lost during upgrade");
+  assert(customRulePacksAfter.includes("First-time user signals"), "RULE_PACKS onboarding routing row was not restored");
+  assert(customRulePacksAfter.includes("dev/rules/integrations.md"), "RULE_PACKS integrations routing row was not restored");
+
+  const customSamePathRoot = path.join(tmpdir(), `ack-upgrade-rulepacks-samepath-${Date.now()}`);
+  mkdirSync(customSamePathRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", customSamePathRoot], "rulepacks same-path bootstrap install");
+  const customSamePathPath = path.join(customSamePathRoot, "dev/RULE_PACKS.md");
+  const customSamePathBefore = read(customSamePathPath)
+    .replace("First-time user signals", "Legacy first-time signals")
+    .replace(/\| External tool integrations[\s\S]*?dev\/rules\/integrations\.md[\s\S]*?\|\r?\n/, "")
+    + "\n| Custom integrations alias | `dev/rules/integrations.md` | keep this alias row |\n";
+  writeFileSync(customSamePathPath, customSamePathBefore, "utf8");
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", customSamePathRoot], "rulepacks same-path custom-row preservation upgrade");
+  const customSamePathAfter = read(customSamePathPath);
+  assert(customSamePathAfter.includes("Custom integrations alias"), "RULE_PACKS same-path custom row was lost during upgrade");
+  assert(customSamePathAfter.includes("External tool integrations"), "RULE_PACKS official integrations row was not restored when a custom row reused the same pack path");
+
+  const customHeaderRoot = path.join(tmpdir(), `ack-upgrade-rulepacks-header-${Date.now()}`);
+  mkdirSync(customHeaderRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", customHeaderRoot], "rulepacks changed-header bootstrap install");
+  const customHeaderPath = path.join(customHeaderRoot, "dev/RULE_PACKS.md");
+  const customHeaderBefore = read(customHeaderPath)
+    .replace("| Task signal | Pack | Purpose |", "| 自訂任務訊號 | Pack | Purpose |")
+    .replace("First-time user signals", "Legacy first-time signals")
+    + "\n| Custom user workflow | `dev/rules/custom.md` | keep this user row |\n";
+  writeFileSync(customHeaderPath, customHeaderBefore, "utf8");
+  const customHeaderUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", customHeaderRoot], "rulepacks changed-header conflict upgrade", { allowFailure: true });
+  assert(customHeaderUpgrade.status !== 0, "RULE_PACKS changed-header scenario should stop as conflict");
+  assert(outputText(customHeaderUpgrade).includes("conflict: 1"), "RULE_PACKS changed-header scenario should report one conflict");
+  const customHeaderAfter = read(customHeaderPath);
+  assert(customHeaderAfter.includes("自訂任務訊號"), "RULE_PACKS changed header was overwritten");
+  assert(customHeaderAfter.includes("Custom user workflow"), "RULE_PACKS custom row was overwritten in changed-header conflict scenario");
+
   const chainFinalProjectIndex = read(path.join(chainRoot, "dev/PROJECT_INDEX.md"));
   assert(chainFinalProjectIndex.includes("## Installed Integrations"), "chain final PROJECT_INDEX.md missing ## Installed Integrations section (v0.3.0 migration failed)");
   assert(chainFinalProjectIndex.includes("機密分離原則"), "chain final PROJECT_INDEX.md missing credential separation header (v0.3.0 migration failed)");

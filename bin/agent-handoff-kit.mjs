@@ -510,7 +510,7 @@ async function runInstall(command, root, options, version) {
     }
   }
 
-  printPlan(command, root, mode, plan, version);
+  printPlan(command, root, mode, plan, version, options.dryRun);
 
   if (options.dryRun) {
     console.log("\ndry-run: no files written");
@@ -635,6 +635,9 @@ async function runInstall(command, root, options, version) {
       console.log("⚠️  upgrade self-check did not pass; see doctor output above.");
       console.log("📋 下一步：把上面 doctor 輸出貼給 AI，請它先按提示修補後再宣稱 upgrade 完成。");
       process.exitCode = 1;
+    } else {
+      console.log("");
+      console.log("✅ 升級驗收完成：doctor 已通過；可以繼續使用這個項目。");
     }
   }
 
@@ -749,6 +752,7 @@ async function runDoctor(root, version, options = {}) {
   console.log("項目狀態速覽：");
   const versionAlignment = await assessVersionAlignment(root, version);
   printVersionAlignment(versionAlignment);
+  const versionNextStep = getVersionAlignmentNextStep(versionAlignment);
   const lastCloseout = await assessLastCloseout(root);
   printLastCloseout(lastCloseout);
   const projectAge = await assessProjectAge(root);
@@ -762,7 +766,7 @@ async function runDoctor(root, version, options = {}) {
     nextStep: !credentialResult.ok
       ? "立即從相關檔案 redact credential value + rotate 已泄露 token；credential 應該由 AI 工具自身 secure storage 管理，永不寫入 dev/* 任何檔。"
       : disciplineResult.ok
-      ? "繼續日常使用即可。如有新版本發佈，啟動本工具時會自動顯示升級通知。"
+      ? versionNextStep ?? "繼續日常使用即可。如有新版本發佈，啟動本工具時會自動顯示升級通知。"
       : "繼續使用；下次 closeout 時 AI 應自動執行 SESSION_LOG N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
   });
   return overallHealthy ? "passed" : "failed";
@@ -813,7 +817,7 @@ async function checkInstalledIntegrationsCredentialLeak(root) {
   return { ok: findings.length === 0, findings };
 }
 
-// R-026 CLI Output Contract: doctor 完成必含四項（版本／模式／剛做咗乜／下一步）。
+// R-026 CLI Output Contract: doctor 完成必含四項（版本／模式／剛完成／下一步）。
 function printDoctorSummary(version, root, mode, details) {
   console.log("");
   if (mode === "healthy") {
@@ -826,7 +830,7 @@ function printDoctorSummary(version, root, mode, details) {
   console.log("");
   console.log(`📦 版本：v${version}`);
   console.log(`🩺 模式：${mode}`);
-  console.log(`🔎 剛做咗：檢查 ${details.checked} 項；${mode === "healthy" ? "全部通過" : `${details.failedCount} 項未通過（${details.failedKind}）`}。`);
+  console.log(`🔎 剛完成：檢查 ${details.checked} 項；${mode === "healthy" ? "全部通過" : `${details.failedCount} 項未通過（${details.failedKind}）`}。`);
   console.log(`🚀 下一步：${details.nextStep}`);
 }
 
@@ -1018,28 +1022,32 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergeManagedBlock(targetText, sourceText)
     };
   }
-  // R-029 v0.2.0+: RULE_PACKS.md is a routing table, not a user customization target.
-  // Stale v0.1.X versions miss the "First-time user signals" onboarding routing row.
-  // Force-refresh during upgrade so R-029 onboarding routing propagates to existing users.
-  // Any user-added custom routing rows will be lost on upgrade — this is by design;
-  // RULE_PACKS.md is treated as a maintainer-owned routing table, similar to the
-  // AGENTS.md managed-core block. User customizations belong in pack rule files
-  // (packs/*.md), not in the routing table.
+  // R-029/R-030: RULE_PACKS.md is a routing table, but upgrade still preserves
+  // user-added rows. Missing maintainer rows are merged into the existing table
+  // instead of replacing the whole file.
   if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("First-time user signals")) {
+    const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
+    if (!mergedRulePacks) {
+      return { ...base, action: "conflict", reason: "RULE_PACKS.md routing table header was changed; manual merge required to preserve custom rows" };
+    }
     return {
       ...base,
       action: "merge",
-      reason: "refresh stale routing table to include v0.2.0+ rows (新手引導 signal routing)",
-      mergedText: sourceText
+      reason: "merge missing v0.2.0+ routing rows while preserving existing custom rows (新手引導 signal routing)",
+      mergedText: mergedRulePacks
     };
   }
   // R-030 v0.3.0+: dev/RULE_PACKS.md must also include integrations pack routing row.
-  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("dev/rules/integrations.md")) {
+  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("External tool integrations")) {
+    const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
+    if (!mergedRulePacks) {
+      return { ...base, action: "conflict", reason: "RULE_PACKS.md routing table header was changed; manual merge required to preserve custom rows" };
+    }
     return {
       ...base,
       action: "merge",
-      reason: "refresh stale routing table to include v0.3.0+ rows (Integration governance routing)",
-      mergedText: sourceText
+      reason: "merge missing v0.3.0+ routing rows while preserving existing custom rows (Integration governance routing)",
+      mergedText: mergedRulePacks
     };
   }
   // R-030 v0.3.0+: dev/PROJECT_INDEX.md gets ## Installed Integrations section auto-inserted before
@@ -1082,6 +1090,42 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   return { ...base, action: "skip", reason: "preserve existing file" };
 }
 
+function mergeRulePacksRows(targetText, sourceText) {
+  const requiredPacks = [
+    "dev/rules/onboarding.md",
+    "dev/rules/integrations.md"
+  ];
+  const sourceRows = sourceText
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("|") && requiredPacks.some((pack) => line.includes(pack)));
+  if (sourceRows.length === 0) return targetText;
+
+  const lines = targetText.split(/\r?\n/);
+  const tableStart = lines.findIndex((line) => line.trim() === "| Task signal | Pack | Purpose |");
+  if (tableStart < 0) return null;
+
+  let tableEnd = tableStart;
+  while (tableEnd < lines.length && lines[tableEnd].startsWith("|")) tableEnd++;
+
+  const before = lines.slice(0, tableStart);
+  const table = lines.slice(tableStart, tableEnd);
+  const after = lines.slice(tableEnd);
+  const sourceRowsToApply = sourceRows.filter((row) => {
+    if (row.includes("dev/rules/onboarding.md")) return !targetText.includes("First-time user signals");
+    if (row.includes("dev/rules/integrations.md")) return !targetText.includes("External tool integrations");
+    return false;
+  });
+  if (sourceRowsToApply.length === 0) return targetText;
+
+  const merged = [
+    ...before,
+    ...table,
+    ...sourceRowsToApply,
+    ...after
+  ];
+  return merged.join("\n");
+}
+
 // R-031.2 v0.3.2+: Version alignment assessment for doctor "項目狀態速覽".
 // Compares CLI version (running), root template metadata version (in dev/PROJECT_INDEX.md),
 // and npm latest. Surfaces drift awareness because previous design relied on startup
@@ -1111,24 +1155,40 @@ async function assessVersionAlignment(root, cliVersion) {
 function printVersionAlignment(result) {
   const { cliVersion, rootVersion, npmLatest } = result;
   if (rootVersion === null) {
-    console.log(`  📦 版本：CLI v${cliVersion} / root metadata 缺失（曾經手動編輯？）/ npm latest ${npmLatest ? "v" + npmLatest : "無法查詢"}`);
+    console.log(`  📦 版本：工具 v${cliVersion} / 項目版本記錄缺失（可能曾經手動編輯）/ npm latest ${npmLatest ? "v" + npmLatest : "無法查詢"}`);
     return;
   }
   if (npmLatest === null) {
-    console.log(`  📦 版本：CLI v${cliVersion} / root v${rootVersion} / npm latest 無法查詢（網絡可能不通）`);
+    console.log(`  📦 版本：工具 v${cliVersion} / 項目記錄 v${rootVersion} / npm latest 無法查詢（網絡可能不通）`);
     return;
   }
   const aligned = cliVersion === rootVersion && rootVersion === npmLatest;
   if (aligned) {
-    console.log(`  📦 版本：CLI / root / npm latest 三向對齊 v${cliVersion} ✅`);
+    console.log(`  📦 版本：工具 / 項目記錄 / npm latest 三向對齊 v${cliVersion} ✅`);
     return;
   }
-  console.log(`  📦 版本：CLI v${cliVersion} / root v${rootVersion} / npm latest v${npmLatest}`);
+  console.log(`  📦 版本：工具 v${cliVersion} / 項目記錄 v${rootVersion} / npm latest v${npmLatest}`);
   if (npmLatest && compareSemver(npmLatest, cliVersion) > 0) {
-    console.log(`     npm 有新版（v${npmLatest}）；可執行：npx @adamchanadam/agent-handoff-kit@latest upgrade`);
+    console.log(`     npm 有新版（v${npmLatest}）；doctor 只檢查不修改。要升級時先執行：npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run`);
+    console.log("     --dry-run 只預覽、不寫入；確認計劃沒問題後，再去掉 --dry-run 正式升級。");
   } else if (cliVersion !== rootVersion) {
-    console.log(`     你 root template metadata 同 CLI 唔對齊；兩個版本仍相容 doctor 仍 PASS；如想對齊：npx @adamchanadam/agent-handoff-kit@latest upgrade`);
+    console.log("     項目內記錄的 Kit 版本與目前工具版本不同；doctor 只檢查不修改。要對齊時先執行：npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run");
+    console.log("     --dry-run 只預覽、不寫入；確認計劃沒問題後，再去掉 --dry-run 正式升級。");
   }
+}
+
+function getVersionAlignmentNextStep(result) {
+  const { cliVersion, rootVersion, npmLatest } = result;
+  if (npmLatest && compareSemver(npmLatest, cliVersion) > 0) {
+    return `檢查已通過，但 npm 有新版 v${npmLatest}。doctor 沒有修改檔案；建議先執行 npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認計劃沒問題後，再去掉 --dry-run 正式升級。`;
+  }
+  if (rootVersion === null) {
+    return "檢查已通過，但項目版本記錄缺失。doctor 沒有修改檔案；建議先執行 npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認只會補齊工具維護的版本記錄後，再去掉 --dry-run 正式升級。";
+  }
+  if (cliVersion !== rootVersion) {
+    return "檢查已通過，但項目版本記錄未與目前工具對齊。doctor 沒有修改檔案；建議先執行 npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認後再去掉 --dry-run 正式升級。";
+  }
+  return null;
 }
 
 // R-031.2 v0.3.2+: Last closeout assessment. Reads dev/SESSION_HANDOFF.md "Last Updated:"
@@ -1438,14 +1498,17 @@ async function detectMode(root) {
   return "partial";
 }
 
-function printPlan(command, root, mode, plan, version) {
+function printPlan(command, root, mode, plan, version, isDryRun = false) {
   printCard(version, "continuity ready", "o.o");
   console.log(`command: ${command}`);
   console.log(`current directory: ${process.cwd()}`);
   console.log(`selected root: ${root}`);
   console.log(`mode: ${mode}`);
   console.log("");
-  console.log("📋 計劃預覽：以下未執行。create 新增缺少檔案；merge 在備份後合併；skip 保留既有檔案；conflict 代表工具停手等你確認。");
+  const planIntro = isDryRun
+    ? "📋 計劃預覽：以下未執行。create 新增缺少檔案；merge 在備份後合併；skip 保留既有檔案；conflict 代表工具停手等你確認。"
+    : "📋 即將執行：以下是本次寫入計劃。create 新增缺少檔案；merge 會先備份再合併；skip 保留既有檔案；conflict 代表工具停手等你確認。";
+  console.log(planIntro);
   console.log("");
   for (const action of ["create", "merge", "skip", "conflict"]) {
     const items = plan.filter((item) => item.action === action);
@@ -1455,7 +1518,7 @@ function printPlan(command, root, mode, plan, version) {
   console.log(`\nbackup: ${plan.filter((item) => item.action === "merge").length}`);
 }
 
-// R-026 CLI Output Contract: install/upgrade 完成必含四項（版本／模式／剛做咗乜／下一步）。
+// R-026 CLI Output Contract: install/upgrade 完成必含四項（版本／模式／剛完成／下一步）。
 function printInstallSummary(version, command, mode, root, counts) {
   console.log(`\n✅ created: ${counts.created}`);
   console.log(`🔀 merged: ${counts.merged}`);
@@ -1466,9 +1529,9 @@ function printInstallSummary(version, command, mode, root, counts) {
   console.log("");
   console.log(`📦 版本：v${version}`);
   console.log(`🛠️  模式：${mode}`);
-  console.log(`🔎 剛做咗：${command} 命令；create ${counts.created} / merge ${counts.merged} / skip ${counts.skipped} / conflict ${counts.conflicts}。`);
+  console.log(`🔎 剛完成：${command} 命令；create ${counts.created} / merge ${counts.merged} / skip ${counts.skipped} / conflict ${counts.conflicts}。`);
   if (counts.conflicts > 0) {
-    console.log("🚀 下一步：把 migration report 或這段輸出貼給 AI，請它判斷 conflict 點處理；工具已停手，沒有覆寫 conflict 檔案。");
+    console.log("🚀 下一步：把 migration report 或這段輸出貼給 AI，請它判斷衝突檔案怎樣處理；工具已停手，沒有覆寫 conflict 檔案。");
   } else if (command === "upgrade") {
     console.log("🚀 下一步：留意下方 upgrade self-check（自動跑 doctor）；若全綠即升級完成。");
   } else {
@@ -1657,17 +1720,16 @@ function printInstallNextSteps(root, conflictCount) {
     console.log("📋 下一步：把 migration report 或這段輸出貼給 AI，請它幫你判斷怎樣合併。");
     console.log("");
   }
-  // R-031.2 v0.3.2+: 「點 confirm 你裝啱咗」mini-checklist，直接答用戶第一次安裝後嘅
-  // anxiety「我裝啱咗嗎」。三個具體 verify step + 一句講清本工具係 background harness
-  // （冇 GUI、冇 server、需要連住 AI tool 先見到實際 value）。
-  console.log("📋 點 confirm 你裝啱咗：");
+  // R-031.2 v0.3.2+: first-install checklist. It answers the user's first
+  // question: "is this installed and what do I do next?"
+  console.log("📋 如何確認安裝完成：");
   console.log("");
-  console.log("   1. 跑 npx @adamchanadam/agent-handoff-kit doctor 應該見到「status: passed」");
-  console.log("   2. 你 dev/ folder 應該有起碼 14 個檔（rules / SESSION_HANDOFF / SESSION_LOG 等）");
-  console.log("   3. 喺你 AI tool（Claude Code / Codex / Gemini）開新對話，貼下面起步句先見到實際 value");
+  console.log("   1. 在 Terminal 執行 npx @adamchanadam/agent-handoff-kit doctor，應該見到「status: passed」");
+  console.log("   2. 你的 dev/ 資料夾應該有規則、交接與工作紀錄等檔案");
+  console.log("   3. 在你使用的 AI 工具（Claude Code / Codex / Gemini）開新對話，貼下面起步句");
   console.log("");
-  console.log("⚠️  注意：Agent Handoff Kit 只係 background harness —— 喺你 project folder 入面嘅幾類檔案。");
-  console.log("   冇 GUI、唔 run server、唔自動做嘢。你需要連住至少一個 AI tool 嘅對話，AI 先會讀依啲檔案做正事。");
+  console.log("⚠️  注意：Agent Handoff Kit 是放在項目資料夾內的一組交接檔案。");
+  console.log("   它沒有圖形介面，不會啟動伺服器，也不會自動替你做事；你需要在 AI 對話中使用它。");
   console.log("");
   console.log("------------------------------------------------------------");
   console.log("⚠️  請注意：下面文字不是 Terminal 指令。");
@@ -1679,7 +1741,7 @@ function printInstallNextSteps(root, conflictCount) {
   console.log("🚀 AI 會主動引導你選擇情景（寫代碼 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），");
   console.log("   一步一步帶你做第一個任務（由新手引導包主動接管）。");
   console.log("");
-  console.log("💡 之後 session（你已熟悉 v2 之後）可改用更直接 prompt:");
+  console.log("💡 之後你熟悉流程後，可改用更直接的開工句：");
   console.log(`   Work in ${root}. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.`);
   console.log("");
   console.log("🩺 如要檢查安裝是否完整，可在 Terminal 執行：");
@@ -1693,7 +1755,7 @@ function printInstallNextSteps(root, conflictCount) {
 async function printUpgradeNextSteps(root, conflictCount, version, preUpgradeRootVersion) {
   console.log("");
   console.log("============================================================");
-  console.log("✅ 升級完成：管治架構檔案已更新到最新版本");
+  console.log("✅ 升級完成：Kit 檔案已更新到最新版本");
   console.log("============================================================");
   if (conflictCount > 0) {
     console.log("⚠️  狀態：有既有檔案需要人工確認，詳情見 migration report。");
@@ -1707,7 +1769,7 @@ async function printUpgradeNextSteps(root, conflictCount, version, preUpgradeRoo
   // inject mutated PROJECT_INDEX), so the range narrative reflects actual user
   // journey instead of degenerate v{current} → v{current}.
   await printWhatsnew(root, version, preUpgradeRootVersion);
-  console.log("📋 如你正在進行中的工作 session 已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
+  console.log("📋 如你正在進行中的工作對話已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
   console.log("");
   console.log("💡 如想了解本版本新加了甚麼功能，可選用以下開工句（非強制）：");
   console.log("------------------------------------------------------------");
@@ -1760,7 +1822,7 @@ async function printWhatsnew(root, toVersion, fromVersionOverride) {
 
   if (relevant.length === 0) {
     console.log(`💡 本版 release notes：https://github.com/Adamchanadam/agent-handoff-kit/releases`);
-    console.log(`   （v${fromVersion} → v${toVersion} 跨版本嘅完整變更見 GitHub Release 全列表）`);
+    console.log(`   （v${fromVersion} → v${toVersion} 跨版本的完整變更見 GitHub Release 全列表）`);
     console.log("");
     return;
   }
@@ -1776,12 +1838,12 @@ async function printWhatsnew(root, toVersion, fromVersionOverride) {
   const [oldMajor, oldMinor] = oldestAvailable.split(".").map((n) => Number.parseInt(n, 10));
   const isDeepRange = (fromMajor < oldMajor) || (fromMajor === oldMajor && fromMinor < oldMinor);
   if (isDeepRange) {
-    console.log(`💡 注意：本次升級 v${fromVersion} → v${toVersion} 跨度較大；本工具 release notes 庫只 cover 由 v${oldestAvailable} 起嘅 ${relevant.length} 個版本。較舊版本（v${fromVersion} 至 v${oldestAvailable} 之前）嘅完整變更見：`);
+    console.log(`💡 注意：本次升級 v${fromVersion} → v${toVersion} 跨度較大；本工具的版本說明只涵蓋由 v${oldestAvailable} 起的 ${relevant.length} 個版本。較舊版本（v${fromVersion} 至 v${oldestAvailable} 之前）的完整變更見：`);
     console.log(`   https://github.com/Adamchanadam/agent-handoff-kit/releases`);
     console.log("");
   }
 
-  console.log(`📰 本次升級涵蓋 ${relevant.length} 個版本嘅 release notes（${isDeepRange ? `由 v${oldestAvailable} 起` : `v${fromVersion} → v${toVersion}`}）：`);
+  console.log(`📰 本次升級涵蓋 ${relevant.length} 個版本的版本說明（${isDeepRange ? `由 v${oldestAvailable} 起` : `v${fromVersion} → v${toVersion}`}）：`);
   console.log("");
 
   const toShow = relevant.length <= 3 ? relevant : [relevant[0], relevant[relevant.length - 1]];
@@ -1795,7 +1857,7 @@ async function printWhatsnew(root, toVersion, fromVersionOverride) {
       console.log(content.trimEnd());
       console.log("");
       if (i === 0 && elidedCount > 0) {
-        console.log(`   ⋯ 中間 ${elidedCount} 個版本嘅 release notes 略；完整列表見 https://github.com/Adamchanadam/agent-handoff-kit/releases ⋯`);
+        console.log(`   ⋯ 中間 ${elidedCount} 個版本的版本說明略；完整列表見 https://github.com/Adamchanadam/agent-handoff-kit/releases ⋯`);
         console.log("");
       }
     } catch {
@@ -1816,7 +1878,7 @@ function printUpgradeNoopShortCircuit(version) {
   console.log("");
   console.log(`📦 版本：v${version}`);
   console.log("🛠️  模式：upgrade-existing");
-  console.log("🔎 剛做咗：檢查所有管治架構檔案的狀態（含 AGENTS.md、dev/SESSION_HANDOFF.md、dev/PROJECT_INDEX.md 等）。");
+  console.log("🔎 剛完成：檢查所有 Kit 檔案的狀態（含 AGENTS.md、dev/SESSION_HANDOFF.md、dev/PROJECT_INDEX.md 等）。");
   console.log("✅ 結果：你已經是最新版本，沒有檔案需要建立或合併；用戶填寫的內容全部保留現狀。");
   console.log("");
   console.log("🚀 下一步：繼續日常使用即可。如要檢查健康狀態，可執行：");

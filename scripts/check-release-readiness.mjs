@@ -408,7 +408,7 @@ function checkScenarioBranchingDocAlignment() {
         "升級完成",
         "metadata 更新紀錄",
         "template version metadata 更新為當前版本",
-        "doctor self-check 不再提示 root 落後 CLI",
+        "doctor self-check 不再提示項目版本未對齊",
         "你已經是最新版本，沒有檔案需要建立或合併",
         "安裝完成",
         "I just installed agent-handoff-kit. Help me get started."
@@ -419,7 +419,7 @@ function checkScenarioBranchingDocAlignment() {
       snippets: [
         "upgrade structurally stale",
         "升級完成",
-        "進行中嘅 session 已熟悉本工具可繼續使用原本開工方式",
+        "進行中的工作對話已熟悉 Agent Handoff Kit 可繼續使用原本開工方式",
         "I just upgraded agent-handoff-kit",
         "template version metadata 更新為當前版本",
         "安裝完成",
@@ -506,9 +506,9 @@ function simulateScenarioBranching() {
       /✅ 安裝完成：/,
       /I just installed agent-handoff-kit\. Help me get started\./,
       /請注意：下面文字不是 Terminal 指令/,
-      /點 confirm 你裝啱咗/,
-      /background harness/,
-      /連住至少一個 AI tool/
+      /如何確認安裝完成/,
+      /一組交接檔案/,
+      /沒有圖形介面/
     ],
     mustNotHave: [
       /✅ 升級完成：/,
@@ -577,7 +577,7 @@ function simulateScenarioBranching() {
       // historical mention 嘅廣東口語 wording，防 false positive
       /✅ 結果：你已經是最新版本/,
       // 確認 inject 真正生效，doctor self-check 之後唔再講 root 落後
-      /root template metadata 同 CLI 唔對齊/
+      /項目內記錄的 Kit 版本與目前工具版本不同/
     ]
   });
   const s3aPostIndex = readFileSync(s3aIndexPath, "utf8");
@@ -615,7 +615,7 @@ function simulateScenarioBranching() {
     mustNotHave: [
       /✅ 安裝完成：/,
       /I just installed agent-handoff-kit\. Help me get started\./,
-      /root template metadata 同 CLI 唔對齊/
+      /項目內記錄的 Kit 版本與目前工具版本不同/
     ]
   });
   const s3bPostIndex = readFileSync(s3bIndexPath, "utf8");
@@ -632,11 +632,11 @@ function simulateScenarioBranching() {
       /status: passed/,
       /繼續日常使用即可/,
       // R-031.2 v0.3.2+: 項目狀態速覽（三向 version + 距上次 closeout + 項目首次安裝）
-      // Loosened from /📦 版本：CLI v/ to /📦 版本：CLI/ — aligned branch wording is
-      // "CLI / root / npm latest 三向對齊 vX" where "CLI" is followed by "/" not "v",
+      // Loosened from /📦 版本：工具 v/ to /📦 版本：工具/ — aligned branch wording is
+      // "工具 / 項目記錄 / npm latest 三向對齊 vX" where "工具" is followed by "/" not "v",
       // so the original anchor missed the aligned case when network fetch succeeded.
       /項目狀態速覽/,
-      /📦 版本：CLI/,
+      /📦 版本：工具/,
       /📅 上次 closeout/,
       /🌱 項目首次安裝距今/
     ],
@@ -695,7 +695,7 @@ function checkForbiddenVocabularyInChangelogLatestSection(text, patterns) {
 function checkBookLanguage(label, text, pattern) {
   // Exclude content inside <div class="block-body">...</div> (CLI Terminal mock blocks).
   // These mirror literal CLI output from bin/agent-handoff-kit.mjs which contains
-  // R-026 contract phrasing (e.g. "剛做咗") that does not follow book-language
+  // R-026 contract phrasing that may differ from long-form book-language
   // discipline because it is verbatim CLI output, not user-facing narrative.
   const blockBodyRegex = /<div class="block-body">[\s\S]*?<\/div>/g;
   const strippedText = text.replace(blockBodyRegex, (match) => " ".repeat(match.length));
