@@ -18,7 +18,7 @@
 | 任務入口事實驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `PROJECT_INDEX` 具備 Fact Base / External Sources / Local QC Commands，`SESSION_HANDOFF` 具備 Next Task Required Reading，並保留「可達不等於已讀入」口徑。 | 是 |
 | 交接狀態對賬驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `SESSION_HANDOFF` 分清 Durable Anchors 與 Closeout-Reconciled State，具備 Task Understanding Summary 與 State Reconciliation Check，並用負面測試確認 stale snapshot 不能當作已對賬；v0.3.6 起再加入交接生命週期一致性反例，確認已完成事項不能被下一輪當成未解待辦。 | 是 |
 | 交接語言本地化驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `SESSION_HANDOFF` 保留 `ack:section:*` 與 `ack:field:*` 語義標記時，標題與可見欄位名稱可翻成中文或其他語言。 | 是 |
-| 安裝後指示驗收 | 已併入 `npm run qa:prototype` 與 `npm run qa:release` | 檢查安裝成功後的 Terminal 輸出不會令用戶誤把提示文字當成命令，並確認 README 說明安裝後第一步。 | 是 |
+| 安裝後指示驗收 | 已併入 `npm run qa:prototype` 與 `npm run qa:release` | 檢查安裝成功後的 Terminal 輸出不會令用戶誤把提示文字當成命令，並確認 README 說明安裝後第一步；同時檢查 `npx` 取得 CLI 工具與項目內 Kit 文件安裝不可混淆。 | 是 |
 | 技能／子代理流程仲裁驗收 | 已併入 `npm run qa:packs` 與 `npm run qa:release` | 檢查外部技能、子代理、demo workspace 或其他工具的 closeout 不可取代目前根目錄自己的 Agent Handoff Kit 持久化。 | 是 |
 | 舊核心升級結構驗收 | 已併入 `npm run qa:upgrade` 與 `npm run qa:release` | 檢查舊版未標記 `AGENTS.md` core 升級後不會留下雙核心、雙收尾合約或 stale 上半段，且保留 core 前後的使用者本地規則。 | 是 |
 | PROJECT_DECISIONS 結構驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `dev/PROJECT_DECISIONS.md` 含 4 個 H2 section heading（Evolution Timeline / Decisions Archive / Architecture Choices / Insights & Learnings）並保持順序；檔頭含 onboarding 句式（「warm 資料層」、「AI 開工不需要讀」、「AI 在收工時自動 update」）。 | 是 |
@@ -55,6 +55,7 @@
 | Fresh install → init → first task | 新用戶安裝後是否知道下一步是在 AI 對話中開始，而不是把提示當 Terminal 指令。 | `qa:release` user-flow + R-029 wording sweep + 人工終讀 | 阻擋 publish，直到 CLI / README / onboarding wording 對齊 |
 | First task → closeout → next session handoff | 收工後下一個 AI 是否不需聊天記憶，也不會重開已完成調查。 | `doctor` handoff lifecycle check + negative fixture + opening-message read-through | 阻擋 publish，並補 lifecycle fixture 或 manual checklist |
 | Existing project upgrade → doctor → closeout | 舊用戶升級後是否不丟本地規則、不覆寫用戶內容、不出現「剛升完又叫再升」矛盾。 | `qa:upgrade` chain + user-data fixture + CLI scenario branching sweep | 阻擋 publish，並補 prior-version fixture / scenario |
+| Existing Kit files → official npx doctor path | 舊項目已經有 Kit 文件時，用戶是否明白官方路徑是 `npx --yes @adamchanadam/agent-handoff-kit@latest doctor`；裸 `npx ... doctor` 只是 npm 通用執行方式，不作產品旅程。 | README / CLI help / intro / guide 冷啟動 `npx --yes` 指令 + `qa:release` npx UX guard + 人工終讀 | 阻擋 publish，直到 README、CLI help、doctor 下一步、intro、guide 與 QA guard 對齊 |
 | Non-empty project with local rules | 既有 `AGENTS.md` / `PROJECT_INDEX.md` / `RULE_PACKS.md` 內容是否保留或停手報 conflict。 | `qa:upgrade` merge / custom-row / conflict fixtures | 阻擋 publish，除非明確列為人工-only conflict 類 |
 | Conflict / blocked state | 工具是否清楚停手，說明沒有覆寫，並指出 migration report / 手動處理方向。 | Scenario 2 / 5 manual checklist until automated fixtures exist | 同類第二次出現即必須轉 automated |
 | Doctor healthy / outdated / lifecycle conflict | `doctor` 是否分清健康、可升級、交接矛盾三類，不混成同一個下一步。 | Scenario 6 automated + scenario 7 manual + lifecycle negative fixture | 阻擋 publish，並補 scenario output contract |
@@ -90,7 +91,7 @@
 | 重複 | 檢查同一口徑是否已有單一真源；避免 README、runtime、QA 文件各自變成權威。 |
 | 矛盾 | 用 `qa:release` 文件錨點與人工終讀確認 README、runtime、CHANGELOG、發佈級 QA 說法一致。 |
 | 膨脹與負載 | 確認 npm package 邊界不擴大，且新增 QA 文件不進使用者安裝 runtime。 |
-| 認知影響 | 檢查安裝後提示與 README 是否讓用戶分清 Terminal 檢查與 AI 對話下一步。 |
+| 認知影響 | 檢查安裝後提示與 README 是否讓用戶分清 Terminal 檢查與 AI 對話下一步；舊項目跑 `npx ... doctor` 時，也要分清 npm 取得 CLI 工具與 `doctor` 檢查項目文件。 |
 | 事實漂移 | 用 handoff 對賬欄位、stale snapshot 負面測試與必讀來源欄位降低風險。 |
 | 交接生命週期一致性 | 用 `doctor` 與 `qa:release` 檢查 `Completed This Session` / `Validation / QC` / `Next Priorities` / `Risks / Blockers` / `Next Session Opening Message`。已完成或已驗證的事項，不得在同一 handoff 中又以未解調查、待辦或下一次開工指令延續；除非明確改成 monitor-only、follow-up scope、blocked 或 reopened。 |
 | 執行落差 | 檢查規則是否有 `doctor`、QA 腳本、負面測試或人工審閱承接；不得只增加提醒文字。 |
@@ -147,6 +148,18 @@
 **Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3）**：場景 1 / 3a / 3b / 4 / 6 為 automated。場景 2 / 5 / 7 屬 conditional state，留下次 minor follow-up 補 automated（fixture 構造較複雜，目前由人工驗收清單覆蓋）。
 
 **未來新加 user-invocable surface 嘅紀律**：每加一個新 CLI sub-command 或新場景分流，必同步加 dim row + Sweep row + automated simulation；違反即視為 audit-time blind spot 重演（同 v0.3.0 R-030 5 支柱嘅 P4 紀律一致）。
+
+### Npx Cold-start UX Sweep（v0.3.7 候選新加）
+
+對應治理 QA 缺口矩陣「認知影響」與 Product Journey Matrix「Existing Kit files → official npx doctor path」。本缺口來自真實舊項目實測：目錄內已有舊版 Kit 文件，但執行裸 `npx ... doctor` 時，npm 仍先顯示 `Need to install the following packages`。用戶會合理理解成「doctor 正在安裝」，但實際上 `doctor` 尚未開始執行；npm 只是要先取得 CLI 工具。
+
+`scripts/check-release-readiness.mjs` 必須守住以下口徑：
+
+- README、CLI help / next-step output、`agent-handoff-kit-intro.html`、`agent-handoff-kit-guide.html` 的用戶示範命令須使用 `npx --yes @adamchanadam/agent-handoff-kit@latest ...`，避免裸 `npx ... doctor` 觸發誤導性確認提示。
+- 裸寫不帶 `--yes` / `@latest` 的 `npx doctor` 不列為官方建議用戶路徑；它只是 npm 仍可接受的通用執行方式，不應為它另開產品旅程。
+- README 必須明確說明兩層安裝：項目內 Kit 文件，與電腦用來執行指令的 npm CLI 工具。
+- README 必須明確說明：即使目前資料夾已安裝舊版 Kit 文件，`npx` 仍可能因本機沒有可執行工具而先取得 package；這不等於 `doctor` 正在安裝或改動項目。
+- CLI 可見輸出必須明確說明：`doctor` 只檢查，不會安裝或修改項目文件。
 
 ## 套件邊界
 
@@ -452,7 +465,7 @@ Skip 嘅 record 必含具體 reason（譬如「Trigger 7 not required: 上一版
 - public package / CLI：`@adamchanadam/agent-handoff-kit` package，`agent-handoff-kit` CLI。
 - 非空既有專案升級重驗：已通過，臨時根目錄為 `C:\tmp\ack_release_candidate_upgrade_trial_20260517_171753`。
 - 最近發佈前驗收：`npm run qa:prototype`、`npm run qa:packs`、`npm run qa:upgrade`、`npm run qa:release` 已在新名稱下通過；公開文件補齊後 `npm run qa:release` 已再次通過。
-- 發佈後仍需驗證：GitHub Release、npm package metadata、`npx @adamchanadam/agent-handoff-kit --help`、`npx @adamchanadam/agent-handoff-kit doctor` 的實際可用性。
+- 發佈後仍需驗證：GitHub Release、npm package metadata、`npx --yes @adamchanadam/agent-handoff-kit@latest --help`、`npx --yes @adamchanadam/agent-handoff-kit@latest doctor` 的實際可用性。
 
 ## QA Fixture 真實性紀律（R-025）
 

@@ -18,7 +18,7 @@ Agent Handoff Kit 是 **AI Session 之間的接力棒**。
 >
 > AI 會自動引導你選擇使用情境（寫代碼 / 寫報告 / 整理知識庫 / 學寫代碼 / 其他），然後一步一步帶你做第一個任務。本 README 與下方介紹頁是參考對照，不是必讀。
 
-想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) —— 新手 60 秒入門。看完想看實際操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) —— 兩個日常情境（整理電腦下載目錄、開咖啡店市場調查）的完整流程示範。本 README 則保留安裝、日常使用與限制。
+想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) —— 新手 60 秒入門。看完想看實際操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) —— 三個日常情境（整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進）的完整流程示範。本 README 則保留安裝、日常使用與限制。
 
 ## 它解決甚麼問題
 
@@ -40,10 +40,19 @@ Agent Handoff Kit 是 **AI Session 之間的接力棒**。
 在你的專案資料夾打開 Terminal，執行：
 
 ```bash
-npx @adamchanadam/agent-handoff-kit init
+npx --yes @adamchanadam/agent-handoff-kit@latest init
 ```
 
 出現確認問題時，輸入 `yes`。
+
+這是本工具建議的正式 `npx` 寫法。不要省略 `--yes` 與 `@latest`；裸寫不帶 `--yes` / `@latest` 的 `npx doctor` 雖然可能由 npm 執行，但不是本工具的建議用戶路徑，容易先出現 npm 自己的安裝提示，造成誤解。
+
+這裡的 `--yes` 只用來回答 npm「是否先下載這個執行工具」的提示；它不是把 Handoff Kit 文件靜默寫入你的項目。真正會建立項目文件的是 `init`，而且工具仍會顯示計劃與確認步驟。
+
+請分清兩層「安裝」：
+
+- **項目內的 Kit 文件**：`AGENTS.md`、`dev/SESSION_HANDOFF.md`、`dev/rules/*.md` 等，這些是 `init` 或正式 `upgrade` 管理的交接文件。
+- **電腦用來執行指令的 npm 工具**：`npx` 需要先取得 `@adamchanadam/agent-handoff-kit` 這個執行工具，才有辦法跑 `init`、`upgrade` 或 `doctor`。即使目前資料夾已安裝舊版 Kit 文件，`npx` 仍可能因本機沒有可執行工具而顯示「Need to install the following packages」。判斷點不是資料夾有沒有 `AGENTS.md` 或 `dev/`，而是當下是否已有可執行的 npm 工具。那只是 npm 取得執行工具，不等於 `doctor` 正在安裝或改動你的項目。
 
 安裝完成後，你會看到一段 `Work in ...` 文字。請特別留意：那一段不是給 Terminal 的指令，而是要貼到 AI 對話。
 
@@ -95,12 +104,12 @@ START_NEXT_SESSION_PROMPT.txt
 如要檢查安裝是否完整，可在 Terminal 執行：
 
 ```bash
-npx @adamchanadam/agent-handoff-kit doctor
+npx --yes @adamchanadam/agent-handoff-kit@latest doctor
 ```
 
 看到 `status: passed`，代表必要文件、基本結構與下次開工提示副本的一致性都通過檢查。
 
-這個檢查只能確認文件結構，不代表 AI 已理解你的專案。真正開始工作前，仍應要求 AI 先讀入口文件並說明目前狀態。
+`doctor` 只檢查，不會建立或修改項目文件。若你不用 `--yes`，npm 可能先問是否下載 `@adamchanadam/agent-handoff-kit` 來執行指令；那是取得檢查工具，不是安裝 Kit 到目前資料夾。這個檢查只能確認文件結構，不代表 AI 已理解你的專案。真正開始工作前，仍應要求 AI 先讀入口文件並說明目前狀態。
 
 ## 會安裝甚麼
 
@@ -205,13 +214,13 @@ dev/rules/*.md
 如果你的專案已經裝過舊版 Agent Handoff Kit，或本來已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 等 AI 記憶文件，可先用最新版安裝工具預演會發生甚麼：
 
 ```bash
-npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
+npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
 ```
 
 確認沒有問題後，再執行：
 
 ```bash
-npx @adamchanadam/agent-handoff-kit@latest upgrade
+npx --yes @adamchanadam/agent-handoff-kit@latest upgrade
 ```
 
 `@latest` 代表使用 npm 上最新版本的 Agent Handoff Kit。`upgrade` 則負責把專案內已安裝的文件、規則與檢查結構安全更新。升級工具會保留既有檔案；能安全合併時才合併，不能安全合併時會回報衝突，不會靜默覆寫。
@@ -235,7 +244,7 @@ Agent Handoff Kit 同 [Adam-AI-Instructions](https://github.com/prompt-templates
 - **Adam-AI-Instructions** 負責 AI 在**單一對話**內的做事規矩：語氣、做事優先序、回覆骨架、計算紀律、用語紀律、安全護欄、輸出層分工。屬「AI 應該怎樣答你」的持久基準。
 - **Agent Handoff Kit** 負責 AI 在**對話之間**的接力：當前狀態、下一步、檔案登記、收工同下次開工。屬「AI 在對話之間怎樣記住你的項目」的持久基準。
 
-到該 repo 的「五、Prompt 索引」選擇適合你 AI 工具的版本（Claude Cowork、Claude Code、OpenAI Codex、ChatGPT 等），複製對應子目錄的 `prompt.md` 全文，貼入 AI 工具的設定區（例如 Claude Cowork 的 Global Instructions、Claude Code 的 `~/.claude/CLAUDE.md`、ChatGPT 的 Custom Instructions）。然後再在項目資料夾執行 `npx @adamchanadam/agent-handoff-kit init` 安裝本工具。兩者配合就能涵蓋「單次對話質素」加「跨對話接力」兩個維度。
+到該 repo 的「五、Prompt 索引」選擇適合你 AI 工具的版本（Claude Cowork、Claude Code、OpenAI Codex、ChatGPT 等），複製對應子目錄的 `prompt.md` 全文，貼入 AI 工具的設定區（例如 Claude Cowork 的 Global Instructions、Claude Code 的 `~/.claude/CLAUDE.md`、ChatGPT 的 Custom Instructions）。然後再在項目資料夾執行 `npx --yes @adamchanadam/agent-handoff-kit@latest init` 安裝本工具。兩者配合就能涵蓋「單次對話質素」加「跨對話接力」兩個維度。
 
 ## 目前限制
 

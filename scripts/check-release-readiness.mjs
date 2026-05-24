@@ -360,6 +360,12 @@ function main() {
   // v0.2.1 patches this by enforcing a single canonical trigger phrase.
   checkCrossSurfaceWordingConsistency();
 
+  // v0.3.7 candidate discipline: `npx` cold-start UX must be explicit. A project can
+  // already contain old Kit files while npm still needs to fetch the CLI package before
+  // running `doctor`; user-facing examples must avoid the misleading bare `npx ... doctor`
+  // path and explain that `doctor` checks only.
+  checkNpxColdStartUxGuidance();
+
   // R-031.1 v0.3.1+: CLI Scenario Branching Coverage Sweep. Real-invoke bin in 5
   // automated scenarios (install fresh / upgrade no-op / upgrade metadata-only stale /
   // upgrade structurally stale / doctor healthy & latest) and assert must-have /
@@ -387,6 +393,46 @@ function checkCrossSurfaceWordingConsistency() {
     }
     console.log(`ok: ${surface.file} cross-surface R-029 trigger phrase`);
   }
+}
+
+function checkNpxColdStartUxGuidance() {
+  const readme = read("README.md");
+  const cli = read("bin/agent-handoff-kit.mjs");
+  const qaDoc = read("docs/qa/release-grade-qa.md");
+  const intro = stripHtml(read("agent-handoff-kit-intro.html"));
+  const guide = stripHtml(read("agent-handoff-kit-guide.html"));
+  const canonicalCommands = [
+    "npx --yes @adamchanadam/agent-handoff-kit@latest init",
+    "npx --yes @adamchanadam/agent-handoff-kit@latest doctor",
+    "npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run"
+  ];
+  for (const command of canonicalCommands) {
+    assert(readme.includes(command), `README missing npx cold-start-safe command: ${command}`);
+    assert(cli.includes(command), `CLI help / next-step output missing npx cold-start-safe command: ${command}`);
+  }
+  assert(intro.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "intro page missing canonical npx init command");
+  assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "guide page missing canonical npx init command");
+  assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest doctor"), "guide page missing canonical npx doctor command");
+  assert(readme.includes("即使目前資料夾已安裝舊版 Kit 文件"), "README must explain old Kit files do not mean the npm CLI is locally available");
+  assert(readme.includes("判斷點不是資料夾有沒有 `AGENTS.md` 或 `dev/`"), "README must explicitly distinguish project Kit files from the executable npm tool");
+  assert(readme.includes("那只是 npm 取得執行工具，不等於 `doctor` 正在安裝或改動你的項目"), "README must explain the npm Need-to-install prompt is not doctor installing project files");
+  assert(cli.includes("不會令 doctor 安裝或修改項目文件"), "CLI output must explain npx fetch is not doctor installing project files");
+  assert(cli.includes("即使資料夾已有 AGENTS.md 或 dev/"), "CLI output must explain existing Kit files can still require npx to fetch the executable tool");
+  assert(readme.includes("不是本工具的建議用戶路徑"), "README must discourage bare npx doctor as an official user path");
+  assert(cli.includes("不是本工具的建議用戶路徑"), "CLI help must discourage bare npx doctor as an official user path");
+  assert(qaDoc.includes("不列為官方建議用戶路徑"), "Release-grade QA must classify bare npx doctor as non-canonical");
+
+  const misleadingExamples = [
+    { file: "README.md", text: readme },
+    { file: "bin/agent-handoff-kit.mjs", text: cli },
+    { file: "agent-handoff-kit-intro.html", text: intro },
+    { file: "agent-handoff-kit-guide.html", text: guide }
+  ];
+  for (const surface of misleadingExamples) {
+    assert(!surface.text.includes("npx @adamchanadam/agent-handoff-kit doctor"), `${surface.file} still contains misleading bare npx doctor example`);
+    assert(!surface.text.includes("npx @adamchanadam/agent-handoff-kit init"), `${surface.file} still contains misleading bare npx init example`);
+  }
+  console.log("ok: npx cold-start UX guidance");
 }
 
 function checkScenarioBranchingDocAlignment() {
@@ -959,6 +1005,10 @@ function read(relativePath) {
 
 function readAt(baseDir, relativePath) {
   return readFileSync(path.join(baseDir, relativePath), "utf8");
+}
+
+function stripHtml(value) {
+  return value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
 }
 
 function outputText(result) {

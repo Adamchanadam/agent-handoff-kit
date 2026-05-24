@@ -1301,10 +1301,10 @@ function printVersionAlignment(result) {
   }
   console.log(`  📦 版本：工具 v${cliVersion} / 項目記錄 v${rootVersion} / npm latest v${npmLatest}`);
   if (npmLatest && compareSemver(npmLatest, cliVersion) > 0) {
-    console.log(`     npm 有新版（v${npmLatest}）；doctor 只檢查不修改。要升級時先執行：npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run`);
+    console.log(`     npm 有新版（v${npmLatest}）；doctor 只檢查不修改。要升級時先執行：npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run`);
     console.log("     --dry-run 只預覽、不寫入；確認計劃沒問題後，再去掉 --dry-run 正式升級。");
   } else if (cliVersion !== rootVersion) {
-    console.log("     項目內記錄的 Kit 版本與目前工具版本不同；doctor 只檢查不修改。要對齊時先執行：npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run");
+    console.log("     項目內記錄的 Kit 版本與目前工具版本不同；doctor 只檢查不修改。要對齊時先執行：npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run");
     console.log("     --dry-run 只預覽、不寫入；確認計劃沒問題後，再去掉 --dry-run 正式升級。");
   }
 }
@@ -1312,13 +1312,13 @@ function printVersionAlignment(result) {
 function getVersionAlignmentNextStep(result) {
   const { cliVersion, rootVersion, npmLatest } = result;
   if (npmLatest && compareSemver(npmLatest, cliVersion) > 0) {
-    return `檢查已通過，但 npm 有新版 v${npmLatest}。doctor 沒有修改檔案；建議先執行 npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認計劃沒問題後，再去掉 --dry-run 正式升級。`;
+    return `檢查已通過，但 npm 有新版 v${npmLatest}。doctor 沒有修改檔案；建議先執行 npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認計劃沒問題後，再去掉 --dry-run 正式升級。`;
   }
   if (rootVersion === null) {
-    return "檢查已通過，但項目版本記錄缺失。doctor 沒有修改檔案；建議先執行 npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認只會補齊工具維護的版本記錄後，再去掉 --dry-run 正式升級。";
+    return "檢查已通過，但項目版本記錄缺失。doctor 沒有修改檔案；建議先執行 npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認只會補齊工具維護的版本記錄後，再去掉 --dry-run 正式升級。";
   }
   if (cliVersion !== rootVersion) {
-    return "檢查已通過，但項目版本記錄未與目前工具對齊。doctor 沒有修改檔案；建議先執行 npx @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認後再去掉 --dry-run 正式升級。";
+    return "檢查已通過，但項目版本記錄未與目前工具對齊。doctor 沒有修改檔案；建議先執行 npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認後再去掉 --dry-run 正式升級。";
   }
   return null;
 }
@@ -1810,10 +1810,11 @@ function compareSemver(left, right) {
 
 function printUpdateNotice(currentVersion, latestVersion) {
   const releaseUrl = "https://github.com/Adamchanadam/agent-handoff-kit/releases/latest";
-  const command = "npx @adamchanadam/agent-handoff-kit@latest <command>";
+  const command = "npx --yes @adamchanadam/agent-handoff-kit@latest <command>";
   const lines = [
     `✨ 有新版可用：${currentVersion} -> ${latestVersion}`,
     `如要使用最新版，執行：${command}`,
+    "這只讓 npm 取得執行工具；doctor 只檢查，不會安裝項目文件。",
     "",
     "如果你是全域安裝：",
     "npm install -g @adamchanadam/agent-handoff-kit",
@@ -1856,12 +1857,13 @@ function printInstallNextSteps(root, conflictCount) {
   // question: "is this installed and what do I do next?"
   console.log("📋 如何確認安裝完成：");
   console.log("");
-  console.log("   1. 在 Terminal 執行 npx @adamchanadam/agent-handoff-kit doctor，應該見到「status: passed」");
+  console.log("   1. 在 Terminal 執行 npx --yes @adamchanadam/agent-handoff-kit@latest doctor，應該見到「status: passed」");
   console.log("   2. 你的 dev/ 資料夾應該有規則、交接與工作紀錄等檔案");
   console.log("   3. 在你使用的 AI 工具（Claude Code / Codex / Gemini）開新對話，貼下面起步句");
   console.log("");
   console.log("⚠️  注意：Agent Handoff Kit 是放在項目資料夾內的一組交接檔案。");
   console.log("   它沒有圖形介面，不會啟動伺服器，也不會自動替你做事；你需要在 AI 對話中使用它。");
+  console.log("   `npx --yes ...` 只是讓 npm 取得執行工具；不代表 doctor 會安裝或修改項目文件。");
   console.log("");
   console.log("------------------------------------------------------------");
   console.log("⚠️  請注意：下面文字不是 Terminal 指令。");
@@ -1877,7 +1879,7 @@ function printInstallNextSteps(root, conflictCount) {
   console.log(`   Work in ${root}. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.`);
   console.log("");
   console.log("🩺 如要檢查安裝是否完整，可在 Terminal 執行：");
-  console.log("   npx @adamchanadam/agent-handoff-kit doctor");
+  console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest doctor");
   console.log("============================================================");
 }
 
@@ -2014,7 +2016,7 @@ function printUpgradeNoopShortCircuit(version) {
   console.log("✅ 結果：你已經是最新版本，沒有檔案需要建立或合併；用戶填寫的內容全部保留現狀。");
   console.log("");
   console.log("🚀 下一步：繼續日常使用即可。如要檢查健康狀態，可執行：");
-  console.log("   npx @adamchanadam/agent-handoff-kit doctor");
+  console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest doctor");
   console.log("");
 }
 
@@ -2057,8 +2059,21 @@ After install:
   The default post-install prompt triggers the onboarding pack — AI
   will guide you through scenario selection (coding / research / knowledge /
   learning / other / integrations governance) and walk you through your first task.
+
+Terminal 範例：
+  npx --yes @adamchanadam/agent-handoff-kit@latest init
+  npx --yes @adamchanadam/agent-handoff-kit@latest doctor
+  npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
+
+  以上才是建議的 npx 用戶路徑。裸寫不帶 --yes / @latest 的 npx doctor
+  不是本工具的建議用戶路徑，容易先出現 npm 自己的安裝提示。
+
+  放在 package 名稱前的 --yes 只讓 npm 取得執行工具，避免額外出現
+  "Need to install" 提示。這不會令 doctor 安裝或修改項目文件；
+  doctor 只檢查目前的 Kit 文件。即使資料夾已有 AGENTS.md 或 dev/，
+  npx 仍可能只是先取得 npm 執行工具。
 `);
   console.log(`📦 版本：v${version}`);
   console.log(`🛠️  模式：help ready`);
-  console.log(`🚀 下一步：第一次使用先跑 init；既有專案升級用 upgrade --dry-run；要檢查現狀用 doctor。`);
+  console.log(`🚀 下一步：第一次使用先跑 npx --yes ... init；既有專案升級用 npx --yes ... upgrade --dry-run；要檢查現狀用 npx --yes ... doctor。`);
 }
