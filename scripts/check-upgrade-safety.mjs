@@ -242,7 +242,7 @@ function main() {
     { ref: "v0.3.2", command: "upgrade" },
     { ref: "v0.3.3", command: "upgrade" },
     { ref: "v0.3.4", command: "upgrade" },
-    { ref: "v0.3.5", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.6", command: "upgrade", source: "current-head" }
   ];
   let chainFinal = null;
   for (const step of chainSteps) {
@@ -265,6 +265,9 @@ function main() {
   assert(count(chainFinalAgents, "BEGIN Agent Handoff Kit managed core") === 1, "chain final state must have one managed marker pair");
   assert(chainFinal.stdout.includes("upgrade self-check"), "chain final upgrade must run doctor self-check");
   assert(chainFinal.stdout.includes("status: passed"), "chain final self-check must pass (R-025 chain acceptance)");
+  const chainFinalHandoff = read(path.join(chainRoot, "dev/SESSION_HANDOFF.md"));
+  assert(chainFinalHandoff.includes("ack:field:lifecycle-conflicts-resolved"), "chain final SESSION_HANDOFF.md missing v0.3.6 lifecycle consistency field (handoff migration failed)");
+  assert(chainFinalHandoff.includes("Lifecycle consistency rule"), "chain final SESSION_HANDOFF.md missing v0.3.6 lifecycle consistency rule note");
 
   // v0.2.1 R-029.1: chain test must verify the stale v0.1.X RULE_PACKS.md was force-refreshed
   // to include the v0.2.0+ onboarding signal routing row. Without this assertion, the upgrade

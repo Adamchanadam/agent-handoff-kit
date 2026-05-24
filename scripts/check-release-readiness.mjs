@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 29"), "npm dry-run did not report expected 29 package files (v0.3.5+ includes docs/whatsnew/v0.3.1.md through v0.3.5.md)");
+  assert(packText.includes("total files: 30"), "npm dry-run did not report expected 30 package files (v0.3.6+ includes docs/whatsnew/v0.3.1.md through v0.3.6.md)");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -125,6 +125,8 @@ function main() {
     "v0.3.2 發佈狀態",
     "v0.3.5 發佈狀態",
     "v0.3.4 發佈狀態",
+    "交接生命週期一致性",
+    "Handoff Lifecycle Consistency Sweep",
     "Cross-mind evidence 9-trigger table",
     "v0.3.3 發佈狀態"
   ]);
@@ -140,6 +142,7 @@ function main() {
     "active project root",
     "ack:section:*",
     "State Reconciliation Check",
+    "handoff lifecycle consistency",
     "Do not append a new state snapshot",
     "R-010 SESSION_LOG handoff-role discipline",
     "Advance the SESSION_LOG N-rule",
@@ -173,7 +176,8 @@ function main() {
 
   assertIncludes("runtime-core/SESSION_HANDOFF.md", [
     "Installed Integrations registry",
-    "availability probe"
+    "availability probe",
+    "ack:field:lifecycle-conflicts-resolved"
   ]);
 
   assertIncludes("runtime-core/RULE_PACKS.md", [
@@ -237,7 +241,8 @@ function main() {
     "packs/integrations.md",
     "dev/rules/integrations.md",
     "integrations pack structure (外部工具治理)",
-    "checkInstalledIntegrationsCredentialLeak"
+    "checkInstalledIntegrationsCredentialLeak",
+    "assessHandoffLifecycleConsistency"
   ]);
 
   const install = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");
@@ -718,11 +723,17 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
     .replaceAll("<absolute project root>", tempRoot)
     .replaceAll("TBD", "simulated user-flow value")
     .replace("- Stale snapshots left in this handoff: simulated user-flow value", "- Stale snapshots left in this handoff: no")
+    .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: simulated user-flow value", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes")
     .replace("- Opening message matches current state: simulated user-flow value", "- Opening message matches current state: yes")
     .replace("- Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: simulated user-flow value", "- Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: yes");
   assertReconciledHandoff(closedHandoff);
   const staleHandoff = closedHandoff.replace("- Stale snapshots left in this handoff: no", "- Stale snapshots left in this handoff: yes");
   assert(!isReconciledHandoff(staleHandoff), "stale handoff snapshot should fail reconciliation check");
+  const lifecycleConflictHandoff = closedHandoff
+    .replace("1. simulated user-flow value", "1. Verified `doctor` / `upgrade` reliability concern is closed.")
+    .replace("1. simulated user-flow value", "1. Investigate product-layer reliability issue in `doctor` / `upgrade` before modifying public output.")
+    .replace("- Checks run this session: simulated user-flow value", "- Checks run this session: verified `doctor` / `upgrade` reliability concern is closed.");
+  assert(!isReconciledHandoff(lifecycleConflictHandoff), "completed work carried forward as unresolved next work should fail lifecycle consistency");
   const openingMessage = extractOpeningMessage(closedHandoff);
   assert(openingMessage.includes(tempRoot), "simulated opening message missing project root");
   assert(openingMessage.includes("Read in order:"), "simulated opening message missing read order");
@@ -783,6 +794,7 @@ function simulateLocalizedHandoffHeadings() {
     .replace("- Success criteria:", "- 成功口徑:")
     .replace("- State sections rewritten or confirmed current:", "- 已重寫或確認仍為最新的狀態段落:")
     .replace("- Stale snapshots left in this handoff:", "- 交接內是否仍有過時快照:")
+    .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified:", "- 已完成／待辦／風險／開工訊息的生命週期矛盾是否已解決或明確重新分類:")
     .replace("- Opening message matches current state:", "- 開工訊息是否符合目前狀態:");
   writeFileSync(handoffPath, localized, "utf8");
   const localizedDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow localized handoff doctor");
@@ -796,8 +808,65 @@ function assertReconciledHandoff(text) {
 function isReconciledHandoff(text) {
   return text.includes("## State Reconciliation Check")
     && /Stale snapshots left in this handoff:\s*no/i.test(text)
+    && /Completed \/ pending \/ risk \/ opening-message lifecycle conflicts resolved or explicitly reclassified:\s*yes/i.test(text)
     && /Opening message matches current state:\s*yes/i.test(text)
-    && /Next AI can continue from `AGENTS\.md`, this handoff, `dev\/PROJECT_INDEX\.md`, and needed rule packs without searching old log history:\s*yes/i.test(text);
+    && /Next AI can continue from `AGENTS\.md`, this handoff, `dev\/PROJECT_INDEX\.md`, and needed rule packs without searching old log history:\s*yes/i.test(text)
+    && assessHandoffLifecycleConsistency(text).ok;
+}
+
+function assessHandoffLifecycleConsistency(text) {
+  const evidenceText = [
+    extractSectionText(text, "completed-this-session", "Completed This Session"),
+    extractSectionText(text, "validation-qc", "Validation / QC")
+  ].join("\n");
+  const targetText = [
+    extractSectionText(text, "next-priorities", "Next Priorities"),
+    extractSectionText(text, "risks-blockers", "Risks / Blockers"),
+    extractSectionText(text, "next-session-opening-message", "Next Session Opening Message")
+  ].join("\n");
+  const topics = extractLifecycleTopics(evidenceText);
+  for (const topic of topics) {
+    if (hasUnresolvedCarryForward(targetText, topic)) return { ok: false };
+  }
+  return { ok: true };
+}
+
+function extractLifecycleTopics(text) {
+  const topics = new Set();
+  for (const match of text.matchAll(/`([^`\n]{2,80})`/g)) {
+    const topic = match[1].trim();
+    if (!topic || /^dev\/|^docs\/|\.md$|\.txt$|\.json$|^AGENTS\.md$/.test(topic)) continue;
+    topics.add(topic);
+  }
+  return [...topics];
+}
+
+function hasUnresolvedCarryForward(text, topic) {
+  const pattern = new RegExp(escapeRegExp(topic), "ig");
+  for (const match of text.matchAll(pattern)) {
+    const start = Math.max(0, match.index - 180);
+    const end = Math.min(text.length, match.index + topic.length + 180);
+    const context = text.slice(start, end);
+    if (/\b(monitor-only|follow-up scope|blocked|reopened|re-opened|if new evidence|conditional|no-op)\b|只監察|監察|後續範圍|跟進範圍|阻擋|已重開|明確重開|新證據/i.test(context)) continue;
+    if (/\b(investigate|reproduce|pending|todo|unresolved|must start|start with read-only|reliability concern remains open|needs investigation)\b|調查|重查|未解|待辦|仍需|未完成|開始.{0,20}核查|先.{0,20}調查/i.test(context)) return true;
+  }
+  return false;
+}
+
+function extractSectionText(text, markerId, headingTitle) {
+  const markerText = `ack:section:${markerId}`;
+  const markerIndex = text.indexOf(markerText);
+  if (markerIndex >= 0) {
+    const start = text.indexOf("\n", markerIndex);
+    if (start < 0) return "";
+    const nextMarker = text.indexOf("<!-- ack:section:", start + 1);
+    return text.slice(start + 1, nextMarker >= 0 ? nextMarker : text.length);
+  }
+  const headingMatch = new RegExp(`^## ${escapeRegExp(headingTitle)}\\s*$`, "m").exec(text);
+  if (!headingMatch) return "";
+  const start = headingMatch.index + headingMatch[0].length;
+  const nextHeading = /\n##\s+/.exec(text.slice(start));
+  return text.slice(start, nextHeading ? start + nextHeading.index : text.length);
 }
 
 function extractOpeningMessage(text) {
@@ -865,6 +934,10 @@ function readAt(baseDir, relativePath) {
 
 function outputText(result) {
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function assert(condition, message) {

@@ -109,12 +109,16 @@ At full closeout, complete this check after updating the state sections above.
 - State sections rewritten or confirmed current: TBD
 <!-- ack:field:stale-snapshots-left -->
 - Stale snapshots left in this handoff: TBD
+<!-- ack:field:lifecycle-conflicts-resolved -->
+- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: TBD
 <!-- ack:field:opening-message-matches-current-state -->
 - Opening message matches current state: TBD
 <!-- ack:field:next-ai-can-continue -->
 - Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: TBD
 
 If any answer is no, blocked, or uncertain, fix this handoff before declaring handoff ready.
+
+Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.
 
 <!-- ack:section:handoff-sufficiency-check -->
 ## Handoff Sufficiency Check

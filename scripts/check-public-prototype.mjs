@@ -58,7 +58,7 @@ async function main() {
   await checkUpdateNotice();
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
-  assert(outputText(pack).includes("total files: 29"), "npm dry-run did not report expected 29 package files (v0.3.5+ includes docs/whatsnew/v0.3.1.md through v0.3.5.md)");
+  assert(outputText(pack).includes("total files: 30"), "npm dry-run did not report expected 30 package files (v0.3.6+ includes docs/whatsnew/v0.3.1.md through v0.3.6.md)");
   assert(!existsSync(path.join(root, `adamchanadam-agent-handoff-kit-${version}.tgz`)), "npm dry-run left a tarball behind");
 
   const hits = scanForbiddenText(root);

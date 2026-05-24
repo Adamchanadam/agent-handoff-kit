@@ -72,6 +72,7 @@ const requiredAnchors = [
       "handoff saved",
       "📋 Next session: copy and paste the whole block below",
       "State Reconciliation Check",
+      "handoff lifecycle consistency",
       "Do not append a new state snapshot",
       "START_NEXT_SESSION_PROMPT.txt"
     ]
@@ -103,6 +104,7 @@ const requiredAnchors = [
       "ack:section:next-task-required-reading",
       "ack:section:state-reconciliation-check",
       "ack:section:next-session-opening-message",
+      "ack:field:lifecycle-conflicts-resolved",
       "📋 Next session: copy and paste the whole block below",
       "```text",
       "Read in order:",
@@ -248,6 +250,7 @@ const schemaChecks = [
       section("handoff-sufficiency-check", "Handoff Sufficiency Check"),
       section("next-session-opening-message", "Next Session Opening Message"),
       marker("field", "stale-snapshots-left", "Stale snapshots left in this handoff"),
+      marker("field", "lifecycle-conflicts-resolved", "Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified"),
       marker("field", "opening-message-matches-current-state", "Opening message matches current state"),
       marker("field", "state-sections-rewritten-or-confirmed", "State sections rewritten or confirmed current"),
       marker("field", "user-intent", "User intent:"),
@@ -264,6 +267,16 @@ const schemaChecks = [
       includes("Work in "),
       includes("Read in order:"),
       includes("If this root does not match the expected project root")
+    ]
+  },
+  {
+    target: "dev/SESSION_HANDOFF.md",
+    label: "handoff lifecycle consistency",
+    checks: [
+      {
+        label: "completed work is not carried forward as unresolved next work",
+        test: (text) => assessHandoffLifecycleConsistency(text).ok
+      }
     ]
   },
   {
@@ -873,6 +886,90 @@ function normalizePrompt(text) {
   return text.replace(/\r\n/g, "\n").trim();
 }
 
+function assessHandoffLifecycleConsistency(text) {
+  const fieldValue = fieldValueAfterMarker(text, "lifecycle-conflicts-resolved");
+  if (fieldValue && /\b(no|blocked|uncertain)\b|否|阻擋|不確定/i.test(fieldValue)) {
+    return { ok: false, reason: "lifecycle field is explicitly unresolved" };
+  }
+
+  const evidenceText = [
+    extractSectionText(text, "completed-this-session", "Completed This Session"),
+    extractSectionText(text, "validation-qc", "Validation / QC")
+  ].join("\n");
+  const targetText = [
+    extractSectionText(text, "next-priorities", "Next Priorities"),
+    extractSectionText(text, "risks-blockers", "Risks / Blockers"),
+    extractSectionText(text, "next-session-opening-message", "Next Session Opening Message")
+  ].join("\n");
+
+  const topics = extractLifecycleTopics(evidenceText);
+  for (const topic of topics) {
+    if (hasUnresolvedCarryForward(targetText, topic)) {
+      return { ok: false, reason: `completed topic carried forward unresolved: ${topic}` };
+    }
+  }
+
+  return { ok: true, reason: "" };
+}
+
+function extractLifecycleTopics(text) {
+  const topics = new Set();
+  for (const match of text.matchAll(/`([^`\n]{2,80})`/g)) {
+    const topic = match[1].trim();
+    if (!topic || /^dev\/|^docs\/|\.md$|\.txt$|\.json$|^AGENTS\.md$/.test(topic)) continue;
+    topics.add(topic);
+  }
+  return [...topics];
+}
+
+function hasUnresolvedCarryForward(text, topic) {
+  const escaped = escapeRegExp(topic);
+  const pattern = new RegExp(escaped, "ig");
+  for (const match of text.matchAll(pattern)) {
+    const start = Math.max(0, match.index - 180);
+    const end = Math.min(text.length, match.index + topic.length + 180);
+    const context = text.slice(start, end);
+    if (/\b(monitor-only|follow-up scope|blocked|reopened|re-opened|if new evidence|conditional|no-op)\b|只監察|監察|後續範圍|跟進範圍|阻擋|已重開|明確重開|新證據/i.test(context)) {
+      continue;
+    }
+    if (/\b(investigate|reproduce|pending|todo|unresolved|must start|start with read-only|reliability concern remains open|needs investigation)\b|調查|重查|未解|待辦|仍需|未完成|開始.{0,20}核查|先.{0,20}調查/i.test(context)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function fieldValueAfterMarker(text, fieldId) {
+  const markerText = `ack:field:${fieldId}`;
+  const markerIndex = text.indexOf(markerText);
+  if (markerIndex >= 0) {
+    const after = text.slice(markerIndex).split(/\r?\n/).slice(1);
+    const line = after.find((candidate) => candidate.trim().startsWith("- "));
+    if (!line) return "";
+    const colonIndex = line.indexOf(":");
+    return colonIndex >= 0 ? line.slice(colonIndex + 1).trim() : line.trim();
+  }
+  const fallback = text.match(/Completed \/ pending \/ risk \/ opening-message lifecycle conflicts resolved or explicitly reclassified:\s*([^\n]+)/i);
+  return fallback ? fallback[1].trim() : "";
+}
+
+function extractSectionText(text, markerId, headingTitle) {
+  const markerText = `ack:section:${markerId}`;
+  const markerIndex = text.indexOf(markerText);
+  if (markerIndex >= 0) {
+    const start = text.indexOf("\n", markerIndex);
+    if (start < 0) return "";
+    const nextMarker = text.indexOf("<!-- ack:section:", start + 1);
+    return text.slice(start + 1, nextMarker >= 0 ? nextMarker : text.length);
+  }
+
+  const headingMatch = new RegExp(`^## ${escapeRegExp(headingTitle)}\\s*$`, "m").exec(text);
+  if (!headingMatch) return "";
+  const start = headingMatch.index + headingMatch[0].length;
+  const nextHeading = /\n##\s+/.exec(text.slice(start));
+  return text.slice(start, nextHeading ? start + nextHeading.index : text.length);
+}
+
 async function checkRequiredAnchors(root) {
   const rows = [];
   for (const rule of requiredAnchors) {
@@ -1084,10 +1181,45 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
   }
+  // v0.3.6+: SESSION_HANDOFF.md gains a non-destructive lifecycle consistency
+  // field. Existing handoff content stays intact; only the missing field and
+  // rule note are inserted around stable ack markers.
+  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && !targetText.includes("ack:field:lifecycle-conflicts-resolved")) {
+    const mergedHandoff = mergeHandoffLifecycleField(targetText);
+    if (!mergedHandoff) {
+      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md state reconciliation markers were changed; manual merge required to add lifecycle consistency field" };
+    }
+    return {
+      ...base,
+      action: "merge",
+      reason: "insert lifecycle consistency field into State Reconciliation Check (completed work must not carry forward as unresolved next work)",
+      mergedText: mergedHandoff
+    };
+  }
   if ((targetRel === "CLAUDE.md" || targetRel === "GEMINI.md") && !targetText.includes("AGENTS.md")) {
     return { ...base, action: "conflict", reason: "existing bridge does not route to AGENTS.md" };
   }
   return { ...base, action: "skip", reason: "preserve existing file" };
+}
+
+function mergeHandoffLifecycleField(targetText) {
+  const openingMarker = "<!-- ack:field:opening-message-matches-current-state -->";
+  if (!targetText.includes(openingMarker)) return null;
+
+  const fieldBlock = "<!-- ack:field:lifecycle-conflicts-resolved -->\n- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: TBD\n";
+  let merged = targetText.replace(openingMarker, `${fieldBlock}${openingMarker}`);
+
+  if (!merged.includes("Lifecycle consistency rule: compare `Completed This Session`")) {
+    const ruleBlock = "Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.\n\n";
+    const sufficiencyMarker = "<!-- ack:section:handoff-sufficiency-check -->";
+    if (merged.includes(sufficiencyMarker)) {
+      merged = merged.replace(sufficiencyMarker, `${ruleBlock}${sufficiencyMarker}`);
+    } else {
+      merged = `${merged.trimEnd()}\n\n${ruleBlock}`;
+    }
+  }
+
+  return merged;
 }
 
 function mergeRulePacksRows(targetText, sourceText) {

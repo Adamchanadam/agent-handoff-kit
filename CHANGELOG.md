@@ -1,5 +1,26 @@
 # 變更紀錄
 
+## v0.3.6 — 2026-05-24
+
+狀態：候選版本，尚未發佈。本版本修補 v0.3.5 後續 dogfood 發現的交接狀態一致性缺口：上一輪已完成並驗證的事項，不能在同一份 handoff 的下一步、風險或開工訊息中又被當成未解待辦。
+
+### 產品層修補
+
+- **`doctor` 新增 handoff lifecycle consistency 檢查**：比對 `Completed This Session`、`Validation / QC`、`Next Priorities`、`Risks / Blockers`、`Next Session Opening Message`。如已完成或已驗證的事項又被列為未解調查、待辦或下一次開工必做項，且沒有明確標成 monitor-only、follow-up scope、blocked 或 reopened，`doctor` 會失敗。
+- **`SESSION_HANDOFF` 模板新增生命週期欄位**：`State Reconciliation Check` 加入 `Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified`，closeout 時必須填寫。
+- **closeout 規則補上產品級防線**：`AGENTS.md` runtime core 明確要求 closeout 前檢查完成事項是否被錯誤帶入下一輪。
+
+### QC framework 修補
+
+- **發佈級 QA 加反例**：模擬 `doctor` / `upgrade` 已在完成與驗收段落關閉，但下一步又要求下一輪重新調查，確認 reconciliation check 不會誤判通過。
+- **package fileCount 29 → 30**：新增 `docs/whatsnew/v0.3.6.md`。
+
+### Migration path（v0.3.5 → v0.3.6，backward-compat preserved）
+
+- 不新增使用者專案模板檔案；只補 `dev/SESSION_HANDOFF.md` 內的狀態對賬欄位與 runtime closeout 規則。
+- 既有 handoff 若沒有完成／待辦矛盾，升級後 `doctor` 應通過。
+- 既有 handoff 若存在「已完成但仍被列為未解」的矛盾，需先修正 handoff 或明確改成 monitor-only / follow-up scope / blocked / reopened。
+
 ## v0.3.5 — 2026-05-24
 
 狀態：正式發佈版本。本版本修補 v0.3.4 後續全面治理審計揭發的 `doctor` / `upgrade` / `init` 用戶旅程問題，重點是避免升級時覆寫用戶已改過的 `dev/RULE_PACKS.md`，並令 `doctor` 清楚表明自己只檢查、不修改。
