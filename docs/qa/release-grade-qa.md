@@ -27,6 +27,18 @@
 | Onboarding Pack 結構驗收 (R-029) | 已併入 `doctor` 與 `npm run qa:release` 與 `npm run qa:packs` | 檢查 `dev/rules/onboarding.md` 含 H2 sections（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）並保持順序；含 5 個 Scenario H3 heading（A 寫 / 改代碼項目 / B 整理研究資料 / C 整理電腦檔案 / D 學寫代碼 / E 其他）；含 transient pack + 5-step walk-through pattern wording；含 Tone Discipline 5 條（書面語 / 講人話 / 敍事+解釋 / 不過度解釋 internals / 鼓勵性而非考試）。 | 是 |
 | Cross-surface wording consistency 驗收 (R-029.1, v0.2.1+) | 已併入 `npm run qa:release` 與 `npm run qa:prototype` 與 `npm run qa:upgrade` | 對 4 個 user-facing surface（`bin/agent-handoff-kit.mjs` printInstallNextSteps + `README.md` first-screen R-029 callout 同三步上手 step 2 + `agent-handoff-kit-intro.html` #howto Step 2 + #recap cell 1 + `agent-handoff-kit-guide.html` hero R-029 callout）grep canonical R-029 trigger phrase「I just installed agent-handoff-kit. Help me get started.」一致；每個 surface count ≥ 1；post-install CLI output 必含此 phrase；qa:upgrade chain test final hop 嘅 `dev/RULE_PACKS.md` 必含「First-time user signals」+「dev/rules/onboarding.md」routing row。 | 是 |
 
+## QC 觸發分層
+
+本文件同時覆蓋發佈前與發佈後，但兩者不可混成同一個 gate：
+
+| 觸發 | 時機 | 覆蓋 | 通過代表 |
+|---|---|---|---|
+| 🟢 快檢 | 日常 source 修改後、commit 前。 | 四條 `npm run qa:*`：`qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`。 | 原始碼層未破壞既有機器驗收。 |
+| 🔴 全面檢 | 發佈前，尤其是候選版本、治理結構改動，或使用者明示要求 full audit。 | 快檢 + 本文件人工審閱清單 + `docs/GOVERNANCE_HEALTH_CHECK.md` 八維度 + CLI output sweep + cross-file read-through + upgrade migration / scenario branching semantic sweep。 | 候選版本可以進入 tag / GitHub Release / npm publish；仍未代表已發佈完成。 |
+| 🟡 發佈檢 | GitHub Release 與 `npm publish` 完成後立即執行。 | 七項 post-publish verification：GitHub Release metadata、npm latest / fileCount、fresh install、published `--help` / `init` / `doctor`、R-029.1 canonical phrase 與 chain-upgrade routing propagation。 | 已公開 artifact 經 registry / release / fresh-install 驗證，release 才算完成。 |
+
+`全面檢` 是發佈前 gate，不得包含需要已 publish 才能執行的檢查。完整 release closeout 的順序是：先 `全面檢` PASS，取得明確 publish 批准後才 tag / GitHub Release / npm publish，最後跑 `發佈檢`。
+
 ## 規則包場景覆蓋
 
 | 場景 | 預期 pack 行為 |
@@ -148,7 +160,7 @@ npm package 由 `package.json` 的 `files` 控制：
 | 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | v0.3.6 發佈前流程可準備；tag / GitHub Release / npm publish 仍需明確執行指令 |
 | 版本口徑 | `package.json` 目前為 `0.3.6`；v0.3.6 是交接生命週期一致性 root-fix 候選。 | 通過；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 為 29 files。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 為 30 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
