@@ -1,13 +1,21 @@
 # 變更紀錄
 
-## Unreleased
+## v0.3.5 — 2026-05-24
 
-狀態：已推送到 GitHub `main`，尚未發佈到 npm。npm latest 仍為 `0.3.4`。
+狀態：正式發佈版本。本版本修補 v0.3.4 後續全面治理審計揭發的 `doctor` / `upgrade` / `init` 用戶旅程問題，重點是避免升級時覆寫用戶已改過的 `dev/RULE_PACKS.md`，並令 `doctor` 清楚表明自己只檢查、不修改。
 
 - `upgrade` 補齊 `dev/RULE_PACKS.md` 的 Kit routing rows 時不再整份覆寫檔案，保留用戶自訂 rows；若 routing table 表頭已被改動、工具無法安全合併，改為 `conflict` 停手。
 - `doctor` 明確說明自己只檢查不修改；版本不齊時先建議 `upgrade --dry-run`，並解釋 `--dry-run` 只預覽、不寫入。
 - `init` / `upgrade` / `doctor` 的使用者可見輸出改為更清楚的書面中文，讓非技術新手更容易分清 Terminal 檢查與 AI 對話下一步。
 - `scripts/check-upgrade-safety.mjs` 新增 `RULE_PACKS.md` 自訂 row 保留、同 pack path 自訂 row、表頭改動 conflict 三個回歸場景。
+- `scripts/check-upgrade-safety.mjs` 的 prior-version chain 由 v0.3.4 tag 再升到目前版本，確保 v0.3.4 使用者升級到 v0.3.5 的路徑也被自動驗收。
+
+### Migration path（v0.3.4 → v0.3.5，backward-compat preserved）
+
+- 不新增使用者專案模板檔案；既有使用者內容保持不變。
+- 升級後可觀察變化：`dev/RULE_PACKS.md` 只補 Kit 管理的 routing rows；用戶自訂 rows 會保留；表頭如被改到工具無法安全合併，升級會停手回報衝突。
+- `doctor` 不會自動升級或修改檔案；只會提示先用 `upgrade --dry-run` 預覽。
+- fileCount 28 → 29（新增 `docs/whatsnew/v0.3.5.md`）。
 
 ## v0.3.4 — 2026-05-23
 

@@ -127,7 +127,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 已檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在 Terminal 繼續輸入。
-- 套件預演目前維持 28 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.4.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 29 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.5.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -136,20 +136,29 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | 本輪 `3009712` 只批准 push，不代表可 publish |
-| 版本口徑 | `package.json` 目前為 `0.3.4`；`3009712` 是 v0.3.4 之後的 source change，尚未發佈到 npm。 | push 可接受；若要 publish 必須先決定 patch 版本與 release notes |
+| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | v0.3.5 發佈前流程可準備；tag / GitHub Release / npm publish 仍需明確執行指令 |
+| 版本口徑 | `package.json` 目前為 `0.3.5`；v0.3.5 承接 v0.3.4 後已推送但未 npm 發佈的 source changes。 | 通過；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 為 28 files。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 為 29 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata 與 CLI help 仍對齊已發佈的 `v0.3.4`；`CHANGELOG.md` 另有 Unreleased 段記錄已 push 但未 npm 發佈的 source change。 | push 通過；publish 前須轉入新版本發佈段 |
+| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.5.md` 已轉入 v0.3.5 發佈口徑。 | 通過；publish 前須重跑文件一致性檢查 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬與本地化 handoff 標題。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補 Terminal 成功提示與 README，用戶可分清 Terminal 檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已保留 `v0.3.4` 正式發佈紀錄，並新增 Unreleased 段標明 `3009712` 尚未 npm 發佈。 | push 通過；publish 前須補新版本發佈材料 |
-| 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並明示 `v0.3.4` 已發佈。 | 通過；npm 安裝仍取得 v0.3.4，不含 Unreleased 修補 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已保留 `v0.3.5` 正式發佈段，`docs/whatsnew/v0.3.5.md` 已補本版用戶說明。 | 通過；publish 後須核對 GitHub Release 與 npm metadata |
+| 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並以中性措辭標示目前版本為 `v0.3.5`。 | 通過；publish 後須驗證 npm latest 為 `0.3.5` |
+
+## v0.3.5 發佈狀態
+
+- 發佈版本：`0.3.5`。
+- release notes：`CHANGELOG.md` 的 `v0.3.5` 段落 + `docs/whatsnew/v0.3.5.md`。
+- 發佈內容：修補 v0.3.4 後續全面治理審計揭發的 `doctor` / `upgrade` / `init` 用戶旅程問題。`upgrade` 補齊 `dev/RULE_PACKS.md` Kit routing rows 時保留用戶自訂 rows；如 routing table 表頭已被改動，工具改為 `conflict` 停手。`doctor` 明確說明自己只檢查、不修改，版本不齊時先建議 `upgrade --dry-run`。
+- 發佈前驗收重點：`scripts/check-upgrade-safety.mjs` 新增三個 `RULE_PACKS.md` 回歸場景，覆蓋自訂 row 保留、同 pack path 自訂 row、表頭改動 conflict；prior-version chain 由 v0.3.4 tag 再升到 v0.3.5 current HEAD。
+- npm 狀態：發佈後應驗證 npm latest 為 `0.3.5`；package fileCount 29（從 28 增加 1，加 `docs/whatsnew/v0.3.5.md`）。
+- 🟡 發佈檢：v0.3.5 publish 後必須執行 GitHub Release、npm package metadata、fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase 與 chain-upgrade routing propagation 驗證。
 
 ## v0.3.4 發佈狀態
 

@@ -241,7 +241,8 @@ function main() {
     { ref: "v0.3.1", command: "upgrade" },
     { ref: "v0.3.2", command: "upgrade" },
     { ref: "v0.3.3", command: "upgrade" },
-    { ref: "v0.3.4", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.4", command: "upgrade" },
+    { ref: "v0.3.5", command: "upgrade", source: "current-head" }
   ];
   let chainFinal = null;
   for (const step of chainSteps) {

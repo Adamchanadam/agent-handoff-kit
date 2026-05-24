@@ -29,14 +29,14 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 28"), "npm dry-run did not report expected 28 package files (v0.3.4+ includes docs/whatsnew/v0.3.1.md + v0.3.2.md + v0.3.3.md + v0.3.4.md)");
+  assert(packText.includes("total files: 29"), "npm dry-run did not report expected 29 package files (v0.3.5+ includes docs/whatsnew/v0.3.1.md through v0.3.5.md)");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
   assert(!existsSync(path.join(root, `adamchanadam-agent-handoff-kit-${version}.tgz`)), "npm dry-run left a tarball behind");
 
   assertIncludes("README.md", [
-    `\`v${version}\` 已正式發佈到 GitHub 與 npm`,
+    `目前版本為 \`v${version}\``,
     "AI Session 之間的接力棒",
     "AI 跨對話失憶",
     "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
@@ -57,10 +57,11 @@ function main() {
 
   assertIncludes("CHANGELOG.md", [
     `## v${version} — `,
-    "narrative coherence bug",
-    "PROJECT_INDEX template version inject",
-    "scenario 3a",
-    "scenario 3b",
+    "RULE_PACKS.md",
+    "upgrade --dry-run",
+    "自訂 row",
+    "表頭已被改動",
+    "`conflict` 停手",
     "## v0.3.2 — 2026-05-23",
     "user journey UX 改進",
     "項目狀態速覽",
@@ -122,6 +123,7 @@ function main() {
     "CLI Scenario Branching Coverage Sweep（R-031.1",
     "v0.3.1 發佈狀態",
     "v0.3.2 發佈狀態",
+    "v0.3.5 發佈狀態",
     "v0.3.4 發佈狀態",
     "Cross-mind evidence 9-trigger table",
     "v0.3.3 發佈狀態"

@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：`v0.3.4` 已正式發佈到 GitHub 與 npm。這是早期可用版本，仍在持續完善中。
+狀態：目前版本為 `v0.3.5`。這是早期可用版本，仍在持續完善中。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -239,7 +239,7 @@ Agent Handoff Kit 同 [Adam-AI-Instructions](https://github.com/prompt-templates
 
 ## 目前限制
 
-- `v0.3.0` 是 GitHub 與 npm 同步發佈版本。
+- 目前版本為 `v0.3.5`。
 - 這是早期可用版本，仍在持續完善中。
 - 升級合併屬窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。
