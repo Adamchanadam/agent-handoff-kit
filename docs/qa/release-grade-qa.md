@@ -207,8 +207,8 @@ npm package 由 `package.json` 的 `files` 控制：
 - release notes：`CHANGELOG.md` 的 `v0.3.6` 段落 + `docs/whatsnew/v0.3.6.md`。
 - 發佈內容：修補 v0.3.5 dogfood 發現的交接狀態一致性缺口。`doctor` 會檢查已完成或已驗證的事項是否又被下一輪當成未解調查；`SESSION_HANDOFF` 模板新增 lifecycle conflict 對賬欄位；`qa:release` 加入 `doctor` / `upgrade` 矛盾反例。
 - 發佈前驗收重點：`scripts/check-release-readiness.mjs` 的模擬 closeout 必須通過正常對賬，並擋下「completed + pending 同題矛盾」反例。
-- npm 狀態：發佈後應驗證 npm latest 為 `0.3.6`；package fileCount 30（從 29 增加 1，加 `docs/whatsnew/v0.3.6.md`）。
-- 🟡 發佈檢：v0.3.6 publish 後必須執行 GitHub Release、npm package metadata、fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase 與 chain-upgrade routing propagation 驗證。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.6`；package fileCount 30（從 29 增加 1，加 `docs/whatsnew/v0.3.6.md`）。
+- 🟡 發佈檢：v0.3.6 post-publish verification 已完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase 與 chain-upgrade routing propagation 均通過。
 
 ### Cross-mind evidence 9-trigger table（v0.3.6）
 
