@@ -224,8 +224,8 @@ npm package 由 `package.json` 的 `files` 控制：
 - release notes：`CHANGELOG.md` 的 `v0.3.9` 段落 + `docs/whatsnew/v0.3.9.md`。
 - 發佈內容：修補 lifecycle 欄位誤判。若欄位明確以 `yes` / `resolved` / 「已完成」等確認語開始，即使後文提到仍有 pending follow-up，也不應被判作未完成。
 - 發佈前驗收重點：真實 `AI_Public_Squares` 實測已揭出問題並通過修補；自動回歸加入「yes + pending follow-up wording」案例，防止同類誤判回來。
-- npm 狀態：候選，未 npm publish；預期 package fileCount 33（從 32 增加 1，加 `docs/whatsnew/v0.3.9.md`）。
-- 🟡 發佈檢：待 publish 後執行；必須確認 GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase、npm README 與 v0.3.8→v0.3.9 chain-upgrade routing propagation 均通過。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.9`；package fileCount 33（從 32 增加 1，加 `docs/whatsnew/v0.3.9.md`）。
+- 🟡 發佈檢：v0.3.9 post-publish verification 已完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、post-install `--help` / `init` / `doctor`、v0.3.8→v0.3.9 chain-upgrade routing propagation、以及 yes + pending follow-up lifecycle 回歸場景均通過。
 
 ### Cross-mind evidence 9-trigger table（v0.3.9）
 
