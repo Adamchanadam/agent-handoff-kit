@@ -210,6 +210,20 @@ npm package 由 `package.json` 的 `files` 控制：
 - npm 狀態：發佈後應驗證 npm latest 為 `0.3.6`；package fileCount 30（從 29 增加 1，加 `docs/whatsnew/v0.3.6.md`）。
 - 🟡 發佈檢：v0.3.6 publish 後必須執行 GitHub Release、npm package metadata、fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase 與 chain-upgrade routing propagation 驗證。
 
+### Cross-mind evidence 9-trigger table（v0.3.6）
+
+| Trigger condition | Required (yes/no) | Result (passed / iterated / blocked) | Follow-up (assertion ID / checklist item / accepted risk reason) |
+|---|---|---|---|
+| 1. 發佈說明使用「已驗證／已修復／可持續／sustainable」等強聲明 | yes | iterated | 發佈前全面檢使用獨立 `claude -p` 審閱交叉檢查；審閱抓到本表缺漏後，本次 root-fix 補 v0.3.6 專屬九觸發表，並在 `scripts/check-release-readiness.mjs` 加最新版本表格完整性守門。 |
+| 2. 同類 bug 連續兩版出現 | yes | iterated | v0.3.5 修 `doctor` / `upgrade` 用戶旅程與 RULE_PACKS 合併，v0.3.6 修 handoff lifecycle consistency；同屬「完成狀態被下一步敘事重新打開」類風險。機器落點：`doctor` lifecycle consistency schema check、`qa:release` negative fixture、`qa:upgrade` v0.3.5 chain hop。 |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：`bin/agent-handoff-kit.mjs` lifecycle consistency 與 upgrade merge；測試層：`scripts/check-release-readiness.mjs` + `scripts/check-upgrade-safety.mjs`；發佈敘事層：`CHANGELOG.md` + `docs/whatsnew/v0.3.6.md` + 本段。 |
+| 4. 三個以上治理檔同步改動 | yes | iterated | WORK 與 public release-grade QA 同步修正了 QC trigger、產品級發佈前全面檢、Product Journey Matrix、QC Gap Backflow 與 governance map 顯示；本 public repo 的 durable release gate 落點為本文件與 `scripts/check-release-readiness.mjs`，大型 WORK 審查上下文不提交 public repo。 |
+| 5. 公開可見發佈儀式 | no — not required: v0.3.6 尚未 tag / GitHub Release / npm publish，Adam 明確要求修完後仍不得立即 publish | passed | 接受風險原因：本表只覆蓋 pre-publish gate；公開發佈儀式須另得使用者明確批准，publish 後再跑 🟡 發佈後驗證。 |
+| 6. 存在人工語意判斷而無機器斷言 | yes | iterated | 人工語意判斷包括 handoff lifecycle 是否把已完成事項重新列成待辦、產品旅程矩陣、UX / user journey 結論、九觸發表完整性。已補 `qa:release` lifecycle negative fixture 與最新九觸發表完整性守門；場景 2 / 5 / 7 仍保留人工 checklist，若同類第二次再出現即轉自動 fixture。 |
+| 7. 發佈後上一版由真實用戶抓 bug | yes | iterated | v0.3.5 發佈後 dogfood 揭發 handoff 內「已完成 doctor / upgrade 調查」又被下一輪 opening message 當成未解調查；v0.3.6 將此轉為 lifecycle consistency schema check + release negative fixture。 |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | Handoff lifecycle negative fixture 屬受控合成，用於語意邊界測試；upgrade path 同時由真實 prior-version chain 覆蓋至 v0.3.5。接受條件：合成 fixture 只承擔 schema / semantic-boundary，production upgrade state 仍由 `qa:upgrade` real chain 與 user-data regression 承擔。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | iterated | v0.3.6 的主要聲明已對應斷言：lifecycle conflict 欄位存在 → `runtime-core/SESSION_HANDOFF.md` anchor + doctor schema；已完成事項不可未解 carry-forward → `assessHandoffLifecycleConsistency()` + `qa:release` negative fixture；v0.3.5 → v0.3.6 upgrade path → `qa:upgrade` chain；九觸發表不可空白 → `qa:release` 最新版本表格完整性守門。 |
+
 ## v0.3.5 發佈狀態
 
 - 發佈版本：`0.3.5`。
@@ -266,17 +280,19 @@ npm package 由 `package.json` 的 `files` 控制：
 
 每 release plan 須對 stateless-cross-ai-audit skill 嘅 9 個 trigger conditions 逐一登記證據。**缺表、漏行、空欄、blocked 未處理 = release gate fail；不得進入 commit / tag / publish 或等效發佈步驟**。Skip 屬 explicit decision，必填「not required + reason」，唔可空白。
 
+以下表格只是複製模板，不是任何版本的發佈證據。每個候選版本必須在自己的 `Cross-mind evidence 9-trigger table（vX.Y.Z）` 段落填寫完整表格；不可把本模板留空當作驗收。
+
 | Trigger condition | Required (yes/no) | Result (passed / iterated / blocked) | Follow-up (assertion ID / checklist item / accepted risk reason) |
 |---|---|---|---|
-| 1. 發佈說明使用「已驗證／已修復／可持續／sustainable」等強聲明 |  |  |  |
-| 2. 同類 bug 連續兩版出現 |  |  |  |
-| 3. 改動跨越功能 + 測試 + 發佈敘事三層 |  |  |  |
-| 4. 三個以上治理檔同步改動 |  |  |  |
-| 5. 公開可見發佈儀式 |  |  |  |
-| 6. 存在人工語意判斷而無機器斷言 |  |  |  |
-| 7. 發佈後上一版由真實用戶抓 bug |  |  |  |
-| 8. 測試 fixture 屬人工合成（非歷史真實版本） |  |  |  |
-| 9. 發佈聲明與測試斷言不是一對一映射 |  |  |  |
+| 1. 發佈說明使用「已驗證／已修復／可持續／sustainable」等強聲明 | fill yes/no + reason | fill passed/iterated/blocked | fill assertion ID / checklist item / accepted risk reason |
+| 2. 同類 bug 連續兩版出現 | fill yes/no + reason | fill passed/iterated/blocked | fill assertion ID / checklist item / accepted risk reason |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | fill yes/no + reason | fill passed/iterated/blocked | fill assertion ID / checklist item / accepted risk reason |
+| 4. 三個以上治理檔同步改動 | fill yes/no + reason | fill passed/iterated/blocked | fill assertion ID / checklist item / accepted risk reason |
+| 5. 公開可見發佈儀式 | fill yes/no + reason | fill passed/iterated/blocked | fill assertion ID / checklist item / accepted risk reason |
+| 6. 存在人工語意判斷而無機器斷言 | fill yes/no + reason | fill passed/iterated/blocked | fill assertion ID / checklist item / accepted risk reason |
+| 7. 發佈後上一版由真實用戶抓 bug | fill yes/no + reason | fill passed/iterated/blocked | fill assertion ID / checklist item / accepted risk reason |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | fill yes/no + reason | fill passed/iterated/blocked | fill assertion ID / checklist item / accepted risk reason |
+| 9. 發佈聲明與測試斷言不是一對一映射 | fill yes/no + reason | fill passed/iterated/blocked | fill assertion ID / checklist item / accepted risk reason |
 
 每 trigger 嘅 Result 必填以下三者之一：
 - `passed` — cross-AI audit 已跑且 ship-ready

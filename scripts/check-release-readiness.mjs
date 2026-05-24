@@ -134,6 +134,7 @@ function main() {
     "Cross-mind evidence 9-trigger table",
     "v0.3.3 發佈狀態"
   ]);
+  assertLatestCrossMindTableComplete(version);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
     "Detect end-of-session or handoff intent",
@@ -914,6 +915,30 @@ function run(command, args, label, options = {}) {
 
   console.log(`ok: ${label}`);
   return result;
+}
+
+function assertLatestCrossMindTableComplete(version) {
+  const text = read("docs/qa/release-grade-qa.md");
+  const heading = `### Cross-mind evidence 9-trigger table（v${version}）`;
+  const start = text.indexOf(heading);
+  assert(start >= 0, `docs/qa/release-grade-qa.md missing latest Cross-mind evidence table for v${version}`);
+
+  const rest = text.slice(start + heading.length);
+  const nextHeading = rest.search(/\n## /);
+  const section = nextHeading >= 0 ? rest.slice(0, nextHeading) : rest;
+  const rows = section
+    .split(/\r?\n/)
+    .filter((line) => /^\| \d+\. /.test(line));
+
+  assert(rows.length === 9, `latest Cross-mind evidence table for v${version} must contain exactly 9 trigger rows, found ${rows.length}`);
+  for (const row of rows) {
+    const cells = row.split("|").slice(1, -1).map((cell) => cell.trim());
+    assert(cells.length === 4, `latest Cross-mind evidence row has wrong cell count: ${row}`);
+    assert(cells.every(Boolean), `latest Cross-mind evidence row has an empty cell: ${row}`);
+    assert(/^(yes|no\b)/i.test(cells[1]), `latest Cross-mind evidence Required cell must start with yes/no: ${row}`);
+    assert(/^(passed|iterated|blocked)$/i.test(cells[2]), `latest Cross-mind evidence Result cell must be passed / iterated / blocked: ${row}`);
+  }
+  console.log(`ok: latest Cross-mind evidence 9-trigger table complete for v${version}`);
 }
 
 function assertIncludes(relativePath, snippets) {
