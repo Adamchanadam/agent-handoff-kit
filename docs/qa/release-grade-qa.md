@@ -54,11 +54,12 @@
 |---|---|---|---|
 | Fresh install → init → first task | 新用戶安裝後是否知道下一步是在 AI 對話中開始，而不是把提示當 Terminal 指令。 | `qa:release` user-flow + R-029 wording sweep + 人工終讀 | 阻擋 publish，直到 CLI / README / onboarding wording 對齊 |
 | First task → closeout → next session handoff | 收工後下一個 AI 是否不需聊天記憶，也不會重開已完成調查。 | `doctor` handoff lifecycle check + negative fixture + opening-message read-through | 阻擋 publish，並補 lifecycle fixture 或 manual checklist |
-| Existing project upgrade → doctor → closeout | 舊用戶升級後是否不丟本地規則、不覆寫用戶內容、不出現「剛升完又叫再升」矛盾。 | `qa:upgrade` chain + user-data fixture + CLI scenario branching sweep | 阻擋 publish，並補 prior-version fixture / scenario |
+| Existing project upgrade → doctor → closeout | 舊用戶升級後是否不丟本地規則、不覆寫用戶內容、不出現「剛升完又叫再升」或「升級說可用、doctor 立刻失敗」矛盾。 | `qa:upgrade` chain + user-data fixture + CLI scenario branching sweep | 阻擋 publish，並補 prior-version fixture / scenario |
 | Existing Kit files → official npx doctor path | 舊項目已經有 Kit 文件時，用戶是否明白官方路徑是 `npx --yes @adamchanadam/agent-handoff-kit@latest doctor`；裸 `npx ... doctor` 只是 npm 通用執行方式，不作產品旅程。 | README / CLI help / intro / guide 冷啟動 `npx --yes` 指令 + `qa:release` npx UX guard + 人工終讀 | 阻擋 publish，直到 README、CLI help、doctor 下一步、intro、guide 與 QA guard 對齊 |
 | Non-empty project with local rules | 既有 `AGENTS.md` / `PROJECT_INDEX.md` / `RULE_PACKS.md` 內容是否保留或停手報 conflict。 | `qa:upgrade` merge / custom-row / conflict fixtures | 阻擋 publish，除非明確列為人工-only conflict 類 |
 | Conflict / blocked state | 工具是否清楚停手，說明沒有覆寫，並指出 migration report / 手動處理方向。 | Scenario 2 / 5 manual checklist until automated fixtures exist | 同類第二次出現即必須轉 automated |
 | Doctor healthy / outdated / lifecycle conflict | `doctor` 是否分清健康、可升級、交接矛盾三類，不混成同一個下一步。 | Scenario 6 automated + scenario 7 manual + lifecycle negative fixture | 阻擋 publish，並補 scenario output contract |
+| AI-generated handoff prose tolerance | `doctor` 不得用任意正文詞語硬猜生命週期；可機器判斷的只限 Kit 控制的結構標記與狀態欄位。 | Scenario 4b automated + lifecycle field fixture | 阻擋 publish，直到誤判 fixture 通過 |
 
 ### QC Gap Backflow
 
@@ -140,12 +141,15 @@
 | 2 | install with conflict | 「conflict」count > 0 / 「migration report」/「工具已停手，沒有覆寫」 | 「全部通過」 |
 | 3a | upgrade metadata-only stale（結構已最新，只有 template version metadata 過期） | 「升級完成」/ metadata 更新紀錄 / template version metadata 更新為當前版本 / doctor self-check 不再提示項目版本未對齊 | 「你已經是最新版本，沒有檔案需要建立或合併」/「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（避免重做 onboarding 誤導） |
 | 3b | upgrade structurally stale（真實舊版 fixture → 當前，含 create + merge） | 「升級完成」/「進行中的工作對話已熟悉 Agent Handoff Kit 可繼續使用原本開工方式」/「I just upgraded agent-handoff-kit」（可選 review 起步句）/ template version metadata 更新為當前版本 | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（避免重做 onboarding 誤導） |
-| 4 | upgrade no-op（已 latest 零改動） | 「你已經是最新版本，沒有檔案需要建立或合併」/ output 行數 ≤ 20 行 | 「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/「migration report」/「upgrade self-check」 |
+| 4 | upgrade no-op（已 latest 零改動，交接健康） | 「你已經是最新版本，沒有檔案需要建立或合併」/ output 行數 ≤ 20 行 | 「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/「migration report」/「upgrade self-check」 |
+| 4b | upgrade no-op（已 latest 零改動，但 handoff 欄位仍需 closeout 核對） | 「Kit 檔案已是最新版本，沒有檔案需要建立或合併」/「交接狀態仍需 AI closeout 核對」/「不要重裝或覆寫用戶內容」 | 「繼續日常使用即可」/「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」 |
 | 5 | upgrade with conflict | 「conflict」count > 0 / 「migration report」/「工具已停手，沒有覆寫」 | 「升級完成」 |
 | 6 | doctor healthy & latest（已係最新版） | 「status: passed」/「繼續日常使用即可」 | 「如要升級到較新版」（避免叫剛升完嘅用戶再升） |
 | 7 | doctor healthy with newer available | startup `maybePrintUpdateNotice` 嘅升級通知 / 「status: passed」 | doctor 結尾再講一次升級指令（避免 redundant） |
 
-**Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3）**：場景 1 / 3a / 3b / 4 / 6 為 automated。場景 2 / 5 / 7 屬 conditional state，留下次 minor follow-up 補 automated（fixture 構造較複雜，目前由人工驗收清單覆蓋）。
+**Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3；v0.3.8 add handoff-needs-closeout no-op）**：場景 1 / 3a / 3b / 4 / 4b / 6 為 automated。場景 2 / 5 / 7 屬 conditional state，留下次 minor follow-up 補 automated（fixture 構造較複雜，目前由人工驗收清單覆蓋）。
+
+場景 4b 是通用舊項目旅程，不綁定任何單一用戶目錄。真實項目只能作發現問題的證據；自動驗收必須用可重建 fixture 表達同類狀態，避免把個別專案文字硬寫成產品規則。
 
 **未來新加 user-invocable surface 嘅紀律**：每加一個新 CLI sub-command 或新場景分流，必同步加 dim row + Sweep row + automated simulation；違反即視為 audit-time blind spot 重演（同 v0.3.0 R-030 5 支柱嘅 P4 紀律一致）。
 
@@ -190,7 +194,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 已檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在 Terminal 繼續輸入。
-- 套件預演目前維持 31 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.7.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 32 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.8.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -199,20 +203,43 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已要求進入 v0.3.7 發佈流程；tag / GitHub Release / npm publish 已完成 |
-| 版本口徑 | `package.json` 目前為 `0.3.7`；v0.3.7 是 `npx doctor` 冷啟動 UX root-fix。 | 通過；publish 前須重跑發佈前檢查 |
+| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已批准 v0.3.8 發佈前全面檢與 publish；若全面檢出現 blocker，必須先停下修正 |
+| 版本口徑 | `package.json` 目前為 `0.3.8`；v0.3.8 是 upgrade no-op handoff health root-fix。 | 通過；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 31 files。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 32 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.7.md` 已轉入 v0.3.7 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
+| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.8.md` 已轉入 v0.3.8 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補 Terminal 成功提示與 README，用戶可分清 Terminal 檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.7` 候選段，`docs/whatsnew/v0.3.7.md` 已補本版用戶說明。 | 通過；publish 後須核對 GitHub Release 與 npm metadata |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.7`。 | 通過；publish 後須驗證 npm latest 為 `0.3.7` |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.8` 候選段，`docs/whatsnew/v0.3.8.md` 已補本版用戶說明。 | 通過；publish 後須核對 GitHub Release 與 npm metadata |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.8`。 | 通過；publish 後須驗證 npm latest 為 `0.3.8` |
+
+## v0.3.8 發佈狀態
+
+- 發佈版本：`0.3.8`。
+- release notes：`CHANGELOG.md` 的 `Unreleased — v0.3.8 候選` 段落 + `docs/whatsnew/v0.3.8.md`。
+- 發佈內容：修補舊項目 upgrade no-op 與 doctor handoff health 的訊息矛盾。當 Kit 檔案已最新但交接狀態仍需 closeout 核對時，`upgrade` 不再說「繼續日常使用即可」。
+- 發佈前驗收重點：scenario 4b 必須通過，確認本修補是通用 fixture，不綁定任何單一項目或 AI 正文。
+- npm 狀態：候選，未 npm publish；預期 package fileCount 32（從 31 增加 1，加 `docs/whatsnew/v0.3.8.md`）。
+- 🟡 發佈檢：待 publish 後執行；必須確認 GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase、npm README 與 v0.3.7→v0.3.8 chain-upgrade routing propagation 均通過。
+
+### Cross-mind evidence 9-trigger table（v0.3.8）
+
+| Trigger condition | Required (yes/no) | Result (passed / iterated / blocked) | Follow-up (assertion ID / checklist item / accepted risk reason) |
+|---|---|---|---|
+| 1. 發佈說明使用「已驗證／已修復／可持續／sustainable」等強聲明 | yes | iterated | 本版只聲明 upgrade no-op handoff-health 訊息矛盾已修補；機器落點為 scenario 4b 與 package fileCount 32。 |
+| 2. 同類 bug 連續兩版出現 | yes | iterated | v0.3.5 / v0.3.6 / v0.3.7 連續暴露 `doctor` / `upgrade` UX 邊界；v0.3.8 把真實舊項目問題轉為通用 fixture。 |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：CLI no-op output + doctor lifecycle boundary；測試層：scenario 4b；發佈敘事層：CHANGELOG、whatsnew、本段。 |
+| 4. 三個以上治理檔同步改動 | yes | passed | public release-grade QA、CHANGELOG、whatsnew 與 WORK handoff / decision / QA strategy 已同步記錄。 |
+| 5. 公開可見發佈儀式 | yes | iterated | Adam 已批准發佈前全面檢與 publish；本表覆蓋 publish 前判斷，publish 後仍須跑 🟡 發佈後驗證。 |
+| 6. 存在人工語意判斷而無機器斷言 | yes | iterated | 「不掃 AI 正文猜語意」屬語意邊界；已轉成 Kit-controlled field check + scenario 4b 自動驗收。 |
+| 7. 發佈後上一版由真實用戶抓 bug | yes | iterated | v0.3.7 發佈後 Adam 在真實舊項目測到 upgrade no-op / doctor 矛盾；本版明確把真實目錄抽象為通用 fixture，不硬編特例。 |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | scenario 4b 為 schema-boundary 通用 fixture，目的是重建狀態類型；真實目錄只作證據來源，不作產品規則。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | iterated | 主要聲明對應斷言：upgrade no-op 不再誤稱可日常使用、doctor 仍能指出 handoff 欄位待核對、scenario 4b 通過。 |
 
 ## v0.3.7 發佈狀態
 

@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 31"), "npm dry-run did not report expected 31 package files (v0.3.7+ includes docs/whatsnew/v0.3.1.md through v0.3.7.md)");
+  assert(packText.includes("total files: 32"), "npm dry-run did not report expected 32 package files (v0.3.8+ includes docs/whatsnew/v0.3.1.md through v0.3.8.md)");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -499,6 +499,17 @@ function checkScenarioBranchingDocAlignment() {
       ]
     },
     {
+      id: "4b",
+      snippets: [
+        "upgrade no-op",
+        "handoff 欄位仍需 closeout 核對",
+        "Kit 檔案已是最新版本，沒有檔案需要建立或合併",
+        "交接狀態仍需 AI closeout 核對",
+        "不要重裝或覆寫用戶內容",
+        "繼續日常使用即可"
+      ]
+    },
+    {
       id: "5",
       snippets: [
         "upgrade with conflict",
@@ -535,7 +546,7 @@ function checkScenarioBranchingDocAlignment() {
       assert(line.includes(snippet), `docs/qa/release-grade-qa.md scenario ${row.id} row is not aligned with release scenario contract; missing: ${snippet}`);
     }
   }
-  assert(qaDoc.includes("場景 1 / 3a / 3b / 4 / 6 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list scenario 1 / 3a / 3b / 4 / 6");
+  assert(qaDoc.includes("場景 1 / 3a / 3b / 4 / 4b / 6 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list scenario 1 / 3a / 3b / 4 / 4b / 6");
   assert(qaDoc.includes("場景 2 / 5 / 7 屬 conditional state"), "docs/qa/release-grade-qa.md human-review scope must list scenario 2 / 5 / 7");
   console.log("ok: docs/qa/release-grade-qa.md seven-scenario table aligned with CLI scenario contract");
 }
@@ -596,6 +607,55 @@ function simulateScenarioBranching() {
     throw new Error(`scenario 4 (upgrade no-op) output too long: ${s4LineCount} lines (expected ≤ 20). Short-circuit may have failed; check printUpgradeNoopShortCircuit + isUpgradeNoopAtPlanTime logic in bin.`);
   }
   console.log(`ok: scenario 4 output ${s4LineCount} lines (≤ 20 threshold)`);
+
+  // Scenario 4b: upgrade no-op, but handoff lifecycle field is still a placeholder
+  // after substantive AI-generated content exists. This guards the v0.3.7 real-user
+  // miss where upgrade said "繼續日常使用即可" while doctor failed immediately after.
+  // The fixture deliberately contains generic package-scope and pending wording; the
+  // product check must not infer lifecycle truth from arbitrary AI prose.
+  const s4bRoot = path.join(tempBase, "scenario-upgrade-noop-handoff-needs-closeout");
+  const s4bInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
+  if (s4bInit.status !== 0) {
+    throw new Error(`Scenario 4b init prep failed: ${s4bInit.stderr || s4bInit.stdout}`);
+  }
+  const s4bHandoffPath = path.join(s4bRoot, "dev/SESSION_HANDOFF.md");
+  let s4bHandoff = readFileSync(s4bHandoffPath, "utf8");
+  s4bHandoff = s4bHandoff
+    .replace("Record only work actually completed in the current session.\n\n1. TBD", "Record only work actually completed in the current session.\n\n1. Completed `@adamchanadam` package verification and upgrade UX review.")
+    .replace("## Next Priorities\n\n1. TBD", "## Next Priorities\n\n1. Pending maintainer publish decision; continue normal project work after closeout.")
+    .replace("- Checks run this session: TBD", "- Checks run this session: Verified package scope and no-op upgrade journey.")
+    .replace("## Next Session Opening Message\n\n📋 Next session: copy and paste the whole block below", "## Next Session Opening Message\n\n📋 Next session: copy and paste the whole block below");
+  writeFileSync(s4bHandoffPath, s4bHandoff, "utf8");
+  const s4b = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4bRoot], "scenario 4b upgrade no-op with handoff needing closeout", { env });
+  assertScenarioOutput("scenario 4b (upgrade no-op, handoff needs closeout)", s4b.stdout, {
+    mustHave: [
+      /Kit 檔案已是最新版本，沒有檔案需要建立或合併/,
+      /交接狀態仍需 AI closeout 核對/,
+      /不要重裝或覆寫用戶內容/
+    ],
+    mustNotHave: [
+      /繼續日常使用即可/,
+      /✅ 安裝完成：/,
+      /✅ 升級完成：/,
+      /I just installed agent-handoff-kit\. Help me get started\./,
+      /I just upgraded agent-handoff-kit/
+    ]
+  });
+  const s4bDoctor = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
+  if (s4bDoctor.status === 0) {
+    throw new Error(`scenario 4b doctor expected failure but exited 0\n${s4bDoctor.stdout}`);
+  }
+  assertScenarioOutput("scenario 4b (doctor reports handoff closeout needed)", s4bDoctor.stdout, {
+    mustHave: [
+      /status: failed/,
+      /handoff lifecycle consistency/,
+      /completed work is not carried forward as unresolved next work/
+    ],
+    mustNotHave: [
+      /status: passed/,
+      /繼續日常使用即可/
+    ]
+  });
 
   // R-031.3 v0.3.4+: Scenario 3 split into 3a (metadata-only stale) + 3b (structurally
   // stale via real test-fixtures/v0.1.7 fixture) per minimum-correct fix from cross-AI
@@ -783,8 +843,9 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
   const lifecycleConflictHandoff = closedHandoff
     .replace("1. simulated user-flow value", "1. Verified `doctor` / `upgrade` reliability concern is closed.")
     .replace("1. simulated user-flow value", "1. Investigate product-layer reliability issue in `doctor` / `upgrade` before modifying public output.")
-    .replace("- Checks run this session: simulated user-flow value", "- Checks run this session: verified `doctor` / `upgrade` reliability concern is closed.");
-  assert(!isReconciledHandoff(lifecycleConflictHandoff), "completed work carried forward as unresolved next work should fail lifecycle consistency");
+    .replace("- Checks run this session: simulated user-flow value", "- Checks run this session: verified `doctor` / `upgrade` reliability concern is closed.")
+    .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: no — completed work still appears as unresolved next work.");
+  assert(!isReconciledHandoff(lifecycleConflictHandoff), "explicit unresolved lifecycle field should fail lifecycle consistency");
   const openingMessage = extractOpeningMessage(closedHandoff);
   assert(openingMessage.includes(tempRoot), "simulated opening message missing project root");
   assert(openingMessage.includes("Read in order:"), "simulated opening message missing read order");
@@ -866,42 +927,50 @@ function isReconciledHandoff(text) {
 }
 
 function assessHandoffLifecycleConsistency(text) {
-  const evidenceText = [
-    extractSectionText(text, "completed-this-session", "Completed This Session"),
-    extractSectionText(text, "validation-qc", "Validation / QC")
-  ].join("\n");
-  const targetText = [
-    extractSectionText(text, "next-priorities", "Next Priorities"),
-    extractSectionText(text, "risks-blockers", "Risks / Blockers"),
-    extractSectionText(text, "next-session-opening-message", "Next Session Opening Message")
-  ].join("\n");
-  const topics = extractLifecycleTopics(evidenceText);
-  for (const topic of topics) {
-    if (hasUnresolvedCarryForward(targetText, topic)) return { ok: false };
+  const fieldValue = fieldValueAfterMarker(text, "lifecycle-conflicts-resolved");
+  if (isUnresolvedLifecycleFieldValue(fieldValue)) return { ok: false };
+  if (isPlaceholderLifecycleFieldValue(fieldValue) && hasSubstantiveHandoffState(text)) {
+    return { ok: false };
   }
   return { ok: true };
 }
 
-function extractLifecycleTopics(text) {
-  const topics = new Set();
-  for (const match of text.matchAll(/`([^`\n]{2,80})`/g)) {
-    const topic = match[1].trim();
-    if (!topic || /^dev\/|^docs\/|\.md$|\.txt$|\.json$|^AGENTS\.md$/.test(topic)) continue;
-    topics.add(topic);
-  }
-  return [...topics];
+function isUnresolvedLifecycleFieldValue(value) {
+  return /\b(no|blocked|uncertain)\b|否|阻擋|不確定/i.test(value || "");
 }
 
-function hasUnresolvedCarryForward(text, topic) {
-  const pattern = new RegExp(escapeRegExp(topic), "ig");
-  for (const match of text.matchAll(pattern)) {
-    const start = Math.max(0, match.index - 180);
-    const end = Math.min(text.length, match.index + topic.length + 180);
-    const context = text.slice(start, end);
-    if (/\b(monitor-only|follow-up scope|blocked|reopened|re-opened|if new evidence|conditional|no-op)\b|只監察|監察|後續範圍|跟進範圍|阻擋|已重開|明確重開|新證據/i.test(context)) continue;
-    if (/\b(investigate|reproduce|pending|todo|unresolved|must start|start with read-only|reliability concern remains open|needs investigation)\b|調查|重查|未解|待辦|仍需|未完成|開始.{0,20}核查|先.{0,20}調查/i.test(context)) return true;
+function isPlaceholderLifecycleFieldValue(value) {
+  return !value || /\b(TBD|todo|pending|unverified|unknown|needs-review)\b|待核對|待確認|未核對|未確認/i.test(value);
+}
+
+function hasSubstantiveHandoffState(text) {
+  const sections = [
+    extractSectionText(text, "completed-this-session", "Completed This Session"),
+    extractSectionText(text, "validation-qc", "Validation / QC")
+  ].join("\n");
+  const body = sections.replace(/```[\s\S]*?```/g, "");
+  return body.split(/\r?\n/).some((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("##") || trimmed.startsWith("<!--")) return false;
+    if (/^Record only work actually completed/i.test(trimmed)) return false;
+    if (/\bTBD\b|待定|待核對|未適用/i.test(trimmed)) return false;
+    const normalized = trimmed.replace(/^[\d.*\-)\s]+/, "").replace(/[`\s#|:\-*/()[\].,;，。；、]/g, "");
+    return normalized.length > 20;
+  });
+}
+
+function fieldValueAfterMarker(text, fieldId) {
+  const markerText = `ack:field:${fieldId}`;
+  const markerIndex = text.indexOf(markerText);
+  if (markerIndex >= 0) {
+    const after = text.slice(markerIndex).split(/\r?\n/).slice(1);
+    const line = after.find((candidate) => candidate.trim().startsWith("- "));
+    if (!line) return "";
+    const colonIndex = line.indexOf(":");
+    return colonIndex >= 0 ? line.slice(colonIndex + 1).trim() : line.trim();
   }
-  return false;
+  const fallback = text.match(/Completed \/ pending \/ risk \/ opening-message lifecycle conflicts resolved or explicitly reclassified:\s*([^\n]+)/i);
+  return fallback ? fallback[1].trim() : "";
 }
 
 function extractSectionText(text, markerId, headingTitle) {

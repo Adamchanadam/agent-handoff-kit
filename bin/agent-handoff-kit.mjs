@@ -491,6 +491,7 @@ async function runInstall(command, root, options, version) {
     && !projectIndexVersionNeedsInject;
 
   if (isUpgradeNoopAtPlanTime) {
+    const noOpHealth = await assessUpgradeNoopHealth(root);
     printCard(version, "continuity ready", "o.o");
     console.log(`command: ${command}`);
     console.log(`current directory: ${process.cwd()}`);
@@ -502,7 +503,7 @@ async function runInstall(command, root, options, version) {
       console.log("");
       console.log("dry-run: no files written");
     }
-    printUpgradeNoopShortCircuit(version);
+    printUpgradeNoopShortCircuit(version, noOpHealth);
     return;
   }
 
@@ -888,55 +889,37 @@ function normalizePrompt(text) {
 
 function assessHandoffLifecycleConsistency(text) {
   const fieldValue = fieldValueAfterMarker(text, "lifecycle-conflicts-resolved");
-  if (fieldValue && /\b(no|blocked|uncertain)\b|否|阻擋|不確定/i.test(fieldValue)) {
+  if (isUnresolvedLifecycleFieldValue(fieldValue)) {
     return { ok: false, reason: "lifecycle field is explicitly unresolved" };
   }
-
-  const evidenceText = [
-    extractSectionText(text, "completed-this-session", "Completed This Session"),
-    extractSectionText(text, "validation-qc", "Validation / QC")
-  ].join("\n");
-  const targetText = [
-    extractSectionText(text, "next-priorities", "Next Priorities"),
-    extractSectionText(text, "risks-blockers", "Risks / Blockers"),
-    extractSectionText(text, "next-session-opening-message", "Next Session Opening Message")
-  ].join("\n");
-
-  const topics = extractLifecycleTopics(evidenceText);
-  for (const topic of topics) {
-    if (hasUnresolvedCarryForward(targetText, topic)) {
-      return { ok: false, reason: `completed topic carried forward unresolved: ${topic}` };
-    }
+  if (isPlaceholderLifecycleFieldValue(fieldValue) && hasSubstantiveHandoffState(text)) {
+    return { ok: false, reason: "lifecycle field is still placeholder after handoff content changed" };
   }
-
   return { ok: true, reason: "" };
 }
 
-function extractLifecycleTopics(text) {
-  const topics = new Set();
-  for (const match of text.matchAll(/`([^`\n]{2,80})`/g)) {
-    const topic = match[1].trim();
-    if (!topic || /^dev\/|^docs\/|\.md$|\.txt$|\.json$|^AGENTS\.md$/.test(topic)) continue;
-    topics.add(topic);
-  }
-  return [...topics];
+function isUnresolvedLifecycleFieldValue(value) {
+  return /\b(no|blocked|uncertain)\b|否|阻擋|不確定/i.test(value || "");
 }
 
-function hasUnresolvedCarryForward(text, topic) {
-  const escaped = escapeRegExp(topic);
-  const pattern = new RegExp(escaped, "ig");
-  for (const match of text.matchAll(pattern)) {
-    const start = Math.max(0, match.index - 180);
-    const end = Math.min(text.length, match.index + topic.length + 180);
-    const context = text.slice(start, end);
-    if (/\b(monitor-only|follow-up scope|blocked|reopened|re-opened|if new evidence|conditional|no-op)\b|只監察|監察|後續範圍|跟進範圍|阻擋|已重開|明確重開|新證據/i.test(context)) {
-      continue;
-    }
-    if (/\b(investigate|reproduce|pending|todo|unresolved|must start|start with read-only|reliability concern remains open|needs investigation)\b|調查|重查|未解|待辦|仍需|未完成|開始.{0,20}核查|先.{0,20}調查/i.test(context)) {
-      return true;
-    }
-  }
-  return false;
+function isPlaceholderLifecycleFieldValue(value) {
+  return !value || /\b(TBD|todo|pending|unverified|unknown|needs-review)\b|待核對|待確認|未核對|未確認/i.test(value);
+}
+
+function hasSubstantiveHandoffState(text) {
+  const sections = [
+    extractSectionText(text, "completed-this-session", "Completed This Session"),
+    extractSectionText(text, "validation-qc", "Validation / QC")
+  ].join("\n");
+  const body = sections.replace(/```[\s\S]*?```/g, "");
+  return body.split(/\r?\n/).some((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("##") || trimmed.startsWith("<!--")) return false;
+    if (/^Record only work actually completed/i.test(trimmed)) return false;
+    if (/\bTBD\b|待定|待核對|未適用/i.test(trimmed)) return false;
+    const normalized = trimmed.replace(/^[\d.*\-)\s]+/, "").replace(/[`\s#|:\-*/()[\].,;，。；、]/g, "");
+    return normalized.length > 20;
+  });
 }
 
 function fieldValueAfterMarker(text, fieldId) {
@@ -2008,14 +1991,31 @@ async function printWhatsnew(root, toVersion, fromVersionOverride) {
 // short factual message and return. Saves disk (no migration report) + reduces noise
 // (no self-check doctor) + avoids misleading "安裝完成" framing for an idempotent
 // operation where nothing changed.
-function printUpgradeNoopShortCircuit(version) {
+async function assessUpgradeNoopHealth(root) {
+  try {
+    const handoffText = await readFile(path.join(root, "dev/SESSION_HANDOFF.md"), "utf8");
+    return { handoffLifecycle: assessHandoffLifecycleConsistency(handoffText) };
+  } catch {
+    return { handoffLifecycle: { ok: false, reason: "dev/SESSION_HANDOFF.md unreadable" } };
+  }
+}
+
+function printUpgradeNoopShortCircuit(version, health = { handoffLifecycle: { ok: true } }) {
   console.log("");
   console.log(`📦 版本：v${version}`);
   console.log("🛠️  模式：upgrade-existing");
   console.log("🔎 剛完成：檢查所有 Kit 檔案的狀態（含 AGENTS.md、dev/SESSION_HANDOFF.md、dev/PROJECT_INDEX.md 等）。");
-  console.log("✅ 結果：你已經是最新版本，沒有檔案需要建立或合併；用戶填寫的內容全部保留現狀。");
+  if (health.handoffLifecycle?.ok) {
+    console.log("✅ 結果：你已經是最新版本，沒有檔案需要建立或合併；用戶填寫的內容全部保留現狀。");
+    console.log("");
+    console.log("🚀 下一步：繼續日常使用即可。如要檢查健康狀態，可執行：");
+    console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest doctor");
+    console.log("");
+    return;
+  }
+  console.log("⚠️  結果：Kit 檔案已是最新版本，沒有檔案需要建立或合併；但交接狀態仍需 AI closeout 核對。");
   console.log("");
-  console.log("🚀 下一步：繼續日常使用即可。如要檢查健康狀態，可執行：");
+  console.log("🚀 下一步：先跑 doctor 取得待修項，再把輸出貼給 AI；不要重裝或覆寫用戶內容。");
   console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest doctor");
   console.log("");
 }
