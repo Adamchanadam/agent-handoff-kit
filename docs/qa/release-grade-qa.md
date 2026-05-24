@@ -199,7 +199,7 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已要求進入 v0.3.7 發佈流程；tag / GitHub Release / npm publish 仍須在本流程中按順序執行 |
+| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已要求進入 v0.3.7 發佈流程；tag / GitHub Release / npm publish 已完成 |
 | 版本口徑 | `package.json` 目前為 `0.3.7`；v0.3.7 是 `npx doctor` 冷啟動 UX root-fix。 | 通過；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 31 files。 | 通過，但發佈前須重跑套件預演 |
@@ -220,7 +220,8 @@ npm package 由 `package.json` 的 `files` 控制：
 - release notes：`CHANGELOG.md` 的 `v0.3.7` 段落 + `docs/whatsnew/v0.3.7.md`。
 - 發佈內容：修補舊項目執行 `doctor` 時的 `npx` 冷啟動 UX 誤解。官方用戶路徑統一為 `npx --yes @adamchanadam/agent-handoff-kit@latest ...`，並明確說明 npm 取得 CLI 工具不等於 `doctor` 安裝或修改項目文件。
 - 發佈前驗收重點：`scripts/check-release-readiness.mjs` 的 `Npx Cold-start UX Sweep` 必須確認 README、CLI help、新手介紹頁與操作指南對齊。
-- npm 狀態：準備 npm publish；publish 後應驗證 npm latest 為 `0.3.7`；package fileCount 31（從 30 增加 1，加 `docs/whatsnew/v0.3.7.md`）。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.7`；package fileCount 31（從 30 增加 1，加 `docs/whatsnew/v0.3.7.md`）。
+- 🟡 發佈檢：v0.3.7 post-publish verification 已完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、post-install `--help` / `init` / `doctor`、R-029.1 canonical phrase、npm README 與 v0.3.6→v0.3.7 chain-upgrade routing propagation 均通過。
 
 ### Cross-mind evidence 9-trigger table（v0.3.7）
 
