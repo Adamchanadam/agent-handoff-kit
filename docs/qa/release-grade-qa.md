@@ -190,7 +190,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 已檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在 Terminal 繼續輸入。
-- 套件預演目前維持 30 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.6.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 31 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.7.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -199,20 +199,42 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | v0.3.6 發佈前流程可準備；tag / GitHub Release / npm publish 仍需明確執行指令 |
-| 版本口徑 | `package.json` 目前為 `0.3.6`；v0.3.6 是交接生命週期一致性 root-fix 候選。 | 通過；publish 前須重跑發佈前檢查 |
+| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已要求進入 v0.3.7 發佈流程；tag / GitHub Release / npm publish 仍須在本流程中按順序執行 |
+| 版本口徑 | `package.json` 目前為 `0.3.7`；v0.3.7 是 `npx doctor` 冷啟動 UX root-fix。 | 通過；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 為 30 files。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 31 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.6.md` 已轉入 v0.3.6 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
+| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.7.md` 已轉入 v0.3.7 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補 Terminal 成功提示與 README，用戶可分清 Terminal 檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.6` 候選段，`docs/whatsnew/v0.3.6.md` 已補本版用戶說明。 | 通過；publish 後須核對 GitHub Release 與 npm metadata |
-| 用戶安裝路徑 | README 保留正式 `npx` 安裝路徑，並以中性措辭標示目前版本為 `v0.3.6`。 | 通過；publish 後須驗證 npm latest 為 `0.3.6` |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.7` 候選段，`docs/whatsnew/v0.3.7.md` 已補本版用戶說明。 | 通過；publish 後須核對 GitHub Release 與 npm metadata |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.7`。 | 通過；publish 後須驗證 npm latest 為 `0.3.7` |
+
+## v0.3.7 發佈狀態
+
+- 發佈版本：`0.3.7`。
+- release notes：`CHANGELOG.md` 的 `v0.3.7` 段落 + `docs/whatsnew/v0.3.7.md`。
+- 發佈內容：修補舊項目執行 `doctor` 時的 `npx` 冷啟動 UX 誤解。官方用戶路徑統一為 `npx --yes @adamchanadam/agent-handoff-kit@latest ...`，並明確說明 npm 取得 CLI 工具不等於 `doctor` 安裝或修改項目文件。
+- 發佈前驗收重點：`scripts/check-release-readiness.mjs` 的 `Npx Cold-start UX Sweep` 必須確認 README、CLI help、新手介紹頁與操作指南對齊。
+- npm 狀態：準備 npm publish；publish 後應驗證 npm latest 為 `0.3.7`；package fileCount 31（從 30 增加 1，加 `docs/whatsnew/v0.3.7.md`）。
+
+### Cross-mind evidence 9-trigger table（v0.3.7）
+
+| Trigger condition | Required (yes/no) | Result (passed / iterated / blocked) | Follow-up (assertion ID / checklist item / accepted risk reason) |
+|---|---|---|---|
+| 1. 發佈說明使用「已驗證／已修復／可持續／sustainable」等強聲明 | yes | iterated | 本版只聲明 `npx doctor` 冷啟動 UX 已補說明與守門；機器落點為 `checkNpxColdStartUxGuidance()` 與 fileCount 31。 |
+| 2. 同類 bug 連續兩版出現 | yes | iterated | v0.3.5 / v0.3.6 先後修 `doctor` / `upgrade` 與 lifecycle consistency；v0.3.7 將真實舊項目 `npx doctor` 誤解轉成正式 UX 守門。 |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：CLI help / next-step wording；測試層：`scripts/check-release-readiness.mjs`；發佈敘事層：README、CHANGELOG、whatsnew、intro、guide 與本段。 |
+| 4. 三個以上治理檔同步改動 | yes | passed | public release-grade QA、README、HTML、CHANGELOG、whatsnew 與 WORK handoff 已同步記錄；公開 runtime 不新增治理負擔。 |
+| 5. 公開可見發佈儀式 | yes | iterated | Adam 已要求進入發佈流程；本表覆蓋 publish 前判斷，publish 後仍須跑 🟡 發佈後驗證。 |
+| 6. 存在人工語意判斷而無機器斷言 | yes | iterated | 「裸 npx 不是官方旅程」屬語意判斷；已補 README / CLI / intro / guide 的機器字串守門，npm README 需 publish 後驗證。 |
+| 7. 發佈後上一版由真實用戶抓 bug | yes | iterated | v0.3.6 發佈後 Adam 在真實舊項目測到 npm `Need to install` 提示；本版把該情境列入 Product Journey Matrix 與 Npx Cold-start UX Sweep。 |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | no | passed | 產品問題來自真實舊項目行為；自動守門覆蓋公開文字一致性，發佈後再用 fresh install 驗證 npm package。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | iterated | 主要聲明已對應斷言：官方 `npx --yes ...@latest` 路徑存在、裸命令不作示範、README 兩層安裝說明存在、CLI 說明 `doctor` 不修改項目。 |
 
 ## v0.3.6 發佈狀態
 

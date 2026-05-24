@@ -1,5 +1,27 @@
 # 變更紀錄
 
+## v0.3.7 — 2026-05-24
+
+狀態：正式發佈版本。本版本回應舊項目真實測試揭發的 `npx doctor` 認知落差：資料夾已有 Kit 文件，並不代表本機已有可直接執行的 npm 工具。裸寫 `npx ... doctor` 時，npm 可能先詢問是否下載 package，容易令人誤以為 `doctor` 正在安裝或修改項目。
+
+### 用戶可見修補
+
+- README、CLI help、新手介紹頁與操作指南的示範命令統一改為 `npx --yes @adamchanadam/agent-handoff-kit@latest ...`。
+- README 明確分開兩層「安裝」：項目內 Kit 文件，以及 npm 用來執行 `init` / `upgrade` / `doctor` 的 CLI 工具。
+- `doctor` 的說明再次表明自己只檢查，不建立、不安裝、不修改項目文件。
+
+### QC framework 修補
+
+- `scripts/check-release-readiness.mjs` 新增 `npx` 冷啟動 UX 守門，檢查 README、CLI help、新手介紹頁與操作指南都使用正式 `npx --yes ...@latest` 路徑。
+- `docs/qa/release-grade-qa.md` 補上 `Npx Cold-start UX Sweep` 與舊項目 `doctor` 場景。
+- package fileCount 30 → 31：新增 `docs/whatsnew/v0.3.7.md`。
+
+### Migration path（v0.3.6 → v0.3.7，backward-compat preserved）
+
+- 不新增使用者專案模板檔案；不改動既有 handoff 結構。
+- 舊項目可先使用 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` 預覽，再決定是否升級。
+- `doctor` 仍只檢查，不會安裝或修改項目文件。
+
 ## v0.3.6 — 2026-05-24
 
 狀態：正式發佈版本。此版本已建立 tag、GitHub Release，並已 npm publish。本版本修補 v0.3.5 後續 dogfood 發現的交接狀態一致性缺口：上一輪已完成並驗證的事項，不能在同一份 handoff 的下一步、風險或開工訊息中又被當成未解待辦。

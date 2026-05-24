@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 30"), "npm dry-run did not report expected 30 package files (v0.3.6+ includes docs/whatsnew/v0.3.1.md through v0.3.6.md)");
+  assert(packText.includes("total files: 31"), "npm dry-run did not report expected 31 package files (v0.3.7+ includes docs/whatsnew/v0.3.1.md through v0.3.7.md)");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");

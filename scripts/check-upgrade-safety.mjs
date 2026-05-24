@@ -244,7 +244,8 @@ function main() {
     { ref: "v0.3.3", command: "upgrade" },
     { ref: "v0.3.4", command: "upgrade" },
     { ref: "v0.3.5", command: "upgrade" },
-    { ref: "v0.3.6", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.6", command: "upgrade" },
+    { ref: "v0.3.7", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
