@@ -193,7 +193,7 @@ const requiredAnchors = [
       "明確 onboarding signal keywords",
       "5-step walk-through pattern",
       "Application Scenario Library",
-      "Scenario A. 寫 / 改代碼項目",
+      "Scenario A. 建構系統 / 工具 / 平台 / 網站或應用",
       "Scenario B. 整理研究資料",
       "Scenario C. 整理電腦檔案",
       "Scenario D. 學寫代碼",
@@ -528,7 +528,7 @@ async function runInstall(command, root, options, version) {
 
   if (options.dryRun) {
     console.log("\ndry-run: no files written");
-    printDryRunExplanation(plan);
+    printDryRunExplanation(command, mode, plan);
     if (plan.some((item) => item.action === "conflict")) process.exitCode = 1;
     return;
   }
@@ -554,6 +554,8 @@ async function runInstall(command, root, options, version) {
     await copyFile(item.sourceAbs, item.targetAbs);
     created.push(item.targetRel);
   }
+
+  await hydrateInitialOpeningPrompt(root, created);
 
   for (const item of plan) {
     if (item.action !== "merge") continue;
@@ -633,7 +635,7 @@ async function runInstall(command, root, options, version) {
   if (command === "upgrade") {
     await printUpgradeNextSteps(root, conflicts.length, version, preUpgradeRootVersion);
   } else {
-    printInstallNextSteps(root, conflicts.length);
+    printInstallNextSteps(root, conflicts.length, mode, skippedCount);
   }
 
   // R-024 upgrade.done self-check: after substantive upgrade writes, run doctor automatically.
@@ -641,12 +643,12 @@ async function runInstall(command, root, options, version) {
   if (command === "upgrade" && conflicts.length === 0) {
     console.log("");
     console.log("------------------------------------------------------------");
-    console.log("🩺 upgrade self-check: running doctor against the upgraded root");
+    console.log("🩺 升級後自動檢查：正在檢查升級後的資料夾");
     console.log("------------------------------------------------------------");
-    const doctorStatus = await runDoctor(root, version, { silentCard: true });
+    const doctorStatus = await runDoctor(root, version, { silentCard: true, context: "upgrade-self-check" });
     if (doctorStatus !== "passed") {
       console.log("");
-      console.log("⚠️  upgrade self-check did not pass; see doctor output above.");
+      console.log("⚠️  升級後自動檢查未通過；請看上方檢查輸出。");
       console.log("📋 下一步：把上面 doctor 輸出貼給 AI，請它先按提示修補後再宣稱 upgrade 完成。");
       process.exitCode = 1;
     } else {
@@ -677,7 +679,9 @@ async function runDoctor(root, version, options = {}) {
       checked: rows.length,
       failedKind: "missing files",
       failedCount: missing.length,
-      nextStep: "先確認你是否在正確專案資料夾；如是，執行 init 或 upgrade 補回缺少檔案。"
+      nextStep: missing.length === rows.length
+        ? "這個資料夾未安裝 Kit。若這就是你的項目資料夾，請執行：npx --yes @adamchanadam/agent-handoff-kit@latest init"
+        : "這個資料夾只裝了一部分 Kit 檔案。請先確認路徑；如路徑正確，執行：npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run"
     });
     process.exitCode = 1;
     return "failed";
@@ -695,7 +699,7 @@ async function runDoctor(root, version, options = {}) {
       checked: rows.length + anchorRows.length,
       failedKind: "anchor checks",
       failedCount: anchorFailures.length,
-      nextStep: "執行 upgrade --dry-run 查看可否安全補齊；不要手動覆寫既有檔案。"
+      nextStep: "有入口檔存在，但缺少 Kit 需要的橋接段落。請執行：npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run；不要手動覆寫既有檔案。"
     });
     process.exitCode = 1;
     return "failed";
@@ -771,6 +775,7 @@ async function runDoctor(root, version, options = {}) {
   printLastCloseout(lastCloseout);
   const projectAge = await assessProjectAge(root);
   printProjectAge(projectAge);
+  const onboardingNextStep = options.context === "upgrade-self-check" ? null : getFirstUseNextStep(root, lastCloseout);
 
   const overallHealthy = credentialResult.ok;
   printDoctorSummary(version, root, overallHealthy ? "healthy" : "needs-attention", {
@@ -780,10 +785,15 @@ async function runDoctor(root, version, options = {}) {
     nextStep: !credentialResult.ok
       ? "立即從相關檔案 redact credential value + rotate 已泄露 token；credential 應該由 AI 工具自身 secure storage 管理，永不寫入 dev/* 任何檔。"
       : disciplineResult.ok
-      ? versionNextStep ?? "繼續日常使用即可。如有新版本發佈，啟動本工具時會自動顯示升級通知。"
+      ? versionNextStep ?? onboardingNextStep ?? "檢查已通過。繼續使用你原本的 AI 開工方式；如剛完成一個任務，記得在 AI 對話輸入「收工」保存交接。"
       : "繼續使用；下次 closeout 時 AI 應自動執行 SESSION_LOG N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
   });
   return overallHealthy ? "passed" : "failed";
+}
+
+function getFirstUseNextStep(root, lastCloseout) {
+  if (lastCloseout.date) return null;
+  return `檢查已通過。下一步不要再留在終端機；打開 Claude Code / Claude Cowork / OpenAI Codex / Google Antigravity，或任何能讀寫此資料夾的 AI 工具，貼上：Work in ${root}. I just installed agent-handoff-kit. Help me get started.`;
 }
 
 // R-030 v0.3.0+: Credential leak prevention sweep. Scans dev/PROJECT_INDEX.md,
@@ -846,6 +856,20 @@ function printDoctorSummary(version, root, mode, details) {
   console.log(`🩺 模式：${mode}`);
   console.log(`🔎 剛完成：檢查 ${details.checked} 項；${mode === "healthy" ? "全部通過" : `${details.failedCount} 項未通過（${details.failedKind}）`}。`);
   console.log(`🚀 下一步：${details.nextStep}`);
+}
+
+async function hydrateInitialOpeningPrompt(root, created) {
+  if (!created.includes("dev/SESSION_HANDOFF.md") && !created.includes("START_NEXT_SESSION_PROMPT.txt")) return;
+  for (const rel of ["dev/SESSION_HANDOFF.md", "START_NEXT_SESSION_PROMPT.txt"]) {
+    const filePath = path.join(root, rel);
+    try {
+      const text = await readFile(filePath, "utf8");
+      if (!text.includes("<absolute project root>")) continue;
+      await writeFile(filePath, text.replaceAll("<absolute project root>", root), "utf8");
+    } catch {
+      // Leave template untouched; doctor will surface prompt mirror problems if any.
+    }
+  }
 }
 
 async function checkPromptMirror(root) {
@@ -1172,6 +1196,17 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
   }
+  if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && !targetText.includes("Scenario A. 建構系統 / 工具 / 平台 / 網站或應用")) {
+    const mergedOnboarding = mergeOnboardingScenarioALabel(targetText);
+    if (mergedOnboarding !== targetText) {
+      return {
+        ...base,
+        action: "merge",
+        reason: "update onboarding Scenario A wording from narrow coding label to broader system/tool/platform/app label",
+        mergedText: mergedOnboarding
+      };
+    }
+  }
   // v0.3.6+: SESSION_HANDOFF.md gains a non-destructive lifecycle consistency
   // field. Existing handoff content stays intact; only the missing field and
   // rule note are inserted around stable ack markers.
@@ -1187,10 +1222,49 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergedHandoff
     };
   }
-  if ((targetRel === "CLAUDE.md" || targetRel === "GEMINI.md") && !targetText.includes("AGENTS.md")) {
-    return { ...base, action: "conflict", reason: "existing bridge does not route to AGENTS.md" };
+  if (targetRel === "CLAUDE.md" || targetRel === "GEMINI.md") {
+    if (!targetText.includes("AGENTS.md")) {
+      return { ...base, action: "conflict", reason: "existing bridge does not route to AGENTS.md" };
+    }
+    if (looksLikeExpandedKitBridge(targetRel, targetText)) {
+      return {
+        ...base,
+        action: "merge",
+        reason: `${targetRel} appears to be an expanded Kit bridge; restore short bridge so AGENTS.md remains the single source of truth`,
+        mergedText: sourceText
+      };
+    }
   }
   return { ...base, action: "skip", reason: "preserve existing file" };
+}
+
+function looksLikeExpandedKitBridge(targetRel, text) {
+  if (text.includes("This file is a bridge only")) return false;
+  if (targetRel === "CLAUDE.md") {
+    return (text.includes("This file provides guidance to Claude Code") && text.includes("## Session Startup"))
+      || text.includes("## Architecture")
+      || text.includes("## CLI Commands")
+      || text.includes("Every non-trivial task follows");
+  }
+  if (targetRel === "GEMINI.md") {
+    return text.includes("## Architecture")
+      || text.includes("## CLI Commands")
+      || text.includes("Every non-trivial task follows");
+  }
+  return false;
+}
+
+function mergeOnboardingScenarioALabel(targetText) {
+  let merged = targetText;
+  merged = merged.replace(
+    /\*\*A\. 寫 \/ 改代碼項目\*\* —— 你有一個(?: project 的 codebase|程式項目)想長期維護/g,
+    "**A. 建構系統 / 工具 / 平台 / 網站或應用** —— 你想由 AI 協助建立或長期維護一個可運作的項目"
+  );
+  merged = merged.replace(
+    /### Scenario A\. 寫 \/ 改代碼項目/g,
+    "### Scenario A. 建構系統 / 工具 / 平台 / 網站或應用"
+  );
+  return merged;
 }
 
 function mergeHandoffLifecycleField(targetText) {
@@ -1344,20 +1418,20 @@ async function assessLastCloseout(root) {
 
 function printLastCloseout(result) {
   if (!result.date) {
-    console.log("  📅 上次 closeout：（仲未 closeout 過。第一次完成 task 後可以講 AI「收工」）");
+    console.log("  📅 上次收工：尚未收工過。第一次完成任務後，可以在 AI 對話輸入「收工」。");
     return;
   }
   const today = new Date();
   const closeout = new Date(result.date);
   const daysDiff = Math.floor((today - closeout) / (1000 * 60 * 60 * 24));
   if (daysDiff < 0) {
-    console.log(`  📅 上次 closeout：${result.date}（日期超前？檢查系統時鐘）`);
+    console.log(`  📅 上次收工：${result.date}（日期超前？檢查系統時鐘）`);
   } else if (daysDiff === 0) {
-    console.log(`  📅 上次 closeout：今日（${result.date}）`);
+    console.log(`  📅 上次收工：今日（${result.date}）`);
   } else if (daysDiff <= 30) {
-    console.log(`  📅 上次 closeout：${daysDiff} 日前（${result.date}）`);
+    console.log(`  📅 上次收工：${daysDiff} 日前（${result.date}）`);
   } else {
-    console.log(`  📅 上次 closeout：${daysDiff} 日前（${result.date}）— 建議跑下 closeout 整理進度`);
+    console.log(`  📅 上次收工：${daysDiff} 日前（${result.date}）— 建議輸入「收工」整理進度`);
   }
 }
 
@@ -1628,9 +1702,7 @@ function printPlan(command, root, mode, plan, version, isDryRun = false) {
   console.log(`selected root: ${root}`);
   console.log(`mode: ${mode}`);
   console.log("");
-  const planIntro = isDryRun
-    ? "📋 計劃預覽：以下未執行。create 新增缺少檔案；merge 在備份後合併；skip 保留既有檔案；conflict 代表工具停手等你確認。"
-    : "📋 即將執行：以下是本次寫入計劃。create 新增缺少檔案；merge 會先備份再合併；skip 保留既有檔案；conflict 代表工具停手等你確認。";
+  const planIntro = planIntroFor(command, mode, isDryRun);
   console.log(planIntro);
   console.log("");
   for (const action of ["create", "merge", "skip", "conflict"]) {
@@ -1639,6 +1711,20 @@ function printPlan(command, root, mode, plan, version, isDryRun = false) {
     for (const item of items) console.log(`  ${item.targetRel}${item.reason ? ` - ${item.reason}` : ""}`);
   }
   console.log(`\nbackup: ${plan.filter((item) => item.action === "merge").length}`);
+}
+
+function planIntroFor(command, mode, isDryRun) {
+  const prefix = isDryRun ? "📋 預演結果：這次不會寫入檔案。" : "📋 寫入前確認：工具準備這樣處理目前資料夾。";
+  if (command === "init" && mode === "first-install") {
+    return `${prefix} 目前資料夾未見 Kit 檔案；工具會建立交接文件、AI 入口檔與工作規則。沒有既有檔案會被覆寫。`;
+  }
+  if (command === "init" && mode === "partial") {
+    return `${prefix} 目前資料夾已有部分 AI 或 Kit 檔案；工具會補齊缺少檔案，保留既有檔案。安裝後可能仍要用 upgrade 補入口連接。`;
+  }
+  if (command === "upgrade") {
+    return `${prefix} 工具會檢查既有 Kit 檔案；能安全合併才合併，不能判斷時會停手並列為 conflict。`;
+  }
+  return `${prefix} create 代表建立缺少檔案；merge 代表先備份再合併；skip 代表保留既有檔案；conflict 代表工具停手等你判斷。`;
 }
 
 // R-026 CLI Output Contract: install/upgrade 完成必含四項（版本／模式／剛完成／下一步）。
@@ -1656,17 +1742,29 @@ function printInstallSummary(version, command, mode, root, counts) {
   if (counts.conflicts > 0) {
     console.log("🚀 下一步：把 migration report 或這段輸出貼給 AI，請它判斷衝突檔案怎樣處理；工具已停手，沒有覆寫 conflict 檔案。");
   } else if (command === "upgrade") {
-    console.log("🚀 下一步：留意下方 upgrade self-check（自動跑 doctor）；若全綠即升級完成。");
+    console.log("🚀 下一步：留意下方升級後自動檢查；若全綠即升級完成。");
+  } else if (mode === "partial" || counts.skipped > 0) {
+    console.log("🚀 下一步：先看下方提示。若你原本已有 AGENTS.md 或其他 AI 規則，請先執行 upgrade --dry-run 補入口連接，再執行 doctor。");
   } else {
-    console.log("🚀 下一步：開新 AI 對話，按下方提示貼入 Work in <root> 一句後描述任務。");
+    console.log("🚀 下一步：不用再留在終端機。打開 AI 工具，貼下方起步句。");
   }
 }
 
-function printDryRunExplanation(plan) {
+function printDryRunExplanation(command, mode, plan) {
   const conflicts = plan.filter((item) => item.action === "conflict");
   console.log("✅ 這次沒有改動任何檔案。");
   if (conflicts.length === 0) {
-    console.log("✅ 沒有發現 conflict。你仍應先看清楚 create / merge / skip 清單，再決定是否執行正式 upgrade。");
+    if (command === "init") {
+      console.log("✅ 沒有發現 conflict。若這是你要安裝 Kit 的資料夾，下一步執行：");
+      console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest init");
+      return;
+    }
+    if (mode === "upgrade-existing") {
+      console.log("✅ 沒有發現 conflict。若你想正式套用以上升級計劃，下一步執行：");
+      console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade");
+      return;
+    }
+    console.log("✅ 沒有發現 conflict。請按你剛才預演的命令去掉 --dry-run 後正式執行。");
     return;
   }
   console.log(`⚠️  需要人工確認：有 ${conflicts.length} 個既有檔案，工具不能安全判斷怎樣合併。`);
@@ -1677,7 +1775,7 @@ function printDryRunExplanation(plan) {
 async function confirmWrite() {
   const rl = createInterface({ input, output });
   try {
-    const answer = await rl.question("Write missing Agent Handoff Kit files? Type yes to continue: ");
+    const answer = await rl.question("要按上面計劃寫入 / 合併 Kit 檔案嗎？輸入 yes 繼續：");
     return answer.trim().toLowerCase() === "yes";
   } finally {
     rl.close();
@@ -1833,10 +1931,14 @@ function printCard(version, status, eyes) {
   console.log("");
 }
 
-function printInstallNextSteps(root, conflictCount) {
+function printInstallNextSteps(root, conflictCount, mode = "first-install", skippedCount = 0) {
   console.log("");
   console.log("============================================================");
-  console.log("✅ 安裝完成：下一步請在 AI 對話中操作");
+  if (mode === "partial" || skippedCount > 0) {
+    console.log("⚠️  已補齊缺少檔案，但仍要檢查入口連接");
+  } else {
+    console.log("✅ 安裝完成：下一步請在 AI 對話中操作");
+  }
   console.log("============================================================");
   if (conflictCount > 0) {
     console.log("⚠️  狀態：有既有檔案需要人工確認，詳情見 migration report。");
@@ -1844,33 +1946,25 @@ function printInstallNextSteps(root, conflictCount) {
     console.log("📋 下一步：把 migration report 或這段輸出貼給 AI，請它幫你判斷怎樣合併。");
     console.log("");
   }
-  // R-031.2 v0.3.2+: first-install checklist. It answers the user's first
-  // question: "is this installed and what do I do next?"
-  console.log("📋 如何確認安裝完成：");
-  console.log("");
-  console.log("   1. 在 Terminal 執行 npx --yes @adamchanadam/agent-handoff-kit@latest doctor，應該見到「status: passed」");
-  console.log("   2. 你的 dev/ 資料夾應該有規則、交接與工作紀錄等檔案");
-  console.log("   3. 在你使用的 AI 工具（Claude Code / Codex / Gemini）開新對話，貼下面起步句");
-  console.log("");
-  console.log("⚠️  注意：Agent Handoff Kit 是放在項目資料夾內的一組交接檔案。");
-  console.log("   它沒有圖形介面，不會啟動伺服器，也不會自動替你做事；你需要在 AI 對話中使用它。");
-  console.log("   `npx --yes ...` 只是讓 npm 取得執行工具；不代表 doctor 會安裝或修改項目文件。");
-  console.log("");
+  if (mode === "partial" || skippedCount > 0) {
+    console.log("你原本已有部分 AI 記憶檔，工具已保留它們，沒有覆寫。");
+    console.log("下一步先不要開始新任務；請在終端機執行以下預演，讓工具檢查能否安全補入口連接：");
+    console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run");
+    console.log("");
+    console.log("如預演顯示沒有 conflict，再執行：");
+    console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade");
+    console.log("============================================================");
+    return;
+  }
   console.log("------------------------------------------------------------");
-  console.log("⚠️  請注意：下面文字不是 Terminal 指令。");
-  console.log("📋 請打開你要使用的 AI 工具，新增一段對話，貼上下面一句：");
+  console.log("⚠️  下面這句不是終端機指令。");
+  console.log("📋 請打開 Claude Code / Claude Cowork / OpenAI Codex / Google Antigravity，");
+  console.log("   或任何能讀寫此資料夾的 AI 工具，新增對話後貼上：");
   console.log("------------------------------------------------------------");
   console.log(`Work in ${root}. I just installed agent-handoff-kit. Help me get started.`);
   console.log("------------------------------------------------------------");
   console.log("");
-  console.log("🚀 AI 會主動引導你選擇情景（寫代碼 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），");
-  console.log("   一步一步帶你做第一個任務（由新手引導包主動接管）。");
-  console.log("");
-  console.log("💡 之後你熟悉流程後，可改用更直接的開工句：");
-  console.log(`   Work in ${root}. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.`);
-  console.log("");
-  console.log("🩺 如要檢查安裝是否完整，可在 Terminal 執行：");
-  console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest doctor");
+  console.log("🚀 AI 會先確認這個資料夾，然後帶你選擇第一個任務情景：建構系統 / 工具 / 平台 / 網站或應用、研究報告、知識庫整理、學寫代碼，或其他。");
   console.log("============================================================");
 }
 
@@ -1901,7 +1995,7 @@ async function printUpgradeNextSteps(root, conflictCount, version, preUpgradeRoo
   console.log(`Work in ${root}. I just upgraded agent-handoff-kit. Brief me on what changed in this version and what I should pay attention to.`);
   console.log("------------------------------------------------------------");
   console.log("");
-  console.log("🩺 升級驗收會在下方自動跑 doctor；若全綠即升級完成。");
+  console.log("🩺 升級驗收會在下方自動執行 doctor；若全綠即升級完成。");
   console.log("============================================================");
 }
 
@@ -2016,14 +2110,13 @@ function printUpgradeNoopShortCircuit(version, health = { handoffLifecycle: { ok
   if (health.handoffLifecycle?.ok) {
     console.log("✅ 結果：你已經是最新版本，沒有檔案需要建立或合併；用戶填寫的內容全部保留現狀。");
     console.log("");
-    console.log("🚀 下一步：繼續日常使用即可。如要檢查健康狀態，可執行：");
-    console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest doctor");
+    console.log("🚀 下一步：回到原本的 AI 對話或開工句即可；如果剛完成任務，記得在 AI 對話輸入「收工」保存交接。");
     console.log("");
     return;
   }
   console.log("⚠️  結果：Kit 檔案已是最新版本，沒有檔案需要建立或合併；但交接狀態仍需 AI closeout 核對。");
   console.log("");
-  console.log("🚀 下一步：先跑 doctor 取得待修項，再把輸出貼給 AI；不要重裝或覆寫用戶內容。");
+  console.log("🚀 下一步：先執行 doctor 取得待修項，再把輸出貼給 AI；不要重裝或覆寫用戶內容。");
   console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest doctor");
   console.log("");
 }
@@ -2057,18 +2150,18 @@ Commands:
   doctor    Check required installed files.
 
 中文速讀：
-  ✅ init      第一次安裝 Kit 文件。
-  🔄 upgrade   升級既有 Kit 文件；先用 --dry-run 預演。
-  🩺 doctor    檢查必要文件與交接結構是否完整。
+  ✅ 第一次用：先在項目資料夾執行 init。
+  🔄 已裝過：先用 upgrade --dry-run 預演，再決定是否正式升級。
+  🩺 不確定狀態：用 doctor 檢查；doctor 只檢查，不會改檔。
 
-After install:
-  Do not type the shown "Work in ..." message into Terminal.
-  Open your AI tool, start a new chat, and paste it there.
-  The default post-install prompt triggers the onboarding pack — AI
-  will guide you through scenario selection (coding / research / knowledge /
-  learning / other / integrations governance) and walk you through your first task.
+安裝之後：
+  不要把顯示出來的 "Work in ..." 文字輸入終端機。
+  請打開 Claude Code / Claude Cowork / OpenAI Codex / Google Antigravity，
+  或任何能讀寫此資料夾的 AI 工具，新增對話後貼上那句起步句。
+  這句會啟動新手引導；AI 會先帶你選擇情境，
+  再一步一步整理第一個任務。
 
-Terminal 範例：
+終端機範例：
   npx --yes @adamchanadam/agent-handoff-kit@latest init
   npx --yes @adamchanadam/agent-handoff-kit@latest doctor
   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
@@ -2076,12 +2169,13 @@ Terminal 範例：
   以上才是建議的 npx 用戶路徑。裸寫不帶 --yes / @latest 的 npx doctor
   不是本工具的建議用戶路徑，容易先出現 npm 自己的安裝提示。
 
-  放在 package 名稱前的 --yes 只讓 npm 取得執行工具，避免額外出現
-  "Need to install" 提示。這不會令 doctor 安裝或修改項目文件；
-  doctor 只檢查目前的 Kit 文件。即使資料夾已有 AGENTS.md 或 dev/，
-  npx 仍可能只是先取得 npm 執行工具。
+  即使資料夾已有 AGENTS.md 或 dev/，電腦也未必已經有可直接執行的工具；
+  npx --yes 只是先取得工具，然後才執行你指定的 init / doctor / upgrade。
+
+  放在 package 名稱前的 --yes 只讓 npm 先取得執行工具，避免額外出現
+  "Need to install" 提示。真正會建立項目文件的是 init；doctor 只檢查。
 `);
   console.log(`📦 版本：v${version}`);
   console.log(`🛠️  模式：help ready`);
-  console.log(`🚀 下一步：第一次使用先跑 npx --yes ... init；既有專案升級用 npx --yes ... upgrade --dry-run；要檢查現狀用 npx --yes ... doctor。`);
+  console.log(`🚀 下一步：新項目先執行 init；舊項目先執行 upgrade --dry-run；只想檢查才執行 doctor。`);
 }

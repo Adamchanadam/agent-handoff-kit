@@ -77,7 +77,7 @@ const scenarios = [
     name: "onboarding (R-029)",
     route: ["First-time user signals", "dev/rules/onboarding.md"],
     pack: "onboarding",
-    snippets: ["Onboarding Pack", "transient pack", "5-step walk-through pattern", "Scenario A. 寫 / 改代碼項目", "Scenario E. 其他", "Scenario F. 審視已裝外部工具", "Tone Discipline", "Anti-pattern"]
+    snippets: ["Onboarding Pack", "transient pack", "5-step walk-through pattern", "Scenario A. 建構系統 / 工具 / 平台 / 網站或應用", "Scenario E. 其他", "Scenario F. 審視已裝外部工具", "Tone Discipline", "Anti-pattern"]
   },
   {
     name: "integrations (R-030)",
@@ -121,7 +121,7 @@ const mixedScenarios = [
     ]
   },
   {
-    name: "Notion DB Index + 本機真源 + Drive 參考檔 multi-source governance (R-030)",
+    name: "Notion DB Index + 本機真源 + Google Drive 參考檔 multi-source governance (R-030)",
     phases: [
       ["onboarding", "integrations"],
       ["integrations", "knowledge"],

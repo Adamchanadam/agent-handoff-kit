@@ -1,5 +1,32 @@
 # 變更紀錄
 
+## v0.3.10 — 2026-05-25
+
+狀態：候選版本，尚未公開發佈。本版本回應首次安裝後真實進入 AI 對話的用戶旅程測試，重點是讓新用戶從終端機、README、新手頁，到 Claude Code / Codex / Antigravity 等 AI 工具的第一句開工，都更清楚、更少干擾。
+
+### 本版對用戶有甚麼價值
+
+- 安裝完成後，終端機不再要求新用戶立刻跑多餘檢查；下一步會集中指向 AI 對話。
+- Claude Code 不應把 `CLAUDE.md` 橋接檔改寫成另一份長規則；`AGENTS.md` 仍是唯一入口真源。
+- Google Antigravity CLI 遷移期支援已補明：`GEMINI.md` 是橋接檔，與 `AGENTS.md` 同步指向同一套開工流程。
+- 新手情境選單改用更貼近日常目的的文字，例如「建構系統 / 工具 / 平台 / 網站或應用」與「Google Drive」。
+
+### Changed
+
+- `init` 完成輸出精簡為「不用再留在終端機，打開 AI 工具貼起步句」，並列出 Claude Code、Claude Cowork、OpenAI Codex、Google Antigravity 等常見入口。
+- `doctor` 在全新安裝但尚未開 AI 對話時，改提示用戶進入 AI 對話，而不是說可以繼續日常使用。
+- `upgrade` 可偵測被 Claude Code `/init` 或同類流程擴寫的 `CLAUDE.md`，並恢復為短橋接檔，避免規則分叉。
+- `runtime-core/CLAUDE.md` 改為只引用 `@AGENTS.md` 的橋接檔，並明確禁止在入門或設定流程中擴寫、摘要或替換它。
+- `runtime-core/GEMINI.md` 補上 Antigravity CLI / Gemini CLI 遷移期說明，保持 `AGENTS.md` 作唯一真源。
+- `packs/onboarding.md` 收緊首次引導輸出：只顯示一次完整狀態卡，不先印半張卡，也不重複標誌圖。
+- package fileCount 33 → 34：新增 `docs/whatsnew/v0.3.10.md`。
+
+### Migration path（v0.3.9 → v0.3.10，backward-compat preserved）
+
+- 既有項目不用重裝；可先執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` 預覽。
+- 若預演顯示只會修復橋接檔或更新模板錨點，確認後再執行 `upgrade`。
+- 如項目已有本地 AI 規則，工具會保留既有內容；不能安全判斷時會停手列為 conflict，不會靜默覆寫。
+
 ## v0.3.9 — 2026-05-24
 
 狀態：正式發佈版本。本版本修補 v0.3.8 發佈後在真實項目 `AI_Public_Squares` 驗收時揭發的 lifecycle 判斷誤判。

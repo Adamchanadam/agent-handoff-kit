@@ -29,7 +29,7 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 33"), "npm dry-run did not report expected 33 package files (v0.3.9+ includes docs/whatsnew/v0.3.1.md through v0.3.9.md)");
+  assert(packText.includes("total files: 34"), "npm dry-run did not report expected 34 package files (v0.3.10+ includes docs/whatsnew/v0.3.1.md through v0.3.10.md)");
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -37,10 +37,10 @@ function main() {
 
   assertIncludes("README.md", [
     `目前版本為 \`v${version}\``,
-    "AI Session 之間的接力棒",
+    "AI 對話之間的接力棒",
     "AI 跨對話失憶",
     "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
-    "請特別留意：那一段不是給 Terminal 的指令",
+    "請特別留意：那一段不是給終端機的指令",
     "START_NEXT_SESSION_PROMPT.txt",
     "## 它解決甚麼問題",
     "## 三步上手",
@@ -103,7 +103,7 @@ function main() {
     "發佈後仍需驗證",
     "不得因 `v0.1.0` 已發佈而宣稱",
     "安裝後指示驗收",
-    "不是在 Terminal 繼續輸入",
+    "不是在終端機繼續輸入",
     "治理 QA 缺口矩陣",
     "產品級發佈前全面檢",
     "Product Journey Matrix",
@@ -224,7 +224,7 @@ function main() {
     "Step F.3 — Source-of-truth Architecture mapping",
     "Step F.4 — 寫入項目登記表",
     "Step F.5 — Verify availability",
-    "順便：你 Claude Code"
+    "順便問一句：你現在使用的 AI 工具"
   ]);
 
   assertIncludes("runtime-core/SESSION_LOG.md", [
@@ -252,7 +252,7 @@ function main() {
 
   const install = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");
   assert(install.stdout.includes("安裝完成：下一步請在 AI 對話中操作"), "install output missing AI-chat next-step heading");
-  assert(install.stdout.includes("請注意：下面文字不是 Terminal 指令。"), "install output does not warn that next text is not a Terminal command");
+  assert(install.stdout.includes("下面這句不是終端機指令。"), "install output does not warn that next text is not a terminal command");
   assert(!install.stdout.includes("next: Follow AGENTS.md"), "install output still contains misleading old next line");
   const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow doctor");
   assert(doctor.stdout.includes("status: passed"), "doctor did not pass in release user-flow check");
@@ -415,8 +415,8 @@ function checkNpxColdStartUxGuidance() {
   assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest doctor"), "guide page missing canonical npx doctor command");
   assert(readme.includes("即使目前資料夾已安裝舊版 Kit 文件"), "README must explain old Kit files do not mean the npm CLI is locally available");
   assert(readme.includes("判斷點不是資料夾有沒有 `AGENTS.md` 或 `dev/`"), "README must explicitly distinguish project Kit files from the executable npm tool");
-  assert(readme.includes("那只是 npm 取得執行工具，不等於 `doctor` 正在安裝或改動你的項目"), "README must explain the npm Need-to-install prompt is not doctor installing project files");
-  assert(cli.includes("不會令 doctor 安裝或修改項目文件"), "CLI output must explain npx fetch is not doctor installing project files");
+  assert(readme.includes("真正會建立項目文件的是 `init`；`doctor` 只檢查，不會安裝或改動你的項目文件"), "README must explain init writes project files and doctor only checks");
+  assert(cli.includes("真正會建立項目文件的是 init；doctor 只檢查"), "CLI output must explain init writes project files and doctor only checks");
   assert(cli.includes("即使資料夾已有 AGENTS.md 或 dev/"), "CLI output must explain existing Kit files can still require npx to fetch the executable tool");
   assert(readme.includes("不是本工具的建議用戶路徑"), "README must discourage bare npx doctor as an official user path");
   assert(cli.includes("不是本工具的建議用戶路徑"), "CLI help must discourage bare npx doctor as an official user path");
@@ -444,7 +444,7 @@ function checkScenarioBranchingDocAlignment() {
         "install fresh",
         "安裝完成",
         "I just installed agent-handoff-kit. Help me get started.",
-        "請注意：下面文字不是 Terminal 指令",
+        "下面這句不是終端機指令",
         "升級完成",
         "你已經是最新版本"
       ]
@@ -495,7 +495,7 @@ function checkScenarioBranchingDocAlignment() {
         "I just installed",
         "I just upgraded",
         "migration report",
-        "upgrade self-check"
+        "升級後自動檢查"
       ]
     },
     {
@@ -524,7 +524,8 @@ function checkScenarioBranchingDocAlignment() {
       snippets: [
         "doctor healthy & latest",
         "status: passed",
-        "繼續日常使用即可",
+        "檢查已通過",
+        "首次使用時提示開啟 AI 工具並貼上起步句",
         "如要升級到較新版"
       ]
     },
@@ -574,10 +575,10 @@ function simulateScenarioBranching() {
     mustHave: [
       /✅ 安裝完成：/,
       /I just installed agent-handoff-kit\. Help me get started\./,
-      /請注意：下面文字不是 Terminal 指令/,
-      /如何確認安裝完成/,
-      /一組交接檔案/,
-      /沒有圖形介面/
+      /下面這句不是終端機指令/,
+      /Claude Code \/ Claude Cowork \/ OpenAI Codex \/ Google Antigravity/,
+      /不用再留在終端機/,
+      /AI 會先確認這個資料夾/
     ],
     mustNotHave: [
       /✅ 升級完成：/,
@@ -598,7 +599,7 @@ function simulateScenarioBranching() {
       /I just installed agent-handoff-kit\. Help me get started\./,
       /I just upgraded agent-handoff-kit/,
       /migration report:/,
-      /upgrade self-check/
+      /升級後自動檢查/
     ]
   });
   // Output should be short — no-op short-circuit drops the ceremony.
@@ -748,14 +749,15 @@ function simulateScenarioBranching() {
   assertScenarioOutput("scenario 6 (doctor healthy & latest)", s6.stdout, {
     mustHave: [
       /status: passed/,
-      /繼續日常使用即可/,
+      /檢查已通過/,
+      /Google Antigravity/,
       // R-031.2 v0.3.2+: 項目狀態速覽（三向 version + 距上次 closeout + 項目首次安裝）
       // Loosened from /📦 版本：工具 v/ to /📦 版本：工具/ — aligned branch wording is
       // "工具 / 項目記錄 / npm latest 三向對齊 vX" where "工具" is followed by "/" not "v",
       // so the original anchor missed the aligned case when network fetch succeeded.
       /項目狀態速覽/,
       /📦 版本：工具/,
-      /📅 上次 closeout/,
+      /📅 上次收工/,
       /🌱 項目首次安裝距今/
     ],
     mustNotHave: [

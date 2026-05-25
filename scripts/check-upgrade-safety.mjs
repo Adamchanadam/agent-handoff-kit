@@ -55,6 +55,32 @@ function main() {
   assert(conflictText.includes("## Conflicts"), "conflict report missing conflicts section");
   assert(conflictText.includes("CLAUDE.md"), "conflict report missing CLAUDE.md");
 
+  const expandedBridgeRoot = path.join(tmpdir(), `ack-upgrade-expanded-bridge-${Date.now()}`);
+  mkdirSync(expandedBridgeRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", expandedBridgeRoot], "init for expanded CLAUDE bridge scenario");
+  writeFileSync(path.join(expandedBridgeRoot, "CLAUDE.md"), [
+    "# CLAUDE.md",
+    "",
+    "This file provides guidance to Claude Code when working with this repository.",
+    "",
+    "## Session Startup",
+    "",
+    "Read AGENTS.md, dev/SESSION_HANDOFF.md, dev/SESSION_LOG.md, dev/PROJECT_INDEX.md, and dev/RULE_PACKS.md.",
+    "",
+    "## Architecture",
+    "",
+    "This is a long expanded bridge that duplicates runtime rules and should be restored by upgrade.",
+    "",
+    "## Work Loop",
+    "",
+    "PLAN -> READ -> CHANGE -> QC -> PERSIST."
+  ].join("\n"), "utf8");
+  const expandedBridgeUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", expandedBridgeRoot], "upgrade expanded CLAUDE bridge scenario");
+  assert(expandedBridgeUpgrade.stdout.includes("CLAUDE.md appears to be an expanded Kit bridge"), "expanded CLAUDE bridge scenario did not report bridge restoration");
+  const restoredClaude = read(path.join(expandedBridgeRoot, "CLAUDE.md"));
+  assert(restoredClaude.includes("This file is a bridge only"), "expanded CLAUDE bridge was not restored to short bridge");
+  assert(!restoredClaude.includes("## Architecture"), "expanded CLAUDE bridge still contains duplicated architecture section after upgrade");
+
   // Regression guard for R-016 + R-031.3: doctor must pass on an older-version
   // install + upgrade. R-016 protects user content rows (External Sources / Fact
   // Base etc.) — those are preserved. R-031.3 v0.3.4+ scopes the template version
@@ -164,7 +190,7 @@ function main() {
 
   const sandwichDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", sandwichRoot], "doctor after R-024 sandwich upgrade");
   assert(sandwichDoctor.stdout.includes("status: passed"), "doctor must pass after R-024 sandwich upgrade");
-  assert(sandwichUpgrade.stdout.includes("upgrade self-check"), "R-024 upgrade must run doctor self-check automatically (upgrade.done contract)");
+  assert(sandwichUpgrade.stdout.includes("升級後自動檢查"), "R-024 upgrade must run doctor self-check automatically (upgrade.done contract)");
 
   // === Phase 2 R-025 real-fixture scenarios ===
   // Replace hand-typed staleCoreFixture() preconditions with real produced
@@ -186,7 +212,7 @@ function main() {
     const hopUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", hopRoot], `real-fixture single-hop upgrade ${ver}`);
     // v0.3.0+: upgrade now merges AGENTS.md managed-core (1) + PROJECT_INDEX.md ## Installed Integrations migration (1) = 2 merges.
     assert(hopUpgrade.stdout.includes("merged: 2"), `${ver} real-fixture single-hop must report two merged files (AGENTS.md managed-core + PROJECT_INDEX.md Installed Integrations migration)`);
-    assert(hopUpgrade.stdout.includes("upgrade self-check"), `${ver} real-fixture single-hop must run doctor self-check`);
+    assert(hopUpgrade.stdout.includes("升級後自動檢查"), `${ver} real-fixture single-hop must run doctor self-check`);
     assert(hopUpgrade.stdout.includes("status: passed"), `${ver} real-fixture single-hop self-check must pass`);
     const hopAgents = read(path.join(hopRoot, "AGENTS.md"));
     assertSingleCore(hopAgents, `${ver} real-fixture single-hop result must be single core`);
@@ -212,7 +238,7 @@ function main() {
   assert(countCoreHeadings(injectedAgents) === 2, "real-sandwich precondition: must have two core headings before final upgrade");
   const realSandwichUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", realSandwichRoot], "real-sandwich final upgrade");
   assert(realSandwichUpgrade.stdout.includes("merged: 1"), "real-sandwich final upgrade must report one merged file");
-  assert(realSandwichUpgrade.stdout.includes("upgrade self-check"), "real-sandwich final upgrade must run doctor self-check");
+  assert(realSandwichUpgrade.stdout.includes("升級後自動檢查"), "real-sandwich final upgrade must run doctor self-check");
   assert(realSandwichUpgrade.stdout.includes("status: passed"), "real-sandwich self-check must pass");
   const realSandwichResult = read(path.join(realSandwichRoot, "AGENTS.md"));
   assertSingleCore(realSandwichResult, "real-sandwich final result must be single core");
@@ -247,7 +273,8 @@ function main() {
     { ref: "v0.3.6", command: "upgrade" },
     { ref: "v0.3.7", command: "upgrade" },
     { ref: "v0.3.8", command: "upgrade" },
-    { ref: "v0.3.9", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.9", command: "upgrade" },
+    { ref: "v0.3.10", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -269,7 +296,7 @@ function main() {
   const chainFinalAgents = read(path.join(chainRoot, "AGENTS.md"));
   assertSingleCore(chainFinalAgents, "chain final state must be single core");
   assert(count(chainFinalAgents, "BEGIN Agent Handoff Kit managed core") === 1, "chain final state must have one managed marker pair");
-  assert(chainFinal.stdout.includes("upgrade self-check"), "chain final upgrade must run doctor self-check");
+  assert(chainFinal.stdout.includes("升級後自動檢查"), "chain final upgrade must run doctor self-check");
   assert(chainFinal.stdout.includes("status: passed"), "chain final self-check must pass (R-025 chain acceptance)");
   const chainFinalHandoff = read(path.join(chainRoot, "dev/SESSION_HANDOFF.md"));
   assert(chainFinalHandoff.includes("ack:field:lifecycle-conflicts-resolved"), "chain final SESSION_HANDOFF.md missing v0.3.6 lifecycle consistency field (handoff migration failed)");
@@ -363,7 +390,7 @@ function main() {
   assert(chainFinalOnboarding.includes("Scenario F. 審視已裝外部工具"), "chain final onboarding.md missing R-030 Scenario F (smart-merge did not trigger from v0.2.x state)");
 
   // R-030 v0.3.0+: P2 user-data-preservation regression test.
-  // Seeds a fresh root with a fully user-filled PROJECT_INDEX (Notion DB / Drive / Linear declared in
+  // Seeds a fresh root with a fully user-filled PROJECT_INDEX (Notion DB / Google Drive / Linear declared in
   // External Sources, custom Fact Base rows, project-specific QC commands), runs upgrade, then asserts
   // all user-filled rows preserved. Without this regression test, future migrations could silently
   // overwrite user data (the gap that v0.3.0 audit initially missed before manual catch).

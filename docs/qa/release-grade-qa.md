@@ -18,13 +18,13 @@
 | 任務入口事實驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `PROJECT_INDEX` 具備 Fact Base / External Sources / Local QC Commands，`SESSION_HANDOFF` 具備 Next Task Required Reading，並保留「可達不等於已讀入」口徑。 | 是 |
 | 交接狀態對賬驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `SESSION_HANDOFF` 分清 Durable Anchors 與 Closeout-Reconciled State，具備 Task Understanding Summary 與 State Reconciliation Check，並用負面測試確認 stale snapshot 不能當作已對賬；v0.3.6 起再加入交接生命週期一致性反例，確認已完成事項不能被下一輪當成未解待辦。 | 是 |
 | 交接語言本地化驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `SESSION_HANDOFF` 保留 `ack:section:*` 與 `ack:field:*` 語義標記時，標題與可見欄位名稱可翻成中文或其他語言。 | 是 |
-| 安裝後指示驗收 | 已併入 `npm run qa:prototype` 與 `npm run qa:release` | 檢查安裝成功後的 Terminal 輸出不會令用戶誤把提示文字當成命令，並確認 README 說明安裝後第一步；同時檢查 `npx` 取得 CLI 工具與項目內 Kit 文件安裝不可混淆。 | 是 |
+| 安裝後指示驗收 | 已併入 `npm run qa:prototype` 與 `npm run qa:release` | 檢查安裝成功後的終端機輸出不會令用戶誤把提示文字當成命令，並確認 README 說明安裝後第一步；同時檢查 `npx` 取得 CLI 工具與項目內 Kit 文件安裝不可混淆。 | 是 |
 | 技能／子代理流程仲裁驗收 | 已併入 `npm run qa:packs` 與 `npm run qa:release` | 檢查外部技能、子代理、demo workspace 或其他工具的 closeout 不可取代目前根目錄自己的 Agent Handoff Kit 持久化。 | 是 |
 | 舊核心升級結構驗收 | 已併入 `npm run qa:upgrade` 與 `npm run qa:release` | 檢查舊版未標記 `AGENTS.md` core 升級後不會留下雙核心、雙收尾合約或 stale 上半段，且保留 core 前後的使用者本地規則。 | 是 |
 | PROJECT_DECISIONS 結構驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `dev/PROJECT_DECISIONS.md` 含 4 個 H2 section heading（Evolution Timeline / Decisions Archive / Architecture Choices / Insights & Learnings）並保持順序；檔頭含 onboarding 句式（「warm 資料層」、「AI 開工不需要讀」、「AI 在收工時自動 update」）。 | 是 |
 | Release Artifact Vocabulary Sweep | 已併入 `npm run qa:release` | 對 `bin/agent-handoff-kit.mjs` + `README.md` + `agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html` 跑禁忌字眼 grep（「人話解讀」「人話補一句」「人話解釋」）；對 `CHANGELOG.md` 限 latest version section (anchor-bounded by `## v` heading) 跑相同 grep；命中數必為 0。 | 是 |
 | Onboarding HTML 書面語紀律 | 已併入 `npm run qa:release` | 對 `agent-handoff-kit-intro.html` 與 `agent-handoff-kit-guide.html` 跑廣東口語字符 grep（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）；命中數必為 0（onboarding HTML 必為繁體中文書面語）。 | 是 |
-| Onboarding Pack 結構驗收 (R-029) | 已併入 `doctor` 與 `npm run qa:release` 與 `npm run qa:packs` | 檢查 `dev/rules/onboarding.md` 含 H2 sections（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）並保持順序；含 5 個 Scenario H3 heading（A 寫 / 改代碼項目 / B 整理研究資料 / C 整理電腦檔案 / D 學寫代碼 / E 其他）；含 transient pack + 5-step walk-through pattern wording；含 Tone Discipline 5 條（書面語 / 講人話 / 敍事+解釋 / 不過度解釋 internals / 鼓勵性而非考試）。 | 是 |
+| Onboarding Pack 結構驗收 (R-029) | 已併入 `doctor` 與 `npm run qa:release` 與 `npm run qa:packs` | 檢查 `dev/rules/onboarding.md` 含 H2 sections（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）並保持順序；含 6 個 Scenario H3 heading（A 建構系統 / B 整理研究資料 / C 整理電腦檔案 / D 學寫代碼 / E 其他 / F 外部工具治理）；含 transient pack + 5-step walk-through pattern wording；含 Tone Discipline 5 條（書面語 / 講人話 / 敍事+解釋 / 不過度解釋 internals / 鼓勵性而非考試）。 | 是 |
 | Cross-surface wording consistency 驗收 (R-029.1, v0.2.1+) | 已併入 `npm run qa:release` 與 `npm run qa:prototype` 與 `npm run qa:upgrade` | 對 4 個 user-facing surface（`bin/agent-handoff-kit.mjs` printInstallNextSteps + `README.md` first-screen R-029 callout 同三步上手 step 2 + `agent-handoff-kit-intro.html` #howto Step 2 + #recap cell 1 + `agent-handoff-kit-guide.html` hero R-029 callout）grep canonical R-029 trigger phrase「I just installed agent-handoff-kit. Help me get started.」一致；每個 surface count ≥ 1；post-install CLI output 必含此 phrase；qa:upgrade chain test final hop 嘅 `dev/RULE_PACKS.md` 必含「First-time user signals」+「dev/rules/onboarding.md」routing row。 | 是 |
 
 ## QC 觸發分層
@@ -52,7 +52,7 @@
 
 | 場景 | 必驗問題 | 最低承接 | 未通過時 |
 |---|---|---|---|
-| Fresh install → init → first task | 新用戶安裝後是否知道下一步是在 AI 對話中開始，而不是把提示當 Terminal 指令。 | `qa:release` user-flow + R-029 wording sweep + 人工終讀 | 阻擋 publish，直到 CLI / README / onboarding wording 對齊 |
+| Fresh install → init → first task | 新用戶安裝後是否知道下一步是在 AI 對話中開始，而不是把提示當終端機指令。 | `qa:release` user-flow + R-029 wording sweep + 人工終讀 | 阻擋 publish，直到 CLI / README / onboarding wording 對齊 |
 | First task → closeout → next session handoff | 收工後下一個 AI 是否不需聊天記憶，也不會重開已完成調查。 | `doctor` handoff lifecycle check + negative fixture + opening-message read-through | 阻擋 publish，並補 lifecycle fixture 或 manual checklist |
 | Existing project upgrade → doctor → closeout | 舊用戶升級後是否不丟本地規則、不覆寫用戶內容、不出現「剛升完又叫再升」或「升級說可用、doctor 立刻失敗」矛盾。 | `qa:upgrade` chain + user-data fixture + CLI scenario branching sweep | 阻擋 publish，並補 prior-version fixture / scenario |
 | Existing Kit files → official npx doctor path | 舊項目已經有 Kit 文件時，用戶是否明白官方路徑是 `npx --yes @adamchanadam/agent-handoff-kit@latest doctor`；裸 `npx ... doctor` 只是 npm 通用執行方式，不作產品旅程。 | README / CLI help / intro / guide 冷啟動 `npx --yes` 指令 + `qa:release` npx UX guard + 人工終讀 | 阻擋 publish，直到 README、CLI help、doctor 下一步、intro、guide 與 QA guard 對齊 |
@@ -92,7 +92,7 @@
 | 重複 | 檢查同一口徑是否已有單一真源；避免 README、runtime、QA 文件各自變成權威。 |
 | 矛盾 | 用 `qa:release` 文件錨點與人工終讀確認 README、runtime、CHANGELOG、發佈級 QA 說法一致。 |
 | 膨脹與負載 | 確認 npm package 邊界不擴大，且新增 QA 文件不進使用者安裝 runtime。 |
-| 認知影響 | 檢查安裝後提示與 README 是否讓用戶分清 Terminal 檢查與 AI 對話下一步；舊項目跑 `npx ... doctor` 時，也要分清 npm 取得 CLI 工具與 `doctor` 檢查項目文件。 |
+| 認知影響 | 檢查安裝後提示與 README 是否讓用戶分清終端機檢查與 AI 對話下一步；舊項目跑 `npx ... doctor` 時，也要分清 npm 取得 CLI 工具與 `doctor` 檢查項目文件。 |
 | 事實漂移 | 用 handoff 對賬欄位、stale snapshot 負面測試與必讀來源欄位降低風險。 |
 | 交接生命週期一致性 | 用 `doctor` 與 `qa:release` 檢查 `Completed This Session` / `Validation / QC` / `Next Priorities` / `Risks / Blockers` / `Next Session Opening Message`。已完成或已驗證的事項，不得在同一 handoff 中又以未解調查、待辦或下一次開工指令延續；除非明確改成 monitor-only、follow-up scope、blocked 或 reopened。 |
 | 執行落差 | 檢查規則是否有 `doctor`、QA 腳本、負面測試或人工審閱承接；不得只增加提醒文字。 |
@@ -105,7 +105,7 @@
 | Plan scope coverage matrix | 每次 release 嘅 plan 必明文列出三層 artifact families 嘅對齊範圍：（a）**Content layer** — `README.md` 版本字串 + `已正式發佈` 句、`CHANGELOG.md` prepend 新版本段、`package.json` version bump、`docs/qa/release-grade-qa.md` prepend 新版本「發佈狀態」段、對外 onboarding HTML（intro / guide）版本字串 + 任何因 release notes 觸發嘅描述更新；（b）**Script layer** — `scripts/check-release-readiness.mjs` 嘅 release baseline assertion + tarball name + README/CHANGELOG/release-grade-qa.md required string、`scripts/check-public-prototype.mjs` 嘅 tarball name + update notice mock newer version；（c）**Source layer** — `runtime-core/*.md` 嘅模板更新、`bin/agent-handoff-kit.mjs` 嘅功能改動、`packs/*.md` 嘅工作模式紀律。Plan 漏列任何 family 即視為 plan design gap，需 root-fix 或補 plan amend 後再 release。本維度由 v0.1.8 R-005 治理健康檢查（維護者側紀錄，2026-05-22）落地：v0.1.7 → v0.1.8 plan 初版漏咗 script layer，qa:release fail 揭發後加 root-fix（dynamic baseline refactor），令 script layer 之後自動同 package.json 對齊；future release plan 仍必明文列三層 families 做覆蓋自驗。 |
 | Project Decisions discipline（R-028） | 每次 release 前須驗證：（a）`runtime-core/PROJECT_DECISIONS.md` template 含 4 個 H2 section heading 順序正確 + 檔頭 onboarding 句式；（b）`runtime-core/AGENTS.core.md` closeout step 12 wording 命中（含「Maintain `dev/PROJECT_DECISIONS.md`」、「R-028 project narrative discipline」、4 個 H2 section name）；（c）`bin/agent-handoff-kit.mjs` mappings 含 `runtime-core/PROJECT_DECISIONS.md` → `dev/PROJECT_DECISIONS.md`；（d）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 `dev/PROJECT_DECISIONS.md` rule + group；（e）Fresh install 後 `dev/PROJECT_DECISIONS.md` 存在且 doctor 「project decisions log structure」schema check pass；（f）Upgrade 既有專案後 `dev/PROJECT_DECISIONS.md` 自動建立（若不存在）或保留（若用戶已有 content）。`npm run qa:release` 自動驗 (a)-(e)；(f) 由 `npm run qa:upgrade` mergeRoot scenario 嘅 existsSync assertion 驗。 |
 | 書面語紀律（HTML 輸出） | 對外 onboarding HTML（`agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html`）必為繁體中文書面語，廣東口語字符（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）grep 命中數必為 0。Release 前 `npm run qa:release` 自動驗。違反即視為 release artifact 質量落差，需逐句修正後再 release。 |
-| Onboarding UX discipline（R-029） | 每次 release 前須驗證：（a）`packs/onboarding.md` template 含 7 個 H2 section（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）+ 5 個 Scenario H3 + Anti-pattern table；（b）`runtime-core/AGENTS.core.md` `## 1. Startup Reads` 含 first-time-user signal detection wording + onboarding pack proactive load 紀律；（c）`runtime-core/RULE_PACKS.md` 含 onboarding signal routing row；（d）`bin/agent-handoff-kit.mjs` mappings 含 `packs/onboarding.md` → `dev/rules/onboarding.md`；（e）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 onboarding pack rule + group；（f）Fresh install 後 `dev/rules/onboarding.md` 存在且 doctor schema check pass；（g）`npm run qa:packs` 嘅 onboarding routing scenario + first-time onboarding to first task mixed scenario 通過。`npm run qa:release` 自動驗 (a)-(f)；(g) 由 `qa:packs` 驗。 |
+| Onboarding UX discipline（R-029） | 每次 release 前須驗證：（a）`packs/onboarding.md` template 含 7 個 H2 section（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）+ 6 個 Scenario H3 + Anti-pattern table；（b）`runtime-core/AGENTS.core.md` `## 1. Startup Reads` 含 first-time-user signal detection wording + onboarding pack proactive load 紀律；（c）`runtime-core/RULE_PACKS.md` 含 onboarding signal routing row；（d）`bin/agent-handoff-kit.mjs` mappings 含 `packs/onboarding.md` → `dev/rules/onboarding.md`；（e）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 onboarding pack rule + group；（f）Fresh install 後 `dev/rules/onboarding.md` 存在且 doctor schema check pass；（g）`npm run qa:packs` 嘅 onboarding routing scenario + first-time onboarding to first task mixed scenario 通過。`npm run qa:release` 自動驗 (a)-(f)；(g) 由 `qa:packs` 驗。 |
 | Cross-surface wording alignment（R-029.1，v0.2.1 新加 dim） | v0.2.0 release ceremony 嘅 critical QC gap：plan scope coverage matrix 嘅三層（content / script / source）唔 cover cross-surface wording alignment。R-029 嘅 onboarding trigger phrase 跨 5 個 surface（CLI source + README + intro.html + guide.html + onboarding pack 自身），但 v0.2.0 release 時 CLI source 仍係 legacy wording 而其他 surface 已 update —— silent disconnect。v0.2.1 起加新 dim（第四 layer）：每次涉及 user-facing prompt / wording / canonical trigger phrase 嘅 release plan 必明文驗證跨 surface 一致。`scripts/check-release-readiness.mjs` 嘅 `checkCrossSurfaceWordingConsistency()` helper 自動 enforce canonical R-029 trigger phrase 喺 4 個 surface（bin + README + intro + guide）一致。違反即 throw error，release 阻擋。 |
 | Routing table propagation discipline（R-029.2，v0.2.1 新加 dim） | v0.2.0 既有 upgrade 紀律對 `dev/RULE_PACKS.md` 沿用 default `skip "preserve existing file"`，導致 v0.1.X 用戶 upgrade 後 routing table 仍係舊版（silent missing R-029 onboarding routing row）。Architectural reclassification：`dev/RULE_PACKS.md` 是 Kit 維護的 routing table，但升級仍須保留用戶自訂列。v0.2.1 起 `bin/agent-handoff-kit.mjs` `classifyExistingFile` 加 force-update merge logic；本修補起改為只補缺少的 Kit rows，不整份覆寫檔案。`scripts/check-upgrade-safety.mjs` chain test final hop 加 RULE_PACKS.md routing row 強制 assertion，並加 custom-row preservation regression。Doctor schema check 加 strict anchor enforce routing table 一致性。 |
 | Upgrade migration safety from prior minor versions（R-030，v0.3.0 新加 dim） | v0.3.0 audit 揭發 systemic QC gap：`scripts/check-upgrade-safety.mjs` chain test fixture 只 cover `v0.1.4 → v0.1.5 → v0.1.6 → v0.1.7 → v0.1.8`，**跳過 v0.2.0 / v0.2.1 / v0.2.2 / v0.2.3 整個 state**，所以 v0.2.x → v0.3.0 嘅 upgrade-time migration / requiredAnchors propagation / user-data preservation 完全冇 automated test。v0.3.0 release Phase 5.5 🔴 全面檢 初版 audit miss 咗 5 個 upgrade pitfalls（External Sources 用戶 rows overwrite / doctor schema 7-col mismatch / v0.2.x doctor without upgrade fail / onboarding.md upgrade 後 doctor anchor fail / AGENTS.md managed-core R-030 propagation skip），由 Adam catch 才補。同類 pattern 同 v0.2.1 RULE_PACKS.md propagation gap 一致：每次 release reactive 發現，QC framework 唔自我擴展。v0.3.0 起 5 支柱 sustainable mechanism 落地：(P1) chain test extension —— chainSteps append 全部已 release minor / patch versions（v0.2.0 / v0.2.1 / v0.2.2 / v0.2.3），future release 必同步 append 新 tag；(P2) user-data-preservation regression fixture（`test-fixtures/user-data/`）—— PROJECT_INDEX 含用戶填過 External Sources / Fact Base / Workspace Identity 完整 rows，upgrade 後 8+ assertion 驗證 rows 全部 preserved；(P3) prior-version requiredAnchors propagation test —— chain final 後 explicit assert AGENTS.md 含當前 major release 新 anchors（譬如 v0.3.0「startup availability probe」/「dev/rules/integrations.md」/「Credential separation」）+ onboarding.md 含 Scenario F；(P4) docs/qa/release-grade-qa.md 加本 dim + Upgrade Migration Safety Sweep section；(P5) WORK AGENTS.md `## QC Trigger Vocabulary` 🔴 全面檢 條目加新 mandatory item + 長期記憶 codify。Future major bump 必 cover 呢 5 支柱，違反即視為 audit-time blind spot。 |
@@ -137,14 +137,14 @@
 
 | # | 場景 | must-have（用戶必睇到） | must-NOT-have（避免事實錯誤） |
 |---|---|---|---|
-| 1 | install fresh（新目錄首次 init） | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（新手起步句）/「請注意：下面文字不是 Terminal 指令」 | 「升級完成」/「你已經是最新版本」 |
+| 1 | install fresh（新目錄首次 init） | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（新手起步句）/「下面這句不是終端機指令」 | 「升級完成」/「你已經是最新版本」 |
 | 2 | install with conflict | 「conflict」count > 0 / 「migration report」/「工具已停手，沒有覆寫」 | 「全部通過」 |
 | 3a | upgrade metadata-only stale（結構已最新，只有 template version metadata 過期） | 「升級完成」/ metadata 更新紀錄 / template version metadata 更新為當前版本 / doctor self-check 不再提示項目版本未對齊 | 「你已經是最新版本，沒有檔案需要建立或合併」/「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（避免重做 onboarding 誤導） |
 | 3b | upgrade structurally stale（真實舊版 fixture → 當前，含 create + merge） | 「升級完成」/「進行中的工作對話已熟悉 Agent Handoff Kit 可繼續使用原本開工方式」/「I just upgraded agent-handoff-kit」（可選 review 起步句）/ template version metadata 更新為當前版本 | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（避免重做 onboarding 誤導） |
-| 4 | upgrade no-op（已 latest 零改動，交接健康） | 「你已經是最新版本，沒有檔案需要建立或合併」/ output 行數 ≤ 20 行 | 「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/「migration report」/「upgrade self-check」 |
+| 4 | upgrade no-op（已 latest 零改動，交接健康） | 「你已經是最新版本，沒有檔案需要建立或合併」/ output 行數 ≤ 20 行 | 「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/「migration report」/「升級後自動檢查」 |
 | 4b | upgrade no-op（已 latest 零改動，但 handoff 欄位仍需 closeout 核對） | 「Kit 檔案已是最新版本，沒有檔案需要建立或合併」/「交接狀態仍需 AI closeout 核對」/「不要重裝或覆寫用戶內容」 | 「繼續日常使用即可」/「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」 |
 | 5 | upgrade with conflict | 「conflict」count > 0 / 「migration report」/「工具已停手，沒有覆寫」 | 「升級完成」 |
-| 6 | doctor healthy & latest（已係最新版） | 「status: passed」/「繼續日常使用即可」 | 「如要升級到較新版」（避免叫剛升完嘅用戶再升） |
+| 6 | doctor healthy & latest（已係最新版） | 「status: passed」/「檢查已通過」/首次使用時提示開啟 AI 工具並貼上起步句 | 「如要升級到較新版」/「繼續日常使用即可」（避免叫剛升完嘅用戶再升，亦避免第一次安裝後未開 AI 對話就誤判為完成） |
 | 7 | doctor healthy with newer available | startup `maybePrintUpdateNotice` 嘅升級通知 / 「status: passed」 | doctor 結尾再講一次升級指令（避免 redundant） |
 
 **Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3；v0.3.8 add handoff-needs-closeout no-op；v0.3.9 add affirmative lifecycle wording regression）**：場景 1 / 3a / 3b / 4 / 4b / 6 為 automated。場景 2 / 5 / 7 屬 conditional state，留下次 minor follow-up 補 automated（fixture 構造較複雜，目前由人工驗收清單覆蓋）。
@@ -193,8 +193,8 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已檢查 handoff 對賬欄位：Durable Anchors、Closeout-Reconciled State、Task Understanding Summary 與 State Reconciliation Check。
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 已檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致。
-- 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在 Terminal 繼續輸入。
-- 套件預演目前維持 33 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.9.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在終端機繼續輸入。
+- 套件預演目前維持 34 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.10.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -203,20 +203,43 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已批准本輪發佈前全面檢與 publish；若全面檢出現 blocker，必須先停下修正 |
-| 版本口徑 | `package.json` 目前為 `0.3.9`；v0.3.9 是 lifecycle 欄位確認句誤判 root-fix。 | 通過；publish 前須重跑發佈前檢查 |
+| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已批准本輪候選準備與 QC 推進；tag、GitHub Release、npm publish 仍須另行明確批准 |
+| 版本口徑 | `package.json` 目前為 `0.3.10`；v0.3.10 是首次安裝後 AI 對話旅程與橋接檔 root-fix。 | 通過；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 33 files。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 34 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.9.md` 已轉入 v0.3.9 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
+| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.10.md` 已轉入 v0.3.10 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
-| 安裝後可理解性 | R-013 已修補 Terminal 成功提示與 README，用戶可分清 Terminal 檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
+| 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.9` 候選段，`docs/whatsnew/v0.3.9.md` 已補本版用戶說明。 | 通過；publish 後須核對 GitHub Release 與 npm metadata |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.9`。 | 通過；publish 後須驗證 npm latest 為 `0.3.9` |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.10` 候選段，`docs/whatsnew/v0.3.10.md` 已補本版用戶說明。 | 通過；publish 後須核對 GitHub Release 與 npm metadata |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.10`。 | 通過；publish 後須驗證 npm latest 為 `0.3.10` |
+
+## v0.3.10 發佈狀態
+
+- 發佈版本：`0.3.10`。
+- release notes：`CHANGELOG.md` 的 `v0.3.10` 段落 + `docs/whatsnew/v0.3.10.md`。
+- 發佈內容：首次安裝後真實 AI 對話旅程修補；精簡終端機下一步、修復 Claude Code 橋接檔被擴寫問題、補明 Antigravity CLI / Gemini CLI 遷移期入口關係，並改善新手情境文字。
+- 發佈前驗收重點：首次安裝 → AI 對話 → 情境選擇、污染後橋接檔升級修復、v0.3.9 → v0.3.10 升級鏈與 34 個入包檔案均須通過。
+- npm 狀態：尚未 npm publish；publish 後須驗證 npm latest 為 `0.3.10`；package fileCount 預期 34（從 33 增加 1，加 `docs/whatsnew/v0.3.10.md`）。
+- 🟡 發佈檢：尚未執行；須待 GitHub Release 與 npm publish 完成後才可跑。
+
+### Cross-mind evidence 9-trigger table（v0.3.10）
+
+| Trigger condition | Required (yes/no) | Result (passed / iterated / blocked) | Follow-up (assertion ID / checklist item / accepted risk reason) |
+|---|---|---|---|
+| 1. 發佈說明使用「已驗證／已修復／可持續／sustainable」等強聲明 | yes | iterated | 候選段只聲明本地候選修補；正式發佈與發佈後驗證未完成前，不宣稱已公開驗證。 |
+| 2. 同類 bug 連續兩版出現 | yes | iterated | v0.3.7 至 v0.3.9 已連續修補 CLI / doctor / upgrade 旅程邊界；本版把首次 AI 對話與橋接檔污染納入同一用戶旅程層。 |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | iterated | 功能層：CLI、bridge、onboarding；測試層：scenario、pack、upgrade chain；敘事層：README、HTML、CHANGELOG、whatsnew、本段。 |
+| 4. 三個以上治理檔同步改動 | yes | passed | runtime-core、pack、CLI、public docs、QA scripts 同步更新；WORK session state 仍留在 WORK，不輸出到 npm package。 |
+| 5. 公開可見發佈儀式 | yes | blocked | publish 尚未批准；tag、GitHub Release、npm publish 須另行明確確認。 |
+| 6. 存在人工語意判斷而無機器斷言 | yes | iterated | 新手文字與 AI 對話重複輸出屬語意 UX；已轉入 pack scenario、release scenario 與 manual journey checklist。 |
+| 7. 發佈後上一版由真實用戶抓 bug | yes | iterated | 本版由 Adam 真實首次安裝與 Claude Code 對話 log 觸發；產品規則不硬寫單一目錄，只抽象成橋接檔與 onboarding 旅程。 |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | 自動測試使用可重建 fixture；真實 `ahk_first_ai_test_*` 只作發現問題證據。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | iterated | 主要聲明對應：首次安裝輸出、bridge restore、Antigravity/Gemini bridge、onboarding Scenario A 與 Google Drive wording。 |
 
 ## v0.3.9 發佈狀態
 
@@ -703,13 +726,13 @@ Fresh install 嘅 runtime behavior 驗證：
 
 Pack scenario routing 驗證（由 `npm run qa:packs` mergeRoot scenario 自動驗）：
 
-- `onboarding` routing scenario：router 含「First-time user signals」+ pack 含 5 個 Scenario + transient pack wording。
+- `onboarding` routing scenario：router 含「First-time user signals」+ pack 含 6 個 Scenario + transient pack wording。
 - `first-time onboarding to first task` mixed scenario：phases `[onboarding] → [onboarding, coding] → [coding]` 順序合法 (轉折 onboarding → coding 並 unload onboarding)。
 
 人工驗證（語意審閱必填項）：
 
-- Onboarding pack 嘅 5 個 Scenario walk-through 每 step 含 AI sample wording，書面語紀律 enforce（紀律目標：用戶讀 AI sample 即明白意義，無需先讀任何文檔）。
-- 5 個 Scenario 嘅 step 5 「ask user about confirm + 進入 work loop」明文 transition 至對應 regular pack（A → coding+writing；B → research+writing+knowledge；C → knowledge+safety；D → coding+safety；E → custom）。
+- Onboarding pack 嘅 6 個 Scenario walk-through 每 step 含 AI sample wording，書面語紀律 enforce（紀律目標：用戶讀 AI sample 即明白意義，無需先讀任何文檔）。
+- 6 個 Scenario 嘅 step 5 「ask user about confirm + 進入 work loop」明文 transition 至對應 regular pack（A → coding+writing；B → research+writing+knowledge；C → knowledge+safety；D → coding+safety；E → custom；F → integrations+knowledge+safety）。
 - Cross-reference to guide.html 嘅 wording 明確「不需要先讀本指南」，避免用戶誤以為要 mandatory reading。
 - Anti-pattern table 列 6 個明確 anti-pattern，每個含 「點解唔做」+「正確做法」對照。
 

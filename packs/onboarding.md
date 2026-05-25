@@ -16,7 +16,7 @@
 - 「教我用」/「teach me」/「教我點用」
 - 「help me start」/「help me get started」
 - 「first time」/「first-time」
-- 「我啱啱安裝」/「I just installed」
+- 「我剛安裝」/「I just installed」
 - 「點開始」/「how do I start」
 - 「show me how」
 - 「getting started」
@@ -35,164 +35,168 @@
 
 ### 1. 不假設用戶已讀任何文檔
 
-用戶可能直接從 AI 對話開始，沒讀過 README、`agent-handoff-kit-intro.html`、`agent-handoff-kit-guide.html` 或 `AGENTS.md`。AI 主動解釋必要 concept，但只解釋當前 walk-through 需要的最小範圍，不灌輸全部 v2 governance。
+用戶可能直接從 AI 對話開始，沒讀過 README、`agent-handoff-kit-intro.html`、`agent-handoff-kit-guide.html` 或 `AGENTS.md`。AI 只解釋當前引導需要的最小範圍，不灌輸內部規則。
 
 ### 2. 主動 offer 而非被動 wait
 
 用戶首段 message vague 或含 onboarding signal 時，AI 不立即 dive into task，而要主動 ask user about scenario。Sample opening wording：
 
-> 「我看到你是第一次使用 Agent Handoff Kit（或者想了解它如何幫你）。為了帶你最快上手，可以選擇以下其中一個情景，告訴我你最近想做的事：
+Onboarding 第一個可見回覆只能有一張完整啟動卡，然後直接接 A-F 情境選擇。不可先輸出半張卡、再輸出第二張完整卡；不可重複貓圖、交接狀態、目前目標、注意事項或下一步。
+
+> 「我看到你是第一次使用 Agent Handoff Kit。它的作用很簡單：幫 AI 在不同對話之間記住項目進度、下一步與安全界線。
 >
-> **A. 寫 / 改代碼項目** —— 你有一個 project 的 codebase 想長期維護
-> **B. 整理研究資料 / 寫報告** —— 你想做市場調查、寫 thesis、寫 newsletter
-> **C. 整理電腦檔案 / Notion / Drive 知識庫** —— 你想 organize 多個來源的資料
+> 為了最快上手，請選一個最接近你現在想做的情境：
+>
+> **A. 建構系統 / 工具 / 平台 / 網站或應用** —— 你想由 AI 協助建立或長期維護一個可運作的項目
+> **B. 整理研究資料 / 寫報告** —— 市場調查、論文、文章、簡報都可以
+> **C. 整理電腦檔案 / Notion / Google Drive 知識庫** —— 把多個來源的資料整理清楚
 > **D. 學寫代碼（我是技術新手）** —— 你想由零開始學寫小工具
-> **E. 其他** —— 描述你的情景，我會 customize 引導
-> **F. 我已裝咗一堆外部工具（Notion / Drive / Slack 等 Connector / MCP / Plugin），想 plan 點 systematically 用** —— 我帶你 declare + 設計治理
+> **E. 其他** —— 描述你的情境，我會按你的目標引導
+> **F. 我已連接外部工具（例如 Notion / Google Drive / Slack），想規劃如何有系統地使用** —— 我會帶你登記用途、界線與安全注意事項
 >
-> 選擇其中一個（A/B/C/D/E/F），我會引導你做第一個任務。如果你想看完整 narrative example，可以開新 tab 看 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html 的 Case A/B/C。本指南是參考對照，不需要先讀。」
+> 選擇其中一個（A/B/C/D/E/F），我會一步一步帶你做第一個任務。」
 
 ### 3. 5-step walk-through pattern
 
-用戶選定 scenario 後，AI 跑 5 step walk-through（全部 scenario 共用同一 pattern，內容 customize per scenario）：
+用戶選定情境後，AI 用 5 步引導完成第一個小任務（全部情境共用同一節奏，內容按情境調整）：
 
-1. **AI 確認 project context**（root / 已有資料 / git status / 工具 stack）
-2. **AI 解釋 v2 如何 fit 這個 scenario**（高層 value statement，3 點 max）
-3. **AI ask user about 第一個 concrete task scope**（提供 4-6 個 option）
-4. **AI suggest minimum viable first task**（dry-run / minimal output，10-15 分鐘可完成）
-5. **AI ask user about confirm + 進入 actual work loop**（載入對應 regular scenario pack）
+1. **確認項目背景**（資料夾 / 已有資料 / 是否已有版本紀錄 / 使用工具）
+2. **用三點解釋這套工具如何幫到當前情境**
+3. **詢問第一個具體任務範圍**（提供 4-6 個選項）
+4. **建議一個 10-15 分鐘可完成的小任務**（先預演或先產出短內容）
+5. **等用戶確認，再進入正式工作**
 
 ### 4. 每 step 解釋 + 等用戶 confirm
 
-不可以一次過跑全部 5 step。每 step：
+不可以一次過跑完全部 5 步。每一步：
 - 解釋緊做甚麼
 - 等用戶「OK，下一步」/「我有問題」/「我想 skip 這 step」
 - 若用戶有問題，先解答再繼續
 
 ### 5. 進入 actual task 前先 verify minimum context
 
-用戶第一個任務應該 minimal scope（dry-run / 短輸出 / 10-15 分鐘可完成），讓用戶感覺到 v2 的 rhythm 才擴大 scope。**不要**第一個 task 就 commit 大改動。
+用戶第一個任務應該很小：先預演、先產出短內容，或先做 10-15 分鐘可完成的範圍。先讓用戶感覺到節奏，再擴大。**不要**第一個任務就做大範圍改動或提交。
 
 ### 6. 完成 onboarding 後 transition
 
 5-step walk-through 完成後：
-- 載入用戶 scenario 對應的 regular pack（coding / research / writing / knowledge / ...）
+- 載入用戶情境對應的日常工作規則（coding / research / writing / knowledge / ...）
 - Unload onboarding pack（transient pack，不長期駐留）
-- 進入 PLAN → READ → CHANGE → QC → PERSIST 嘅 regular work loop
+- 進入 PLAN → READ → CHANGE → QC → PERSIST 的 regular work loop
 - SESSION_HANDOFF Active Objective 記錄 first-task scope
 
 ## Application Scenario Library
 
-每個 scenario 提供 5 step walk-through 嘅紀律 wording 加 1 句 AI sample wording 作為 anchor。AI 模型可 adapt 具體 wording 但保留 intent 與 tone。
+每個 scenario 提供 5 step walk-through 的紀律 wording 加 1 句 AI sample wording 作為 anchor。AI 模型可 adapt 具體 wording，但必須保留 intent 與 tone。
 
-### Scenario A. 寫 / 改代碼項目
+### Scenario A. 建構系統 / 工具 / 平台 / 網站或應用
 
 **對應 guide.html Case A**（整理電腦下載目錄 + 公開發佈為 Git project）
 
-#### Step A.1 — 確認 project context
+#### Step A.1 — 確認項目背景
 
-- 任務：AI 確認 project root 存在 + 識別 stack + 檢查 git status
+- 任務：AI 確認項目資料夾存在 + 識別使用語言 / 框架 + 檢查是否已有 Git 紀錄
 - AI sample wording：
-  > 「請告訴我你的 project 在哪個目錄？如果還未建立，可以在電腦開新 folder 然後告訴我路徑。我會檢查 git status、讀 README / package.json 識別你的 stack（譬如 Python / Node.js / Rust 等），再為下一步建議方向。
+  > 「請告訴我你的項目在哪個資料夾？如果還未建立，可以先在電腦開一個新資料夾，然後告訴我路徑。我會確認資料夾、檢查是否已有 Git 紀錄，並查看 README / package.json 等常見檔案，判斷下一步應怎樣開始。
   >
-  > 順便：你 Claude Code / Claude Cowork 已裝邊啲 Connector / MCP / Plugin / Skill 我可以用？譬如 GitHub / Linear / Slack / Notion 之類嘅整合（適用於代碼項目嘅 issue tracking / collaboration）。如果未裝 / 唔確定，講「冇」/「未確認」即可，我會留位之後再加。」
+  > 順便問一句：你現在使用的 AI 工具是否已連接 GitHub、Linear、Slack、Notion、Google Drive 或其他外部工具？如果已連接，我可以把用途記入項目索引；如果未連接或不確定，直接說「未確認」即可，之後仍可補上。」
 
-#### Step A.2 — 解釋 v2 如何 fit
+#### Step A.2 — 解釋這套工具如何配合
 
-- 任務：AI 用 3 點解釋 v2 對 coding 項目的核心 value
+- 任務：AI 用 3 點解釋 Agent Handoff Kit 對建構系統 / 工具 / 平台 / 網站或應用的核心價值
 - AI sample wording：
-  > 「v2 對 coding 項目的核心 value 有三點：(1) AI 跨對話記得你 project 的 stack、規則、進度，下次任何 AI 工具開新對話都接得返；(2) 危險指令（rm -rf、git reset --hard、強制推送）必須先講計劃，不會 silent 執行；(3) 收工時自動寫低你做過甚麼，連 commit hash 都記錄，方便日後追溯。」
+  > 「Agent Handoff Kit 對建構系統、工具、平台、網站或應用有三個用處：(1) AI 跨對話記得項目的語言、規則、進度，下次開新對話仍接得回；(2) 危險指令（例如刪檔、重設 Git、強制推送）必須先講計劃，不會靜默執行；(3) 收工時自動寫下做過甚麼，方便日後追溯。」
 
-#### Step A.3 — Ask user about 第一個 task scope
+#### Step A.3 — 詢問第一個任務範圍
 
-- 任務：AI 提供 4-6 個 concrete task option 讓用戶選
+- 任務：AI 提供 4-6 個具體任務選項讓用戶選
 - AI sample wording：
-  > 「你的 project 現在最想處理的是：(a) bug fix / (b) 新功能 / (c) 重構既有代碼 / (d) 加測試 / (e) 寫 README / (f) Git initial commit？如果你想做的不在這幾項，告訴我即可，我會 customize。」
+  > 「你的項目現在最想處理的是哪一類？(a) 修錯誤 / (b) 加新功能 / (c) 整理既有代碼 / (d) 加測試 / (e) 寫 README / (f) 做第一個 Git 提交？如果你想做的不在這幾項，直接告訴我即可。」
 
-#### Step A.4 — Suggest minimum viable first task
+#### Step A.4 — 建議第一個小任務
 
-- 任務：AI 將用戶選擇 narrow scope 至 10-15 分鐘可完成的 minimum viable task
+- 任務：AI 將用戶選擇收窄至 10-15 分鐘可完成的小任務
 - AI sample wording：
-  > 「你選『寫 README』。我建議第一個任務最 minimal scope：寫一個約 100 字的 README.md，含一句項目簡介加三點功能。寫好後你 review、加自己的修改，最後 git commit。整個過程約 10 分鐘。可以嗎？」
+  > 「你選『寫 README』。我建議第一個任務先做小：寫一個約 100 字的 README.md，包含一句項目簡介加三點功能。寫好後你核對、補自己的修改，最後再決定是否做 Git 提交。整個過程約 10 分鐘。可以嗎？」
 
-#### Step A.5 — Ask user about confirm + 進入 work loop
+#### Step A.5 — 等用戶確認，再進入正式工作
 
-- 任務：AI 確認用戶同意 + 載入對應 regular pack + 開始 work loop
+- 任務：AI 確認用戶同意 + 載入對應日常工作規則 + 開始正式工作
 - AI sample wording：
-  > 「Confirm 之後，我會載入 coding 模式 + writing 模式（README 屬 writing），開始 PLAN → READ → CHANGE → QC → PERSIST 五階段。準備好嗎？」
+  > 「你確認後，我會使用寫代碼與寫作兩套工作規則，先列計劃，再讀相關檔案，然後才改動。準備好嗎？」
 
 ### Scenario B. 整理研究資料 / 寫報告
 
 **對應 guide.html Case B**（開咖啡店市場調查 + 寫完成報告）
 
-#### Step B.1 — 確認 project context
+#### Step B.1 — 確認項目背景
 
 - AI sample wording：
   > 「請告訴我三點：(1) 你的報告主題；(2) 已有資料在哪裡（Notion / Google Drive / 本地檔案）；(3) 報告的讀者是誰（自己 / 客戶 / 合作伙伴 / 公開）。我會根據這三點建議分工。
   >
-  > 順便：你已裝 Notion Connector / Drive Connector 嗎？如果有，我可以直接讀寫對應 DB / folder（譬如 Notion DB Index 記每份 reference 嘅 path + 摘要、Drive folder 儲持久化參考檔）；未裝就 fallback 列 paste packet 由你親手做。如果未裝 / 唔確定，講「冇」/「未確認」即可。」
+  > 順便：你是否已連接 Notion 或 Google Drive？如果有，我可以直接讀寫對應資料庫或資料夾；如果未連接，我會改為列出需要你手動同步的內容。如果不確定，說「未確認」即可。」
 
 #### Step B.2 — 解釋 v2 如何 fit
 
 - AI sample wording：
-  > 「v2 對研究類項目的核心 value 有三點：(1) 真源紀律 —— 每條 claim 必須引用，事實與推論分開寫，AI 不會憑印象寫；(2) 外部來源治理 —— 如果你已裝 Notion / Drive Connector（或者其他 MCP server），AI 直接讀寫對應 DB / folder；未裝就 fallback 列 paste packet 由你親手做，兩條路都受跨 session 紀律保護；(3) 跨 session 接力 —— 你寫到 50% 收工，下次接得返，包括引用紀律加項目登記表記低嘅 Integration 紀錄。」
+  > 「Agent Handoff Kit 對研究類項目的核心價值有三點：(1) 真源紀律 —— 每條主張必須引用，事實與推論分開寫，AI 不會憑印象寫；(2) 外部來源治理 —— 如果你已連接 Notion / Google Drive 或其他外部工具，AI 可直接讀寫對應資料；未連接時，AI 會列出需要你手動同步的內容；(3) 跨對話接力 —— 你寫到一半收工，下次仍能接得上，包括引用紀律和項目登記表中的外部工具紀錄。」
 
 #### Step B.3 — Ask user about 第一個 task scope
 
 - AI sample wording：
   > 「你想 first session 處理：(a) 列章節結構 / (b) 整理已有 reference 入 PROJECT_INDEX / (c) 寫摘要段 / (d) 寫第一個 sub-section / (e) 整體 review 已有 draft？」
 
-#### Step B.4 — Suggest minimum viable first task
+#### Step B.4 — 建議第一個小任務
 
 - AI sample wording：
-  > 「你選『列章節結構』。我建議第一個任務 minimal scope：列 5-7 個 H2 chapter heading 加每章一句目標。寫好後你 review、調整。約 15 分鐘可以完成。可以嗎？」
+  > 「你選『列章節結構』。我建議第一個任務先做小：列 5-7 個章節標題，並為每章寫一句目標。寫好後你核對、調整。約 15 分鐘可以完成。可以嗎？」
 
 #### Step B.5 — Ask user about confirm + 進入 work loop
 
 - AI sample wording：
-  > 「Confirm 之後，我會載入 research 模式 + writing 模式 + knowledge 模式（涉外部來源時 trigger）。開始五階段 work loop。」
+  > 「你確認後，我會使用研究、寫作與知識整理規則。先列計劃，再讀資料，然後才寫內容。」
 
-### Scenario C. 整理電腦檔案 / Notion / Drive 知識庫
+### Scenario C. 整理電腦檔案 / Notion / Google Drive 知識庫
 
 **對應 guide.html Case A 的檔案整理部分 + Case B 的 Notion reference 部分**
 
-#### Step C.1 — 確認 project context
+#### Step C.1 — 確認項目背景
 
 - AI sample wording：
-  > 「請告訴我你想整理的是：(a) 電腦目錄（哪個 folder）/ (b) Notion DB（請描述 schema）/ (c) Google Drive（哪個 folder）/ (d) 多個來源混合（請描述）。
+  > 「請告訴我你想整理的是：(a) 電腦資料夾（哪個位置）/ (b) Notion 資料庫（大概有哪些欄位）/ (c) Google Drive（哪個資料夾）/ (d) 多個來源混合（請描述）。
   >
-  > 順便：如果涉及 Notion / Drive / Dropbox 等外部來源，你已裝對應 Connector / MCP 嗎？如果有，我直接讀寫；未裝就 fallback paste packet。如果未裝 / 唔確定，講「冇」/「未確認」即可。」
+  > 順便：如果涉及 Notion、Google Drive、Dropbox 等外部來源，你是否已連接對應外部工具？如果有，我可以直接讀寫；如果沒有，我會列出手動同步步驟。如果不確定，說「未確認」即可。」
 
 #### Step C.2 — 解釋 v2 如何 fit
 
 - AI sample wording：
-  > 「v2 對知識庫整理的核心 value 有三點：(1) 識別真源 vs reference vs draft —— PROJECT_INDEX 登記每份檔案的角色，避免 AI 將參考檔當真源；(2) Integration-aware 治理 —— 如果你已裝 Notion / Drive Connector，AI 直接讀寫對應 surface；未裝就 fallback 列 paste packet 步驟由你親手做；(3) 危險動作（大量檔案移動 / 重命名 / 刪除）必須 dry-run 列清單，等你 confirm 才實際執行。」
+  > 「Agent Handoff Kit 對知識庫整理有三個用處：(1) 分清正式來源、參考資料與草稿，避免 AI 把參考檔當成真源；(2) 如果你已連接 Notion / Google Drive 等外部工具，AI 可直接讀寫對應資料；未連接時，AI 會列出需要你手動同步的步驟；(3) 涉及大量檔案移動、重命名或刪除時，必須先列預演清單，等你確認才實際執行。」
 
 #### Step C.3 — Ask user about 第一個 task scope
 
 - AI sample wording：
   > 「你想 first session 處理：(a) 掃描 + 分類已有檔案 / (b) 建立 Notion DB schema / (c) 設計 folder 結構 / (d) 寫整理 script + dry-run / (e) 對齊 Notion 與本地 reference？」
 
-#### Step C.4 — Suggest minimum viable first task
+#### Step C.4 — 建議第一個小任務
 
 - AI sample wording：
-  > 「你選『掃描 + 分類已有檔案』。Minimal scope：先 dry-run 100 個檔案，列分類建議由你 confirm，先不做實際移動。約 15 分鐘可完成。可以嗎？」
+  > 「你選『掃描 + 分類已有檔案』。我建議第一步先預演 100 個檔案，只列分類建議，由你確認，暫時不做實際移動。約 15 分鐘可完成。可以嗎？」
 
 #### Step C.5 — Ask user about confirm + 進入 work loop
 
 - AI sample wording：
-  > 「Confirm 之後，我會載入 knowledge 模式 + safety 模式（涉檔案移動）。」
+  > 「你確認後，我會使用知識整理與安全規則；凡涉及移動或重命名檔案，都先預演、再等你確認。」
 
 ### Scenario D. 學寫代碼（技術新手）
 
 **不對應 specific guide case，屬 onboarding-only scenario**
 
-#### Step D.1 — 確認 project context
+#### Step D.1 — 確認學習背景
 
 - AI sample wording：
-  > 「你想學寫的是：(a) 簡單 script（譬如自動 organize 檔案）/ (b) 一個 web page（HTML/CSS/JS）/ (c) 一個 Python 小工具 / (d) 學 git/GitHub 基本概念？告訴我你的興趣方向，我會 customize 第一個練習。
+  > 「你想先學哪一類？(a) 簡單自動化小工具（例如整理檔案）/ (b) 一個網頁（HTML/CSS/JS）/ (c) 一個 Python 小工具 / (d) Git / GitHub 基本概念？告訴我你的興趣方向，我會安排第一個練習。
   >
-  > 順便：你 Claude Code 已裝邊啲 Plugin / Skill 我可以用？（初學階段唔需要太多，但有 GitHub Connector 之類會方便 git 操作。）未裝就講「冇」即可。」
+  > 順便：你使用的 AI 工具是否已安裝任何 Plugin 或 Skill？初學階段不需要太多，但有 GitHub Connector 會方便日後操作。未安裝或不確定時，說「未確認」即可。」
 
 #### Step D.2 — 解釋 v2 如何 fit
 
@@ -204,108 +208,108 @@
 - AI sample wording：
   > 「你選『簡單 script』？我建議第一個 script：『重命名 Downloads 目錄裡面所有 screenshot 加日期』—— 涉及 file system basics 加 Python basic syntax。你想試嗎？或者選其他方向。」
 
-#### Step D.4 — Suggest minimum viable first task
+#### Step D.4 — 建議第一個小練習
 
 - AI sample wording：
-  > 「First minimal scope：我寫一個 5 行 Python script，先做 dry-run（只 print 想做的 rename），你 review 後再做 actual rename。整個過程我會逐句解釋每一行做甚麼。約 15 分鐘。可以嗎？」
+  > 「第一個練習先做很小：寫一個約 5 行的 Python 小工具，先只顯示它準備怎樣重新命名檔案，不做實際改動。你核對後，才決定是否真的改名。整個過程我會逐句解釋每一行做甚麼。約 15 分鐘。可以嗎？」
 
 #### Step D.5 — Ask user about confirm + 進入 work loop
 
 - AI sample wording：
-  > 「Confirm 之後，我會載入 coding 模式 + safety 模式。我會用最簡單的 wording 解釋每個概念，不假設你知道任何 jargon。」
+  > 「你確認後，我會使用寫代碼與安全規則。我會用最簡單的說法解釋每個概念，不假設你已懂技術詞。」
 
 ### Scenario E. 其他 / 用戶自定義情景
 
-如果用戶的 use case 不屬 A-D，AI ask user about 更多細節後 customize 5-step walk-through。
+如果用戶的情境不屬 A-D，AI 先詢問更多細節，再安排 5 步引導。
 
-#### Step E.1 — 確認 project context（custom intake）
+#### Step E.1 — 確認自訂情境
 
 - AI sample wording：
-  > 「請告訴我四點：(1) 你想完成的目標（一句講完）；(2) 已有資料 / 工具 / 限制；(3) 你的技術水平（零基礎 / 略有經驗 / 熟練）；(4) 想 first session 達成的 minimal output。我會根據這四點 customize 一個 5-step walk-through，對應 v2 適合你的工作模式。
+  > 「請告訴我四點：(1) 你想完成的目標（一句講完）；(2) 已有資料 / 工具 / 限制；(3) 你的技術水平（零基礎 / 略有經驗 / 熟練）；(4) 第一輪對話想完成甚麼小成果。我會根據這四點安排第一個可落地的小任務。
   >
-  > 順便：你 Claude Code / Claude Cowork 已裝邊啲 Connector / MCP / Plugin / Skill 我可以用？任何已裝整合都可以講；未裝 / 唔確定就講「冇」/「未確認」。」
+  > 順便：你使用的 AI 工具是否已連接任何 Connector、MCP、Plugin 或 Skill？任何已連接的工具都可以說；未連接或不確定時，說「未確認」即可。」
 
 #### Step E.2 — 解釋 v2 如何 fit（custom）
 
-- AI 根據用戶 intake 嘅四點，customize 解釋 v2 嘅 value statement（保留「跨對話接力 + 安全護欄 + 自動 maintain」三項 universal value）
+- AI 根據用戶提供的四點，解釋 Agent Handoff Kit 如何幫到這個情境（保留「跨對話接力 + 安全護欄 + 自動維護」三項核心價值）
 
 #### Step E.3 — Ask user about 第一個 task scope（custom）
 
-- AI 提供 customized options 對應用戶嘅 use case
+- AI 提供對應用戶情境的選項
 
-#### Step E.4 — Suggest minimum viable first task（custom）
+#### Step E.4 — 建議第一個小任務
 
-- AI narrow scope 至 10-15 分鐘可完成 minimum viable task
+- AI 將範圍收窄至 10-15 分鐘可完成的小任務
 
 #### Step E.5 — Ask user about confirm + 進入 work loop（custom）
 
-- AI 載入適合 user use case 嘅 regular pack（可能組合多個 pack）
+- AI 載入適合該情境的日常工作規則（可能組合多個規則）
 
 ### Scenario F. 審視已裝外部工具 + 設計治理
 
-**對應 v0.3.0 引入嘅 Integration governance 紀律**（不教 install，只教 declare + plan governance）
+**對應 v0.3.0 引入的 Integration governance 紀律**（不教 install，只教 declare + plan governance）
 
-#### Step F.1 — Intake：列你已裝嘅外部工具
+#### Step F.1 — Intake：列你已安裝的外部工具
 
-- 任務：AI 收集用戶已裝嘅 Connector / MCP / Plugin / Skill，按四類分類
+- 任務：AI 收集用戶已安裝的 Connector / MCP / Plugin / Skill，按四類分類
 - AI sample wording：
-  > 「請告訴我你已裝嘅外部工具，盡量分四類列：
+  > 「請告訴我你已安裝的外部工具，盡量分四類列：
   >
-  > **(a) Anthropic 官方 Connector**（經 Claude Desktop Settings → Extensions 一鍵安裝）—— 譬如 Notion / Drive / Slack / Linear / Atlassian / HubSpot 等
-  > **(b) Community / Custom MCP server**（用戶自建或第三方提供）—— 譬如 GitHub repo install 嘅 server
+  > **(a) Anthropic 官方 Connector**（經 Claude Desktop Settings → Extensions 一鍵安裝）—— 譬如 Notion / Google Drive / Slack / Linear / Atlassian / HubSpot 等
+  > **(b) Community / Custom MCP server**（用戶自建或第三方提供）—— 譬如從 GitHub repo 安裝的 server
   > **(c) Claude Code Plugin**（經 `/plugin` command 安裝）—— 譬如 Anthropic-managed marketplace bundle
   > **(d) Skill**（SKILL.md 直接安裝或 plugin 攜帶）—— 譬如 superpowers skill / 自製 skill
   >
-  > 唔記得邊類就只列名稱即可，我會幫你 categorize。如果未裝任何外部工具，講『目前只用本機檔』即可。」
+  > 不記得類別時，只列名稱即可，我會幫你分類。如果未安裝任何外部工具，說『目前只用本機檔』即可。」
 
 #### Step F.2 — 機密分離 brief
 
-- 任務：AI 解釋 credential 點儲存 + Kit 唔記 credential 值
+- 任務：AI 解釋 credential 如何儲存 + Kit 不記 credential 值
 - AI sample wording：
-  > 「我會幫你 declare 你已裝嘅工具，但 **任何 API key / OAuth token / credential 都不會喺項目登記表紀錄**。
+  > 「我會幫你登記已安裝工具，但 **任何 API key / OAuth token / credential 都不會記錄在項目登記表**。
   >
-  > Notion / Drive 等嘅 credential 通常喺你裝 Connector 時已經自動加密儲存喺 OS 層 secure storage（譬如 Claude Desktop 嘅 macOS Keychain / Windows Credential Manager）—— 項目登記表只會記低三件事：(1) 你用咗邊個工具、(2) 用佢做乜（譬如 Notion 做 DB Index）、(3) credential 由邊個工具管（譬如『Claude Desktop Extensions』），但不記錄 credential 值本身。
+  > Notion / Google Drive 等 credential 通常在你安裝 Connector 時，已由 AI 工具加密儲存在系統安全儲存層（例如 macOS Keychain / Windows Credential Manager）—— 項目登記表只會記錄三件事：(1) 你用了哪個工具、(2) 用它做甚麼（例如 Notion 做資料索引）、(3) credential 由哪個工具管理（例如『Claude Desktop Extensions』），但不記錄 credential 值本身。
   >
-  > 你都不需要喺對話貼出 token。貼咗我會即時提示你 redacted 同 rotate token 防再用。」
+  > 你不需要在對話貼出 token。如果不小心貼出，我會立即要求遮蔽並建議你更換 token。」
 
 #### Step F.3 — Source-of-truth Architecture mapping
 
 - 任務：AI 引導用戶設計多層持久化分工
 - AI sample wording：
-  > 「對於每個工具，告訴我它喺項目嘅角色：
+  > 「對於每個工具，告訴我它在項目中的角色：
   >
-  > - **真源（source of truth）**：原始可審計嘅 reference 內容（譬如本機 `~/project/reference/` 存 PDF）
-  > - **Index**：登記每份真源檔嘅 metadata + 摘要 + tag（譬如 Notion DB「Project Index」）
-  > - **持久化參考檔（mirror）**：防本機 disk failure / 跨裝置 access（譬如 Drive folder 同步本機）
+  > - **真源（source of truth）**：原始可審計的 reference 內容（例如本機 `~/project/reference/` 存 PDF）
+  > - **Index**：登記每份真源檔的 metadata + 摘要 + tag（例如 Notion DB「Project Index」）
+  > - **持久化參考檔（mirror）**：防本機 disk failure / 跨裝置 access（譬如 Google Drive folder 同步本機）
   > - **Working draft**：AI 寫 task output（譬如本機 `~/project/output/`）
   >
-  > 一個工具可以承擔一個或多個角色。如果你 first time 設計呢套，我建議典型分工：本機 = 真源 + Working draft、Notion = Index、Drive = Mirror。可以採用，或者你描述自己想點分工。」
+  > 一個工具可以承擔一個或多個角色。如果你第一次設計這套分工，我建議典型做法是：本機 = 真源 + 工作草稿、Notion = 索引、Google Drive = 備份鏡像。可以採用，也可以描述你自己的分工方式。」
 
 #### Step F.4 — 寫入項目登記表
 
 - 任務：AI 將用戶 declaration 寫入 PROJECT_INDEX `## Installed Integrations` + External Sources `via` column
 - AI sample wording：
-  > 「我會將你 declare 嘅工具寫入項目登記表：
+  > 「我會將你已聲明的工具寫入項目登記表：
   >
-  > - `## Installed Integrations` `### Connectors` 表填 Notion / Drive 等 entries（每個含 Project Usage / Access Scope / Specific Instance / Credential Location / Declared / Last Verified）
+  > - `## Installed Integrations` `### Connectors` 表填 Notion / Google Drive 等 entries（每個含 Project Usage / Access Scope / Specific Instance / Credential Location / Declared / Last Verified）
   > - `## Installed Integrations` `### Source-of-truth Architecture` sub-table 填多層分工
-  > - 既有 `## External Sources` 表嘅 `via` column 引用對應 Connector entry
+  > - 既有 `## External Sources` 表的 `via` column 引用對應 Connector entry
   >
-  > 寫好之後我會 show 你 review。有錯隨時改。」
+  > 寫好之後我會給你核對。有錯可以即時修改。」
 
 #### Step F.5 — Verify availability + 進入 actual task 或 standby
 
-- 任務：AI 跑 capability probe，確認 declared Integration 喺本 session 可用，然後接力下一個任務
+- 任務：AI 做能力檢查，確認已聲明的外部工具在本次對話可用，然後接力下一個任務
 - AI sample wording：
-  > 「Declaration 寫好。我會 verify 每個 declared Integration 喺本 session 嘅可用性：
+  > 「聲明已寫好。我會檢查每個外部工具在本次對話是否可用：
   >
   > - Notion：試 `mcp__notion__search` 確認 DB accessible
-  > - Drive：試 `mcp__google-drive__list` 確認 folder accessible
+  > - Google Drive：試 `mcp__google-drive__list` 確認 folder accessible
   > - 其他類似
   >
-  > Probe 結果寫入每行 `Last Verified` cell。如果任何 Integration 唔可用（譬如 current AI tool 未配對應 MCP），我會 surface 出嚟由你決定點處理。
+  > 檢查結果會寫入每行 `Last Verified` 欄位。如果任何外部工具不可用（例如目前 AI 工具未配對應 MCP），我會直接說明，讓你決定如何處理。
   >
-  > 之後你想入 actual task 就講你想做乜（譬如『開始整理 reference』），我會載入對應 regular pack 加 integrations pack 接力。如果未準備好，講『暫停』我就 standby。」
+  > 之後你想進入實際任務，就描述你想做甚麼（例如『開始整理參考資料』），我會使用對應的日常工作規則接力。如果未準備好，說『暫停』即可。」
 
 ## Cross-reference to guide.html
 
@@ -313,8 +317,8 @@
 
 > 「如果想看完整 narrative example，可以開新 tab 看 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html 的 Case A/B/C：
 >
-> - Case A 對應 onboarding scenario A（寫 / 改代碼項目）加 scenario C 的檔案整理部分
-> - Case B 對應 onboarding scenario B（整理研究資料 / 寫報告）加 scenario F 的多源 governance 設計（Notion DB Index + 本機真源 + Drive 持久化參考檔 三層 architecture）
+> - Case A 對應 onboarding scenario A（建構系統 / 工具 / 平台 / 網站或應用）加 scenario C 的檔案整理部分
+> - Case B 對應 onboarding scenario B（整理研究資料 / 寫報告）加 scenario F 的多源 governance 設計（Notion DB Index + 本機真源 + Google Drive 持久化參考檔 三層 architecture）
 > - Case C 對應長期項目演進（適用於你項目運行到後期，跨多月時間軸；Day 30+ narrative 含 Integration declaration 演進）
 >
 > 本指南是參考對照，不需要先讀。」

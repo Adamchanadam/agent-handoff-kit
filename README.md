@@ -1,10 +1,10 @@
 # Agent Handoff Kit
 
-狀態：目前版本為 `v0.3.9`。這是早期可用版本，仍在持續完善中。
+狀態：目前版本為 `v0.3.10`。這是早期可用版本，仍在持續完善中。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
-Agent Handoff Kit 是 **AI Session 之間的接力棒**。
+Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 它只處理一件狹窄但重要的事：AI 跨對話失憶。每次開新對話，AI 往往不記得你上次做到哪裡，也認不出中途新建的文件、你引入的參考資料、哪些檔案是真源。這套工具把進度、下一步、風險、檔案登記與下次開工提示寫進固定文件，讓下一個 AI 工具能接得上上一棒。
 
@@ -16,9 +16,9 @@ Agent Handoff Kit 是 **AI Session 之間的接力棒**。
 > Work in <你的資料夾>. I just installed agent-handoff-kit. Help me get started.
 > ```
 >
-> AI 會自動引導你選擇使用情境（寫代碼 / 寫報告 / 整理知識庫 / 學寫代碼 / 其他），然後一步一步帶你做第一個任務。本 README 與下方介紹頁是參考對照，不是必讀。
+> AI 會自動引導你選擇使用情境（建構系統 / 寫報告 / 整理知識庫 / 學寫代碼 / 其他），然後一步一步帶你做第一個任務。本 README 與下方介紹頁是參考對照，不是必讀。
 
-想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) —— 新手 60 秒入門。看完想看實際操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) —— 三個日常情境（整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進）的完整流程示範。本 README 則保留安裝、日常使用與限制。
+想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) —— 新手 60 秒入門。看完想看實際操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) —— 三個日常情境的完整流程示範。本 README 則保留安裝、日常使用與限制。
 
 ## 它解決甚麼問題
 
@@ -28,7 +28,7 @@ Agent Handoff Kit 是 **AI Session 之間的接力棒**。
 |---|---|
 | 新 AI 不知做到哪 | 用 `dev/SESSION_HANDOFF.md` 保存目前狀態、下一步、風險與驗收。 |
 | 新建檔案、參考資料變孤兒 | 用 `dev/PROJECT_INDEX.md` 與 `dev/DOC_SYNC_REGISTRY.md` 登記檔案角色、真源與同步責任。 |
-| 不同 AI 工具入口不同 | 同時安裝 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，全部指向同一套開工流程。 |
+| 不同 AI 工具入口不同 | 同時安裝 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，全部指向同一套開工流程；Antigravity CLI 會讀工作資料夾內的 `AGENTS.md` 與 `GEMINI.md`。 |
 | AI 可能亂改、亂刪或誤發佈 | 內置安全規則；高風險操作必須先講計劃，破壞性指令與未批准發佈一律禁止。 |
 
 它不是聊天機器人，也不是開發框架。它比較像一本固定放在專案內的交接簿。
@@ -37,7 +37,7 @@ Agent Handoff Kit 是 **AI Session 之間的接力棒**。
 
 ### 一、安裝
 
-在你的專案資料夾打開 Terminal，執行：
+在你的專案資料夾打開終端機，執行：
 
 ```bash
 npx --yes @adamchanadam/agent-handoff-kit@latest init
@@ -45,16 +45,25 @@ npx --yes @adamchanadam/agent-handoff-kit@latest init
 
 出現確認問題時，輸入 `yes`。
 
-這是本工具建議的正式 `npx` 寫法。不要省略 `--yes` 與 `@latest`；裸寫不帶 `--yes` / `@latest` 的 `npx doctor` 雖然可能由 npm 執行，但不是本工具的建議用戶路徑，容易先出現 npm 自己的安裝提示，造成誤解。
+安裝完成後，終端機會顯示一段 `Work in ...` 文字。請特別留意：那一段不是給終端機的指令，而是要貼到 AI 對話。
 
-這裡的 `--yes` 只用來回答 npm「是否先下載這個執行工具」的提示；它不是把 Handoff Kit 文件靜默寫入你的項目。真正會建立項目文件的是 `init`，而且工具仍會顯示計劃與確認步驟。
+可用的 AI 工具包括 Claude Code、Claude Cowork、OpenAI Codex、Google Antigravity，或任何能讀寫此資料夾的 AI 工具。不同工具對入口檔的支援可能不同；本工具會同時放置 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，讓常見工具能找到同一套開工路徑。Google 官方遷移文件說明，Antigravity CLI 會讀工作資料夾內的 `GEMINI.md` 和 `AGENTS.md`；因此 `AGENTS.md` 仍是唯一真源，`GEMINI.md` 只做橋接。
 
-請分清兩層「安裝」：
+> 補充：`--yes` 只是讓 npm 先取得這個工具，避免多問一次安裝確認。真正會建立項目文件的是 `init`；`doctor` 只檢查，不會安裝或改動你的項目文件。
 
-- **項目內的 Kit 文件**：`AGENTS.md`、`dev/SESSION_HANDOFF.md`、`dev/rules/*.md` 等，這些是 `init` 或正式 `upgrade` 管理的交接文件。
-- **電腦用來執行指令的 npm 工具**：`npx` 需要先取得 `@adamchanadam/agent-handoff-kit` 這個執行工具，才有辦法跑 `init`、`upgrade` 或 `doctor`。即使目前資料夾已安裝舊版 Kit 文件，`npx` 仍可能因本機沒有可執行工具而顯示「Need to install the following packages」。判斷點不是資料夾有沒有 `AGENTS.md` 或 `dev/`，而是當下是否已有可執行的 npm 工具。那只是 npm 取得執行工具，不等於 `doctor` 正在安裝或改動你的項目。
+安裝成功後，先做 AI 對話，不必立刻跑 `doctor`。`doctor` 是之後不確定狀態、升級後驗收，或 AI 要排錯時才需要用的檢查工具。
 
-安裝完成後，你會看到一段 `Work in ...` 文字。請特別留意：那一段不是給 Terminal 的指令，而是要貼到 AI 對話。
+### 常見入口
+
+| 你現在的狀態 | 建議指令 |
+|---|---|
+| 第一次在新資料夾使用 | `npx --yes @adamchanadam/agent-handoff-kit@latest init` |
+| 不確定是否安裝完整 | `npx --yes @adamchanadam/agent-handoff-kit@latest doctor` |
+| 已裝過舊版，想先看升級會改甚麼 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` |
+
+舊資料夾若原本已有 `AGENTS.md` 或其他 AI 記憶檔，`init` 會保留既有檔案。這時請先用 `upgrade --dry-run` 看清工具準備怎樣合併，不要手動覆寫。
+
+即使目前資料夾已安裝舊版 Kit 文件，電腦也未必已經有可直接執行的 npm 工具。判斷點不是資料夾有沒有 `AGENTS.md` 或 `dev/`，而是你是否用上方 `npx --yes ... @latest` 路徑取得最新工具。裸寫不帶 `--yes` / `@latest` 的 `npx ... doctor` 不是本工具的建議用戶路徑，容易先出現 npm 自己的安裝提示。
 
 ### 二、開工
 
@@ -66,7 +75,7 @@ npx --yes @adamchanadam/agent-handoff-kit@latest init
 Work in <你的專案資料夾>. I just installed agent-handoff-kit. Help me get started.
 ```
 
-AI 會自動載入新手引導，帶你選擇使用情境（寫代碼 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），再一步一步陪你做第一個任務。
+AI 會自動載入新手引導，帶你選擇使用情境（建構系統 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），再一步一步陪你做第一個任務。
 
 **之後熟悉 Handoff Kit 後，可改用更直接的開工句**：
 
@@ -101,15 +110,15 @@ START_NEXT_SESSION_PROMPT.txt
 
 ## 檢查是否安裝完整
 
-如要檢查安裝是否完整，可在 Terminal 執行：
+如你不確定目前資料夾是否安裝完整，或剛做完升級，可在終端機執行：
 
 ```bash
 npx --yes @adamchanadam/agent-handoff-kit@latest doctor
 ```
 
-看到 `status: passed`，代表必要文件、基本結構與下次開工提示副本的一致性都通過檢查。
+看到「檢查通過」代表必要文件、基本結構與下次開工提示副本的一致性都通過檢查。
 
-`doctor` 只檢查，不會建立或修改項目文件。若你不用 `--yes`，npm 可能先問是否下載 `@adamchanadam/agent-handoff-kit` 來執行指令；那是取得檢查工具，不是安裝 Kit 到目前資料夾。這個檢查只能確認文件結構，不代表 AI 已理解你的專案。真正開始工作前，仍應要求 AI 先讀入口文件並說明目前狀態。
+`doctor` 只檢查，不會建立或修改項目文件。這個檢查只能確認文件齊不齊、格式是否正常，不代表 AI 已理解你的專案。真正開始工作前，仍應把 `Work in ...` 起步句貼到 AI 對話，讓 AI 讀入口文件並說明目前狀態。
 
 ## 會安裝甚麼
 
@@ -133,7 +142,7 @@ dev/rules/*.md
 |---|---|
 | `AGENTS.md` | AI 開工時最先讀的入口文件。 |
 | `CLAUDE.md` | 讓 Claude Code 找到同一套入口。 |
-| `GEMINI.md` | 讓 Gemini CLI 找到同一套入口。 |
+| `GEMINI.md` | 讓 Google Antigravity CLI、Gemini CLI 遷移期或相容入口工具找到同一套入口。Antigravity CLI 會讀 `AGENTS.md` 與 `GEMINI.md`，所以此檔只做橋接，不另寫一套規則。 |
 | `START_NEXT_SESSION_PROMPT.txt` | 下次開工時可直接貼上的便利副本；由交接文件自動產生。 |
 | `dev/SESSION_HANDOFF.md` | 保存目前狀態、下一步、風險、驗收結果與下一次開工文字。 |
 | `dev/SESSION_LOG.md` | 保存近期實際做過的事與檢查結果。長期使用後舊條目會自動整理入封存資料夾，主檔保持簡短。日常使用不需要打開本檔，做審計或追溯時才看。 |
@@ -153,7 +162,7 @@ dev/rules/*.md
 - 之後的條目，如核心內容已被交接文件吸收，會自動縮成一行短索引（日期 + 標題 + 對應資料來源）。
 - 累積到第十一條開始，會自動封存到 `dev/SESSION_LOG_archive/` 資料夾；主檔末尾留一份封存索引，方便日後追溯。
 
-接力責任由 `dev/SESSION_HANDOFF.md` 承擔；`dev/SESSION_LOG.md` 屬審計與追溯用的舊資料。**新對話開工不需要讀完整紀錄**，只需要讀 `AGENTS.md` 加 `dev/SESSION_HANDOFF.md` 加索引文件就足夠接力。
+接力責任由 `dev/SESSION_HANDOFF.md` 承擔；`dev/SESSION_LOG.md` 主要用來日後追溯。**新對話開工不需要讀完整紀錄**，只需要讀 `AGENTS.md`、`dev/SESSION_HANDOFF.md` 和索引文件，就足夠接力。
 
 所以你的電腦中的 `dev/` 資料夾不會被對話紀錄不停撐大，也不需要你手動清理。如主檔意外膨脹，`doctor` 會在輸出顯示提醒，請 AI 下次收工時整理；這只是提醒，不會令 `doctor` 失敗，也不阻擋安裝。
 
@@ -178,7 +187,7 @@ dev/rules/*.md
 
 **登記表**：`dev/PROJECT_INDEX.md` 內設有「已裝外部工具」段，記錄項目已連接哪些外部工具。AI 在新對話開工時會自動讀取，了解能直接讀寫哪些資料來源。
 
-**機密分離原則**：API key、token、密碼等任何敏感資料**永不寫入** `dev/` 內任何檔案。這類機密由你的 AI 工具本身的安全儲存（系統 Keychain、Credential Manager 等）管理，與本工具完全分離。`doctor` 會自動掃描，若發現任何疑似敏感資料寫入，會立即報錯。
+**機密分離原則**：API key、token、密碼等任何敏感資料**永不寫入** `dev/` 內任何檔案。這類機密由你的 AI 工具或系統安全儲存管理，與本工具完全分離。`doctor` 會自動掃描，若發現任何疑似敏感資料寫入，會立即報錯。
 
 **已裝才用**：如你已透過 Claude Desktop 等工具連接好外部服務，AI 會直接使用對應功能讀寫資料。如未連接，AI 會改為產生需要你手動同步的內容，並提示你下一步。
 
@@ -204,8 +213,8 @@ dev/rules/*.md
 就算你不懂代碼，這套工具也會要求 AI 在高風險操作前停下來講清楚。
 
 - 禁止破壞性指令：例如 `rm -rf`、`git reset --hard`、強制推送、系統根路徑操作。
-- 機密保護：`.env`、API key、token 不可印出、不可 commit、不可上傳。
-- 查證不猜：用第三方 API、CLI、SDK 前先查官方文件；查不到就標示未核實。
+- 機密保護：`.env`、API key、token 不可印出、不可提交、不可上傳。
+- 查證不猜：使用第三方服務或工具前先查官方文件；查不到就標示未核實。
 - 權限不足就停手：檔案被鎖或沒有權限時，輸出手動操作清單，不嘗試繞過。
 - 發佈需明確批准：建立版本標籤、GitHub Release、npm publish、部署或上傳，都不能因「準備好了」而自動執行。
 
@@ -223,13 +232,13 @@ npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
 npx --yes @adamchanadam/agent-handoff-kit@latest upgrade
 ```
 
-`@latest` 代表使用 npm 上最新版本的 Agent Handoff Kit。`upgrade` 則負責把專案內已安裝的文件、規則與檢查結構安全更新。升級工具會保留既有檔案；能安全合併時才合併，不能安全合併時會回報衝突，不會靜默覆寫。
+`@latest` 代表使用 npm 上最新版本的 Agent Handoff Kit。`upgrade` 負責把專案內已安裝的文件、規則與檢查結構安全更新。升級工具會保留既有檔案；能安全合併時才合併，不能安全合併時會回報衝突，不會靜默覆寫。
 
 看到「衝突」不代表檔案壞掉。它只代表工具不能安全判斷怎樣合併，所以先停手，等你或 AI 判斷下一步。最簡單做法是把預演輸出貼給 AI，請它幫你判斷要保留、合併還是手動修改。
 
 ## 版本提示
 
-安裝工具執行時會短暫檢查 npm 上是否有更新版本。若有新版，會顯示更新提示與 release notes 連結；若離線、網路逾時或檢查失敗，原本的 `init`、`upgrade`、`doctor` 仍會照常執行。
+安裝工具執行時會短暫檢查 npm 上是否有更新版本。若有新版，會顯示更新提示與版本說明連結；若離線、網路逾時或檢查失敗，原本的 `init`、`upgrade`、`doctor` 仍會照常執行。
 
 若你不想檢查更新，可設定環境變數：
 
@@ -239,16 +248,16 @@ AGENT_HANDOFF_KIT_NO_UPDATE_CHECK=1
 
 ## 配合 Adam-AI-Instructions 使用
 
-Agent Handoff Kit 同 [Adam-AI-Instructions](https://github.com/prompt-templates/Adam-AI-Instructions) 配合使用效果最好。兩者分工互補，不重疊：
+Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templates/Adam-AI-Instructions) 配合使用。兩者分工互補，不重疊：
 
 - **Adam-AI-Instructions** 負責 AI 在**單一對話**內的做事規矩：語氣、做事優先序、回覆骨架、計算紀律、用語紀律、安全護欄、輸出層分工。屬「AI 應該怎樣答你」的持久基準。
 - **Agent Handoff Kit** 負責 AI 在**對話之間**的接力：當前狀態、下一步、檔案登記、收工同下次開工。屬「AI 在對話之間怎樣記住你的項目」的持久基準。
 
-到該 repo 的「五、Prompt 索引」選擇適合你 AI 工具的版本（Claude Cowork、Claude Code、OpenAI Codex、ChatGPT 等），複製對應子目錄的 `prompt.md` 全文，貼入 AI 工具的設定區（例如 Claude Cowork 的 Global Instructions、Claude Code 的 `~/.claude/CLAUDE.md`、ChatGPT 的 Custom Instructions）。然後再在項目資料夾執行 `npx --yes @adamchanadam/agent-handoff-kit@latest init` 安裝本工具。兩者配合就能涵蓋「單次對話質素」加「跨對話接力」兩個維度。
+到該倉庫的「五、提示詞索引」選擇適合你 AI 工具的版本（Claude Cowork、Claude Code、OpenAI Codex、ChatGPT 等），複製對應子目錄的 `prompt.md` 全文，貼入 AI 工具設定。然後再在項目資料夾執行 `npx --yes @adamchanadam/agent-handoff-kit@latest init` 安裝本工具。兩者配合，就能同時照顧單次對話的做事規矩，以及不同對話之間的項目接力。
 
 ## 目前限制
 
-- 目前版本為 `v0.3.9`。
+- 目前版本為 `v0.3.10`。
 - 這是早期可用版本，仍在持續完善中。
 - 升級合併屬窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

@@ -1,8 +1,12 @@
-# Gemini Entry Bridge
+# Antigravity / Gemini Entry Bridge
 
-This file exists so Gemini CLI can find the Agent Handoff Kit startup path.
+This file is a bridge only. It exists for Google Antigravity CLI, Gemini CLI during migration, and compatible tools that still read `GEMINI.md`.
 
-Authoritative operating rules remain in `AGENTS.md`. Do not duplicate or fork the rules here.
+Authoritative operating rules remain in `AGENTS.md`.
+
+Do not expand, summarize, replace, or "improve" this file during onboarding, setup, or project documentation work. Do not add command lists, architecture summaries, project state, or handoff notes here.
+
+Antigravity CLI may read both `AGENTS.md` and `GEMINI.md` from the active workspace. If `AGENTS.md` has already been loaded, do not treat this bridge as a second rule source and do not repeat the same instructions.
 
 At session startup:
 

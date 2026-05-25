@@ -16,7 +16,7 @@ Use for file operations, shell commands, Git changes, package managers, installe
 8. Do not run `git reset --hard`, branch deletion, tag deletion, force push, or history rewrite unless the user explicitly requested it and affected refs/files are listed.
 9. Before staging or committing, inspect current status and avoid staging unrelated parent-repo, sibling-directory, generated, credential, or user-owned changes.
 10. Before using external APIs, SDKs, CLIs, package managers, deploy tools, cloud tools, or release tools, verify current official documentation or project-local runbooks. Differentiate three layers of external access (R-030 Integration governance; see `dev/rules/integrations.md`):
-   (a) Anthropic-vetted Connectors (e.g. Notion / Drive / Slack via Claude Desktop Extensions): trust the vetted MCP server behavior; still verify destructive write parameters before invocation.
+   (a) Anthropic-vetted Connectors (e.g. Notion / Google Drive / Slack via Claude Desktop Extensions): trust the vetted MCP server behavior; still verify destructive write parameters before invocation.
    (b) Community / custom MCP servers (user-installed via manual config): treat with extra caution — destructive writes require dry-run + user confirmation; verify server behavior against project-local runbook if available.
    (c) Raw external APIs / SDKs / CLIs (no MCP layer): full Rule 10 verification of official docs required; mark unverified if blocked.
 11. Do not print, copy, log, commit, upload, or generate files containing secret values. Use redacted placeholders or line references.

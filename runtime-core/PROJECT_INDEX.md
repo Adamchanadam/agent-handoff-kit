@@ -20,7 +20,7 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 |---|---|---|
 | `AGENTS.md` | primary Agent Handoff Kit entry and startup contract | session startup |
 | `CLAUDE.md` | Claude Code bridge to the same startup path | Claude Code startup |
-| `GEMINI.md` | Gemini CLI bridge to the same startup path | Gemini CLI startup |
+| `GEMINI.md` | Google Antigravity CLI / Gemini CLI migration bridge to the same startup path | Antigravity / Gemini startup |
 | `START_NEXT_SESSION_PROMPT.txt` | auto-generated convenience copy of the next-session startup prompt; `dev/SESSION_HANDOFF.md` remains authoritative | next session startup copy/paste |
 | `src/` | application source | coding task |
 | `tests/` | tests | coding/QC |
@@ -51,9 +51,9 @@ Reachable means the source can be found. It does not mean the source has been re
 
 | Source | Role | Required before | Access method | `via` | Write-back rule | Last verified |
 |---|---|---|---|---|---|---|
-| TBD | source of truth / mirror / index / attachment store | TBD | URL, connector, or manual packet | `Notion Connector` / `Drive Connector` / `manual paste` / etc — must match an entry under `## Installed Integrations` | read-back required / manual only / no write | TBD |
+| TBD | source of truth / mirror / index / attachment store | TBD | URL, connector, or manual packet | `Notion Connector` / `Google Drive Connector` / `manual paste` / etc — must match an entry under `## Installed Integrations` | read-back required / manual only / no write | TBD |
 
-> `via` column 紀律：每行 External Sources 必引用 `## Installed Integrations` 嘅 entry 名稱（譬如 `Notion Connector`、`Drive Connector`），確認該 source 經邊個 integration 訪問；無 declared Integration 嘅 source 用 `manual paste`。Cross-section consistency 由 doctor + qa:release 強制 enforce。
+> `via` column 紀律：每行 External Sources 必引用 `## Installed Integrations` 嘅 entry 名稱（譬如 `Notion Connector`、`Google Drive Connector`），確認該 source 經邊個 integration 訪問；無 declared Integration 嘅 source 用 `manual paste`。Cross-section consistency 由 doctor + qa:release 強制 enforce。
 
 ## Installed Integrations
 
@@ -87,7 +87,7 @@ Reachable means the source can be found. It does not mean the source has been re
 
 ### Source-of-truth Architecture（多層持久化組合）
 
-> 當項目用多個整合構成 source-of-truth 架構（譬如 Notion DB Index + 本機真源 + Drive 參考檔），本表描述每層分工，避免 AI 跨層越界。
+> 當項目用多個整合構成 source-of-truth 架構（譬如 Notion DB Index + 本機真源 + Google Drive 參考檔），本表描述每層分工，避免 AI 跨層越界。
 
 | Layer | Surface（具體 instance） | Role | Write Direction |
 |-------|--------------------------|------|-----------------|

@@ -10,11 +10,11 @@
 
 ## Load When
 
-- 任務描述提到 Notion / Drive / Slack / Linear / Dropbox / HubSpot / GitHub / 其他外部工具
-- 用戶問「我可以叫 AI 直接讀 / 寫 Notion / Drive / 等嗎？」
+- 任務描述提到 Notion / Google Drive / Slack / Linear / Dropbox / HubSpot / GitHub / 其他外部工具
+- 用戶問「我可以叫 AI 直接讀 / 寫 Notion / Google Drive / 等嗎？」
 - 項目 `dev/PROJECT_INDEX.md` `## Installed Integrations` section 非空
 - 第一次安裝後 onboarding 階段（與 `dev/rules/onboarding.md` 配合，新手 declare 已裝工具）
-- 後續任務涉及多源 governance（譬如 Notion DB Index + 本機真源 + Drive 參考檔三層持久化組合）
+- 後續任務涉及多源 governance（譬如 Notion DB Index + 本機真源 + Google Drive 參考檔三層持久化組合）
 
 ## Discipline
 
@@ -24,7 +24,7 @@
 
 | 儲存層 | 例子 | 加密方式 |
 |--------|------|----------|
-| Claude Desktop Extensions（one-click install） | Notion / Slack / Linear / Drive / Atlassian 等 | OS Keychain (macOS) / Credential Manager (Windows) auto-encrypt |
+| Claude Desktop Extensions（one-click install） | Notion / Slack / Linear / Google Drive / Atlassian 等 | OS Keychain (macOS) / Credential Manager (Windows) auto-encrypt |
 | Claude Code MCP config | `~/.config/claude-code/mcp.json` 等（manual setup） | 用戶自管（env var / OS secure storage） |
 | 其他 AI tool（Codex / Gemini CLI 等）自身 config | tool-specific 路徑 | tool-specific 加密 |
 
@@ -38,7 +38,7 @@ Kit 嘅 `dev/` folder **任何檔都不 touch credential value**。三條硬性 
 
 #### 2.1 Connectors（Anthropic 官方 vetted）
 
-Anthropic 官方 directory 嘅 ready-to-use MCP server（譬如 Notion / Slack / Linear / Drive / Atlassian / HubSpot / 等）。用戶經 Claude Desktop Settings → Extensions → Browse 一鍵安裝，credential 自動加密儲存喺 OS Keychain / Credential Manager。
+Anthropic 官方 directory 嘅 ready-to-use MCP server（譬如 Notion / Slack / Linear / Google Drive / Atlassian / HubSpot / 等）。用戶經 Claude Desktop Settings → Extensions → Browse 一鍵安裝，credential 自動加密儲存喺 OS Keychain / Credential Manager。
 
 紀律：
 - AI 可使用 `mcp__<connector_name>__*` tool 直接 read / write
@@ -74,7 +74,7 @@ content format，由 Plugin 攜帶或 user-level / project-level 直接安裝。
 
 ### 3. Source-of-truth Architecture（多層持久化組合）
 
-當項目用多個整合構成 source-of-truth 架構（譬如 Notion DB Index + 本機真源 + Drive 參考檔），AI 必先讀 `dev/PROJECT_INDEX.md` `## Installed Integrations` `### Source-of-truth Architecture` sub-table，識別每層分工：
+當項目用多個整合構成 source-of-truth 架構（譬如 Notion DB Index + 本機真源 + Google Drive 參考檔），AI 必先讀 `dev/PROJECT_INDEX.md` `## Installed Integrations` `### Source-of-truth Architecture` sub-table，識別每層分工：
 
 | Layer | 角色 | Write Direction |
 |-------|------|-----------------|
@@ -162,7 +162,7 @@ content format，由 Plugin 攜帶或 user-level / project-level 直接安裝。
 
 | Anti-pattern | 點解唔做 | 正確做法 |
 |---|---|---|
-| 用戶提到 Notion / Drive 即假設冇 Connector，直接列 paste packet | 違反 2026-05 reality：Connector ecosystem 已成熟，paste-only fallback 不應係 default | 先 read PROJECT_INDEX Installed Integrations；無 declaration 即 ask user about Integration status |
+| 用戶提到 Notion / Google Drive 即假設冇 Connector，直接列 paste packet | 違反 2026-05 reality：Connector ecosystem 已成熟，paste-only fallback 不應係 default | 先 read PROJECT_INDEX Installed Integrations；無 declaration 即 ask user about Integration status |
 | 將 credential value 寫入 PROJECT_INDEX / SESSION_HANDOFF / SESSION_LOG | 違反機密分離原則 + git history 永久保留泄露 | Credential location 只記指向（譬如「Claude Desktop Extensions」），永不記 value |
 | 用戶喺對話貼 credential value，AI 直接 用 / 紀錄 | 違反 enforcement Rule 1 + 用戶可能誤泄露 | 即時 redact + warn 用戶 rotate token + 解釋機密分離原則 |
 | Auth 失靈即嘗試自動 fix / re-auth flow | 越界（屬 AI tool + 用戶範圍）+ 可能引入 credential exposure | Surface 失敗 + 指向 AI 工具設定界面 + 唔自動 fix |

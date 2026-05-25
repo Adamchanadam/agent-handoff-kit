@@ -684,7 +684,7 @@
   <header class="hero">
     <div class="wrap">
       <div>
-        <span class="kicker">v0.3.9 · 60 秒新手入門</span>
+        <span class="kicker">v0.3.10 · 60 秒新手入門</span>
         <h1><span class="accent">AI Session</span><br/>之間的<br/><span class="accent2">接力棒</span></h1>
         <p class="lede">AI 每次開新對話都是從零開始,不記得你上次和它做過甚麼,也認不出中途新建的文檔和你引入的參考資料。這套工具的作用,是把進度、下一步、要留神之處,連同一份檔案登記,寫進幾份固定文件;下一次任何 AI 工具開啟,你只要貼一段提示,它就接得上上一棒。</p>
         <div class="cta-row">
@@ -736,19 +736,19 @@
         <div class="pain-card c1">
           <div class="pain-num">01</div>
           <h3>新 AI 不知做到哪</h3>
-          <p>一個項目做幾天,中間試過 Codex、Claude Code、Gemini 不同工具。每次開新對話都要重新交代;到後來,連你自己都不肯定哪個版本是最新。</p>
+          <p>一個項目做幾天,中間試過 Codex、Claude Code、Claude Cowork、Antigravity 不同工具。每次開新對話都要重新交代;到後來,連你自己都不肯定哪個版本是最新。</p>
           <div class="kit-line">這套工具用 SESSION_HANDOFF 文件記住「當前狀態 + 下一步」</div>
         </div>
         <div class="pain-card c2">
           <div class="pain-num">02</div>
           <h3>新建檔案、引入資料變孤兒</h3>
-          <p>AI 過程中會建立新文檔,你也會引入 PDF、Notion 連結、研究筆記作參考。這些檔案當下 AI 都記得,但新 session 一開,它就分不清哪份是真源、哪份只是草稿,甚至不知道有這些檔案存在。</p>
-          <div class="kit-line">這套工具用 PROJECT_INDEX 加 DOC_SYNC_REGISTRY 登記每份檔案的角色與同步責任</div>
+          <p>AI 過程中會建立新文檔,你也會引入 PDF、Notion 連結、研究筆記作參考。這些檔案當下 AI 都記得,但新對話一開,它就分不清哪份是正式來源、哪份只是草稿,甚至不知道有這些檔案存在。</p>
+          <div class="kit-line">這套工具會登記每份檔案的用途、來源與同步責任</div>
         </div>
         <div class="pain-card c3">
           <div class="pain-num">03</div>
           <h3>每個 AI 工具入口都不同</h3>
-          <p>Codex 讀 AGENTS.md,Claude Code 讀 CLAUDE.md,Gemini CLI 讀 GEMINI.md。換一個工具就像換一種語言,規矩不互通。</p>
+          <p>不同 AI 工具會找不同入口檔。這套工具同時放置 AGENTS.md、CLAUDE.md、GEMINI.md,把常見工具導回同一套開工規矩。Antigravity CLI 會讀工作資料夾內的 AGENTS.md 與 GEMINI.md；因此 AGENTS.md 仍是唯一真源,GEMINI.md 只做橋接。</p>
           <div class="kit-line">這套工具同時放置三個入口檔,全部指向同一套規則,工具之間沒有漂移</div>
         </div>
         <div class="pain-card c4">
@@ -771,15 +771,15 @@
       <div class="magic-row">
         <div class="magic-word w1">
           <div class="word">收工</div>
-          <div class="lang">CANTONESE / CHINESE</div>
+          <div class="lang">中文</div>
         </div>
         <div class="magic-word w2">
           <div class="word">wrap up</div>
-          <div class="lang">ENGLISH</div>
+          <div class="lang">英文</div>
         </div>
         <div class="magic-word w3">
           <div class="word">handoff</div>
-          <div class="lang">ENGLISH · TECHNICAL</div>
+          <div class="lang">英文</div>
         </div>
       </div>
 
@@ -799,54 +799,54 @@
     <div class="wrap">
       <span class="eyebrow">04 / 八個常見任務情境</span>
       <h2>你描述任務,<br/>AI 自動切換工作模式。</h2>
-      <p class="intro">你不需要懂得任何規則包名稱,只要用日常話講你要做甚麼,AI 會宣告它正在用哪個工作模式、原因是甚麼。每個模式都是 AI 的守則,不是要你逐句閱讀的說明書。</p>
+      <p class="intro">你不需要記任何規則名稱,只要用日常話講你要做甚麼。AI 會說明它準備按哪種方式工作,以及為甚麼這樣做。這些規則是給 AI 自己遵守,不是要你逐句閱讀的說明書。</p>
 
       <div class="modes-grid">
         <div class="mode-cell m1">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">coding</span>
+          <span class="mode-tag">寫代碼</span>
           <h3>寫 / 改代碼</h3>
           <p>AI 會先讀項目索引、找測試指令、看相關檔案,再動手;不會一上來就亂改。</p>
         </div>
         <div class="mode-cell m2">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">research</span>
+          <span class="mode-tag">研究</span>
           <h3>查資料 / 做研究</h3>
           <p>AI 會分清來源、日期、事實、推論、未核實的內容,不把估算當作結論。</p>
         </div>
         <div class="mode-cell m3">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">writing</span>
+          <span class="mode-tag">寫作</span>
           <h3>寫文案 / 改 README</h3>
           <p>AI 會先看受眾、用途、語氣、格式,不會只做漂亮但不準確的文字。</p>
         </div>
         <div class="mode-cell m4">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">knowledge</span>
+          <span class="mode-tag">知識整理</span>
           <h3>整理 Notion / Google Drive</h3>
-          <p>AI 會先判斷外部文件是真源、索引、附件還是輸出地。如已連接 Notion 或 Google Drive 的對應接口,AI 直接讀寫對應資料來源;未連接則產生需要手動同步的內容。寫入之後必定回讀核對。</p>
+          <p>AI 會先判斷外部文件是正式來源、索引、附件還是輸出位置。如已連接 Notion 或 Google Drive,AI 可直接讀寫對應資料來源;未連接則產生需要手動同步的內容。寫入之後必定回讀核對。</p>
         </div>
         <div class="mode-cell m5">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">communication</span>
+          <span class="mode-tag">溝通</span>
           <h3>輸出格式 / 報告</h3>
           <p>AI 會先講結論、再交代背景;標清未核實的內容;指令可直接複製使用。</p>
         </div>
         <div class="mode-cell m6">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">safety</span>
-          <h3>刪檔 / Git / 外部 API</h3>
+          <span class="mode-tag">安全</span>
+          <h3>刪檔 / Git / 外部服務</h3>
           <p>所有危險指令(rm -rf、git reset --hard、強制推送)一律禁止;改動之前要列出目標、做好備份。</p>
         </div>
         <div class="mode-cell m7">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">release</span>
+          <span class="mode-tag">發佈</span>
           <h3>準備發佈 / 出版</h3>
-          <p>AI 會把「準備 release note」和「真正 publish / push / tag」分開處理,不會誤發佈。</p>
+          <p>AI 會把「準備版本說明」和「真正發佈、上傳、建立版本」分開處理,不會誤發佈。</p>
         </div>
         <div class="mode-cell m8">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">agent-governance</span>
+          <span class="mode-tag">規則整理</span>
           <h3>改規則 / 改流程</h3>
           <p>AI 會先檢查既有規則能否擴充,以合併為先,不盲目新增,避免規則越疊越亂。</p>
         </div>
@@ -859,13 +859,13 @@
     <div class="wrap">
       <span class="eyebrow">05 / 三步上手</span>
       <h2>由零到第一次成功交接,<br/>大約五分鐘。</h2>
-      <p class="intro">你只需要一部裝了 Node.js 的電腦,以及你慣用的 AI 工具(Codex、Claude Code、Gemini CLI 任何一個皆可)。</p>
+      <p class="intro">你只需要一部已安裝 Node.js 的電腦,以及你慣用的 AI 工具,例如 Claude Code、Claude Cowork、OpenAI Codex、Google Antigravity,或任何能讀寫此資料夾的 AI 工具。</p>
 
       <div class="steps">
         <div class="step s1">
           <div class="step-num">1</div>
           <h3>安裝</h3>
-          <p>在你的項目資料夾打開 Terminal,執行:</p>
+          <p>在你的項目資料夾打開終端機,執行:</p>
           <pre>npx --yes <span class="hl">@adamchanadam/agent-handoff-kit@latest</span> init</pre>
           <p style="margin-top:12px;">工具會在項目內建立 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">CLAUDE.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">GEMINI.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">dev/</code> 一系列固定文件。</p>
         </div>
@@ -873,9 +873,16 @@
         <div class="step s2">
           <div class="step-num">2</div>
           <h3>開工</h3>
-          <p>打開你想用的 AI 工具,在新對話貼以下一段（第一次用,新手引導 trigger）:</p>
+          <p>打開你想用的 AI 工具,在新對話貼以下一段。這是第一次使用時的起步句:</p>
           <pre>Work in <span class="hl">&lt;你的資料夾&gt;</span>. I just installed agent-handoff-kit. Help me get started.</pre>
-          <p style="margin-top:12px;">AI 會自動載入新手引導,帶你選擇使用情境,再一步一步陪你做第一個任務。</p>
+          <p style="margin-top:12px;">AI 會自動載入新手引導,先問幾個必要問題,再把你的想法收斂成第一個可開始的小任務。</p>
+          <ol style="margin-top:12px;padding-left:22px;font-size:14px;line-height:1.65;">
+            <li>確認你想做哪一類項目。</li>
+            <li>確認資料夾、已有內容與技術方向。</li>
+            <li>說明 Handoff Kit 會怎樣記住進度。</li>
+            <li>把模糊需求收斂成短小可驗收的第一步。</li>
+            <li>等你確認後,才進入正式工作。</li>
+          </ol>
           <p style="margin-top:8px;font-size:14px;opacity:0.75;">熟悉 Handoff Kit 之後,後續每次開新對話可改用更直接的開工句:<br/><code style="font-family:var(--font-mono);font-size:12px;background:var(--paper-2);padding:1px 4px;">Work in &lt;資料夾&gt;. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.</code></p>
         </div>
 
@@ -894,7 +901,7 @@
 
       <div style="margin-top: 40px; padding: 28px; background: var(--paper); border: 3px solid var(--ink); border-left: 12px solid var(--blue);">
         <h3 style="margin: 0 0 12px; font-size: 20px; text-transform: uppercase; letter-spacing: 0.04em;">🚀 第一次用?最簡單版本</h3>
-        <p style="margin: 0; font-size: 16px; max-width: none;">講一句 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">help me start</code>(或者「教我用」/「我是新手」),AI 會自動引導你選擇情景(寫代碼 / 寫報告 / 整理知識庫 / 學寫代碼 / 其他),一步一步帶你做第一個任務。本介紹頁不需要先讀完。</p>
+        <p style="margin: 0; font-size: 16px; max-width: none;">講一句 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">help me start</code>(或者「教我用」/「我是新手」),AI 會先用 5 步引導你:選情境、問背景、解釋會記住甚麼、建議第一個小任務、等你確認後才動手。本介紹頁不需要先讀完。</p>
       </div>
     </div>
   </section>
@@ -904,14 +911,14 @@
     <div class="wrap">
       <span class="eyebrow">06 / 為新手而設的安全護欄</span>
       <h2>就算你不懂代碼,<br/>項目也不會被 AI 弄壞。</h2>
-      <p class="intro">這套工具內置一個叫「安全」的工作模式。任何時候涉及刪檔、Git、雲端寫入、發佈,AI 都會強制加載這個模式,並遵守以下硬性禁區:</p>
+      <p class="intro">這套工具內置「安全」工作模式。任何時候涉及刪檔、Git、雲端寫入、發佈,AI 都必須切換到安全做法,並遵守以下硬性禁區:</p>
 
       <div class="safety-grid">
         <div class="safety-text">
           <ul class="safety-list">
             <li><strong>禁破壞性指令</strong>:<code style="font-family:var(--font-mono);font-size:14px;background:var(--paper-2);padding:2px 6px;">rm -rf</code> / <code style="font-family:var(--font-mono);font-size:14px;background:var(--paper-2);padding:2px 6px;">git reset --hard</code> / 強制推送 / 系統根路徑操作,一律拒絕。</li>
-            <li><strong>機密保護</strong>:`.env`、API key、token 一類敏感值,不會被印出、不會被 commit、也不會被上傳。</li>
-            <li><strong>查證不猜</strong>:用第三方 API、CLI、SDK 之前要先查官方文件;查不到就標「未核實」,不憑印象亂寫。</li>
+            <li><strong>機密保護</strong>:`.env`、API key、token 一類敏感值,不會被印出、不會被提交,也不會被上傳。</li>
+            <li><strong>查證不猜</strong>:使用第三方服務或工具之前要先查官方文件;查不到就標「未核實」,不憑印象亂寫。</li>
             <li><strong>權限不足就停手</strong>:檔案被鎖或沒有權限時,AI 會列出「手動操作清單」交給你,不會嘗試強行繞過。</li>
           </ul>
         </div>
@@ -928,13 +935,13 @@
     <div class="wrap">
       <span class="eyebrow">07 / 分檔有層次</span>
       <h2>AI 內部的工作邏輯,<br/>你不需要記。</h2>
-      <p class="intro">這套工具將項目資料分成 Hot / Warm / Cold 三層,讓 AI 知道何時讀甚麼。你不需要記這個分層 —— 下面只是讓你了解 AI 如何安排你的項目資料,以便日後你向 AI 提問「我們之前為何這樣做」時,知道 AI 會從何處找答案。</p>
+      <p class="intro">這套工具把項目資料分成「每次必讀」、「按需要讀」、「追溯時才讀」三層,讓 AI 知道何時讀甚麼。你不需要記這個分層 —— 下面只是讓你了解 AI 如何安排你的項目資料,以便日後你問「我們之前為何這樣做」時,AI 知道從何處找答案。</p>
 
       <div class="modes-grid" style="grid-template-columns: repeat(3, 1fr);">
         <div class="mode-cell m1">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">hot · 每次開工必讀</span>
-          <h3>🔥 Hot</h3>
+          <span class="mode-tag">每次開工必讀</span>
+          <h3>每次必讀</h3>
           <p style="font-size:14px;"><strong>SESSION_HANDOFF</strong>:當前狀態、下一步、風險。</p>
           <p style="font-size:14px;"><strong>PROJECT_INDEX</strong>:檔案登記、真源。</p>
           <p style="font-size:14px;"><strong>AGENTS / CLAUDE / GEMINI.md</strong>:開工規則。</p>
@@ -942,16 +949,16 @@
         </div>
         <div class="mode-cell m2">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">warm · 按需要讀</span>
-          <h3>🌡️ Warm</h3>
-          <p style="font-size:14px;"><strong>packs/*.md</strong>:工作模式守則。</p>
+          <span class="mode-tag">按需要讀</span>
+          <h3>按任務讀</h3>
+          <p style="font-size:14px;"><strong>工作規則</strong>:按任務選用的做事守則。</p>
           <p style="font-size:14px;"><strong>PROJECT_DECISIONS</strong>:項目長期演進、決策、學習。</p>
-          <p style="font-size:13px;opacity:0.7;">視乎你今日做的任務,AI 自己選擇載入哪個 pack,不需要你決定。長期項目的決策歷史亦放在這裡 —— 遇到「我們之前為何這樣做」的問題時,AI 會在這裡找答案。</p>
+          <p style="font-size:13px;opacity:0.7;">視乎你今日做的任務,AI 自己選擇要讀哪些規則,不需要你決定。長期項目的決策歷史亦放在這裡 —— 遇到「我們之前為何這樣做」的問題時,AI 會在這裡找答案。</p>
         </div>
         <div class="mode-cell m3">
           <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">cold · 審計或追溯時讀</span>
-          <h3>🧊 Cold</h3>
+          <span class="mode-tag">追溯時讀</span>
+          <h3>日後追溯</h3>
           <p style="font-size:14px;"><strong>SESSION_LOG 舊條目</strong></p>
           <p style="font-size:14px;"><strong>SESSION_LOG_archive</strong>:自動冷封存。</p>
           <p style="font-size:13px;opacity:0.7;">平日不讀,做審計或追溯時才打開。AI 收工時自動將舊條目封存至此。</p>
@@ -975,7 +982,7 @@
         <div class="recap-cell">
           <div class="big">02</div>
           <h3>用日常話描述任務</h3>
-          <p>AI 會自行宣告它載入了哪個工作模式、原因是甚麼;新手不用記任何規則包名稱。</p>
+          <p>AI 會先用 5 步引導你把需求想清楚,再自行宣告載入哪個工作模式;新手不用記任何規則包名稱。</p>
         </div>
         <div class="recap-cell">
           <div class="big">03</div>
@@ -998,7 +1005,7 @@
           <div>
             <h3>Adam-AI-Instructions</h3>
             <p style="margin-bottom:20px;"><strong>單次對話</strong>內的 AI 做事規矩。語氣、回覆骨架、計算紀律、安全護欄、輸出層分工。</p>
-            <a class="btn secondary" href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">睇 Prompt 索引 →</a>
+            <a class="btn secondary" href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">看提示詞索引 →</a>
           </div>
         </div>
         <div class="what-cell after">
@@ -1010,7 +1017,7 @@
         </div>
       </div>
 
-      <p style="margin-top:28px;">到 Adam-AI-Instructions 的「五、Prompt 索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">prompt.md</code> 全文貼入你 AI 工具設定(Claude Cowork Global Instructions、Claude Code <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">~/.claude/CLAUDE.md</code>、ChatGPT Custom Instructions 等),再執行 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">npx --yes @adamchanadam/agent-handoff-kit@latest init</code>。兩者不重疊,配合使用效果最好。</p>
+      <p style="margin-top:28px;">到 Adam-AI-Instructions 的「五、提示詞索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">prompt.md</code> 全文貼入你 AI 工具設定,再執行 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">npx --yes @adamchanadam/agent-handoff-kit@latest init</code>。前者管單次對話的做事規矩,本工具管不同對話之間的項目接力。</p>
     </div>
   </section>
 
@@ -1044,7 +1051,7 @@
         </p>
       </div>
       <div class="meta">
-        v0.3.9 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a> 為準。
+        v0.3.10 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a> 為準。
       </div>
     </div>
   </footer>

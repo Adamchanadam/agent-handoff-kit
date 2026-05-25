@@ -454,7 +454,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.3.9 · 三個日常情景 · 由第一句指令到長期接力</span>
+    <span class="kicker">v0.3.10 · 三個日常情景 · 由第一句指令到長期接力</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">三個日常情景 —— 整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進 —— 完整示範 Agent Handoff Kit 由安裝到接力的流程。每一步都會看到 AI 主動宣告載入哪個工作模式、寫入哪份交接文件、輸出哪段下次開工提示。</p>
   </div>
@@ -467,8 +467,8 @@
       <div style="flex: 1; min-width: 280px;">
         <p style="margin: 0 0 12px; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>安裝完成後,在 AI 對話貼上以下一句:</p>
         <p style="margin: 0 0 12px; font-family: var(--font-mono); font-size: 13px; background: rgba(255,255,255,0.15); padding: 8px 12px;">Work in &lt;你的資料夾&gt;. I just installed agent-handoff-kit. Help me get started.</p>
-        <p style="margin: 0 0 8px; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會自動載入新手引導,先問你想做哪一類任務,再一步一步陪你做第一個任務。</p>
-        <p style="margin: 0; font-size: 14px; line-height: 1.55; opacity: 0.9;"><strong>本指南示範的是熟悉後的開工方式</strong> —— 用戶已了解 Handoff Kit 大致運作,直接在開工句之後一氣呵成講出任務描述,AI 跳過引導環節直接進入工作模式。兩種方式最終都進入同一套讀序流程。本指南屬參考對照,你不需要先讀。</p>
+        <p style="margin: 0 0 8px; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會自動開啟新手引導,先問你想做哪一類任務,再一步一步陪你做第一個任務。</p>
+        <p style="margin: 0; font-size: 14px; line-height: 1.55; opacity: 0.9;"><strong>本指南示範的是熟悉後的開工方式</strong> —— 用戶已了解 Handoff Kit 大致運作,直接在開工句之後講出任務描述。兩種方式最終都會讓 AI 先讀入口文件,再按項目狀態接續。本指南屬參考對照,你不需要先讀。</p>
       </div>
     </div>
   </div>
@@ -516,14 +516,14 @@
   <section class="step-section" id="a-step-1">
     <div class="wrap">
       <span class="badge">STEP 01 · CASE A</span>
-      <h2>安裝 —— 一句指令,在資料夾建好治理檔案</h2>
-      <p class="narrative">第一步完全與 AI 無關。你只需要在電腦開一個空資料夾(例如 <code>~/Downloads-tidy</code>),打開 Terminal,執行一句指令。Handoff Kit 會自動為你建好整套交接與治理文件,之後與 AI 對話時 AI 會自己讀取。</p>
+      <h2>安裝 —— 一句指令,在資料夾建好交接檔案</h2>
+      <p class="narrative">第一步完全與 AI 無關。你只需要在電腦開一個空資料夾(例如 <code>~/Downloads-tidy</code>),打開終端機,執行一句指令。Handoff Kit 會自動為你建好整套交接文件,之後與 AI 對話時 AI 會自己讀取。</p>
 
       <div class="block terminal">
-        <div class="block-header"><span class="label">Terminal</span><span class="meta">~/Downloads-tidy</span></div>
+        <div class="block-header"><span class="label">終端機</span><span class="meta">~/Downloads-tidy</span></div>
         <div class="block-body">$ <span class="hl">npx --yes @adamchanadam/agent-handoff-kit@latest init</span>
 
-📋 計劃預覽:以下未執行。create 新增缺少檔案;merge 在備份後合併;skip 保留既有檔案。
+📋 寫入前確認:目前資料夾未見 Kit 檔案;工具會建立交接文件、AI 入口檔與工作規則。沒有既有檔案會被覆寫。
 
 create: 20
   AGENTS.md
@@ -548,37 +548,33 @@ create: 20
 🔀 merged: 0
 ⏭️  skipped existing: 0
 
-📦 版本:v0.3.9
+📦 版本:v0.3.10
 🛠️  模式:first-install
-🔎 剛做了:init 命令;create 20 / merge 0 / skip 0 / conflict 0。
-🚀 下一步:開新 AI 對話,按下方提示貼入 Work in &lt;root&gt; 一句後描述任務。
+🔎 剛完成:init 命令;create 20 / merge 0 / skip 0 / conflict 0。
+🚀 下一步:不用再留在終端機。打開 AI 工具,貼下方起步句。
 
 ============================================================
 ✅ 安裝完成:下一步請在 AI 對話中操作
 ============================================================
-⚠️  請注意:下面文字不是 Terminal 指令。
-📋 請打開你要使用的 AI 工具,新增一段對話,貼上下面一句:
+⚠️  下面這句不是終端機指令。
+📋 請打開 Claude Code / Claude Cowork / OpenAI Codex / Google Antigravity,
+   或任何能讀寫此資料夾的 AI 工具,新增對話後貼上:
 ------------------------------------------------------------
 <span class="hl">Work in ~/Downloads-tidy. I just installed agent-handoff-kit. Help me get started.</span>
 ------------------------------------------------------------
 
-🚀 AI 會主動引導你選擇情境(寫代碼 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他 / 審視已裝外部工具),
-   一步一步陪你做第一個任務(由新手引導主動接管)。
+🚀 AI 會先確認這個資料夾,然後帶你選擇第一個任務情境:建構系統 / 工具 / 平台 / 網站或應用、研究報告、知識庫整理、學寫代碼,或其他。
 
-💡 熟悉 Handoff Kit 之後,後續每次開新對話可改用更直接的開工句:
-   Work in ~/Downloads-tidy. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.
-
-🩺 如要檢查安裝是否完整,可在 Terminal 執行:
-   npx --yes @adamchanadam/agent-handoff-kit@latest doctor
 ============================================================</div>
       </div>
 
       <div class="callout">
         <span class="label">實際運作</span>
-        <h3>這一步靜靜建立了整套接力基建</h3>
+        <h3>這一步建立了整套接力文件</h3>
         <ul>
-          <li><strong>三入口同源</strong>:同時建立 <code>AGENTS.md</code>、<code>CLAUDE.md</code>、<code>GEMINI.md</code>,Claude Code、Codex、Gemini CLI 三個工具都找到同一套規則。</li>
-          <li><strong>下一步不是 Terminal 指令</strong>:輸出末段用 <code>⚠️</code> 標明。新手最容易撞上的誤會,是把「Work in...」這句當成要繼續在 Terminal 輸入 —— 其實是要貼到 AI 對話。</li>
+          <li><strong>三個入口,同一套規矩</strong>:同時建立 <code>AGENTS.md</code>、<code>CLAUDE.md</code>、<code>GEMINI.md</code>,讓常見 AI 工具回到同一套規則。Antigravity CLI 會讀工作資料夾內的 <code>AGENTS.md</code> 與 <code>GEMINI.md</code>；因此 <code>GEMINI.md</code> 只做橋接,不另寫一套規則。</li>
+          <li><strong>下一步不是終端機指令</strong>:輸出末段用 <code>⚠️</code> 標明。新手最容易撞上的誤會,是把「Work in...」這句當成要繼續在終端機輸入 —— 其實是要貼到 AI 對話。</li>
+          <li><strong>不確定才檢查</strong>:安裝後通常直接開 AI 對話即可。若之後不確定文件是否完整,才在終端機執行 <code>npx --yes @adamchanadam/agent-handoff-kit@latest doctor</code>。</li>
         </ul>
       </div>
     </div>
@@ -588,26 +584,25 @@ create: 20
   <section class="step-section" id="a-step-2">
     <div class="wrap">
       <span class="badge">STEP 02 · CASE A</span>
-      <h2>開工貼上提示 —— 開新 AI 對話,一句指引加日常話描述任務</h2>
-      <p class="narrative">打開你慣用的 AI 工具(Claude Code、Codex、Gemini CLI 三選其一),開一個新對話。第一段貼安裝時印出那句 <code>Work in ...</code>,接著用日常話講你要做什麼。不需要解釋 Handoff Kit 怎樣運作、不需要叫 AI 用哪個工作模式 —— AI 讀完 <code>AGENTS.md</code> 會自行處理。</p>
+      <h2>開工貼上提示 —— 讓 AI 先帶你釐清第一個任務</h2>
+      <p class="narrative">打開你慣用的 AI 工具(例如 Claude Code、Claude Cowork、OpenAI Codex、Google Antigravity),開一個新對話。第一次使用時,先貼安裝時印出的新手起步句。你不需要一開始就把需求寫得很完整;AI 會先用 5 步引導你把目標、資料夾、技術方向、風險與第一個小任務整理清楚。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你</span>
-<pre>Work in ~/Downloads-tidy. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.</pre>
-            <p>我的下載目錄堆了一兩年亂檔,過千份,要找一份舊文件都需要慢慢翻。我想寫一個小工具,執行一次就將它們按類型分入子目錄(文件、圖片、安裝包、壓縮包、其他),子目錄再按年份分一層。寫好之後,我想將它整理成可以重用的工具,放上 GitHub 讓朋友也能用。</p>
+<pre>Work in ~/Downloads-tidy. I just installed agent-handoff-kit. Help me get started.</pre>
           </div>
         </div>
       </div>
 
       <div class="callout">
         <span class="label">實際運作</span>
-        <h3>這句指引內藏 AI 啟動規矩</h3>
+        <h3>第一次不用自己寫完整需求</h3>
         <ul>
-          <li><strong>"Work in &lt;path&gt;"</strong> 明確指定 AI 的工作根目錄 —— 確保 AI 不會在錯誤資料夾改動檔案。</li>
-          <li><strong>"Read AGENTS.md and follow it"</strong> 要求 AI 先讀入口文件,再按裡面所列的順序讀其他治理檔。</li>
-          <li><strong>"Tell me the current state and your recommended next step"</strong> 要求 AI 第一段不可直接改檔,必須先報告狀態與建議。</li>
+          <li><strong>先選情境</strong>:AI 會先讓你選 A 至 F,例如「建構系統 / 工具 / 平台 / 網站或應用」。</li>
+          <li><strong>再問關鍵問題</strong>:AI 會問資料夾、語言或框架、是否已有內容、是否連接外部工具等,不用你一次想齊。</li>
+          <li><strong>最後收成小任務</strong>:AI 會把模糊想法收斂成 10 至 15 分鐘內可開始的第一步,才進入正式工作。</li>
         </ul>
       </div>
     </div>
@@ -617,8 +612,8 @@ create: 20
   <section class="step-section" id="a-step-3">
     <div class="wrap">
       <span class="badge">STEP 03 · CASE A</span>
-      <h2>AI 的第一回應 —— 主動講出讀過哪些文件、載入哪個工作模式</h2>
-      <p class="narrative">AI 不會立即寫程式。它先按指定順序讀齊交接文件、近期工作日誌、項目索引與工作規則路由,選出適合這個任務的工作模式。讀完之後,AI 顯示一張啟動卡,主動向你交代:目前狀態、已載入哪個工作模式、為何要載入、下一步建議。</p>
+      <h2>AI 的第一回應 —— 先完成 5 步新手引導</h2>
+      <p class="narrative">AI 不會立即寫程式。它會先確認這是全新安裝,載入新手引導,再用 5 步把任務由模糊想法變成可執行的小範圍。這一步是新手體驗的核心:你不用懂項目結構,也不用先學規則名。</p>
 
       <div class="chat">
         <div class="chat-row">
@@ -628,24 +623,63 @@ create: 20
   ( o.o )  continuity ready
    > ^ <
 
-🔎 Handoff: loaded
-📌 目前狀態:新項目,交接文件仍未有上一輪紀錄
-⚠️ 邊界:涉及大量檔案移動,需要先預演列清單
-🚀 下一步:載入工作模式 + 進入計劃階段</pre>
-            <p>我已經按入口文件指定的順序,讀齊以下文件:</p>
+🔎 交接狀態:全新安裝
+📌 目前目標:尚未設定
+⚠️ 注意事項:無
+🚀 下一步:選擇你的使用情境,開始第一個任務</pre>
+            <p>我看到這是第一次使用。請先選一個最接近的情境:</p>
+            <p>A. 建構系統 / 工具 / 平台 / 網站或應用<br/>
+B. 整理研究資料 / 寫報告<br/>
+C. 整理電腦檔案 / Notion / Google Drive 知識庫<br/>
+D. 學寫代碼<br/>
+E. 其他<br/>
+F. 我已連接外部工具,想規劃如何有系統地使用</p>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>A</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 5 步新手引導</span>
+            <p>好,進入「建構系統 / 工具 / 平台 / 網站或應用」。我會先用 5 步把第一個任務定清楚,暫時不改檔:</p>
             <ul>
-              <li>交接文件 —— 新項目,仍未有當前狀態,第一份交接由今次寫入。</li>
-              <li>項目索引 —— 仍是模板,資料來源與本機檢查指令待填。</li>
-              <li>工作規則路由表 —— 用來選擇今次的模式。</li>
+              <li><strong>第 1 步:確認背景</strong> —— 你想建甚麼?放在哪個資料夾?是否已有內容?</li>
+              <li><strong>第 2 步:確認方向</strong> —— 一次性處理,還是之後可重用?</li>
+              <li><strong>第 3 步:確認限制</strong> —— 是否涉及大量檔案移動、刪除或外部服務?</li>
+              <li><strong>第 4 步:建議第一個小任務</strong> —— 先做一個可預演、可驗收的版本。</li>
+              <li><strong>第 5 步:等你確認</strong> —— 你確認後,我才進入正式工作。</li>
             </ul>
-            <p>根據你的描述,我會載入以下兩個工作模式:</p>
+            <p>請先回答三點:你想整理哪個資料夾?想做一次性清理還是可重用工具?正式移動檔案前是否必須先給你看預演清單?</p>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>我要整理 <code>~/Downloads</code>。下載目錄堆了一兩年亂檔,過千份,想按類型分入文件、圖片、安裝包、壓縮包、其他,每類再按年份分一層。最好做成之後可重用的小工具。正式移動之前一定要先給我看預演清單。</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 引導收斂結果</span>
+            <p>明白。Handoff Kit 會把今天的目標、風險、檢查方式和下次接力提示寫入項目文件。今次第一個小任務建議收窄為:</p>
+            <p><strong>先建立一個可重用的下載目錄整理工具,但只做到預演清單;不正式移動檔案。</strong></p>
+            <p>原因:這個任務涉及大量檔案移動,先做預演最安全。你確認預演結果後,下一步才正式執行。</p>
+            <p>如果你同意這個第一步,我會載入正式工作模式:</p>
             <p>
               <span class="pill coding">寫代碼</span>寫那個下載目錄整理小工具<br/>
               <span class="pill safety">安全</span>因為要移動大量檔案,執行前要先預演列清單由你確認,絕對不會默默移動或者覆寫
             </p>
             <p>我接著要做的工作流程:</p>
             <p class="loop">計劃(列清楚分類邏輯、目錄結構、預演範圍)<br/>→ 讀取(掃描下載目錄樣本)<br/>→ 改動(寫 script + 預演模式)<br/>→ 檢查(你確認預演清單)<br/>→ 正式執行 + 寫入交接(將今次完成的事寫入交接與工作日誌)</p>
-            <p><strong>你想我現在進入計劃,把分類邏輯與預演範圍寫清楚由你確認才開始嗎?</strong></p>
+            <p><strong>是否以這個小任務開始?</strong></p>
           </div>
         </div>
       </div>
@@ -654,9 +688,9 @@ create: 20
         <span class="label">實際運作</span>
         <h3>這個回應有三件事屬預設行為</h3>
         <ul>
-          <li><strong>啟動卡</strong>:版本字、Handoff loaded 標記 —— 跨工具一致。讓你一眼確認 AI 已正確讀入。</li>
-          <li><strong>主動宣告工作模式</strong>:你沒有要求,但 AI 自己選擇。<strong>安全</strong>模式的自動加碼:凡涉及檔案移動、Git、外部接口寫入、發佈,AI 都會自動加。</li>
-          <li><strong>高風險工作先暫停</strong>:檔案移動屬不可逆動作,AI 必須在計劃階段停手,等你確認才動手。</li>
+          <li><strong>新手先被引導,不是被考問</strong>:AI 不是把所有規則丟給你,而是把模糊目標整理成可開始的任務。</li>
+          <li><strong>工作模式在確認後才接手</strong>:完成 5 步後,AI 才切入寫代碼、安全等正式模式。</li>
+          <li><strong>高風險工作仍會停手</strong>:檔案移動屬不可逆動作,AI 必須在計劃階段停手,等你確認才動手。</li>
         </ul>
       </div>
     </div>
@@ -667,13 +701,13 @@ create: 20
     <div class="wrap">
       <span class="badge">STEP 04 · CASE A</span>
       <h2>你確認,AI 進入計劃 → 讀取 → 改動 寫程式</h2>
-      <p class="narrative">你確認之後,AI 開始按工作流程做事。計劃階段列清楚目錄分類邏輯、檔名命名規則、要預演的範圍。讀取階段掃描你下載目錄樣本,認清現時亂況。改動階段寫好整理 script,但不正式執行 —— 先準備好預演模式。</p>
+      <p class="narrative">你接受 AI 建議的第一個小任務後,才進入正式工作。這裡的「確認」不是跳過新手引導,而是承接上一段 5 步引導的結果:先做一個可預演、可驗收、暫不正式移動檔案的版本。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你</span>
-            <p>好,進入計劃。</p>
+            <p>同意。先做可重用工具和預演清單,不要正式移動檔案。</p>
           </div>
         </div>
 
@@ -839,7 +873,7 @@ Failed:              0 files
             <p>我已經:</p>
             <ul>
               <li>更新交接文件 —— 當前狀態改為「<code>sort_downloads.py</code> 已完成 + 已正式執行」,下一步列出「加 README + 建版本標籤 + 推上 GitHub」。</li>
-              <li>新增條目入工作日誌 —— 包含今次的預演清單摘要、正式執行結果、工作區資訊(commit 等)。</li>
+              <li>新增條目入工作日誌 —— 包含今次的預演清單摘要、正式執行結果與本機版本紀錄。</li>
               <li>項目索引加入 <code>sort_downloads.py</code> 的角色描述。</li>
             </ul>
             <p>下次開工請貼以下一段(已同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code>):</p>
@@ -859,7 +893,7 @@ Failed:              0 files
         <span class="label">實際運作</span>
         <h3>收工觸發了完整的接力流程</h3>
         <ul>
-          <li><strong>收工意圖識別</strong>:「收工」、「wrap up」、「handoff」、「end session」、「done for today」等自然短語都會觸發同一套收工流程,你不需要記長指令。</li>
+          <li><strong>自然收工</strong>:「收工」、「wrap up」、「handoff」、「end session」、「done for today」等自然短語都會觸發同一套收工流程,你不需要記長指令。</li>
           <li><strong>交接文件對賬式更新</strong>:AI 不會將新狀態追加在舊狀態下面 —— 必須逐段對賬,改為當前事實,避免新日期配舊快照。</li>
           <li><strong>下次開工提示自動同步</strong>:輸出的提示會明顯標示出來,並同時寫入 <code>START_NEXT_SESSION_PROMPT.txt</code> 副本。下次新對話打開直接複製即可。交接文件仍是權威來源,副本只是方便。</li>
           <li><strong>工作日誌自動整理</strong>:長期使用後舊條目會自動縮成短索引,再之後封存。主檔保持簡短,日常開工不需要打開。</li>
@@ -873,7 +907,7 @@ Failed:              0 files
     <div class="wrap">
       <span class="badge">STEP 07 · CASE A</span>
       <h2>下次接力與公開發佈 —— 新對話貼回提示,AI 由上一棒繼續</h2>
-      <p class="narrative">過了一天。你想做埋發佈 —— 加 README、建版本標籤、推上 GitHub。打開新 AI 對話(可能仍是 Claude,或者今次轉用 Codex / Gemini),貼回 <code>START_NEXT_SESSION_PROMPT.txt</code> 內容。新 AI 啟動,讀入口文件,讀回上次的交接,接得回上一棒 —— 不需要你重新交代任何背景。本案例假設你已在 AI 工具中連好 GitHub 接口,AI 可以直接代你建立 repo、推送代碼、建立 release。</p>
+      <p class="narrative">過了一天。你想做埋發佈 —— 加 README、建版本標籤、推上 GitHub。打開新 AI 對話(可能仍是 Claude,或者今次轉用 Codex / Antigravity),貼回 <code>START_NEXT_SESSION_PROMPT.txt</code> 內容。新 AI 啟動,讀入口文件,讀回上次的交接,接得回上一棒 —— 不需要你重新交代任何背景。本案例假設你已在 AI 工具中連好 GitHub 接口,AI 可以直接代你建立 repo、推送代碼、建立 release。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -926,8 +960,8 @@ Failed:              0 files
 
         <div class="chat-row">
           <div class="chat-bubble ai">
-            <span class="who">AI · 寫 README + 本機 commit + tag</span>
-            <p>README 已寫好(三段:用途、安裝、用法選項)。Git 初始化、第一個 commit、建版本標籤 v0.1.0 全部執行完。</p>
+            <span class="who">AI · 寫 README + 本機提交與版本標籤</span>
+            <p>README 已寫好(三段:用途、安裝、用法選項)。Git 初始化、第一個提交、建版本標籤 v0.1.0 全部執行完。</p>
 <pre>$ git log --oneline
 8e3a2f1 (HEAD -> main, tag: v0.1.0) Initial release: sort_downloads.py</pre>
             <p><strong>接下來我會代你建 GitHub repo + 推送 + 建 release。這幾步屬不可逆動作,我會逐步報告每一個結果,有任何不符預期立即停。確認執行嗎?</strong></p>
@@ -949,11 +983,11 @@ Failed:              0 files
               <li>✅ 本機加遠端:<code>git remote add origin https://github.com/yourname/downloads-tidy.git</code></li>
               <li>✅ 推送代碼:<code>git push -u origin main</code></li>
               <li>✅ 推送標籤:<code>git push origin v0.1.0</code></li>
-              <li>✅ 建立 GitHub release v0.1.0,自動生成 release notes</li>
-              <li>✅ 回讀核對:已讀回 repo metadata 確認 commit hash、標籤、release URL 一致</li>
+              <li>✅ 建立 GitHub Release v0.1.0,自動生成版本說明</li>
+              <li>✅ 回讀核對:已讀回 GitHub 頁面資料,確認提交紀錄、標籤與發佈連結一致</li>
             </ul>
-            <p>發佈完成。Repo URL:<code>https://github.com/yourname/downloads-tidy</code>。Release URL:<code>https://github.com/yourname/downloads-tidy/releases/tag/v0.1.0</code>。朋友只要 clone 下來,立即可以使用。</p>
-            <p>準備好就講「收工」,我會將今次的 commit hash、版本標籤、repo URL、release URL 寫入交接文件與工作日誌,再輸出下次開工提示。</p>
+            <p>發佈完成。Repo URL:<code>https://github.com/yourname/downloads-tidy</code>。Release URL:<code>https://github.com/yourname/downloads-tidy/releases/tag/v0.1.0</code>。朋友只要下載或複製下來,立即可以使用。</p>
+            <p>準備好就講「收工」,我會將今次的提交紀錄、版本標籤、倉庫連結、發佈連結寫入交接文件與工作日誌,再輸出下次開工提示。</p>
           </div>
         </div>
       </div>
@@ -963,7 +997,7 @@ Failed:              0 files
         <h3>接力與發佈的安全護欄</h3>
         <ul>
           <li><strong>新 AI 不需要追問背景</strong>:它只讀入口文件與交接文件,立即知道上次做到哪、下一步是什麼、有什麼風險。新對話、新工具、新一天都接得上。</li>
-          <li><strong>跨工具一致</strong>:今天是 Claude,下次轉 Codex 或者 Gemini 都一樣 —— 三入口同源,讀同一套規則。</li>
+          <li><strong>跨工具一致</strong>:今天是 Claude,下次轉 Codex 或者 Antigravity 亦可用同一套交接資料；實際入口支援以該工具官方文件與本機實測為準。</li>
           <li><strong>外部接口代你執行 + 回讀核對</strong>:你已連好 GitHub 接口,AI 直接代你建 repo、推送、建 release,寫入後立即回讀核對是否一致。如果未連好接口,AI 改為列詳細手動步驟由你親手做。</li>
           <li><strong>不可逆動作必先明確批准</strong>:即使代你執行,建立版本標籤、推送、建 release 每一步都要你點頭。發佈模式紀律不會因有接口連好而放鬆。</li>
           <li><strong>機密分離</strong>:GitHub 接口的存取憑證由 AI 工具的安全儲存管理,完全不會寫入 <code>dev/</code> 任何治理檔。</li>
@@ -1023,14 +1057,14 @@ Google Drive
 └── 報告寫好之後,由 AI 代你上傳,並設定分享權限給合伙人</div>
       </div>
 
-      <p class="narrative" style="margin-top: 20px;">準備好 Notion 資料庫與本機資料夾結構之後,在 <code>~/cafe-research/</code> 打開 Terminal,執行同一句安裝指令。</p>
+      <p class="narrative" style="margin-top: 20px;">準備好 Notion 資料庫與本機資料夾結構之後,在 <code>~/cafe-research/</code> 打開終端機,執行同一句安裝指令。</p>
 
       <div class="block terminal">
-        <div class="block-header"><span class="label">Terminal</span><span class="meta">~/cafe-research</span></div>
+        <div class="block-header"><span class="label">終端機</span><span class="meta">~/cafe-research</span></div>
         <div class="block-body">$ <span class="hl">npx --yes @adamchanadam/agent-handoff-kit@latest init</span>
 
 ✅ created: 20
-📦 版本:v0.3.9
+📦 版本:v0.3.10
 🛠️  模式:first-install
 🚀 下一步:開新 AI 對話,按下方提示貼入 Work in &lt;root&gt; 一句後描述任務。</div>
       </div>
@@ -1051,14 +1085,41 @@ Google Drive
   <section class="step-section" id="b-step-2">
     <div class="wrap">
       <span class="badge">STEP 02 · CASE B</span>
-      <h2>開工貼上提示 —— 任務描述講清楚三件工具的分工</h2>
-      <p class="narrative">打開你慣用的 AI 工具,開新對話,貼 <code>Work in ...</code> 那一句,接著用日常話描述任務。今次任務描述要講清楚 Notion 加本機 reference 加 Google Drive 的分工 —— 因為 AI 不會自己估這套安排。</p>
+      <h2>開工貼上提示 —— 先由新手引導接住,再講三件工具分工</h2>
+      <p class="narrative">如果這是第一次使用,先貼安裝後那句新手起步句。AI 會先問你想做哪一類任務;你選「整理研究資料 / 寫報告」後,再把 Notion、本機 reference、Google Drive 的分工講清楚。這樣比一開始硬背完整開工句更自然,也更不容易漏資料來源。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你</span>
-<pre>Work in ~/cafe-research. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.</pre>
+<pre>Work in ~/cafe-research. I just installed agent-handoff-kit. Help me get started.</pre>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 新手引導</span>
+            <p>我看到這是第一次使用。請先選一個最接近的情境。這個任務應選「整理研究資料 / 寫報告」。</p>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
+            <p>B</p>
+          </div>
+        </div>
+
+        <div class="chat-row">
+          <div class="chat-bubble ai">
+            <span class="who">AI · 5 步新手引導</span>
+            <p>請告訴我三點:(1) 報告主題;(2) 已有資料在哪裡;(3) 報告讀者是誰。順便說明你是否已連接 Notion 或 Google Drive;如果已連接,我可以直接讀寫,否則會列手動同步步驟。</p>
+          </div>
+        </div>
+
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            <span class="who">你</span>
             <p>我想研究自己社區是否可以開一間咖啡店,要寫一份十頁市場調查報告,結論回答「是否值得做加下一步行動建議」,給自己與太太看,亦想拿去與業界朋友傾談。</p>
             <p>資料分工:Notion 有一個索引資料庫,登記了 30 條以上參考資料(政府統計、行業報告、競品 menu 截圖、訪談筆記),每行有「本機路徑」指向 <code>~/cafe-research/reference/</code> 裡面對應檔案。本機 <code>reference/</code> 已經放好對應 PDF、截圖、筆記。報告草稿請寫入 <code>~/cafe-research/report/</code>。完成後請幫我上傳 Google Drive、設定分享權限給合伙人、太太、業界朋友張先生(我之後可以給你他們的電郵地址),把分享連結記入交接文件。Notion 與 Google Drive 接口我已連好,你可以直接讀寫。</p>
           </div>
@@ -1069,6 +1130,7 @@ Google Drive
         <span class="label">實際運作</span>
         <h3>任務描述包含三件工具分工的原因</h3>
         <ul>
+          <li><strong>新手引導先接住你</strong>:第一次用時,AI 先問情境與背景,再讓你補充資料分工;不用一開始就寫出完整規格。</li>
           <li><strong>外部來源不自動可見</strong>:AI 不會自己知道你 Notion 資料庫怎樣設計、哪一欄是本機路徑。你要在任務描述講清楚,AI 才能正確讀取。</li>
           <li><strong>明示要 AI 代勞</strong>:你預先講「請幫我上傳 Google Drive、設分享權限」,讓 AI 知道你期望由它代你執行,而不是改為列手動步驟。</li>
           <li><strong>任務目標清楚</strong>:報告長度、結論方向、讀者(自己 + 太太 + 業界朋友)都講明,讓 AI 寫東西時調適語氣與深度。</li>
@@ -1218,7 +1280,7 @@ Google Drive
     <div class="wrap">
       <span class="badge">STEP 05 · CASE B</span>
       <h2>寫報告(寫作模式自動加碼)+ Google Drive 上傳由 AI 代你執行</h2>
-      <p class="narrative">章節結構確認之後,AI 進入改動階段寫報告草稿。涉及實際寫長文,自動加載<strong>寫作</strong>模式(受眾、用途、語氣紀律)。每段論述都追溯回用了哪條 reference,事實與推論明顯分開。寫完之後輸出你要的格式;由於你已連好 Google Drive 接口,AI 代你上傳檔案、設定分享權限、回讀核對,並把分享連結寫入交接文件。如未連接,AI 改為列詳細上傳步驟由你親手做。</p>
+      <p class="narrative">章節結構確認之後,AI 進入改動階段寫報告草稿。涉及實際寫長文,自動加載<strong>寫作</strong>模式(受眾、用途、語氣紀律)。每段論述都追溯回用了哪條 reference,事實與推論明顯分開。寫完之後輸出你要的格式;由於你已連好 Google Drive 接口,AI 代你上傳檔案、設定分享權限、回讀核對,並把分享連結寫入交接文件。如未連接,AI 改為列詳細上傳步驟由你親手做。若你使用的 AI 工具不能直接輸出 docx,AI 會先寫成 Markdown 或 Google Docs 可用內容,再按該工具能力轉換。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1438,7 +1500,7 @@ Google Drive 分享連結: https://drive.google.com/file/d/abc123/view (合伙�
         <h3>多輪接力的價值</h3>
         <ul>
           <li><strong>不需要重新交代背景</strong>:新 AI 只讀入口文件與交接文件,立即知道:報告寫到哪、結論是什麼、哪條 reference 仍待處理、合伙人意見是什麼。你只需要講「新要求」一句。</li>
-          <li><strong>跨工具一致</strong>:今天是 Claude,下次轉 Codex 或者 Gemini,結果一樣。</li>
+          <li><strong>跨工具一致</strong>:今天是 Claude,下次轉 Codex 或者 Antigravity,仍可沿用同一套交接資料。</li>
           <li><strong>引用紀律延續</strong>:新加章節仍是研究模式紀律 —— 每個論述有引用,事實與推論分開。</li>
           <li><strong>缺項紀錄保留</strong>:5 條待處理 reference 跨對話都在項目索引,不會悄悄消失。下次第三輪接力的 AI 都會看到。</li>
         </ul>
@@ -1466,7 +1528,7 @@ Google Drive 分享連結: https://drive.google.com/file/d/abc123/view (合伙�
       <span class="badge" style="background: var(--red);">CASE C · 結構說明</span>
       <h2>這個案例跨越多個月份,以時間軸標記。</h2>
       <p class="narrative">Case A 與 Case B 展示單一對話內的七步流程。Case C 則展示<strong>跨越多輪對話、多個月份</strong>的長期項目演進。重點不在每日的具體動作,而在 AI 如何<strong>自動維護項目的長期紀錄</strong> —— 任務需求的演進、決策的累積、架構選擇的歷史、累積式的學習觀察。</p>
-      <p class="narrative">你的角色仍然是:提需求、提供參考資料、做驗收。AI 的角色是:讀齊長期紀錄與當前狀態,自動補入長期演進,<strong>不需要你打開檔案,亦不需要你記住分檔結構</strong>。</p>
+      <p class="narrative">這不是一次指令即完成的展示。它需要你在多輪對話中每次照常「收工」,讓 AI 持續寫入交接文件與長期紀錄。你的角色仍然是:提需求、提供參考資料、做驗收。AI 的角色是:讀齊長期紀錄與當前狀態,自動補入長期演進,<strong>不需要你打開檔案,亦不需要你記住分檔結構</strong>。</p>
     </div>
   </section>
 
@@ -1475,12 +1537,14 @@ Google Drive 分享連結: https://drive.google.com/file/d/abc123/view (合伙�
     <div class="wrap">
       <span class="badge">DAY 1 · CASE C</span>
       <h2>開新項目 —— 第一個任務描述進入交接文件</h2>
-      <p class="narrative">你開新對話,描述任務:「我想開發一個 AI 編輯助手」。AI 讀齊入口文件後,將任務描述記入交接文件當前目標。<strong>項目決策日誌</strong>暫時保持空白 —— 因為短期單一任務的信號為主(對話次數 1,沒有任務演進跡象),AI 暫不主動維護。</p>
+      <p class="narrative">你先按前面流程安裝,再開新 AI 對話貼新手起步句。AI 完成新手引導後,你描述第一個任務:「我想開發一個 AI 編輯助手」。AI 讀齊入口文件後,將任務描述記入交接文件當前目標。<strong>項目決策日誌</strong>暫時保持空白 —— 因為短期單一任務的信號為主(對話次數 1,沒有任務演進跡象),AI 暫不主動維護。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你 · Day 1</span>
+<pre>Work in ~/ai-editor. I just installed agent-handoff-kit. Help me get started.</pre>
+            <p>AI 問情境時,我選「建構系統 / 工具 / 平台 / 網站或應用」。完成背景確認後,我補充:</p>
             <p>我想開發一個 AI 編輯助手 —— 主要功能是文字校對與風格建議。先做最簡單的可用版本,只支援 markdown,輸入文字輸出修改建議。</p>
           </div>
         </div>
@@ -1579,11 +1643,11 @@ Google Drive 分享連結: https://drive.google.com/file/d/abc123/view (合伙�
 搬入項目決策日誌封存(最舊 20 條):#1 至 #20
 排序:最新在頂(#20 在最頂,#1 在最底)</pre>
             <p>交接文件從 32 條確認決策收斂為 12 條當前活躍決策,清楚反映項目目前的判斷邊界。封存段完整保留所有歷史條目,日後追溯用。</p>
-            <p>同時觀察到:本輪計劃涉及多選項架構取捨(後端模型由 GPT-5.5 切換至 Claude 4.6 Sonnet,原因是長文本表現與成本對比)。自動補入<strong>架構取捨</strong>段:</p>
-<pre>### 2026-XX-XX:後端模型由 GPT-5.5 切換至 Claude 4.6 Sonnet
-比較選項:(1) GPT-5.5 / (2) Claude 4.6 Sonnet / (3) Gemini 3.5 Pro
-選擇:Claude 4.6 Sonnet
-原因:1M 上下文窗口對程式碼註釋校對任務更穩定;成本對比 GPT-5.5 約低 25%。
+            <p>同時觀察到:本輪計劃涉及多選項架構取捨(三個後端方案之間作出選擇,並記錄原因)。自動補入<strong>架構取捨</strong>段:</p>
+<pre>### 2026-XX-XX:後端處理由方案 A 切換至方案 B
+比較選項:(1) 方案 A:低成本但上下文較短 / (2) 方案 B:上下文較長但成本較高 / (3) 方案 C:速度較快但格式控制較弱
+選擇:方案 B
+原因:程式碼註釋校對需要保留較長上下文;方案 B 在本項目的測試樣本中較穩定。
 影響:後端 API 呼叫需要重寫;提示模板需要重新調整。</pre>
           </div>
         </div>
@@ -1605,26 +1669,26 @@ Google Drive 分享連結: https://drive.google.com/file/d/abc123/view (合伙�
   <section class="step-section" id="c-phase-4">
     <div class="wrap">
       <span class="badge">DAY 90 · CASE C</span>
-      <h2>回顧問題 —— 你問「我們之前為何選 Claude?」,AI 查歷史答你</h2>
-      <p class="narrative">再過一個月,項目已試用。某日合作伙伴問你:「為何選 Claude 4.6 而不選 GPT-5.5?」你不記得具體原因細節 —— 但你知道 AI 有紀錄。打開新對話,問 AI。AI 讀交接文件加項目索引後,主動查項目決策日誌。</p>
+      <h2>回顧問題 —— 你問「之前為何選方案 B?」,AI 查歷史答你</h2>
+      <p class="narrative">再過一個月,項目已試用。某日合作伙伴問你:「為何當時選方案 B,而不是成本較低的方案 A?」你不記得具體原因細節 —— 但你知道 AI 有紀錄。打開新對話,問 AI。AI 讀交接文件加項目索引後,主動查項目決策日誌。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你 · Day 90 新對話</span>
-            <p>我們之前為何選擇 Claude 4.6 Sonnet 而不是 GPT-5.5 做後端模型?合作伙伴現在問我。</p>
+            <p>我們之前為何選擇方案 B,而不是成本較低的方案 A 做後端處理?合作伙伴現在問我。</p>
           </div>
         </div>
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI · 查歷史</span>
-            <p>交接文件當前目標提及後端用 Claude 4.6 Sonnet,但原因細節不在當前狀態。讀項目決策日誌的架構取捨段:</p>
-<pre>### 2026-XX-XX:後端模型由 GPT-5.5 切換至 Claude 4.6 Sonnet
-比較選項:(1) GPT-5.5 / (2) Claude 4.6 Sonnet / (3) Gemini 3.5 Pro
-選擇:Claude 4.6 Sonnet
-原因:1M 上下文窗口對程式碼註釋校對任務更穩定;成本對比 GPT-5.5 約低 25%。
+            <p>交接文件當前目標提及後端使用方案 B,但原因細節不在當前狀態。讀項目決策日誌的架構取捨段:</p>
+<pre>### 2026-XX-XX:後端處理由方案 A 切換至方案 B
+比較選項:(1) 方案 A:低成本但上下文較短 / (2) 方案 B:上下文較長但成本較高 / (3) 方案 C:速度較快但格式控制較弱
+選擇:方案 B
+原因:程式碼註釋校對需要保留較長上下文;方案 B 在本項目的測試樣本中較穩定。
 影響:後端 API 呼叫需要重寫;提示模板需要重新調整。</pre>
-            <p>原原因兩點:(1) 1M 上下文窗口對程式碼註釋校對更穩定;(2) 成本比 GPT-5.5 約低 25%。當時切換時 Day 60 工作日誌有完整紀錄,如需細節追溯我可以查封存。</p>
+            <p>原原因兩點:(1) 任務需要保留較長上下文;(2) 方案 B 在本項目的測試樣本中較穩定。當時切換時 Day 60 工作日誌有完整紀錄,如需細節追溯我可以查封存。</p>
             <p>你可以直接將此原因答給合作伙伴。</p>
           </div>
         </div>
@@ -1649,9 +1713,9 @@ Google Drive 分享連結: https://drive.google.com/file/d/abc123/view (合伙�
 <section class="outro">
   <div class="wrap">
     <h2>走完三個案例之後,你會發現 <span class="accent">同一套流程</span> 適用於不同任務</h2>
-    <p>由 Terminal 一句安裝 —— 開新 AI 對話貼一句 —— AI 自己讀齊治理檔、宣告載入哪個工作模式 —— 計劃階段停手等你確認 —— 安全 / 知識整理 / 寫作模式自動加碼配合任務 —— 收工一句「收工」自動寫好下次提示 —— 新對話貼回去就接得回。Case A 與 Case B 各七步,Case C 則跨越多月演進,但骨幹節奏跨案例、跨工具、跨日子都是同一套。</p>
+    <p>由終端機一句安裝 —— 開新 AI 對話貼一句 —— AI 自己讀齊交接文件、說明準備怎樣做 —— 計劃階段停手等你確認 —— 涉及安全、知識整理、寫作時自動加上相應規則 —— 收工一句「收工」自動寫好下次提示 —— 新對話貼回去就接得回。Case A 與 Case B 各七步,Case C 則跨越多月演進,但骨幹節奏跨案例、跨工具、跨日子都是同一套。</p>
     <p>你之後做第三個、第四個任務 —— 寫電子報、做股市觀察、整理多個項目的發票 —— 流程仍然是這套。工作模式會根據任務性質自動切換,但你的習慣動作(貼提示、講任務、確認計劃、收工)始終一樣。</p>
-    <p>另外建議:你希望 AI 在<strong>單一對話內</strong>的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)有持久基準,可以配合 <a href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">Adam-AI-Instructions</a> 使用 —— 到該倉庫的「五、Prompt 索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);">prompt.md</code> 全文貼入你 AI 工具設定(Claude Cowork Global Instructions、Claude Code <code style="font-family:var(--font-mono);">~/.claude/CLAUDE.md</code>、ChatGPT Custom Instructions 等)。Agent Handoff Kit 管「對話之間」的接力,Adam-AI-Instructions 管「單次對話質素」,兩者不重疊,配合使用效果最好。</p>
+    <p>另外建議:你希望 AI 在<strong>單一對話內</strong>的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)有持久基準,可以配合 <a href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">Adam-AI-Instructions</a> 使用 —— 到該倉庫的「五、提示詞索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);">prompt.md</code> 全文貼入你 AI 工具設定。Agent Handoff Kit 管「對話之間」的接力,Adam-AI-Instructions 管「單次對話質素」,兩者不重疊。</p>
     <a href="agent-handoff-kit-intro.html">看回新手 60 秒入門 →</a>
     <a class="alt" href="https://github.com/Adamchanadam/agent-handoff-kit#readme">看 README on GitHub →</a>
     <a class="alt" href="https://github.com/prompt-templates/Adam-AI-Instructions">看 Adam-AI-Instructions →</a>
@@ -1674,7 +1738,7 @@ Google Drive 分享連結: https://drive.google.com/file/d/abc123/view (合伙�
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.3.9 · MIT License</p>
+      <p>v0.3.10 · MIT License</p>
     </div>
     <div>
       <strong>作者</strong>

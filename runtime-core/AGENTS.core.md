@@ -13,7 +13,7 @@ After this core is loaded, read in order:
 
 Then classify the user's task and read only the required rule pack(s). State which pack(s) you loaded and why, using plain language so the user understands the working mode without needing to know pack names.
 
-Before classifying the task, detect first-time-user signals (R-029): if the user's first message in this session is short, vague, or contains onboarding signal keywords (e.g. "新手", "I'm new", "教我用", "help me start", "first time", "我啱啱安裝", "點開始", "show me how", "agent handoff kit 可幫我做甚麼", "我想做 [type] project", "點用", "能力"), or if the session is a fresh installation (HANDOFF Active Objective empty + Session count 1), load `dev/rules/onboarding.md` proactively BEFORE doing the regular task loop. The onboarding pack surfaces the AI's role and offers Scenario A-E selection (instead of immediately diving into task execution). Onboarding is a transient pack: after the user completes their first-task walk-through, unload it and load the regular scenario pack (coding / research / writing / knowledge / etc) for ongoing work.
+Before classifying the task, detect first-time-user signals (R-029): if the user's first message in this session is short, vague, or contains onboarding signal keywords (e.g. "新手", "I'm new", "教我用", "help me start", "first time", "我剛安裝", "點開始", "show me how", "agent handoff kit 可幫我做甚麼", "我想做 [type] project", "點用", "能力"), or if the session is a fresh installation (HANDOFF Active Objective empty + Session count 1), load `dev/rules/onboarding.md` proactively BEFORE doing the regular task loop. The onboarding pack surfaces the AI's role and offers Scenario A-F selection (instead of immediately diving into task execution). Onboarding is a transient pack: after the user completes their first-task walk-through, unload it and load the regular scenario pack (coding / research / writing / knowledge / etc) for ongoing work.
 
 If the user did not paste the previous opening message but the current project root is clear, read `AGENTS.md` first as fallback entry, then use this read order. If the root is unclear or mismatched, stop and ask for the intended project root before reading or editing project state.
 
@@ -28,20 +28,20 @@ After reading `dev/PROJECT_INDEX.md`, if `## Installed Integrations` is non-empt
 - If probe fails (current AI tool lacks the Connector / auth expired / network issue): print warning in the startup card (`⚠️ Boundary` line) noting which Integration is declared-but-unavailable + that this session will fallback to paste flow when that external surface is touched. Do not attempt to auto-fix auth or credential issues; surface to the user to handle via the AI tool's own settings interface.
 - Credential separation: AI must never request, log, or persist credential values (API keys / OAuth tokens / app secrets / refresh tokens). Credentials live in OS-level secure storage or AI-tool-specific config, never in `dev/*` files. Recognize common credential prefixes (`sk-`, `sk-ant-`, `ntn_`, `secret_`, `ya29.`, `1//`, `xoxp-`, `xoxb-`, `ghp_`, `gho_`, `ghs_`, `github_pat_`, `sl.`, `AKIA`, `AIza`) and redact + warn the user to rotate the token if accidentally pasted.
 
-After startup reads are complete, show a short startup card:
+After startup reads are complete, show one short startup card. If onboarding is loaded, combine this card and the onboarding choice list into one first response. Do not print any standalone startup card before the onboarding rule has been read. Do not print a partial card. Do not print the cat banner twice. If you started drafting a card and then discovered onboarding applies, discard the draft and output only the final combined response.
 
 ```text
    /\_/\   Agent Handoff Kit v<version>
   ( o.o )  continuity ready
    > ^ <
 
-🔎 Handoff: loaded
-📌 Objective: <current objective>
-⚠️ Boundary: <important boundary or none>
-🚀 Next: <next action>
+🔎 交接狀態：<loaded / new install / resumed>
+📌 目前目標：<current objective>
+⚠️ 注意事項：<important boundary or none>
+🚀 下一步：<next action>
 ```
 
-Keep the card short. Use the full product name, not an abbreviation. If the installed template or CLI version is unknown, write `version unverified` instead of guessing.
+Keep the card short. Use plain Traditional Chinese labels in user-facing output. Use the full product name, not an abbreviation. If the installed template or CLI version is unknown, write `version unverified` instead of guessing.
 
 ## 2. Work Loop
 
