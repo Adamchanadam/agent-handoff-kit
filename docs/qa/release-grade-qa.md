@@ -215,8 +215,8 @@ npm package 由 `package.json` 的 `files` 控制：
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.10` 候選段，`docs/whatsnew/v0.3.10.md` 已補本版用戶說明。 | 通過；publish 後須核對 GitHub Release 與 npm metadata |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.10`。 | 通過；publish 後須驗證 npm latest 為 `0.3.10` |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.10` 正式段，`docs/whatsnew/v0.3.10.md` 已補本版用戶說明。 | 通過；GitHub Release 與 npm metadata 已核對 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.10`。 | 通過；npm latest 已驗證為 `0.3.10` |
 
 ## v0.3.10 發佈狀態
 
@@ -224,8 +224,8 @@ npm package 由 `package.json` 的 `files` 控制：
 - release notes：`CHANGELOG.md` 的 `v0.3.10` 段落 + `docs/whatsnew/v0.3.10.md`。
 - 發佈內容：首次安裝後真實 AI 對話旅程修補；精簡終端機下一步、修復 Claude Code 橋接檔被擴寫問題、補明 Antigravity CLI / Gemini CLI 遷移期入口關係，並改善新手情境文字。
 - 發佈前驗收重點：首次安裝 → AI 對話 → 情境選擇、污染後橋接檔升級修復、v0.3.9 → v0.3.10 升級鏈與 34 個入包檔案均須通過。
-- npm 狀態：尚未 npm publish；publish 後須驗證 npm latest 為 `0.3.10`；package fileCount 預期 34（從 33 增加 1，加 `docs/whatsnew/v0.3.10.md`）。
-- 🟡 發佈檢：尚未執行；須待 GitHub Release 與 npm publish 完成後才可跑。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.10`；package fileCount 34（從 33 增加 1，加 `docs/whatsnew/v0.3.10.md`）。
+- 🟡 發佈檢：v0.3.10 post-publish verification 已完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.9 → v0.3.10 published-package upgrade 均通過。
 
 ### Cross-mind evidence 9-trigger table（v0.3.10）
 
