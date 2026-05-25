@@ -201,7 +201,10 @@ function main() {
   // current CLI upgrade. The legacy core must be replaced into a managed
   // block, single core, and the automatic doctor self-check must pass.
   const realFixtureRoots = [];
-  for (const ver of ["v0.1.4", "v0.1.5", "v0.1.6", "v0.1.7", "v0.1.8"]) {
+  const fixtureVersions = fixtureVersionDirs();
+  assert(fixtureVersions.includes("v0.2.0") && fixtureVersions.includes("v0.2.3"), "real fixture set must include v0.2.x upgrade preconditions");
+  assert(fixtureVersions.includes(`v${packageJson.version}`), `real fixture set must include current released baseline v${packageJson.version}`);
+  for (const ver of fixtureVersions) {
     const fixtureDir = path.join(fixturesRoot, ver);
     assert(existsSync(path.join(fixtureDir, "AGENTS.md")), `missing fixture: ${ver}/AGENTS.md (re-run npm run qa:fixtures)`);
     assert(existsSync(path.join(fixtureDir, "dev/PROJECT_INDEX.md")), `missing fixture: ${ver}/dev/PROJECT_INDEX.md`);
@@ -210,8 +213,12 @@ function main() {
     copyFileSync(path.join(fixtureDir, "AGENTS.md"), path.join(hopRoot, "AGENTS.md"));
     copyFileSync(path.join(fixtureDir, "dev/PROJECT_INDEX.md"), path.join(hopRoot, "dev/PROJECT_INDEX.md"));
     const hopUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", hopRoot], `real-fixture single-hop upgrade ${ver}`);
-    // v0.3.0+: upgrade now merges AGENTS.md managed-core (1) + PROJECT_INDEX.md ## Installed Integrations migration (1) = 2 merges.
-    assert(hopUpgrade.stdout.includes("merged: 2"), `${ver} real-fixture single-hop must report two merged files (AGENTS.md managed-core + PROJECT_INDEX.md Installed Integrations migration)`);
+    if (isVersionBefore(ver, "v0.3.0")) {
+      // v0.1.x / v0.2.x fixtures predate the current managed-core + integrations shape.
+      assert(hopUpgrade.stdout.includes("merged: 2"), `${ver} real-fixture single-hop must report two merged files (AGENTS.md managed-core + PROJECT_INDEX.md Installed Integrations migration)`);
+    } else {
+      assert(!hopUpgrade.stdout.includes("conflict: 1"), `${ver} real-fixture single-hop must not enter conflict state`);
+    }
     assert(hopUpgrade.stdout.includes("升級後自動檢查"), `${ver} real-fixture single-hop must run doctor self-check`);
     assert(hopUpgrade.stdout.includes("status: passed"), `${ver} real-fixture single-hop self-check must pass`);
     const hopAgents = read(path.join(hopRoot, "AGENTS.md"));
@@ -493,6 +500,26 @@ function findFile(startDir, targetName) {
 
 function read(filePath) {
   return readFileSync(filePath, "utf8");
+}
+
+function fixtureVersionDirs() {
+  return readdirSync(fixturesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && /^v\d+\.\d+\.\d+$/.test(entry.name))
+    .map((entry) => entry.name)
+    .sort(compareVersions);
+}
+
+function compareVersions(a, b) {
+  const av = a.slice(1).split(".").map(Number);
+  const bv = b.slice(1).split(".").map(Number);
+  for (let i = 0; i < 3; i += 1) {
+    if (av[i] !== bv[i]) return av[i] - bv[i];
+  }
+  return 0;
+}
+
+function isVersionBefore(a, b) {
+  return compareVersions(a, b) < 0;
 }
 
 function outputText(result) {

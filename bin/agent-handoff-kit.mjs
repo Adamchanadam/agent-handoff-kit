@@ -1974,14 +1974,17 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
 async function printUpgradeNextSteps(root, conflictCount, version, preUpgradeRootVersion) {
   console.log("");
   console.log("============================================================");
-  console.log("✅ 升級完成：Kit 檔案已更新到最新版本");
-  console.log("============================================================");
   if (conflictCount > 0) {
+    console.log("⚠️  升級未完成：有檔案需要人工確認");
+    console.log("============================================================");
     console.log("⚠️  狀態：有既有檔案需要人工確認，詳情見 migration report。");
     console.log("⚠️  這不是檔案壞掉；工具已停手，沒有覆寫 conflict 檔案。");
     console.log("📋 下一步：把 migration report 或這段輸出貼給 AI，請它幫你判斷怎樣合併。");
-    console.log("");
+    console.log("============================================================");
+    return;
   }
+  console.log("✅ 升級完成：Kit 檔案已更新到最新版本");
+  console.log("============================================================");
   // R-031.2 v0.3.2+: Inline whatsnew summary — directly surface what changed in this
   // version (and any intermediate versions the user skipped).
   // R-031.3 v0.3.3+: fromVersion now uses pre-upgrade snapshot (captured before

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +22,7 @@ function main() {
   assert(packageJson.scripts["qa:packs"], "qa:packs script is missing");
   assert(packageJson.scripts["qa:upgrade"], "qa:upgrade script is missing");
   assert(packageJson.scripts["qa:release"], "qa:release script is missing");
+  checkWhatsnewSchema(version);
 
   runQaScript("check-public-prototype.mjs", "prototype QA");
   runQaScript("check-pack-scenarios.mjs", "pack scenario QA");
@@ -29,7 +30,8 @@ function main() {
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
-  assert(packText.includes("total files: 34"), "npm dry-run did not report expected 34 package files (v0.3.10+ includes docs/whatsnew/v0.3.1.md through v0.3.10.md)");
+  const expectedFiles = expectedPackageFileCount();
+  assert(packText.includes(`total files: ${expectedFiles}`), `npm dry-run did not report expected ${expectedFiles} package files`);
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
@@ -452,11 +454,12 @@ function checkScenarioBranchingDocAlignment() {
     {
       id: "2",
       snippets: [
-        "install with conflict",
-        "conflict",
-        "migration report",
-        "工具已停手，沒有覆寫",
-        "全部通過"
+        "init with existing local rules",
+        "資料夾已有本地 AI 規則",
+        "已補齊缺少檔案，但仍要檢查入口連接",
+        "upgrade --dry-run",
+        "既有 `AGENTS.md` 保留",
+        "乾淨首次安裝"
       ]
     },
     {
@@ -547,18 +550,16 @@ function checkScenarioBranchingDocAlignment() {
       assert(line.includes(snippet), `docs/qa/release-grade-qa.md scenario ${row.id} row is not aligned with release scenario contract; missing: ${snippet}`);
     }
   }
-  assert(qaDoc.includes("場景 1 / 3a / 3b / 4 / 4b / 6 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list scenario 1 / 3a / 3b / 4 / 4b / 6");
-  assert(qaDoc.includes("場景 2 / 5 / 7 屬 conditional state"), "docs/qa/release-grade-qa.md human-review scope must list scenario 2 / 5 / 7");
+  assert(qaDoc.includes("場景 1 / 2 / 3a / 3b / 4 / 4b / 5 / 6 / 7 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list every scenario");
+  assert(!qaDoc.includes("場景 2 / 5 / 7 屬 conditional state"), "docs/qa/release-grade-qa.md still claims scenario 2 / 5 / 7 are manual-only");
   console.log("ok: docs/qa/release-grade-qa.md seven-scenario table aligned with CLI scenario contract");
 }
 
-// R-031.1 v0.3.1+: CLI scenario branching simulation. Real-invoke bin in 5 automated
+// R-031.1 v0.3.1+: CLI scenario branching simulation. Real-invoke bin in automated
 // scenarios and assert must-have / must-not-have output per scenario contract.
 // Scenario 3 is split inline into 3a metadata-only stale and 3b structurally stale
 // via a real v0.1.7 fixture, so the upgrade-substantive path is no longer delegated
 // to `scripts/check-upgrade-safety.mjs`.
-// Scenarios 2 / 5 / 7 (install with conflict / upgrade with conflict / doctor outdated)
-// require more elaborate state setup and remain on the human review checklist for now.
 function simulateScenarioBranching() {
   console.log("");
   console.log("CLI scenario branching coverage (R-031.1):");
@@ -586,6 +587,31 @@ function simulateScenarioBranching() {
       /I just upgraded agent-handoff-kit/
     ]
   });
+
+  // Scenario 2: init in a folder with existing local AI rules. `init` must not
+  // overwrite user-owned files; it should fill missing Kit files and send the user
+  // to `upgrade --dry-run` for the bridge check instead of pretending this was a
+  // clean first install.
+  const s2Root = path.join(tempBase, "scenario-install-existing-local-rules");
+  mkdirSync(s2Root, { recursive: true });
+  const s2AgentsPath = path.join(s2Root, "AGENTS.md");
+  writeFileSync(s2AgentsPath, "# Local AI Rules\n\nKeep this user-owned line.\n", "utf8");
+  const s2 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s2Root], "scenario 2 init with existing local rules", { env });
+  assertScenarioOutput("scenario 2 (init preserves existing local rules)", s2.stdout, {
+    mustHave: [
+      /已補齊缺少檔案，但仍要檢查入口連接/,
+      /skipped existing: 1/,
+      /upgrade --dry-run/,
+      /沒有 conflict/
+    ],
+    mustNotHave: [
+      /✅ 安裝完成：下一步請在 AI 對話中操作/,
+      /I just installed agent-handoff-kit\. Help me get started\./,
+      /工具已停手，沒有覆寫 conflict 檔案/
+    ]
+  });
+  const s2AgentsPost = readFileSync(s2AgentsPath, "utf8");
+  assert(s2AgentsPost.includes("Keep this user-owned line."), "scenario 2 init overwrote existing AGENTS.md");
 
   // Scenario 4: upgrade no-op (re-run upgrade on freshly installed root — already latest)
   const s4 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s1Root], "scenario 4 upgrade no-op", { env });
@@ -744,6 +770,36 @@ function simulateScenarioBranching() {
   }
   console.log(`ok: scenario 3b (structurally stale) post-upgrade template version = v${s3bVersionMatch[1]}`);
 
+  // Scenario 5: upgrade with conflict. This guards the user-facing stop state:
+  // when a bridge file cannot be safely merged, output must say the upgrade is
+  // not complete and must not print the success ceremony.
+  const s5Root = path.join(tempBase, "scenario-upgrade-with-conflict");
+  const s5Init = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s5Root], { encoding: "utf8", env, cwd: root });
+  if (s5Init.status !== 0) {
+    throw new Error(`Scenario 5 init prep failed: ${s5Init.stderr || s5Init.stdout}`);
+  }
+  const s5ClaudePath = path.join(s5Root, "CLAUDE.md");
+  writeFileSync(s5ClaudePath, "# Local Claude Instructions\n\nThis file intentionally does not route to the Kit entry file.\n", "utf8");
+  const s5 = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s5Root], { encoding: "utf8", env, cwd: root });
+  if (s5.status === 0) {
+    throw new Error(`scenario 5 upgrade with conflict expected non-zero exit\n${s5.stdout}`);
+  }
+  assertScenarioOutput("scenario 5 (upgrade with conflict)", s5.stdout, {
+    mustHave: [
+      /conflict: 1/,
+      /migration report:/,
+      /升級未完成：有檔案需要人工確認/,
+      /工具已停手，沒有覆寫 conflict 檔案/
+    ],
+    mustNotHave: [
+      /✅ 升級完成：/,
+      /升級後自動檢查/,
+      /I just upgraded agent-handoff-kit/
+    ]
+  });
+  const s5ClaudePost = readFileSync(s5ClaudePath, "utf8");
+  assert(s5ClaudePost.includes("intentionally does not route"), "scenario 5 conflict file was overwritten");
+
   // Scenario 6: doctor healthy & latest
   const s6 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s1Root], "scenario 6 doctor healthy & latest", { env });
   assertScenarioOutput("scenario 6 (doctor healthy & latest)", s6.stdout, {
@@ -759,6 +815,27 @@ function simulateScenarioBranching() {
       /📦 版本：工具/,
       /📅 上次收工/,
       /🌱 項目首次安裝距今/
+    ],
+    mustNotHave: [
+      /如要升級到較新版/
+    ]
+  });
+
+  // Scenario 7: doctor healthy with newer version available. The startup notice
+  // may mention the newer version once; the doctor completion block must not
+  // repeat upgrade instructions as if doctor itself were an upgrade command.
+  const newerVersion = nextPatch(currentVersion);
+  const s7Env = {
+    ...process.env,
+    AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE: "1",
+    AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST: newerVersion
+  };
+  const s7 = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s1Root], "scenario 7 doctor healthy with newer available", { env: s7Env });
+  assertScenarioOutput("scenario 7 (doctor healthy with newer available)", s7.stdout, {
+    mustHave: [
+      new RegExp(`有新版可用：${escapeRegExp(currentVersion)} -> ${escapeRegExp(newerVersion)}`),
+      /status: passed/,
+      /檢查已通過/
     ],
     mustNotHave: [
       /如要升級到較新版/
@@ -1023,6 +1100,43 @@ function normalizePrompt(text) {
 
 function runQaScript(scriptName, label) {
   run(process.execPath, [path.join("scripts", scriptName)], label);
+}
+
+function checkWhatsnewSchema(version) {
+  const whatsnewDir = path.join(root, "docs/whatsnew");
+  const currentFile = path.join(whatsnewDir, `v${version}.md`);
+  assert(existsSync(currentFile), `docs/whatsnew/v${version}.md is missing`);
+  const files = readdirSync(whatsnewDir).filter((name) => /^v\d+\.\d+\.\d+\.md$/.test(name)).sort();
+  assert(files.length > 0, "docs/whatsnew has no version files");
+  const requiredHeadings = [
+    "## 本版新加了甚麼",
+    "## 對你已有檔案的影響",
+    "## 建議下一步"
+  ];
+  for (const file of files) {
+    const text = readAt(whatsnewDir, file);
+    const versionFromName = file.replace(/\.md$/, "");
+    assert(text.startsWith(`# ${versionFromName}\n`), `${file} must start with "# ${versionFromName}"`);
+    let previousIndex = -1;
+    for (const heading of requiredHeadings) {
+      const index = text.indexOf(heading);
+      assert(index >= 0, `${file} missing heading: ${heading}`);
+      assert(index > previousIndex, `${file} heading order drifted: ${heading}`);
+      previousIndex = index;
+    }
+  }
+  console.log(`ok: docs/whatsnew schema (${files.length} files, current v${version})`);
+}
+
+function expectedPackageFileCount() {
+  const whatsnewCount = readdirSync(path.join(root, "docs/whatsnew"))
+    .filter((name) => /^v\d+\.\d+\.\d+\.md$/.test(name)).length;
+  return 24 + whatsnewCount;
+}
+
+function nextPatch(v) {
+  const [major, minor, patch] = v.split(".").map(Number);
+  return `${major}.${minor}.${patch + 1}`;
 }
 
 function runNpm(args, label) {

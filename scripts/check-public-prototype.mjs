@@ -58,7 +58,8 @@ async function main() {
   await checkUpdateNotice();
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
-  assert(outputText(pack).includes("total files: 34"), "npm dry-run did not report expected 34 package files (v0.3.10+ includes docs/whatsnew/v0.3.1.md through v0.3.10.md)");
+  const expectedFiles = expectedPackageFileCount();
+  assert(outputText(pack).includes(`total files: ${expectedFiles}`), `npm dry-run did not report expected ${expectedFiles} package files`);
   assert(!existsSync(path.join(root, `adamchanadam-agent-handoff-kit-${version}.tgz`)), "npm dry-run left a tarball behind");
 
   const hits = scanForbiddenText(root);
@@ -119,6 +120,12 @@ function runNpm(args, label) {
     return run(process.execPath, [process.env.npm_execpath, ...args], label);
   }
   return run(process.platform === "win32" ? "npm.cmd" : "npm", args, label);
+}
+
+function expectedPackageFileCount() {
+  const whatsnewCount = readdirSync(path.join(root, "docs/whatsnew"))
+    .filter((name) => /^v\d+\.\d+\.\d+\.md$/.test(name)).length;
+  return 24 + whatsnewCount;
 }
 
 function scanForbiddenText(startDir) {

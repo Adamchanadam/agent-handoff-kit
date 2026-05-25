@@ -39,7 +39,7 @@ const scenarios = [
     name: "writing",
     route: ["Draft, edit", "dev/rules/writing.md"],
     pack: "writing",
-    snippets: ["audience", "Preserve factual meaning", "terminology consistent"]
+    snippets: ["audience", "Preserve factual meaning", "terminology consistent", "non-technical readers", "steady written Chinese", "new user journey"]
   },
   {
     name: "knowledge",

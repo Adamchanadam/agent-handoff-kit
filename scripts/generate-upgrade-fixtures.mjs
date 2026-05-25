@@ -2,7 +2,7 @@
 
 // Phase 2 R-025: Real-version upgrade fixture generator.
 //
-// For each target tag (v0.1.4 / v0.1.5 / v0.1.6), this script:
+// For each target tag, this script:
 // 1. Creates a temporary detached worktree at the tag via `git worktree add`.
 // 2. Runs that tag's own bin/agent-handoff-kit.mjs `init` into a temp root.
 // 3. Copies the key produced files into test-fixtures/<tag>/.
@@ -25,7 +25,28 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 
-const TARGETS = ["v0.1.4", "v0.1.5", "v0.1.6", "v0.1.7", "v0.1.8"];
+const TARGETS = [
+  "v0.1.4",
+  "v0.1.5",
+  "v0.1.6",
+  "v0.1.7",
+  "v0.1.8",
+  "v0.2.0",
+  "v0.2.1",
+  "v0.2.2",
+  "v0.2.3",
+  "v0.3.0",
+  "v0.3.1",
+  "v0.3.2",
+  "v0.3.3",
+  "v0.3.4",
+  "v0.3.5",
+  "v0.3.6",
+  "v0.3.7",
+  "v0.3.8",
+  "v0.3.9",
+  "v0.3.10"
+];
 
 // Key files needed to reproduce older-version core states for R-024 / R-025.
 // AGENTS.md carries the core runtime form (with or without managed markers);
