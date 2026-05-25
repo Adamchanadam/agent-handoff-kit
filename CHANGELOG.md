@@ -1,5 +1,30 @@
 # 變更紀錄
 
+## v0.3.11 — 2026-05-25
+
+狀態：正式發佈版本。本版本整理 v0.3.10 發佈後的用戶旅程債務，把已通過的人工實測與文件修補轉成更穩定的發佈前守門。
+
+### 本版對用戶有甚麼價值
+
+- 首次安裝、已有本地規則的安裝、升級衝突、健康檢查與收工接力等日常路徑，現在有更完整的自動情景檢查。
+- `upgrade` 遇到 conflict 時，語氣改為清楚停手；不再在同一畫面同時出現完成感與阻擋訊息。
+- 公開介紹頁與操作指南對齊新的 5 步新手引導，避免用戶未釐清需求前就被推入改檔流程。
+- 舊版本升級 fixture 改用真實版本資料，v0.2.x 到 v0.3.10 的升級風險會在發佈前被重跑。
+
+### Changed
+
+- `scripts/check-release-readiness.mjs` 補齊 scenario 2 / 5 / 7，自動覆蓋有本地 AI 規則的安裝、conflict 停手與日常 `doctor` 健康路徑。
+- `scripts/check-upgrade-safety.mjs` 升級鏈改以 `v0.3.10` 作已發佈來源，`v0.3.11` 作 current HEAD，確保上一版到新版的遷移被實測。
+- `docs/whatsnew/` 增加 schema 守門；`docs/whatsnew/v0.3.1.md` 至 `v0.3.4.md` 已改回較自然的書面中文。
+- package fileCount 34 → 35：新增 `docs/whatsnew/v0.3.11.md`。
+- `packs/writing.md` 補上公開文件語氣要求：面向非技術讀者時，以書面中文為主，少用半中半英片段。
+
+### Migration path（v0.3.10 → v0.3.11，backward-compat preserved）
+
+- 既有項目不用重裝；可先執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` 預覽。
+- 若預演顯示 conflict，請先按提示處理衝突，不要用重裝覆蓋既有文件。
+- 若沒有 conflict，再執行正式 `upgrade`，完成後用 `doctor` 檢查項目狀態。
+
 ## v0.3.10 — 2026-05-25
 
 狀態：正式發佈版本。本版本回應首次安裝後真實進入 AI 對話的用戶旅程測試，重點是讓新用戶從終端機、README、新手頁，到 Claude Code / Codex / Antigravity 等 AI 工具的第一句開工，都更清楚、更少干擾。

@@ -202,8 +202,9 @@ function main() {
   // block, single core, and the automatic doctor self-check must pass.
   const realFixtureRoots = [];
   const fixtureVersions = fixtureVersionDirs();
+  const previousReleasedPatchTag = previousPatchTag(packageJson.version);
   assert(fixtureVersions.includes("v0.2.0") && fixtureVersions.includes("v0.2.3"), "real fixture set must include v0.2.x upgrade preconditions");
-  assert(fixtureVersions.includes(`v${packageJson.version}`), `real fixture set must include current released baseline v${packageJson.version}`);
+  assert(fixtureVersions.includes(previousReleasedPatchTag), `real fixture set must include previous released baseline ${previousReleasedPatchTag}`);
   for (const ver of fixtureVersions) {
     const fixtureDir = path.join(fixturesRoot, ver);
     assert(existsSync(path.join(fixtureDir, "AGENTS.md")), `missing fixture: ${ver}/AGENTS.md (re-run npm run qa:fixtures)`);
@@ -281,7 +282,8 @@ function main() {
     { ref: "v0.3.7", command: "upgrade" },
     { ref: "v0.3.8", command: "upgrade" },
     { ref: "v0.3.9", command: "upgrade" },
-    { ref: "v0.3.10", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.10", command: "upgrade" },
+    { ref: "v0.3.11", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -620,6 +622,14 @@ function assertCurrentReleasePatchChainCovered(chainSteps) {
   const previousPatchTag = `v${match[1]}.${match[2]}.${patch - 1}`;
   const releasedRefs = new Set(chainSteps.filter((step) => step.source !== "current-head").map((step) => step.ref));
   assert(releasedRefs.has(previousPatchTag), `chainSteps missing previous released patch ${previousPatchTag} before current v${version}`);
+}
+
+function previousPatchTag(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  assert(match, `package.json version must be semver, got ${version}`);
+  const patch = Number(match[3]);
+  assert(patch > 0, `previous released patch is undefined for ${version}`);
+  return `v${match[1]}.${match[2]}.${patch - 1}`;
 }
 
 function assert(condition, message) {

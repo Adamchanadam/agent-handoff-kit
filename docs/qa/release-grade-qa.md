@@ -194,7 +194,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 已檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在終端機繼續輸入。
-- 套件預演目前維持 34 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.10.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 35 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.11.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -204,19 +204,42 @@ npm package 由 `package.json` 的 `files` 控制：
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
 | 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已批准本輪候選準備與 QC 推進；tag、GitHub Release、npm publish 仍須另行明確批准 |
-| 版本口徑 | `package.json` 目前為 `0.3.10`；v0.3.10 是首次安裝後 AI 對話旅程與橋接檔 root-fix。 | 通過；publish 前須重跑發佈前檢查 |
+| 版本口徑 | `package.json` 目前為 `0.3.11`；v0.3.11 是 post-v0.3.10 用戶旅程守門與公開文件同步修補。 | 通過；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 34 files。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 35 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.10.md` 已轉入 v0.3.10 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
+| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.11.md` 已轉入 v0.3.11 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.10` 正式段，`docs/whatsnew/v0.3.10.md` 已補本版用戶說明。 | 通過；GitHub Release 與 npm metadata 已核對 |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.10`。 | 通過；npm latest 已驗證為 `0.3.10` |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.11` 正式段，`docs/whatsnew/v0.3.11.md` 已補本版用戶說明。 | 通過；GitHub Release 與 npm metadata 已核對 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.11`。 | 通過；npm latest 已驗證為 `0.3.11` |
+
+## v0.3.11 發佈狀態
+
+- 發佈版本：`0.3.11`。
+- release notes：`CHANGELOG.md` 的 `v0.3.11` 段落 + `docs/whatsnew/v0.3.11.md`。
+- 發佈內容：post-v0.3.10 用戶旅程守門；scenario 2 / 5 / 7 自動化；v0.2.x 到 v0.3.10 真實 fixture 升級覆蓋；whatsnew schema；公開文件語氣與 onboarding guide 對齊。
+- 發佈前驗收重點：快檢四項、v0.3.10 → v0.3.11 升級鏈、35 個入包檔案、公開文件版本口徑、conflict 停手文字與首次安裝後 AI 對話旅程均須通過。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.11`；package fileCount 35（從 34 增加 1，加 `docs/whatsnew/v0.3.11.md`）。
+- 🟡 發佈檢：v0.3.11 post-publish verification 須完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.10 → v0.3.11 published-package upgrade 均須通過。
+
+### Cross-mind evidence 9-trigger table（v0.3.11）
+
+| Trigger condition | Required (yes/no) | Result (passed / iterated / blocked) | Follow-up (assertion ID / checklist item / accepted risk reason) |
+|---|---|---|---|
+| 1. 發佈說明使用「已驗證／已修復／可持續／sustainable」等強聲明 | yes | iterated | 本版只聲明已把 v0.3.10 後續債務轉成候選守門；公開完成狀態仍由發佈後驗證確認。 |
+| 2. 同類 bug 連續兩版出現 | yes | iterated | v0.3.7 至 v0.3.10 均暴露用戶旅程與發佈守門落差；本版把 scenario 2 / 5 / 7 轉入自動檢查。 |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：upgrade conflict 停手文字；測試層：release scenario、upgrade fixture、whatsnew schema；敘事層：README、HTML、CHANGELOG、whatsnew、本段。 |
+| 4. 三個以上治理檔同步改動 | yes | passed | public docs、QA scripts、whatsnew、CHANGELOG 與 WORK 鏡像同步規則一起更新；WORK session state 不輸出到 npm package。 |
+| 5. 公開可見發佈儀式 | yes | blocked | tag、GitHub Release、npm publish 仍須在候選檢查通過後執行，並以發佈後驗證收口。 |
+| 6. 存在人工語意判斷而無機器斷言 | yes | iterated | Case A/B/C guide 順序與非技術語氣屬語意 UX；已補進 release readiness、manual checklist 與 WORK mirror sync 規則。 |
+| 7. 發佈後上一版由真實用戶抓 bug | yes | iterated | v0.3.10 後 Adam 抓到 guide / outputs 鏡像漏同步；已轉成 DOC_SYNC_REGISTRY 優先規則與 hash 驗證紀律。 |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | 升級 fixture 已覆蓋 v0.2.x 至 v0.3.10 真實版本；候選 v0.3.11 由 current HEAD 鏈路驗證。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | iterated | 主要聲明對應：scenario 2 / 5 / 7、自動升級鏈、whatsnew schema、package fileCount 35 與 mirror sync 規則。 |
 
 ## v0.3.10 發佈狀態
 
