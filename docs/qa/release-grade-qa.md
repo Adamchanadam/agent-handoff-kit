@@ -225,7 +225,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - 發佈內容：post-v0.3.10 用戶旅程守門；scenario 2 / 5 / 7 自動化；v0.2.x 到 v0.3.10 真實 fixture 升級覆蓋；whatsnew schema；公開文件語氣與 onboarding guide 對齊。
 - 發佈前驗收重點：快檢四項、v0.3.10 → v0.3.11 升級鏈、35 個入包檔案、公開文件版本口徑、conflict 停手文字與首次安裝後 AI 對話旅程均須通過。
 - npm 狀態：已 npm publish；npm latest 為 `0.3.11`；package fileCount 35（從 34 增加 1，加 `docs/whatsnew/v0.3.11.md`）。
-- 🟡 發佈檢：v0.3.11 post-publish verification 須完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.10 → v0.3.11 published-package upgrade 均須通過。
+- 🟡 發佈檢：v0.3.11 post-publish verification 已完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.10 → v0.3.11 published-package upgrade 均通過。
 
 ### Cross-mind evidence 9-trigger table（v0.3.11）
 
