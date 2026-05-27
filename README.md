@@ -35,6 +35,10 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 ## 三步上手
 
+![Agent Handoff Kit 新手流程](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-new-user-flow.png)
+
+這張圖是給第一次使用的人看的流程摘要：先在專案資料夾安裝，然後在 AI 對話中說「教我用」或 `help me start`，完成工作時說「收工」，讓 AI 留下下一次能接上的交接。
+
 ### 一、安裝
 
 在你的專案資料夾打開終端機，執行：
