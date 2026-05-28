@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：目前版本為 `v0.3.11`。這是早期可用版本，仍在持續完善中。
+狀態：目前版本為 `v0.3.12`。這是早期可用版本，仍在持續完善中。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -120,7 +120,7 @@ START_NEXT_SESSION_PROMPT.txt
 npx --yes @adamchanadam/agent-handoff-kit@latest doctor
 ```
 
-看到「檢查通過」代表必要文件、基本結構與下次開工提示副本的一致性都通過檢查。
+看到「檢查通過」代表必要文件與基本結構通過檢查。若 `START_NEXT_SESSION_PROMPT.txt` 落後於 `dev/SESSION_HANDOFF.md`，`doctor` 只會提醒；這個便利副本應在收工 closeout 時由 AI 重新生成，不需要在 session 中途手動更新。
 
 `doctor` 只檢查，不會建立或修改項目文件。這個檢查只能確認文件齊不齊、格式是否正常，不代表 AI 已理解你的專案。真正開始工作前，仍應把 `Work in ...` 起步句貼到 AI 對話，讓 AI 讀入口文件並說明目前狀態。
 
@@ -261,7 +261,7 @@ Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templa
 
 ## 目前限制
 
-- 目前版本為 `v0.3.11`。
+- 目前版本為 `v0.3.12`。
 - 這是早期可用版本，仍在持續完善中。
 - 升級合併屬窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

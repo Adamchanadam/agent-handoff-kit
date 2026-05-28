@@ -192,9 +192,9 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已檢查任務入口事實欄位：Fact Base、External Sources、Local QC Commands 與 Next Task Required Reading。
 - `doctor` 已檢查 handoff 對賬欄位：Durable Anchors、Closeout-Reconciled State、Task Understanding Summary 與 State Reconciliation Check。
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
-- `doctor` 已檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致。
+- `doctor` 會檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致；安裝後與 closeout 後必須一致，session 進行中若只有便利副本落後，普通 `doctor` 只可警告，不可 fail。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在終端機繼續輸入。
-- 套件預演目前維持 35 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.11.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 36 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.12.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -204,19 +204,41 @@ npm package 由 `package.json` 的 `files` 控制：
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
 | 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已批准本輪候選準備與 QC 推進；tag、GitHub Release、npm publish 仍須另行明確批准 |
-| 版本口徑 | `package.json` 目前為 `0.3.11`；v0.3.11 是 post-v0.3.10 用戶旅程守門與公開文件同步修補。 | 通過；publish 前須重跑發佈前檢查 |
+| 版本口徑 | `package.json` 目前為 `0.3.12`；v0.3.12 是 prompt mirror doctor 誤判修補。 | 通過；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 35 files。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 36 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.11.md` 已轉入 v0.3.11 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
+| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.12.md` 已轉入 v0.3.12 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.11` 正式段，`docs/whatsnew/v0.3.11.md` 已補本版用戶說明。 | 通過；GitHub Release 與 npm metadata 已核對 |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.11`。 | 通過；npm latest 已驗證為 `0.3.11` |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.12` 段，`docs/whatsnew/v0.3.12.md` 已補本版用戶說明。 | 通過；GitHub Release 與 npm metadata 待發佈後核對 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.12`。 | 通過；發佈後須驗證 npm latest 為 `0.3.12` |
+
+## v0.3.12 發佈狀態（候選）
+
+- 發佈版本：`0.3.12`。
+- release notes：`CHANGELOG.md` 的 `v0.3.12` 段落 + `docs/whatsnew/v0.3.12.md`。
+- 發佈內容：修正普通 `doctor` 將 `START_NEXT_SESSION_PROMPT.txt` 中途落後誤判為失敗；保留 closeout 時重生便利副本的嚴格要求。
+- 發佈前驗收重點：快檢四項、in-session prompt convenience drift fixture、v0.3.11 → v0.3.12 升級鏈、36 個入包檔案、公開文件版本口徑、以及 `doctor` warning / failure 分流均須通過。
+- 發佈後驗證目標：GitHub Release 非 draft / 非 prerelease；npm latest 為 `0.3.12`；package fileCount 36；fresh install、published `--help` / `init` / `doctor`、以及 v0.3.11 → v0.3.12 published-package upgrade 均須通過。
+
+### Cross-mind evidence 9-trigger table（v0.3.12）
+
+| Trigger | Required? | Result | Evidence |
+|---|---|---|---|
+| 1. 發佈說明使用「已修復／可用」等強聲明 | yes | passed | 強聲明只對應普通 `doctor` prompt mirror drift 不再 fail；targeted repro + `qa:release` fixture 覆蓋。 |
+| 2. 同類 bug 連續 2+ 次修補仍未斷 | yes | iterated | v0.3.8-v0.3.11 已多次暴露 `doctor` / user journey 邏輯邊界；本次新增 fixture 防止同類 prompt convenience drift 回歸。 |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：`bin/agent-handoff-kit.mjs`；測試層：`scripts/check-release-readiness.mjs`；敘事層：README、CHANGELOG、whatsnew、本段。 |
+| 4. 三個以上治理檔同步改動 | yes | passed | runtime core、PROJECT_INDEX、release QA、README 與 WORK 記錄同步更新；WORK session state 不進 npm package。 |
+| 5. 將要對外 commit / tag / publish | yes | passed | 本表與全面檢作為發佈前證據；未通過不得進入 commit / tag / release / publish。 |
+| 6. 結論基於語意判斷而非單一 grep | yes | passed | 產品語意為「active session warning vs closeout-ready strict」；用真實 `doctor` invocation 驗證，不只 grep。 |
+| 7. 上次同類問題曾被用戶 catch | yes | iterated | Adam 由 runtime project doctor failure 揭發；已轉成 release readiness fixture。 |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | prompt convenience drift fixture 是最小可重建狀態；同時仍跑完整歷史 upgrade chain 到 current HEAD。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | passed | 發佈聲明對應 targeted repro、release user-flow drift fixture、ordinary doctor warning output、closeout regenerated prompt retained。 |
 
 ## v0.3.11 發佈狀態
 
@@ -648,7 +670,7 @@ grep -n -E "人話解讀|人話補一句|人話解釋" agent-handoff-kit-guide.h
 
 - 安裝完成訊息：用戶讀完知道版本、做咗乜、下一步點處理。
 - 升級完成訊息：用戶讀完知道 self-check 結果，唔會誤以為「skip」即係未完成。
-- Doctor 失敗訊息：四種模式（missing files / anchor / schema / prompt mirror）每種都應有對應中文下一步指示。
+- Doctor 失敗訊息：missing files / anchor / schema 等阻擋模式必須有對應中文下一步指示；prompt mirror drift 在普通 `doctor` 只應是警告，並說明便利副本會在 closeout 時重生。
 - Help 訊息：用戶第一次跑 `--help` 應理解三個命令、版本同下一步。
 - 禁忌用語清單：「人話解讀」「人話補一句」「人話解釋」等自我評論／粗俗自貶 phrasing 一律禁；由 v0.2.0 起 enforce scope 由 CLI source 擴展至對外 release artifacts (README / onboarding HTML / CHANGELOG latest section)；內部 governance docs (SESSION_LOG / HANDOFF / DECISION_LOG / 內部討論) 不受限。
 - 內部 action 名：`create` / `merge` / `skip` / `conflict` / `status` 保留唔變（QA 同 migration report 依賴）。

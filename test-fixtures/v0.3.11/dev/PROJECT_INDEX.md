@@ -6,7 +6,7 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 
 | Field | Value | Last verified |
 |---|---|---|
-| Agent Handoff Kit template version | 0.1.7 | package prototype |
+| Agent Handoff Kit template version | 0.3.11 | package prototype |
 | Runtime | TBD | TBD |
 | Framework | TBD | TBD |
 | Package manager | TBD | TBD |
@@ -123,7 +123,7 @@ Record this at closeout so the next AI can detect wrong-root or workspace drift.
 | UI behavior | TBD | build + visual/manual check |
 | Data model | TBD | migration/checks |
 | Governance behavior | `AGENTS.md`, `dev/*` | doc sync registry |
-| Closeout/startup contract | `AGENTS.md`, `START_NEXT_SESSION_PROMPT.txt`, `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md` | opening message present + workspace identity current + prompt convenience copy regenerated from handoff at closeout |
+| Closeout/startup contract | `AGENTS.md`, `START_NEXT_SESSION_PROMPT.txt`, `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md` | opening message present + prompt convenience copy matches handoff + workspace identity current |
 
 ## External Services
 

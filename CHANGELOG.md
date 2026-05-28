@@ -1,5 +1,30 @@
 # 變更紀錄
 
+## v0.3.12 — 2026-05-28
+
+狀態：正式發佈版本。本版本修正持續使用一段時間後，普通 `doctor` 將下次開工提示便利副本落後誤判為項目失敗的問題。
+
+### 本版對用戶有甚麼價值
+
+- `doctor` 不再要求 `START_NEXT_SESSION_PROMPT.txt` 在 session 中途即時 mirror `dev/SESSION_HANDOFF.md`。
+- 如果只有便利副本落後，`doctor` 會顯示提醒並保持 `status: passed`；真正需要處理的是下一次 full closeout。
+- closeout 規則不放寬：收工完成前仍要由 handoff 的 fenced opening message 重生便利副本。
+- 發佈級 QA 新增中途 handoff 演化 fixture，防止同類誤判再次回歸。
+
+### Changed
+
+- `bin/agent-handoff-kit.mjs` 將 prompt mirror drift 分成阻擋與提醒：handoff 不可讀、便利副本不可讀、opening message 缺失仍是阻擋；單純便利副本落後改為 warning。
+- `runtime-core/AGENTS.core.md` 與 `runtime-core/PROJECT_INDEX.md` 對齊 closeout-time regenerate 語意，避免把普通 `doctor` 誤用成 closeout-ready gate。
+- `scripts/check-release-readiness.mjs` 新增 in-session prompt convenience drift fixture：修改 handoff opening message 而不更新便利副本時，普通 `doctor` 必須通過並說明收工時才重生。
+- `docs/qa/release-grade-qa.md` 與 README 補明 `START_NEXT_SESSION_PROMPT.txt` 是便利副本，不是 session 中途健康阻擋條件。
+- package fileCount 35 → 36：新增 `docs/whatsnew/v0.3.12.md`。
+
+### Migration path（v0.3.11 → v0.3.12，backward-compat preserved）
+
+- 既有項目不用重裝；可先執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` 預覽。
+- 若預演沒有 conflict，再執行正式 `upgrade`。
+- 升級後跑 `doctor`：若只看到提示便利副本落後，可繼續工作，並在完成任務後請 AI 執行「收工」。
+
 ## v0.3.11 — 2026-05-25
 
 狀態：正式發佈版本。本版本整理 v0.3.10 發佈後的用戶旅程債務，把已通過的人工實測與文件修補轉成更穩定的發佈前守門。

@@ -1,6 +1,6 @@
 {
   "name": "@adamchanadam/agent-handoff-kit",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "description": "Lightweight agent harness for project memory, handoff, and multi-session continuity.",
   "type": "module",
   "bin": {

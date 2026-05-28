@@ -275,6 +275,7 @@ function main() {
   assert(installedHandoff.includes("📋 Next session: copy and paste the whole block below"), "installed handoff missing copy marker");
   assert(installedHandoff.includes("```text"), "installed handoff missing fenced text block");
   assert(normalizePrompt(installedPrompt) === normalizePrompt(extractOpeningMessage(installedHandoff)), "installed START_NEXT_SESSION_PROMPT.txt does not match handoff opening message");
+  simulateInSessionPromptConvenienceDrift(installedHandoff);
   assertHandoffMarker(installedHandoff, "section", "next-task-required-reading");
   assertHandoffMarker(installedHandoff, "section", "durable-anchors");
   assertHandoffMarker(installedHandoff, "section", "closeout-reconciled-state");
@@ -969,6 +970,22 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
   const resumedDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow resumed doctor");
   assert(resumedDoctor.stdout.includes("status: passed"), "doctor did not pass after simulated closeout");
   assert(resumedDoctor.stdout.includes("schema checks:"), "resumed doctor did not run schema checks");
+}
+
+function simulateInSessionPromptConvenienceDrift(installedHandoff) {
+  const driftedHandoff = installedHandoff.replace(
+    "After reading, summarize current objective, task understanding, confirmed decisions, pending work, risks, and the next recommended action.",
+    "After reading, summarize current objective, task understanding, confirmed decisions, pending work, risks, and the next recommended action. This sentence simulates in-session handoff evolution before closeout."
+  );
+  writeFileSync(path.join(tempRoot, "dev/SESSION_HANDOFF.md"), driftedHandoff, "utf8");
+
+  const driftDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow in-session prompt convenience drift");
+  assert(driftDoctor.stdout.includes("status: passed"), "doctor should pass when only START_NEXT_SESSION_PROMPT.txt convenience copy is stale before closeout");
+  assert(driftDoctor.stdout.includes("prompt mirror checks: 1"), "doctor did not run prompt mirror warning check");
+  assert(driftDoctor.stdout.includes("warn  START_NEXT_SESSION_PROMPT.txt"), "doctor did not warn about prompt convenience drift");
+  assert(driftDoctor.stdout.includes("session 進行中不用手動重生"), "doctor did not explain prompt copy drift is closeout-time work");
+
+  writeFileSync(path.join(tempRoot, "dev/SESSION_HANDOFF.md"), installedHandoff, "utf8");
 }
 
 function simulateLocalizedHandoffHeadings() {

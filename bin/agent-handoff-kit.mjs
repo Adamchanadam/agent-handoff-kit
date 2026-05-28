@@ -727,18 +727,20 @@ async function runDoctor(root, version, options = {}) {
   }
 
   const mirrorRows = await checkPromptMirror(root);
-  const mirrorFailures = mirrorRows.filter((row) => !row.ok);
+  const mirrorBlockingFailures = mirrorRows.filter((row) => !row.ok && row.reason !== "convenience copy differs from dev/SESSION_HANDOFF.md");
+  const mirrorWarnings = mirrorRows.filter((row) => !row.ok && row.reason === "convenience copy differs from dev/SESSION_HANDOFF.md");
   console.log(`\nprompt mirror checks: ${mirrorRows.length}`);
   for (const row of mirrorRows) {
-    console.log(`${row.ok ? "ok" : "missing"}  ${row.target} (${row.label})`);
+    const status = row.ok ? "ok" : row.reason === "convenience copy differs from dev/SESSION_HANDOFF.md" ? "warn" : "missing";
+    console.log(`${status}  ${row.target} (${row.label})`);
     if (!row.ok && row.reason) console.log(`  reason: ${row.reason}`);
   }
 
-  if (mirrorFailures.length > 0) {
+  if (mirrorBlockingFailures.length > 0) {
     printDoctorSummary(version, root, "needs-fix", {
       checked: rows.length + anchorRows.length + schemaRows.length + mirrorRows.length,
       failedKind: "prompt mirror checks",
-      failedCount: mirrorFailures.length,
+      failedCount: mirrorBlockingFailures.length,
       nextStep: "以 dev/SESSION_HANDOFF.md 的 Next Session Opening Message 為準，重生 START_NEXT_SESSION_PROMPT.txt。"
     });
     process.exitCode = 1;
@@ -776,16 +778,21 @@ async function runDoctor(root, version, options = {}) {
   const projectAge = await assessProjectAge(root);
   printProjectAge(projectAge);
   const onboardingNextStep = options.context === "upgrade-self-check" ? null : getFirstUseNextStep(root, lastCloseout);
+  const promptMirrorNextStep = mirrorWarnings.length > 0
+    ? "檢查已通過。START_NEXT_SESSION_PROMPT.txt 只是下次開工便利副本；session 進行中不用手動重生，收工 closeout 時 AI 會從 dev/SESSION_HANDOFF.md 重生。"
+    : null;
 
   const overallHealthy = credentialResult.ok;
   printDoctorSummary(version, root, overallHealthy ? "healthy" : "needs-attention", {
     checked: rows.length + anchorRows.length + schemaRows.length + mirrorRows.length + 2,
     failedKind: !credentialResult.ok ? "credential leak" : null,
     failedCount: !credentialResult.ok ? credentialResult.findings.length : 0,
+    warningKind: mirrorWarnings.length > 0 ? "prompt mirror warning" : null,
+    warningCount: mirrorWarnings.length,
     nextStep: !credentialResult.ok
       ? "立即從相關檔案 redact credential value + rotate 已泄露 token；credential 應該由 AI 工具自身 secure storage 管理，永不寫入 dev/* 任何檔。"
       : disciplineResult.ok
-      ? versionNextStep ?? onboardingNextStep ?? "檢查已通過。繼續使用你原本的 AI 開工方式；如剛完成一個任務，記得在 AI 對話輸入「收工」保存交接。"
+      ? versionNextStep ?? promptMirrorNextStep ?? onboardingNextStep ?? "檢查已通過。繼續使用你原本的 AI 開工方式；如剛完成一個任務，記得在 AI 對話輸入「收工」保存交接。"
       : "繼續使用；下次 closeout 時 AI 應自動執行 SESSION_LOG N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
   });
   return overallHealthy ? "passed" : "failed";
@@ -846,7 +853,12 @@ function printDoctorSummary(version, root, mode, details) {
   console.log("");
   if (mode === "healthy") {
     console.log("status: passed");
-    console.log("✅ 檢查通過：必要文件存在，基本結構完整，下次開工提示副本也與 handoff 一致。");
+    if (details.warningCount > 0) {
+      console.log("✅ 檢查通過：必要文件存在，基本結構完整。");
+      console.log("⚠️  提醒：下次開工提示便利副本目前落後於 handoff；這只需要在收工 closeout 時重生。");
+    } else {
+      console.log("✅ 檢查通過：必要文件存在，基本結構完整，下次開工提示副本已與 handoff 一致。");
+    }
   } else {
     console.log(`status: failed (${details.failedCount} ${details.failedKind} failed)`);
     console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : "下次開工提示副本與 handoff 真源不同。"}`);
@@ -854,7 +866,7 @@ function printDoctorSummary(version, root, mode, details) {
   console.log("");
   console.log(`📦 版本：v${version}`);
   console.log(`🩺 模式：${mode}`);
-  console.log(`🔎 剛完成：檢查 ${details.checked} 項；${mode === "healthy" ? "全部通過" : `${details.failedCount} 項未通過（${details.failedKind}）`}。`);
+  console.log(`🔎 剛完成：檢查 ${details.checked} 項；${mode === "healthy" ? (details.warningCount > 0 ? `0 項未通過；${details.warningCount} 項提醒（${details.warningKind}）` : "全部通過") : `${details.failedCount} 項未通過（${details.failedKind}）`}。`);
   console.log(`🚀 下一步：${details.nextStep}`);
 }
 
@@ -867,7 +879,7 @@ async function hydrateInitialOpeningPrompt(root, created) {
       if (!text.includes("<absolute project root>")) continue;
       await writeFile(filePath, text.replaceAll("<absolute project root>", root), "utf8");
     } catch {
-      // Leave template untouched; doctor will surface prompt mirror problems if any.
+      // Leave template untouched; doctor will warn about convenience-copy drift if any.
     }
   }
 }

@@ -141,7 +141,7 @@ function main() {
     assert(upgradedCore.includes("Keep pre-core local rule."), `${label} upgrade removed pre-core local rule`);
     assert(upgradedCore.includes("## User Local Rules"), `${label} upgrade removed post-core local heading`);
     assert(upgradedCore.includes("Keep post-core local rule."), `${label} upgrade removed post-core local rule`);
-    assert(upgradedCore.includes("START_NEXT_SESSION_PROMPT.txt"), `${label} upgrade did not add current prompt mirror contract`);
+    assert(upgradedCore.includes("START_NEXT_SESSION_PROMPT.txt"), `${label} upgrade did not add closeout prompt convenience-copy contract`);
     assert(upgradedCore.includes("External skill flows, subagents, task plans"), `${label} upgrade did not add skill/subagent arbitration`);
     const oldCoreDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", oldCoreRoot], `doctor after ${label} AGENTS core upgrade`);
     assert(oldCoreDoctor.stdout.includes("status: passed"), `${label} doctor did not pass after old core replacement`);
@@ -283,7 +283,8 @@ function main() {
     { ref: "v0.3.8", command: "upgrade" },
     { ref: "v0.3.9", command: "upgrade" },
     { ref: "v0.3.10", command: "upgrade" },
-    { ref: "v0.3.11", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.11", command: "upgrade" },
+    { ref: "v0.3.12", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -596,7 +597,7 @@ At full closeout:
 7. Run the handoff sufficiency check.
 8. If either check fails, fix \`dev/SESSION_HANDOFF.md\` first.
 9. Show a short closeout card, then provide a fenced opening message.
-${promptMirror ? "\n10. Regenerate `START_NEXT_SESSION_PROMPT.txt`.\n" : ""}
+${promptMirror ? "\n10. Regenerate `START_NEXT_SESSION_PROMPT.txt` at full closeout.\n" : ""}
 ## 5. Pack Loading
 
 Use \`dev/RULE_PACKS.md\` to decide which pack to read.
