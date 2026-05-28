@@ -454,7 +454,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.3.11 · 三個日常情景 · 由第一句指令到長期接力</span>
+    <span class="kicker">v0.3.12 · 三個日常情景 · 由第一句指令到長期接力</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">三個日常情景 —— 整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進 —— 完整示範 Agent Handoff Kit 由安裝到接力的流程。每一步都會看到 AI 主動宣告載入哪個工作模式、寫入哪份交接文件、輸出哪段下次開工提示。</p>
   </div>
@@ -548,7 +548,7 @@ create: 20
 🔀 merged: 0
 ⏭️  skipped existing: 0
 
-📦 版本:v0.3.11
+📦 版本:v0.3.12
 🛠️  模式:first-install
 🔎 剛完成:init 命令;create 20 / merge 0 / skip 0 / conflict 0。
 🚀 下一步:不用再留在終端機。打開 AI 工具,貼下方起步句。
@@ -574,7 +574,7 @@ create: 20
         <ul>
           <li><strong>三個入口,同一套規矩</strong>:同時建立 <code>AGENTS.md</code>、<code>CLAUDE.md</code>、<code>GEMINI.md</code>,讓常見 AI 工具回到同一套規則。Antigravity CLI 會讀工作資料夾內的 <code>AGENTS.md</code> 與 <code>GEMINI.md</code>；因此 <code>GEMINI.md</code> 只做橋接,不另寫一套規則。</li>
           <li><strong>下一步不是終端機指令</strong>:輸出末段用 <code>⚠️</code> 標明。新手最容易撞上的誤會,是把「Work in...」這句當成要繼續在終端機輸入 —— 其實是要貼到 AI 對話。</li>
-          <li><strong>不確定才檢查</strong>:安裝後通常直接開 AI 對話即可。若之後不確定文件是否完整,才在終端機執行 <code>npx --yes @adamchanadam/agent-handoff-kit@latest doctor</code>。</li>
+          <li><strong>不確定才檢查</strong>:安裝後通常直接開 AI 對話即可。若之後不確定文件是否完整,才在終端機執行 <code>npx --yes @adamchanadam/agent-handoff-kit@latest doctor</code>。如果只是 <code>START_NEXT_SESSION_PROMPT.txt</code> 暫時落後於交接文件,新版只會提醒;完成任務後收工時再同步即可。</li>
         </ul>
       </div>
     </div>
@@ -1064,7 +1064,7 @@ Google Drive
         <div class="block-body">$ <span class="hl">npx --yes @adamchanadam/agent-handoff-kit@latest init</span>
 
 ✅ created: 20
-📦 版本:v0.3.11
+📦 版本:v0.3.12
 🛠️  模式:first-install
 🚀 下一步:開新 AI 對話,按下方提示貼入 Work in &lt;root&gt; 一句後描述任務。</div>
       </div>
@@ -1738,7 +1738,7 @@ Google Drive 分享連結: https://drive.google.com/file/d/abc123/view (合伙�
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.3.11 · MIT License</p>
+      <p>v0.3.12 · MIT License</p>
     </div>
     <div>
       <strong>作者</strong>
