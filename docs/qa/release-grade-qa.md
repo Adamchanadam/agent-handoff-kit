@@ -203,7 +203,7 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已批准本輪候選準備與 QC 推進；tag、GitHub Release、npm publish 仍須另行明確批准 |
+| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | v0.3.12 已由 Adam 批准在 full audit 通過後 commit / tag / GitHub Release / npm publish |
 | 版本口徑 | `package.json` 目前為 `0.3.12`；v0.3.12 是 prompt mirror doctor 誤判修補。 | 通過；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 36 files。 | 通過，但發佈前須重跑套件預演 |
@@ -215,16 +215,17 @@ npm package 由 `package.json` 的 `files` 控制：
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.12` 段，`docs/whatsnew/v0.3.12.md` 已補本版用戶說明。 | 通過；GitHub Release 與 npm metadata 待發佈後核對 |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.12`。 | 通過；發佈後須驗證 npm latest 為 `0.3.12` |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.12` 段，`docs/whatsnew/v0.3.12.md` 已補本版用戶說明。 | 通過；GitHub Release 非 draft / 非 prerelease，npm metadata 已核對 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.12`。 | 通過；npm latest 已驗證為 `0.3.12` |
 
-## v0.3.12 發佈狀態（候選）
+## v0.3.12 發佈狀態
 
 - 發佈版本：`0.3.12`。
 - release notes：`CHANGELOG.md` 的 `v0.3.12` 段落 + `docs/whatsnew/v0.3.12.md`。
 - 發佈內容：修正普通 `doctor` 將 `START_NEXT_SESSION_PROMPT.txt` 中途落後誤判為失敗；保留 closeout 時重生便利副本的嚴格要求。
-- 發佈前驗收重點：快檢四項、in-session prompt convenience drift fixture、v0.3.11 → v0.3.12 升級鏈、36 個入包檔案、公開文件版本口徑、以及 `doctor` warning / failure 分流均須通過。
-- 發佈後驗證目標：GitHub Release 非 draft / 非 prerelease；npm latest 為 `0.3.12`；package fileCount 36；fresh install、published `--help` / `init` / `doctor`、以及 v0.3.11 → v0.3.12 published-package upgrade 均須通過。
+- 發佈前驗收：快檢四項、in-session prompt convenience drift fixture、v0.3.11 → v0.3.12 升級鏈、36 個入包檔案、公開文件版本口徑、以及 `doctor` warning / failure 分流均通過。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.12`；package fileCount 36（從 35 增加 1，加 `docs/whatsnew/v0.3.12.md`）。
+- 🟡 發佈檢：v0.3.12 post-publish verification 已完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.11 → v0.3.12 published-package upgrade 均通過。
 
 ### Cross-mind evidence 9-trigger table（v0.3.12）
 
