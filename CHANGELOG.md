@@ -1,5 +1,24 @@
 # 變更紀錄
 
+## v0.3.13 — 2026-05-29
+
+### Fixed
+
+- `upgrade` 後自動 `doctor` 若遇到 anchor 缺失，現在會列出缺失檔案、檢查名稱與缺少文字，並提供新手可照做的 AI 修補步驟；不再把正式升級後的失敗導回 `upgrade --dry-run`。
+- `START_NEXT_SESSION_PROMPT.txt` 是 closeout 便利副本，不再作為 blocking anchor check；若它只是落後於 `dev/SESSION_HANDOFF.md`，普通 `doctor` 只應提醒，不能令升級自動檢查失敗。
+- `agent-governance` pack 與核心持久化流程補明：可重用操作程序應歸入相關 rule pack 或已登記 reference，不應只寫入 handoff / log 當作完成；新 runbook 是最後手段。
+- package fileCount 36 → 37：新增 `docs/whatsnew/v0.3.13.md`。
+
+### QA
+
+- `qa:release` 新增兩個真實旅程場景：正式升級合併 `AGENTS.md` 但便利副本仍舊時只可 warning；正式升級後若保留檔案真的缺 anchor，必須顯示精準缺失與非破壞性修補步驟。
+- `qa:packs` 擴充 `agent-governance` pack 守門，防止 durable runbook-like knowledge 繞過既有 pack / reference 歸位。
+
+### Migration path（v0.3.12 → v0.3.13，backward-compat preserved）
+
+- 既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。
+- 若升級後自動檢查真的發現 anchor 缺失，請按 CLI 顯示的缺失檔案與缺少文字交給 AI 非破壞性修補；不要回頭重跑 `upgrade --dry-run`。
+
 ## v0.3.12 — 2026-05-28
 
 狀態：正式發佈版本。本版本修正持續使用一段時間後，普通 `doctor` 將下次開工提示便利副本落後誤判為項目失敗的問題。

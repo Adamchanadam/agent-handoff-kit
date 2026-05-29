@@ -284,7 +284,8 @@ function main() {
     { ref: "v0.3.9", command: "upgrade" },
     { ref: "v0.3.10", command: "upgrade" },
     { ref: "v0.3.11", command: "upgrade" },
-    { ref: "v0.3.12", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.12", command: "upgrade" },
+    { ref: "v0.3.13", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -429,6 +430,79 @@ function main() {
   assert(userDataPostIndex.includes("## Installed Integrations"), "P2 regression: ## Installed Integrations not inserted after upgrade");
   assert(userDataPostIndex.includes("### Source-of-truth Architecture"), "P2 regression: Source-of-truth Architecture sub-table not inserted");
 
+  // Regression: stale prompt convenience copy after substantive upgrade.
+  // START_NEXT_SESSION_PROMPT.txt is regenerated at full closeout; a stale copy
+  // must warn, not fail, even when a substantive AGENTS.md merge makes upgrade run
+  // the self-check doctor.
+  const stalePromptRoot = path.join(tmpdir(), `ack-stale-prompt-${Date.now()}`);
+  mkdirSync(stalePromptRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", stalePromptRoot], "stale-prompt bootstrap install");
+  writeFileSync(path.join(stalePromptRoot, "AGENTS.md"), [
+    "# Project Local Preamble",
+    "",
+    "Keep this local rule.",
+    "",
+    staleCoreFixture({ skillArbitration: true, promptMirror: true })
+  ].join("\n"), "utf8");
+  writeFileSync(
+    path.join(stalePromptRoot, "START_NEXT_SESSION_PROMPT.txt"),
+    "Work in <absolute project root>.\n\nRead AGENTS.md and continue.\n",
+    "utf8"
+  );
+  const stalePromptUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", stalePromptRoot], "stale-prompt upgrade self-check");
+  const stalePromptOut = outputText(stalePromptUpgrade);
+  assert(stalePromptOut.includes("merged: 1"), "stale-prompt scenario must perform a substantive AGENTS.md merge so the self-check runs");
+  assert(stalePromptOut.includes("warn  START_NEXT_SESSION_PROMPT.txt"), "stale prompt convenience copy should warn during ordinary doctor");
+  assert(stalePromptOut.includes("status: passed"), "stale prompt convenience copy must not fail upgrade self-check");
+  assert(stalePromptOut.includes("升級驗收完成"), "stale prompt scenario should complete upgrade validation");
+  assert(!stalePromptOut.includes("anchor checks failed"), "stale prompt convenience copy must not be a blocking anchor failure");
+
+  // Regression: anchor drift on a skip-preserved file.
+  // Real-world roots accumulate drift in files that upgrade preserves verbatim
+  // (SESSION_LOG.md, rules/*.md, PROJECT_DECISIONS.md).
+  // When such a file is missing a required anchor snippet, the post-upgrade self-check
+  // fails — and re-running upgrade skips the same preserved file again, so the old
+  // "run upgrade --dry-run" next step was a circular dead-end. This scenario locks two
+  // contract guarantees: (1) doctor names the EXACT missing anchor text, not just the
+  // rule label; (2) the guidance does NOT route the user back to upgrade, but to a
+  // non-destructive AI content repair. The chain test never caught this because every
+  // fixture is a clean init artifact, never a drifted preserved file.
+  const anchorDriftRoot = path.join(tmpdir(), `ack-anchor-drift-${Date.now()}`);
+  mkdirSync(anchorDriftRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", anchorDriftRoot], "anchor-drift bootstrap install");
+  // Force a substantive AGENTS.md merge so the upgrade self-check actually runs
+  // (a no-op upgrade short-circuits before the self-check doctor).
+  writeFileSync(path.join(anchorDriftRoot, "AGENTS.md"), [
+    "# Project Local Preamble",
+    "",
+    "Keep this local rule.",
+    "",
+    staleCoreFixture({ skillArbitration: true, promptMirror: true })
+  ].join("\n"), "utf8");
+  // Drift a skip-preserved rules file: drop one required safety anchor.
+  const driftSafetyPath = path.join(anchorDriftRoot, "dev/rules/safety.md");
+  const driftedSafety = read(driftSafetyPath).replace("cmd /c rmdir", "cmd command removed from this stale local copy");
+  assert(!driftedSafety.includes("cmd /c rmdir"), "anchor-drift precondition: safety file still contains the anchor after removal");
+  writeFileSync(driftSafetyPath, driftedSafety, "utf8");
+
+  const anchorDriftUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", anchorDriftRoot], "anchor-drift upgrade self-check", { allowFailure: true });
+  const anchorDriftOut = outputText(anchorDriftUpgrade);
+  assert(anchorDriftUpgrade.status !== 0, "anchor-drift upgrade self-check must fail (preserved file missing a required anchor)");
+  assert(anchorDriftOut.includes("merged: 1"), "anchor-drift scenario must perform a substantive AGENTS.md merge so the self-check runs");
+  // (1) exact missing anchor text surfaced (not just the rule label).
+  assert(anchorDriftOut.includes("missing anchor text:"), "doctor must label the exact missing anchor text on anchor failure");
+  assert(anchorDriftOut.includes("cmd /c rmdir"), "doctor must name the exact missing anchor snippet, not just the rule label");
+  assert(anchorDriftOut.includes("dev/rules/safety.md"), "doctor must name the file that is missing the anchor");
+  // (2) guidance is non-circular.
+  assert(anchorDriftOut.includes("不要重跑 upgrade"), "anchor-failure guidance must tell the user NOT to re-run upgrade (the preserved file would be skipped again)");
+  assert(anchorDriftOut.includes("非破壞性補回"), "anchor-failure guidance must route the fix to the AI as a non-destructive content repair");
+  assert(!anchorDriftOut.includes("upgrade --dry-run"), "anchor-failure guidance must not advise the circular upgrade --dry-run path");
+
+  // AI-repair path: restoring the missing anchor line clears the failure.
+  writeFileSync(driftSafetyPath, `${read(driftSafetyPath).trimEnd()}\nDo not run cmd /c rmdir for destructive directory cleanup.\n`, "utf8");
+  const anchorDriftDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", anchorDriftRoot], "anchor-drift doctor after AI repair");
+  assert(anchorDriftDoctor.stdout.includes("status: passed"), "doctor must pass once the missing anchor text is restored");
+
   console.log("");
   console.log("Agent Handoff Kit upgrade safety QA passed");
   console.log(`merge root: ${mergeRoot}`);
@@ -439,6 +513,8 @@ function main() {
   console.log(`real-sandwich root: ${realSandwichRoot}`);
   console.log(`chain root: ${chainRoot}`);
   console.log(`user-data regression root: ${userDataRoot}`);
+  console.log(`stale-prompt root: ${stalePromptRoot}`);
+  console.log(`anchor-drift root: ${anchorDriftRoot}`);
 }
 
 function withWorktree(ref, callback) {

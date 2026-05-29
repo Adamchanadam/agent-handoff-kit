@@ -16,7 +16,7 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 3. Keep public runtime rules generic; project-specific incidents belong in logs, runbooks, or project index.
 4. Do not let development-only workspace rules enter public runtime.
 5. Check complexity budget before adding default-core behavior.
-6. Before creating durable workflow, runbook, or instruction files, first verify whether `dev/SESSION_HANDOFF.md`, `dev/PROJECT_INDEX.md`, `dev/DOC_SYNC_REGISTRY.md`, or existing rule packs can carry the need without a new file.
+6. Before creating durable workflow, runbook, or instruction files, first classify the knowledge type and verify whether an existing home can carry it without a new file: current state belongs in `dev/SESSION_HANDOFF.md`; trace evidence belongs in `dev/SESSION_LOG.md`; file / command / reference maps belong in `dev/PROJECT_INDEX.md`; sync obligations belong in `dev/DOC_SYNC_REGISTRY.md`; reusable operating procedures belong in the relevant rule pack or registered reference. New runbooks are last resort only.
 7. When a task uses external skills, subagents, demo workspaces, or another tool's closeout, treat those flows as subordinate to the active root's Agent Handoff Kit governance. The active root still needs its own handoff/log/index/registry persistence.
 8. For long-running projects, maintain `dev/PROJECT_DECISIONS.md` per R-028 closeout discipline (see `runtime-core/AGENTS.core.md` step 12): smart-detect substantive task evolution, multi-option architectural trade-offs, and cross-session patterns, then append entries to the appropriate H2 section. Short single-task projects keep this as a no-op default; users are not expected to edit this file manually.
 
@@ -26,6 +26,7 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 - Check `dev/DOC_SYNC_REGISTRY.md` for governance, closeout/startup, and README sync rows.
 - Confirm old overlapping wording was retired or marked legacy.
 - Confirm any new durable file is reachable from `dev/PROJECT_INDEX.md` and does not rely only on a one-session handoff note.
+- Confirm reusable operating procedure knowledge is not stored only in `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, or a decision narrative when it belongs in a pack or registered reference.
 - Before claiming completion, inspect the active root's `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md`, and `dev/DOC_SYNC_REGISTRY.md`; do not assume child or demo workspaces cover the parent/root workspace.
 - For long-running projects, confirm `dev/PROJECT_DECISIONS.md` retains its four H2 sections in order (Evolution Timeline / Decisions Archive / Architecture Choices / Insights & Learnings) and that closeout step 12 was applied where its trigger conditions were met.
 

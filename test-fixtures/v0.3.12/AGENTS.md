@@ -51,7 +51,7 @@ Use this loop for every task:
 2. READ: inspect relevant files from `PROJECT_INDEX.md` and search for related definitions before editing.
 3. CHANGE: make focused changes only.
 4. QC: run available checks or state why they cannot run.
-5. PERSIST: classify durable facts before writing them. Current state belongs in handoff, chronological evidence in log, file / command / reference maps in project index, sync obligations in doc sync registry, and reusable operating procedure in the relevant rule pack or registered reference. Do not store reusable procedure knowledge only in handoff or log.
+5. PERSIST: update handoff/log and any affected project index or sync registry.
 
 External skill flows, subagents, task plans, or another tool's "finish" step do not replace this loop. If you use any of them, the PLAN must include a final Agent Handoff Kit persistence step for the active project root, and completion cannot be claimed until that root's `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md`, and `dev/DOC_SYNC_REGISTRY.md` have been inspected and updated or explicitly marked not applicable.
 
@@ -144,7 +144,7 @@ A pack may add task-specific requirements. A pack cannot weaken core safety. If 
 
 When a task references external tools (Notion / Google Drive / Slack / Linear / GitHub / Dropbox / HubSpot / Atlassian / etc.) or `dev/PROJECT_INDEX.md` `## Installed Integrations` is non-empty, load `dev/rules/integrations.md` together with the relevant domain pack. The integrations pack covers Connector-first defaults, credential separation, multi-layer source-of-truth architecture, and cross-session resilience for declared integrations.
 
-After the task, persist durable facts into the correct home: handoff for current state, log for trace evidence, project index for file / command / reference maps, doc sync registry for sync obligations, and rule packs or registered references for reusable operating procedures. Do not assume the next session remembers pack context unless it is recorded, and do not treat handoff/log persistence as sufficient for reusable procedure knowledge.
+After the task, persist durable facts into handoff/log/index/registry. Do not assume the next session remembers pack context unless it is recorded.
 
 If a pack, skill, subagent plan, demo workspace, or external workflow produces its own closeout, treat it as subordinate evidence. The active project root still needs Agent Handoff Kit persistence before the task is complete.
 

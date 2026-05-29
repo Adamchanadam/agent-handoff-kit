@@ -78,16 +78,6 @@ const requiredAnchors = [
     ]
   },
   {
-    target: "START_NEXT_SESSION_PROMPT.txt",
-    label: "next-session prompt convenience copy",
-    snippets: [
-      "Work in ",
-      "Read in order:",
-      "dev/PROJECT_INDEX.md",
-      "If this root does not match the expected project root"
-    ]
-  },
-  {
     target: "dev/SESSION_HANDOFF.md",
     label: "handoff workspace and opening message schema",
     snippets: [
@@ -692,14 +682,18 @@ async function runDoctor(root, version, options = {}) {
   console.log(`\nrequired anchors: ${anchorRows.length}`);
   for (const row of anchorRows) {
     console.log(`${row.ok ? "ok" : "missing"}  ${row.target} (${row.label})`);
+    if (!row.ok && row.missing && row.missing.length > 0) {
+      console.log(`  missing anchor text: ${row.missing.map((snippet) => JSON.stringify(snippet)).join("; ")}`);
+    }
   }
 
   if (anchorFailures.length > 0) {
+    printAnchorRepairGuidance(anchorFailures, options.context);
     printDoctorSummary(version, root, "needs-fix", {
       checked: rows.length + anchorRows.length,
       failedKind: "anchor checks",
       failedCount: anchorFailures.length,
-      nextStep: "有入口檔存在，但缺少 Kit 需要的橋接段落。請執行：npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run；不要手動覆寫既有檔案。"
+      nextStep: anchorRepairNextStep(options.context)
     });
     process.exitCode = 1;
     return "failed";
@@ -870,6 +864,46 @@ function printDoctorSummary(version, root, mode, details) {
   console.log(`🚀 下一步：${details.nextStep}`);
 }
 
+// Anchor failures mean a required file is missing fixed Kit text. The fix is a
+// content repair the CLI deliberately does NOT perform itself: every anchor-checked
+// file outside the bounded upgrade-merge set is preserved verbatim (R-016), so
+// re-running upgrade would skip the same file again — the old "run upgrade --dry-run"
+// next step was a dead end. Route the repair to the AI as a non-destructive patch,
+// and give the novice an explicit, ordered walk-through.
+function printAnchorRepairGuidance(anchorFailures, context) {
+  console.log("");
+  console.log("------------------------------------------------------------");
+  console.log("🔧 怎樣修這個「缺少段落」的問題（一步一步）：");
+  console.log("------------------------------------------------------------");
+  if (context === "upgrade-self-check") {
+    console.log("⚠️  升級本身已完成，也沒有覆寫你的檔案。剩下的是個別檔案缺少 Kit 需要的固定段落，需要補回。");
+  } else {
+    console.log("⚠️  這不是檔案壞掉，工具也沒有覆寫你的檔案。只是有檔案缺少 Kit 需要的固定段落（多數因為該檔較舊或曾被改動）。");
+  }
+  console.log("缺段的檔案：");
+  for (const row of anchorFailures) {
+    console.log(`  • ${row.target}（${row.label}）`);
+    if (row.missing && row.missing.length > 0) {
+      for (const snippet of row.missing) console.log(`      缺：${JSON.stringify(snippet)}`);
+    }
+  }
+  console.log("");
+  console.log("步驟：");
+  console.log("  1. 不要重跑 upgrade —— 這些是 upgrade 會「保留不動」的檔，重跑不會補回缺段。");
+  console.log("  2. 複製上面整段 doctor 輸出。");
+  console.log("  3. 打開你的 AI 工具（Claude Code / Claude Cowork / OpenAI Codex 等），貼上並說：");
+  console.log("     「請按 doctor 指出的缺失 anchor，非破壞性補回對應檔案的段落，不要覆寫我其他內容。」");
+  console.log("  4. AI 補完後，再執行：npx --yes @adamchanadam/agent-handoff-kit@latest doctor 確認轉綠。");
+  console.log("------------------------------------------------------------");
+}
+
+function anchorRepairNextStep(context) {
+  const lead = context === "upgrade-self-check"
+    ? "升級已完成且沒有覆寫你的檔；剩下的是內容缺段，需由 AI 補。"
+    : "有入口檔存在，但個別檔案缺少 Kit 需要的固定段落。";
+  return `${lead}按上面「怎樣修」步驟：把整段 doctor 輸出貼給 AI，請它非破壞性補回缺失 anchor，補完再執行 doctor 確認。不要重跑 upgrade（這些檔會被保留不動，重跑修不到）。`;
+}
+
 async function hydrateInitialOpeningPrompt(root, created) {
   if (!created.includes("dev/SESSION_HANDOFF.md") && !created.includes("START_NEXT_SESSION_PROMPT.txt")) return;
   for (const rel of ["dev/SESSION_HANDOFF.md", "START_NEXT_SESSION_PROMPT.txt"]) {
@@ -1005,14 +1039,19 @@ async function checkRequiredAnchors(root) {
     try {
       text = await readFile(filePath, "utf8");
     } catch {
-      rows.push({ target: rule.target, label: rule.label, ok: false });
+      rows.push({ target: rule.target, label: rule.label, ok: false, missing: ["file unreadable"] });
       continue;
     }
 
+    // Report which specific anchor snippets are absent, not just pass/fail. Mirrors
+    // the schema-check contract (checkSchema returns `missing`) so an anchor failure
+    // is self-diagnosing: the user and the AI can see the exact text to restore.
+    const missing = rule.snippets.filter((snippet) => !text.includes(snippet));
     rows.push({
       target: rule.target,
       label: rule.label,
-      ok: rule.snippets.every((snippet) => text.includes(snippet))
+      ok: missing.length === 0,
+      missing
     });
   }
   return rows;

@@ -65,7 +65,7 @@ const scenarios = [
     name: "agent governance",
     route: ["Governance, prompts, agents", "dev/rules/agent-governance.md"],
     pack: "agent-governance",
-    snippets: ["source of truth", "append-only", "public runtime", "Before creating durable workflow", "dev/PROJECT_INDEX.md", "external skills", "subagents", "active root's Agent Handoff Kit governance"]
+    snippets: ["source of truth", "append-only", "public runtime", "Before creating durable workflow", "reusable operating procedures belong in the relevant rule pack or registered reference", "New runbooks are last resort only", "not stored only in `dev/SESSION_HANDOFF.md`", "external skills", "subagents", "active root's Agent Handoff Kit governance"]
   },
   {
     name: "communication",

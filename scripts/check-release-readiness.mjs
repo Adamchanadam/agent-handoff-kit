@@ -514,6 +514,26 @@ function checkScenarioBranchingDocAlignment() {
       ]
     },
     {
+      id: "4c",
+      snippets: [
+        "upgrade substantive with stale prompt convenience copy",
+        "START_NEXT_SESSION_PROMPT.txt",
+        "便利副本落後只可 warning",
+        "升級驗收完成",
+        "status: failed"
+      ]
+    },
+    {
+      id: "4d",
+      snippets: [
+        "upgrade self-check anchor failure",
+        "missing anchor text",
+        "怎樣修這個",
+        "不要重跑 upgrade",
+        "upgrade --dry-run"
+      ]
+    },
+    {
       id: "5",
       snippets: [
         "upgrade with conflict",
@@ -551,7 +571,7 @@ function checkScenarioBranchingDocAlignment() {
       assert(line.includes(snippet), `docs/qa/release-grade-qa.md scenario ${row.id} row is not aligned with release scenario contract; missing: ${snippet}`);
     }
   }
-  assert(qaDoc.includes("場景 1 / 2 / 3a / 3b / 4 / 4b / 5 / 6 / 7 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list every scenario");
+  assert(qaDoc.includes("場景 1 / 2 / 3a / 3b / 4 / 4b / 4c / 4d / 5 / 6 / 7 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list every scenario");
   assert(!qaDoc.includes("場景 2 / 5 / 7 屬 conditional state"), "docs/qa/release-grade-qa.md still claims scenario 2 / 5 / 7 are manual-only");
   console.log("ok: docs/qa/release-grade-qa.md seven-scenario table aligned with CLI scenario contract");
 }
@@ -682,6 +702,83 @@ function simulateScenarioBranching() {
     mustNotHave: [
       /status: passed/,
       /繼續日常使用即可/
+    ]
+  });
+
+  // Scenario 4c: real-user mac-style path from v0.3.12 feedback. The project has
+  // a legacy unmarked AGENTS core, so upgrade performs a substantive merge, while
+  // START_NEXT_SESSION_PROMPT.txt remains an old convenience copy. That prompt
+  // copy is closeout-time material; it must warn, not fail the upgrade self-check.
+  const s4cRoot = path.join(tempBase, "scenario-upgrade-stale-prompt-copy");
+  const s4cInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4cRoot], { encoding: "utf8", env, cwd: root });
+  if (s4cInit.status !== 0) {
+    throw new Error(`Scenario 4c init prep failed: ${s4cInit.stderr || s4cInit.stdout}`);
+  }
+  const s4cAgentsPath = path.join(s4cRoot, "AGENTS.md");
+  writeFileSync(s4cAgentsPath, [
+    "# Project Local Preamble",
+    "",
+    "Keep this local rule.",
+    "",
+    staleCoreFixture()
+  ].join("\n"), "utf8");
+  writeFileSync(
+    path.join(s4cRoot, "START_NEXT_SESSION_PROMPT.txt"),
+    "Work in <absolute project root>.\n\nRead AGENTS.md and continue.\n",
+    "utf8"
+  );
+  const s4c = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4cRoot], "scenario 4c upgrade with stale prompt convenience copy", { env });
+  assertScenarioOutput("scenario 4c (stale prompt convenience copy warns only)", s4c.stdout, {
+    mustHave: [
+      /replace unmarked legacy Agent Handoff Kit core with managed-marker block/,
+      /warn  START_NEXT_SESSION_PROMPT.txt/,
+      /session 進行中不用手動重生/,
+      /✅ 升級驗收完成/
+    ],
+    mustNotHave: [
+      /status: failed/,
+      /anchor checks failed/,
+      /請執行：npx --yes @adamchanadam\/agent-handoff-kit@latest upgrade --dry-run/
+    ]
+  });
+
+  // Scenario 4d: when a preserved existing file truly lacks a blocking anchor,
+  // the failed upgrade self-check must be self-diagnosing and must not loop the
+  // novice back to dry-run after a formal upgrade already ran.
+  const s4dRoot = path.join(tempBase, "scenario-upgrade-self-check-anchor-failure");
+  const s4dInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4dRoot], { encoding: "utf8", env, cwd: root });
+  if (s4dInit.status !== 0) {
+    throw new Error(`Scenario 4d init prep failed: ${s4dInit.stderr || s4dInit.stdout}`);
+  }
+  const s4dAgentsPath = path.join(s4dRoot, "AGENTS.md");
+  writeFileSync(s4dAgentsPath, [
+    "# Project Local Preamble",
+    "",
+    "Keep this local rule.",
+    "",
+    staleCoreFixture()
+  ].join("\n"), "utf8");
+  const s4dSafetyPath = path.join(s4dRoot, "dev/rules/safety.md");
+  writeFileSync(
+    s4dSafetyPath,
+    readFileSync(s4dSafetyPath, "utf8").replace("cmd /c rmdir", "cmd command removed from this stale local copy"),
+    "utf8"
+  );
+  const s4d = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4dRoot], { encoding: "utf8", env, cwd: root });
+  if (s4d.status === 0) {
+    throw new Error(`scenario 4d upgrade self-check anchor failure expected non-zero exit\n${s4d.stdout}`);
+  }
+  assertScenarioOutput("scenario 4d (upgrade self-check anchor failure gives repair steps)", s4d.stdout, {
+    mustHave: [
+      /status: failed \(1 anchor checks failed\)/,
+      /missing anchor text:/,
+      /dev\/rules\/safety.md/,
+      /怎樣修這個「缺少段落」的問題/,
+      /不要重跑 upgrade/,
+      /非破壞性補回缺失 anchor/
+    ],
+    mustNotHave: [
+      /請執行：npx --yes @adamchanadam\/agent-handoff-kit@latest upgrade --dry-run；不要手動覆寫既有檔案/
     ]
   });
 
@@ -857,6 +954,63 @@ function assertScenarioOutput(label, output, contract) {
     }
   }
   console.log(`ok: ${label} output contract`);
+}
+
+function staleCoreFixture() {
+  return `# Agent Handoff Kit Core Runtime
+
+This is a stale installed core used to test upgrade replacement.
+
+## 1. Startup Reads
+
+After this core is loaded, read in order:
+
+1. \`dev/SESSION_HANDOFF.md\`
+2. the latest entry in \`dev/SESSION_LOG.md\`
+3. \`dev/PROJECT_INDEX.md\`
+4. \`dev/RULE_PACKS.md\`
+
+Before acting on a non-trivial task, identify required local source-of-truth files and external sources. Reachable is not the same as ingested. Do not treat unread sources as absent.
+
+## 2. Work Loop
+
+Use this loop for every task:
+
+1. PLAN
+2. READ
+3. CHANGE
+4. QC
+5. PERSIST
+
+External skill flows, subagents, task plans, or another tool's "finish" step do not replace this loop.
+
+## 3. Safety Boundaries
+
+Do not delete, reset, overwrite, bulk-move, or publish without explicit user approval.
+
+## 4. Closeout And Handoff
+
+At full closeout:
+
+1. Reconcile \`dev/SESSION_HANDOFF.md\`.
+2. Add a concise entry to \`dev/SESSION_LOG.md\`.
+3. Update \`dev/PROJECT_INDEX.md\` if needed.
+4. Check \`dev/DOC_SYNC_REGISTRY.md\`.
+5. Record unresolved drift risk.
+6. Complete the \`State Reconciliation Check\`.
+7. Run the handoff sufficiency check.
+8. If either check fails, fix \`dev/SESSION_HANDOFF.md\` first.
+9. Show a short closeout card, then provide a fenced opening message.
+10. Regenerate \`START_NEXT_SESSION_PROMPT.txt\` at full closeout.
+
+## 5. Pack Loading
+
+Use \`dev/RULE_PACKS.md\` to decide which pack to read.
+
+## Core Complexity Rule
+
+New default-core rules are allowed only when they apply to most sessions, protect safety or continuity, cannot live in a pack or registry, and keep the core within budget.
+`;
 }
 
 function checkForbiddenVocabulary(label, text, patterns) {
