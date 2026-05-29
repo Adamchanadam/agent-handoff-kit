@@ -142,6 +142,9 @@ function main() {
     assert(upgradedCore.includes("## User Local Rules"), `${label} upgrade removed post-core local heading`);
     assert(upgradedCore.includes("Keep post-core local rule."), `${label} upgrade removed post-core local rule`);
     assert(upgradedCore.includes("START_NEXT_SESSION_PROMPT.txt"), `${label} upgrade did not add closeout prompt convenience-copy contract`);
+    assert(upgradedCore.includes("pasting the read-back `START_NEXT_SESSION_PROMPT.txt` content"), `${label} upgrade did not add closeout prompt read-back discipline`);
+    assert(upgradedCore.includes("not a third source of truth"), `${label} upgrade did not add closeout third-source guard`);
+    assert(!upgradedCore.includes("Show a short closeout card, then provide a fenced opening message"), `${label} upgrade left stale closeout third-copy wording`);
     assert(upgradedCore.includes("External skill flows, subagents, task plans"), `${label} upgrade did not add skill/subagent arbitration`);
     const oldCoreDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", oldCoreRoot], `doctor after ${label} AGENTS core upgrade`);
     assert(oldCoreDoctor.stdout.includes("status: passed"), `${label} doctor did not pass after old core replacement`);

@@ -114,6 +114,7 @@ function main() {
     "產品級發佈前全面檢",
     "Product Journey Matrix",
     "QC Gap Backflow",
+    "收工三面同源驗收",
     "Rule Pack Routing And Durable-home Scope Sweep",
     "Natural-language task → rule pack → durable home",
     "Rules / packs 路由與入庫範圍",
@@ -158,6 +159,8 @@ function main() {
     "ack:section:*",
     "State Reconciliation Check",
     "handoff lifecycle consistency",
+    "pasting the read-back `START_NEXT_SESSION_PROMPT.txt` content",
+    "not a third source of truth",
     "Do not append a new state snapshot",
     "R-010 SESSION_LOG handoff-role discipline",
     "Advance the SESSION_LOG N-rule",
@@ -177,6 +180,7 @@ function main() {
     "dev/rules/integrations.md",
     "Credential separation"
   ]);
+  assert(!read("runtime-core/AGENTS.core.md").includes("Show a short closeout card, then provide a copy-paste-ready next-session opening message inside a fenced `text` code block"), "closeout final response must not precede prompt persistence/read-back");
 
   assertIncludes("runtime-core/PROJECT_INDEX.md", [
     "## Installed Integrations",
@@ -1082,8 +1086,8 @@ At full closeout:
 6. Complete the \`State Reconciliation Check\`.
 7. Run the handoff sufficiency check.
 8. If either check fails, fix \`dev/SESSION_HANDOFF.md\` first.
-9. Show a short closeout card, then provide a fenced opening message.
-10. Regenerate \`START_NEXT_SESSION_PROMPT.txt\` at full closeout.
+9. Regenerate \`START_NEXT_SESSION_PROMPT.txt\` from \`dev/SESSION_HANDOFF.md\`, then read it back.
+10. Show a short closeout card, then paste the read-back \`START_NEXT_SESSION_PROMPT.txt\` content.
 
 ## 5. Pack Loading
 
