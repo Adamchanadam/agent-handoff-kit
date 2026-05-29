@@ -2,7 +2,7 @@
 
 ## v0.3.16 — 2026-05-29
 
-狀態：發佈準備版本。本版修正 closeout prompt 可能只在 final response 表面出現、未先持久化到 `START_NEXT_SESSION_PROMPT.txt` 的第三真源風險。
+狀態：正式發佈版本。本版修正 closeout prompt 可能只在 final response 表面出現、未先持久化到 `START_NEXT_SESSION_PROMPT.txt` 的第三真源風險。
 
 ### Fixed
 
@@ -15,7 +15,8 @@
 - `docs/qa/release-grade-qa.md` 新增「收工三面同源驗收」，把 handoff、`START_NEXT_SESSION_PROMPT.txt`、final response 三面同源列入發佈前檢查。
 - `scripts/check-release-readiness.mjs` 新增 runtime core 必含 read-back / third-source guard 的斷言，並擋回舊 closeout 次序。
 - `scripts/check-upgrade-safety.mjs` 新增舊核心升級後的 closeout read-back discipline regression。
-- package fileCount 40 → 41：新增 `docs/whatsnew/v0.3.16.md`。本輪候選驗收須覆蓋 `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`、`qa:prompt-mirror`、HTML mirror hash、`npm pack --dry-run --json` 與 `git diff --check`。
+- package fileCount 40 → 41：新增 `docs/whatsnew/v0.3.16.md`。本輪發佈前驗收已覆蓋 `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`、`qa:prompt-mirror`、HTML mirror hash、`npm pack --dry-run --json` 與 `git diff --check`。
+- 發佈後驗證 7/7 PASS：GitHub Release metadata、npm latest / fileCount、fresh published install、published `--help` / `init` / `doctor`、以及 v0.3.15 → v0.3.16 published-package upgrade + sequential doctor 均通過。
 
 ### Migration path（v0.3.15 → v0.3.16，backward-compat preserved）
 
