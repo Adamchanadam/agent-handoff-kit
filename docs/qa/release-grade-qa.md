@@ -35,9 +35,9 @@
 |---|---|---|---|
 | 🟢 日常快檢（觸發詞：`快檢`） | 日常 source 修改後、commit 前。 | 四條 `npm run qa:*`：`qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`。 | 原始碼層未破壞既有機器驗收。 |
 | 🔴 發佈前全面檢（觸發詞：`全面檢`） | 發佈前，尤其是候選版本、治理結構改動，或使用者明示要求 full audit。 | 快檢 + 本文件人工審閱清單 + 維護者側 WORK 治理健康檢查八維度 + 產品級旅程矩陣 + UX / user journey 審閱 + CLI output sweep + cross-file read-through + upgrade migration / scenario branching semantic sweep + QC gap backflow。 | 候選版本可以進入 tag / GitHub Release / npm publish；仍未代表已發佈完成。 |
-| 🟡 發佈後驗證（觸發詞：`發佈檢`） | GitHub Release 與 `npm publish` 完成後立即執行。 | 七項 post-publish verification：GitHub Release metadata、npm latest / fileCount、fresh install、published `--help` / `init` / `doctor`、R-029.1 canonical phrase 與 chain-upgrade routing propagation。 | 已公開 artifact 經 registry / release / fresh-install 驗證，release 才算完成。 |
+| 🟡 發佈後驗證（觸發詞：`發佈檢`） | GitHub Release 與 `npm publish` 完成後立即執行。 | 七項 registry / release artifact smoke test：GitHub Release metadata、npm latest / fileCount、fresh install、published `--help` / `init` / `doctor`、previous published version → new published version upgrade + sequential doctor。 | 已公開 artifact 經 registry / release / fresh-install / upgrade smoke 驗證，release 才算完成；不承擔產品 QA。 |
 
-`全面檢` 就是 `發佈前全面檢`，不得包含需要已 publish 才能執行的檢查。`發佈檢` 就是 `發佈後驗證`，只在公開發佈完成後執行。完整 release closeout 的順序是：先 `全面檢` PASS，取得明確 publish 批准後才 tag / GitHub Release / npm publish，最後跑 `發佈檢`。
+`全面檢` 就是 `發佈前全面檢`，不得包含需要已 publish 才能執行的檢查。`發佈檢` 就是 `發佈後驗證`，只在公開發佈完成後執行，性質是 registry / release artifact smoke test，不是產品 QA。完整 release closeout 的順序是：先 `全面檢` PASS，取得明確 publish 批准後才 tag / GitHub Release / npm publish，最後跑 `發佈檢`。
 
 ## 產品級發佈前全面檢
 
@@ -64,7 +64,7 @@
 
 ### QC Gap Backflow
 
-任何發佈前全面檢、人工終讀、UAT、真實用戶 session 或發佈後驗證發現的新問題，都要同時判斷兩層：
+任何發佈前全面檢、人工終讀、UAT、真實用戶 session，或發佈後 artifact smoke test 意外揭出的新問題，都要同時判斷兩層：
 
 - 產品層：需要修哪個 runtime、template、CLI、pack、README 或 release note。
 - QC 層：為何現有驗收沒有抓到；要補自動 assertion、真實 fixture、scenario simulation、public manual checklist，還是記為暫時人工阻擋。
