@@ -1,8 +1,31 @@
 # 變更紀錄
 
+## v0.3.16 — 2026-05-29
+
+狀態：發佈準備版本。本版修正 closeout prompt 可能只在 final response 表面出現、未先持久化到 `START_NEXT_SESSION_PROMPT.txt` 的第三真源風險。
+
+### Fixed
+
+- 調整 `runtime-core/AGENTS.core.md` full closeout 次序：先由 `dev/SESSION_HANDOFF.md` 的 fenced opening message 重生 `START_NEXT_SESSION_PROMPT.txt`，再讀回或跑 prompt mirror check，最後才把讀回內容放入 final response。
+- 明確禁止把 final response 另寫成第三份 next-session prompt；final response 只能展示已持久化並讀回的 prompt copy。
+- 舊核心升級驗收同步加守門：升級後的 core 必須含 read-back discipline 與 third-source guard，且不得殘留「先表面輸出、後重生 prompt」的舊次序。
+
+### QA
+
+- `docs/qa/release-grade-qa.md` 新增「收工三面同源驗收」，把 handoff、`START_NEXT_SESSION_PROMPT.txt`、final response 三面同源列入發佈前檢查。
+- `scripts/check-release-readiness.mjs` 新增 runtime core 必含 read-back / third-source guard 的斷言，並擋回舊 closeout 次序。
+- `scripts/check-upgrade-safety.mjs` 新增舊核心升級後的 closeout read-back discipline regression。
+- package fileCount 40 → 41：新增 `docs/whatsnew/v0.3.16.md`。本輪候選驗收須覆蓋 `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`、`qa:prompt-mirror`、HTML mirror hash、`npm pack --dry-run --json` 與 `git diff --check`。
+
+### Migration path（v0.3.15 → v0.3.16，backward-compat preserved）
+
+- 既有項目不用重裝；可先執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` 預覽。
+- 若預演沒有 conflict，再執行正式 `upgrade`。
+- 升級後，下一次 full closeout 會按新次序持久化並讀回 `START_NEXT_SESSION_PROMPT.txt`；普通 session 中途 `doctor` 對便利副本落後仍只作提醒。
+
 ## v0.3.15 — 2026-05-29
 
-狀態：發佈準備版本。本版修正 Jay 真實舊項目在 v0.3.14 升級後仍被同一次自動 `doctor` 擋住的 lifecycle placeholder 遷移缺口；完成本輪發佈前全面檢後即可進入 tag、GitHub Release 與 npm publish。
+狀態：正式發佈版本。本版修正 Jay 真實舊項目在 v0.3.14 升級後仍被同一次自動 `doctor` 擋住的 lifecycle placeholder 遷移缺口。
 
 ### Fixed
 
