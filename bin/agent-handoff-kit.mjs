@@ -459,7 +459,7 @@ async function needsProjectIndexVersionInject(root, command, version) {
 
 async function runInstall(command, root, options, version) {
   const mode = await detectMode(root);
-  const plan = await buildPlan(root, command);
+  const plan = await buildPlan(root, command, version);
 
   // R-031 v0.3.1+: plan-time upgrade no-op detection. When upgrade has zero
   // create/merge/conflict actions (skip-only), skip the full plan listing +
@@ -1105,15 +1105,19 @@ function tableHeader(...cells) {
   };
 }
 
-async function buildPlan(root, command) {
+async function buildPlan(root, command, version = null) {
   const plan = [];
+  const context = {
+    currentVersion: version,
+    rootTemplateVersion: command === "upgrade" ? await readRootTemplateVersion(root) : null
+  };
   for (const [sourceRel, targetRel] of mappings) {
     const sourceAbs = path.join(packageRoot, sourceRel);
     const targetAbs = path.join(root, targetRel);
     const sourceText = await readFile(sourceAbs, "utf8");
     if (await exists(targetAbs)) {
       const targetText = await readFile(targetAbs, "utf8");
-      plan.push(classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText));
+      plan.push(classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText, context));
       continue;
     }
     plan.push({
@@ -1127,7 +1131,18 @@ async function buildPlan(root, command) {
   return plan;
 }
 
-function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText) {
+async function readRootTemplateVersion(root) {
+  try {
+    const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
+    const text = await readFile(indexPath, "utf8");
+    const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+    return m?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText, context = {}) {
   const base = { sourceRel, targetRel, sourceAbs, targetAbs };
   if (targetText === sourceText) return { ...base, action: "skip", reason: "already current" };
   if (command !== "upgrade") return { ...base, action: "skip", reason: "init preserves existing files" };
@@ -1259,6 +1274,21 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergedHandoff
     };
   }
+  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && isUpgradeFromOlderTemplate(context)) {
+    const lifecycleValue = fieldValueAfterMarker(targetText, "lifecycle-conflicts-resolved");
+    if (isPlaceholderLifecycleFieldValue(lifecycleValue) && hasSubstantiveHandoffState(targetText)) {
+      const mergedHandoff = reclassifyExistingHandoffLifecyclePlaceholder(targetText);
+      if (!mergedHandoff) {
+        return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md lifecycle field exists but could not be safely reclassified; manual closeout required" };
+      }
+      return {
+        ...base,
+        action: "merge",
+        reason: "reclassify stale lifecycle placeholder from earlier template version so upgrade self-check can validate pre-existing handoff content",
+        mergedText: mergedHandoff
+      };
+    }
+  }
   if (targetRel === "CLAUDE.md" || targetRel === "GEMINI.md") {
     if (!targetText.includes("AGENTS.md")) {
       return { ...base, action: "conflict", reason: "existing bridge does not route to AGENTS.md" };
@@ -1273,6 +1303,13 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
     }
   }
   return { ...base, action: "skip", reason: "preserve existing file" };
+}
+
+function isUpgradeFromOlderTemplate(context) {
+  const { rootTemplateVersion, currentVersion } = context;
+  return isStableSemver(rootTemplateVersion)
+    && isStableSemver(currentVersion)
+    && compareSemver(rootTemplateVersion, currentVersion) < 0;
 }
 
 function looksLikeExpandedKitBridge(targetRel, text) {
@@ -1311,6 +1348,35 @@ function mergeHandoffLifecycleField(targetText) {
   const fieldBlock = "<!-- ack:field:lifecycle-conflicts-resolved -->\n- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: Reclassified at upgrade: field added by v0.3.6+ migration; pre-existing handoff state predates it; reconcile at next closeout.\n";
   let merged = targetText.replace(openingMarker, `${fieldBlock}${openingMarker}`);
 
+  if (!merged.includes("Lifecycle consistency rule: compare `Completed This Session`")) {
+    const ruleBlock = "Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.\n\n";
+    const sufficiencyMarker = "<!-- ack:section:handoff-sufficiency-check -->";
+    if (merged.includes(sufficiencyMarker)) {
+      merged = merged.replace(sufficiencyMarker, `${ruleBlock}${sufficiencyMarker}`);
+    } else {
+      merged = `${merged.trimEnd()}\n\n${ruleBlock}`;
+    }
+  }
+
+  return merged;
+}
+
+function reclassifyExistingHandoffLifecyclePlaceholder(targetText) {
+  const marker = "ack:field:lifecycle-conflicts-resolved";
+  const lines = targetText.split(/\r?\n/);
+  const markerIndex = lines.findIndex((line) => line.includes(marker));
+  if (markerIndex < 0) return null;
+
+  const nextMarkerIndex = lines.findIndex((line, index) => index > markerIndex && line.includes("<!-- ack:"));
+  const searchEnd = nextMarkerIndex < 0 ? lines.length : nextMarkerIndex;
+  const fieldIndex = lines.findIndex((line, index) => index > markerIndex && index < searchEnd && line.trim().startsWith("- "));
+  if (fieldIndex < 0) return null;
+
+  const colonIndex = lines[fieldIndex].indexOf(":");
+  if (colonIndex < 0) return null;
+  lines[fieldIndex] = `${lines[fieldIndex].slice(0, colonIndex + 1)} Reclassified at upgrade: existing lifecycle placeholder predates this version; pre-existing handoff state predates this check; reconcile at next closeout.`;
+
+  let merged = lines.join("\n");
   if (!merged.includes("Lifecycle consistency rule: compare `Completed This Session`")) {
     const ruleBlock = "Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.\n\n";
     const sufficiencyMarker = "<!-- ack:section:handoff-sufficiency-check -->";

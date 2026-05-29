@@ -138,7 +138,7 @@
 
 對應治理 QA 缺口矩陣第 9 項 dim「CLI 場景分流（scenario branching）一致性」嘅 automated enforcement Sweep。`scripts/check-release-readiness.mjs` 真實 invoke `bin/agent-handoff-kit.mjs` 喺各場景 fixture，並 assert output 嘅 must-have / must-not-have 規則：
 
-**七個場景嘅 output contract（scenario 3 由 v0.3.4 起拆成 3a / 3b 兩條驗收路徑）**：
+**七個場景嘅 output contract（scenario 3 由 v0.3.4 起拆成 3a / 3b 兩條驗收路徑；v0.3.15 起補 3c lifecycle placeholder 路徑）**：
 
 | # | 場景 | must-have（用戶必睇到） | must-NOT-have（避免事實錯誤） |
 |---|---|---|---|
@@ -146,6 +146,7 @@
 | 2 | init with existing local rules（資料夾已有本地 AI 規則） | 「已補齊缺少檔案，但仍要檢查入口連接」/「upgrade --dry-run」/ 既有 `AGENTS.md` 保留 | 「乾淨首次安裝」起步句 / 覆寫既有規則 |
 | 3a | upgrade metadata-only stale（結構已最新，只有 template version metadata 過期） | 「升級完成」/ metadata 更新紀錄 / template version metadata 更新為當前版本 / doctor self-check 不再提示項目版本未對齊 | 「你已經是最新版本，沒有檔案需要建立或合併」/「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（避免重做 onboarding 誤導） |
 | 3b | upgrade structurally stale（真實舊版 fixture → 當前，含 create + merge） | 「升級完成」/「進行中的工作對話已熟悉 Agent Handoff Kit 可繼續使用原本開工方式」/「I just upgraded agent-handoff-kit」（可選 review 起步句）/ template version metadata 更新為當前版本 | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」（避免重做 onboarding 誤導） |
+| 3c | upgrade stale lifecycle placeholder（舊版本 metadata + 既有 lifecycle 欄位仍為 placeholder + handoff 已有 substantive Completed / Validation） | 「升級完成」/ `Reclassified at upgrade` /「升級驗收完成」/ template version metadata 更新為當前版本 | `missing dev/SESSION_HANDOFF.md (handoff lifecycle consistency)` / `status: failed` /「交接狀態仍需 AI closeout 核對」（避免工具自己升級後又被自己擋住） |
 | 4 | upgrade no-op（已 latest 零改動，交接健康） | 「你已經是最新版本，沒有檔案需要建立或合併」/ output 行數 ≤ 20 行 | 「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/「migration report」/「升級後自動檢查」 |
 | 4b | upgrade no-op（已 latest 零改動，但 handoff 欄位仍需 closeout 核對） | 「Kit 檔案已是最新版本，沒有檔案需要建立或合併」/「交接狀態仍需 AI closeout 核對」/「不要重裝或覆寫用戶內容」 | 「繼續日常使用即可」/「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」 |
 | 4c | upgrade substantive with stale prompt convenience copy（mac 用戶實測類型：正式 upgrade 合併 `AGENTS.md`，但 `START_NEXT_SESSION_PROMPT.txt` 是舊便利副本） | `START_NEXT_SESSION_PROMPT.txt` 便利副本落後只可 warning / 「升級驗收完成」 | `status: failed` / anchor checks failed / 正式 upgrade 後叫用戶回頭跑 `upgrade --dry-run` |
@@ -154,13 +155,13 @@
 | 6 | doctor healthy & latest（已係最新版） | 「status: passed」/「檢查已通過」/首次使用時提示開啟 AI 工具並貼上起步句 | 「如要升級到較新版」/「繼續日常使用即可」（避免叫剛升完嘅用戶再升，亦避免第一次安裝後未開 AI 對話就誤判為完成） |
 | 7 | doctor healthy with newer available | startup `maybePrintUpdateNotice` 嘅升級通知 / 「status: passed」 | doctor 結尾再講一次升級指令（避免 redundant） |
 
-**Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3；v0.3.8 add handoff-needs-closeout no-op；v0.3.9 add affirmative lifecycle wording regression；v0.3.10 post-release debt cleanup add scenario 2 / 5 / 7；下一個候選版本加入 post-upgrade failed-self-check UX scenarios 4c / 4d）**：場景 1 / 2 / 3a / 3b / 4 / 4b / 4c / 4d / 5 / 6 / 7 為 automated。場景 2 改以「已有本地 AI 規則的 init」表示真實可觸發的安裝邊界：`init` 不覆寫既有規則，而是補齊缺檔並指向 `upgrade --dry-run`。
+**Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3；v0.3.8 add handoff-needs-closeout no-op；v0.3.9 add affirmative lifecycle wording regression；v0.3.10 post-release debt cleanup add scenario 2 / 5 / 7；v0.3.13 add post-upgrade failed-self-check UX scenarios 4c / 4d；v0.3.15 add scenario 3c stale lifecycle placeholder）**：場景 1 / 2 / 3a / 3b / 3c / 4 / 4b / 4c / 4d / 5 / 6 / 7 為 automated。場景 2 改以「已有本地 AI 規則的 init」表示真實可觸發的安裝邊界：`init` 不覆寫既有規則，而是補齊缺檔並指向 `upgrade --dry-run`。
 
 場景 4b / 4c / 4d 是通用舊項目旅程，不綁定任何單一用戶目錄。真實項目只能作發現問題的證據；自動驗收必須用可重建 fixture 表達同類狀態，避免把個別專案文字硬寫成產品規則。
 
 **未來新加 user-invocable surface 嘅紀律**：每加一個新 CLI sub-command 或新場景分流，必同步加 dim row + Sweep row + automated simulation；違反即視為 audit-time blind spot 重演（同 v0.3.0 R-030 5 支柱嘅 P4 紀律一致）。
 
-### Rule Pack Routing And Durable-home Scope Sweep（v0.3.14 候選新增）
+### Rule Pack Routing And Durable-home Scope Sweep（v0.3.14 新增）
 
 對應治理 QA 缺口矩陣「Rules / packs 路由與入庫範圍」。發佈前全面檢必須同時做機器錨點與人工語意審閱，確認 rules / packs 不是只有檔案存在，而是真的能引導 AI 從用戶自然語言進入正確工作模式與正確入庫位置。
 
@@ -227,7 +228,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 會檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致；安裝後與 closeout 後必須一致，session 進行中若只有便利副本落後，普通 `doctor` 只可警告，不可 fail。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在終端機繼續輸入。
-- 套件預演目前維持 39 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.14.md` 已納入 npm package，runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 40 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.15.md` 已納入 npm package，runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -236,29 +237,52 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | v0.3.14 目前只是候選修補；尚未批准 tag / GitHub Release / npm publish |
-| 版本口徑 | `package.json` 目前為 `0.3.14`；v0.3.14 是 lifecycle migration false failure 與 rules / packs full-audit scope 修補。 | 候選口徑已更新；publish 前須重跑發佈前檢查 |
+| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | Adam 已明確批准：本輪全面檢通過後可 commit / push / tag / GitHub Release / npm publish |
+| 版本口徑 | `package.json` 目前為 `0.3.15`；v0.3.15 是 Jay 類 stale lifecycle placeholder upgrade self-check failure 修補。 | 發佈準備口徑已更新；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 39 files。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 40 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.14.md` 已轉入 v0.3.14 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
+| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.15.md` 已轉入 v0.3.15 發佈準備口徑。 | 通過；publish 前須重跑文件一致性檢查 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.14` 段，`docs/whatsnew/v0.3.14.md` 已補本版用戶說明。 | 通過；發佈後須核對 GitHub Release 非 draft / 非 prerelease 與 npm metadata |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.14`。 | 通過；發佈後應驗證 npm latest 為 `0.3.14` |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.15` 段，`docs/whatsnew/v0.3.15.md` 已補本版用戶說明。 | 通過；發佈後須核對 GitHub Release 非 draft / 非 prerelease 與 npm metadata |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.15`。 | 通過；發佈後應驗證 npm latest 為 `0.3.15` |
+
+## v0.3.15 發佈狀態
+
+- 發佈版本：`0.3.15`。
+- release notes：`CHANGELOG.md` 的 `v0.3.15` 段落 + `docs/whatsnew/v0.3.15.md`。
+- 發佈內容：修正 Jay 類舊項目升級路徑：root template metadata 落後、既有 lifecycle 欄位仍為 `TBD`，但 handoff 已有 substantive Completed / Validation 內容時，upgrade 必須安全重分類 placeholder，不能先顯示升級完成再由同一次自動 `doctor` 報 `handoff lifecycle consistency` 失敗。
+- 發佈前驗收：快檢四項、Jay 類 stale lifecycle placeholder regression、`qa:release` scenario 3c、v0.3.14 → v0.3.15 upgrade chain、40 個入包檔案、公開文件版本口徑均須通過；本輪全面檢通過後才可執行公開發佈動作。
+- npm 狀態：發佈後應驗證 npm latest 為 `0.3.15`；package fileCount 40（從 39 增加 1，加 `docs/whatsnew/v0.3.15.md`）。
+- 🟡 發佈檢：v0.3.15 publish 後須驗證 GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.14 → v0.3.15 published-package upgrade。
+
+### Cross-mind evidence 9-trigger table（v0.3.15）
+
+| Trigger | Required? | Result | Evidence |
+|---|---|---|---|
+| 1. 發佈說明使用「已修復／可用」等強聲明 | yes | passed | 強聲明只對應 Jay 類 stale lifecycle placeholder migration；機器落點為 `qa:upgrade` regression 與 `qa:release` scenario 3c。 |
+| 2. 同類 bug 連續 2+ 次修補仍未斷 | yes | iterated | v0.3.14 修補 missing lifecycle field，但 Jay 再揭發 existing lifecycle marker + placeholder value 組合；本版把該組合轉為獨立 regression。 |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：CLI bounded merge；測試層：upgrade safety、release scenario 3c；敘事層：CHANGELOG、whatsnew、本段與 README 版本口徑。 |
+| 4. 三個以上治理檔同步改動 | yes | passed | public QA docs、scripts、CHANGELOG、whatsnew、README 與 WORK governance records 同步；WORK session state 不進 npm package。 |
+| 5. 將要對外 commit / tag / publish | yes | passed | Adam 已明確批准本輪全面檢通過後執行 commit、push、tag、GitHub Release 與 npm publish；若全面檢未通過則不得進入公開發佈動作。 |
+| 6. 結論基於語意判斷而非單一 grep | yes | iterated | 產品語意為「metadata stale 時 upgrade migration 應修舊 placeholder；latest no-op 時仍交給 closeout 判斷」；用 scenario 3c 與 4b 分別守住兩條邊界。 |
+| 7. 上次同類問題曾被用戶 catch | yes | iterated | Jay 真實 v0.3.14 升級輸出與附件 handoff / migration report 揭發；已轉成可重建 fixture，不硬編碼 Jay 專案文字。 |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | scenario 3c 由 current init + older metadata row + substantive handoff seed 重建狀態；真實 Jay 附件只作根因證據，產品測試用通用可重建狀態。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | passed | 發佈聲明對應 bounded lifecycle reclassification、post-upgrade self-check pass、latest no-op boundary、whatsnew / README 版本口徑與 package fileCount。 |
 
 ## v0.3.14 發佈狀態
 
 - 發佈版本：`0.3.14`。
 - release notes：`CHANGELOG.md` 的 `v0.3.14` 段落 + `docs/whatsnew/v0.3.14.md`。
 - 發佈內容：修正舊版項目跨版本升級時，migration 寫入 `TBD` lifecycle 欄位而同一次自動 `doctor` 又拒絕該欄位的 false failure；同時把 rules / packs 路由與 durable-home scope 納入發佈前全面檢。
-- 發佈前驗收：快檢四項、v0.1.7 substantive handoff lifecycle migration regression、rules / packs routing and durable-home scope sweep、prompt mirror 固定檢查器、39 個入包檔案、公開文件版本口徑均須通過。
-- npm 狀態：尚未 publish；發佈後應驗證 npm latest 為 `0.3.14`；package fileCount 39（從 37 增加 2，加 `docs/whatsnew/v0.3.14.md` 與 `bin/prompt-mirror-core.mjs`）。
-- 🟡 發佈檢：v0.3.14 publish 後須驗證 GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.13 → v0.3.14 published-package upgrade。
+- 發佈前驗收：快檢四項、v0.1.7 substantive handoff lifecycle migration regression、rules / packs routing and durable-home scope sweep、prompt mirror 固定檢查器、39 個入包檔案、公開文件版本口徑均已通過。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.14`；package fileCount 39（從 37 增加 2，加 `docs/whatsnew/v0.3.14.md` 與 `bin/prompt-mirror-core.mjs`）。
+- 🟡 發佈檢：v0.3.14 post-publish artifact smoke 已完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.13 → v0.3.14 published-package upgrade 均通過。
 
 ### Cross-mind evidence 9-trigger table（v0.3.14）
 

@@ -242,6 +242,27 @@ function main() {
   const legacySubstantiveHandoff = read(path.join(legacySubstantiveRoot, "dev/SESSION_HANDOFF.md"));
   assert(legacySubstantiveHandoff.includes("Reclassified at upgrade"), "substantive legacy handoff lifecycle field should be explicitly reclassified by migration");
 
+  const staleLifecyclePlaceholderRoot = path.join(tmpdir(), `ack-upgrade-stale-lifecycle-placeholder-${Date.now()}`);
+  mkdirSync(staleLifecyclePlaceholderRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", staleLifecyclePlaceholderRoot], "init stale lifecycle placeholder root");
+  const staleLifecycleIndexPath = path.join(staleLifecyclePlaceholderRoot, "dev/PROJECT_INDEX.md");
+  writeFileSync(
+    staleLifecycleIndexPath,
+    read(staleLifecycleIndexPath).replace(
+      /\| Agent Handoff Kit template version \| [\d.]+ \|/,
+      "| Agent Handoff Kit template version | 0.3.13 |"
+    ),
+    "utf8"
+  );
+  seedSubstantiveHandoffStateForLifecycleMigration(staleLifecyclePlaceholderRoot);
+  const staleLifecycleUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", staleLifecyclePlaceholderRoot], "upgrade stale existing lifecycle placeholder root");
+  assert(staleLifecycleUpgrade.stdout.includes("升級後自動檢查"), "stale existing lifecycle placeholder upgrade must run doctor self-check");
+  assert(staleLifecycleUpgrade.stdout.includes("status: passed"), "stale existing lifecycle placeholder upgrade self-check must pass");
+  assert(!staleLifecycleUpgrade.stdout.includes("missing  dev/SESSION_HANDOFF.md (handoff lifecycle consistency)"), "stale existing lifecycle placeholder upgrade must not fail lifecycle consistency");
+  assert(!staleLifecycleUpgrade.stdout.includes("status: failed"), "stale existing lifecycle placeholder upgrade must not report failed status");
+  const staleLifecycleHandoff = read(path.join(staleLifecyclePlaceholderRoot, "dev/SESSION_HANDOFF.md"));
+  assert(staleLifecycleHandoff.includes("Reclassified at upgrade"), "stale existing lifecycle placeholder should be explicitly reclassified by migration");
+
   // (B) Real-fixture sandwich: stage 1 upgrade promotes v0.1.4 legacy core
   // into a managed block; then inject v0.1.4 fixture AGENTS.md text as a
   // stale core fragment below the managed block. Current CLI upgrade must
@@ -300,7 +321,8 @@ function main() {
     { ref: "v0.3.11", command: "upgrade" },
     { ref: "v0.3.12", command: "upgrade" },
     { ref: "v0.3.13", command: "upgrade" },
-    { ref: "v0.3.14", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.14", command: "upgrade" },
+    { ref: "v0.3.15", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;

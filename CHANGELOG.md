@@ -1,5 +1,25 @@
 # 變更紀錄
 
+## v0.3.15 — 2026-05-29
+
+狀態：發佈準備版本。本版修正 Jay 真實舊項目在 v0.3.14 升級後仍被同一次自動 `doctor` 擋住的 lifecycle placeholder 遷移缺口；完成本輪發佈前全面檢後即可進入 tag、GitHub Release 與 npm publish。
+
+### Fixed
+
+- 修正 `upgrade` 在「舊版本 `dev/PROJECT_INDEX.md` metadata + 既有 `dev/SESSION_HANDOFF.md` lifecycle 欄位仍為 `TBD` + handoff 已有 substantive Completed / Validation 內容」組合下只更新 metadata、沒有修正 lifecycle placeholder 的問題。現在這類舊 placeholder 會被有界重分類為 `Reclassified at upgrade`，避免工具先顯示升級完成、再由同一次自動 `doctor` 報 `handoff lifecycle consistency` 失敗。
+- 保持 v0.3.8 起建立的邊界：若項目已是最新版且零檔案需合併，handoff lifecycle placeholder 仍會被視為 AI closeout 待核對狀態；本修補只適用於 root template version 明確落後於目前 CLI 的 upgrade migration 路徑。
+
+### QA
+
+- `scripts/check-upgrade-safety.mjs` 新增 Jay 類 regression：先製造舊 metadata row，再保留既有 lifecycle marker 的 `TBD` 值與 substantive handoff content，要求 upgrade 後自動 self-check pass。
+- `scripts/check-release-readiness.mjs` 新增 scenario 3c：把同一組合納入發佈前 semantic scenario branching，並要求 output 含 `reclassify stale lifecycle placeholder`、`升級驗收完成`，不得再出現 `handoff lifecycle consistency` missing 或 `status: failed`。
+- package fileCount 39 → 40：新增 `docs/whatsnew/v0.3.15.md`。本輪發佈前全面檢覆蓋 `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`、`npm pack --dry-run --json` 與 `git diff --check`。
+
+### Migration path（v0.3.14 → v0.3.15，backward-compat preserved）
+
+- 舊項目不用重裝。若 lifecycle 欄位是舊模板 placeholder 且項目 metadata 落後，upgrade 會非破壞性重分類該欄位；既有 handoff 工作紀錄仍保留。
+- 若 handoff 內容本身真的完成事項與下一步互相矛盾，仍需 AI 在 closeout 時整理；installer 不會猜測專案內容真相。
+
 ## v0.3.14 — 2026-05-29
 
 ### Fixed

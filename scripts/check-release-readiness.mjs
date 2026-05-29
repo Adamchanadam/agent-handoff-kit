@@ -25,6 +25,7 @@ function main() {
   assert(packageJson.scripts["qa:release"], "qa:release script is missing");
   assert(packageJson.scripts["qa:prompt-mirror"], "qa:prompt-mirror script is missing");
   checkWhatsnewSchema(version);
+  checkPublicOnboardingVersion(version);
 
   runQaScript("check-public-prototype.mjs", "prototype QA");
   runQaScript("check-pack-scenarios.mjs", "pack scenario QA");
@@ -405,6 +406,21 @@ function checkCrossSurfaceWordingConsistency() {
   }
 }
 
+function checkPublicOnboardingVersion(version) {
+  const surfaces = [
+    "agent-handoff-kit-intro.html",
+    "agent-handoff-kit-guide.html"
+  ];
+  const currentToken = `v${version}`;
+  const previousPatchToken = `v${previousPatch(version)}`;
+  for (const file of surfaces) {
+    const text = read(file);
+    assert(text.includes(currentToken), `${file} missing current visible version ${currentToken}`);
+    assert(!text.includes(previousPatchToken), `${file} still contains previous patch version ${previousPatchToken}`);
+  }
+  console.log(`ok: public onboarding HTML version aligned to ${currentToken}`);
+}
+
 function checkNpxColdStartUxGuidance() {
   const readme = read("README.md");
   const cli = read("bin/agent-handoff-kit.mjs");
@@ -496,6 +512,16 @@ function checkScenarioBranchingDocAlignment() {
       ]
     },
     {
+      id: "3c",
+      snippets: [
+        "upgrade stale lifecycle placeholder",
+        "舊版本 metadata",
+        "Reclassified at upgrade",
+        "升級驗收完成",
+        "handoff lifecycle consistency"
+      ]
+    },
+    {
       id: "4",
       snippets: [
         "upgrade no-op",
@@ -578,16 +604,17 @@ function checkScenarioBranchingDocAlignment() {
       assert(line.includes(snippet), `docs/qa/release-grade-qa.md scenario ${row.id} row is not aligned with release scenario contract; missing: ${snippet}`);
     }
   }
-  assert(qaDoc.includes("場景 1 / 2 / 3a / 3b / 4 / 4b / 4c / 4d / 5 / 6 / 7 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list every scenario");
+  assert(qaDoc.includes("場景 1 / 2 / 3a / 3b / 3c / 4 / 4b / 4c / 4d / 5 / 6 / 7 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list every scenario");
   assert(!qaDoc.includes("場景 2 / 5 / 7 屬 conditional state"), "docs/qa/release-grade-qa.md still claims scenario 2 / 5 / 7 are manual-only");
   console.log("ok: docs/qa/release-grade-qa.md seven-scenario table aligned with CLI scenario contract");
 }
 
 // R-031.1 v0.3.1+: CLI scenario branching simulation. Real-invoke bin in automated
 // scenarios and assert must-have / must-not-have output per scenario contract.
-// Scenario 3 is split inline into 3a metadata-only stale and 3b structurally stale
-// via a real v0.1.7 fixture, so the upgrade-substantive path is no longer delegated
-// to `scripts/check-upgrade-safety.mjs`.
+// Scenario 3 is split inline into 3a metadata-only stale, 3b structurally stale
+// via a real v0.1.7 fixture, and 3c stale lifecycle placeholder from an older
+// metadata row, so the upgrade-substantive path is no longer delegated to
+// `scripts/check-upgrade-safety.mjs`.
 function simulateScenarioBranching() {
   console.log("");
   console.log("CLI scenario branching coverage (R-031.1):");
@@ -874,6 +901,54 @@ function simulateScenarioBranching() {
     throw new Error(`scenario 3b post-upgrade: PROJECT_INDEX template version expected v${currentVersion}, got v${s3bVersionMatch?.[1] ?? "missing"}`);
   }
   console.log(`ok: scenario 3b (structurally stale) post-upgrade template version = v${s3bVersionMatch[1]}`);
+
+  // Scenario 3c — stale lifecycle placeholder with older template metadata:
+  // Jay's real v0.3.14 report had all Kit files present and a lifecycle field
+  // marker already present, but the field value was still `TBD`. Because the
+  // root PROJECT_INDEX row was older than the CLI, upgrade performed metadata
+  // injection and then ran self-check doctor. Without a bounded merge here,
+  // upgrade says success and immediately fails its own doctor.
+  const s3cRoot = path.join(tempBase, "scenario-upgrade-stale-lifecycle-placeholder");
+  const s3cInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s3cRoot], { encoding: "utf8", env, cwd: root });
+  if (s3cInit.status !== 0) {
+    throw new Error(`Scenario 3c init prep failed: ${s3cInit.stderr || s3cInit.stdout}`);
+  }
+  const s3cIndexPath = path.join(s3cRoot, "dev/PROJECT_INDEX.md");
+  writeFileSync(
+    s3cIndexPath,
+    readFileSync(s3cIndexPath, "utf8").replace(
+      /\| Agent Handoff Kit template version \| [\d.]+ \|/,
+      `| Agent Handoff Kit template version | ${previousPatch(currentVersion)} |`
+    ),
+    "utf8"
+  );
+  const s3cHandoffPath = path.join(s3cRoot, "dev/SESSION_HANDOFF.md");
+  let s3cHandoff = readFileSync(s3cHandoffPath, "utf8");
+  s3cHandoff = s3cHandoff
+    .replace("Record only work actually completed in the current session.\n\n1. TBD", "Record only work actually completed in the current session.\n\n1. Installed Agent Handoff Kit v0.1.7 and filled project baseline fields.")
+    .replace("- Checks run this session: TBD", "- Checks run this session: init succeeded; doctor had not been run before upgrade.");
+  writeFileSync(s3cHandoffPath, s3cHandoff, "utf8");
+  const s3c = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3cRoot], "scenario 3c upgrade stale lifecycle placeholder", { env });
+  assertScenarioOutput("scenario 3c (upgrade stale lifecycle placeholder)", s3c.stdout, {
+    mustHave: [
+      /✅ 升級完成：/,
+      /reclassify stale lifecycle placeholder/,
+      /✅ 升級驗收完成/
+    ],
+    mustNotHave: [
+      /missing  dev\/SESSION_HANDOFF.md \(handoff lifecycle consistency\)/,
+      /status: failed/,
+      /交接狀態仍需 AI closeout 核對/
+    ]
+  });
+  const s3cPostIndex = readFileSync(s3cIndexPath, "utf8");
+  const s3cVersionMatch = s3cPostIndex.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+  if (!s3cVersionMatch || s3cVersionMatch[1] !== currentVersion) {
+    throw new Error(`scenario 3c post-upgrade: PROJECT_INDEX template version expected v${currentVersion}, got v${s3cVersionMatch?.[1] ?? "missing"}`);
+  }
+  const s3cPostHandoff = readFileSync(s3cHandoffPath, "utf8");
+  assert(s3cPostHandoff.includes("Reclassified at upgrade: existing lifecycle placeholder predates this version"), "scenario 3c handoff lifecycle placeholder was not reclassified");
+  console.log(`ok: scenario 3c (stale lifecycle placeholder) post-upgrade template version = v${s3cVersionMatch[1]}`);
 
   // Scenario 5: upgrade with conflict. This guards the user-facing stop state:
   // when a bridge file cannot be safely merged, output must say the upgrade is
@@ -1299,6 +1374,14 @@ function expectedPackageFileCount() {
 function nextPatch(v) {
   const [major, minor, patch] = v.split(".").map(Number);
   return `${major}.${minor}.${patch + 1}`;
+}
+
+function previousPatch(v) {
+  const [major, minor, patch] = v.split(".").map(Number);
+  if (!Number.isInteger(patch) || patch <= 0) {
+    throw new Error(`Cannot derive previous patch version from ${v}`);
+  }
+  return `${major}.${minor}.${patch - 1}`;
 }
 
 function runNpm(args, label) {
