@@ -21,6 +21,19 @@ const packs = {
   integrations: read("packs/integrations.md")
 };
 
+const expectedPackFiles = {
+  safety: "dev/rules/safety.md",
+  coding: "dev/rules/coding.md",
+  writing: "dev/rules/writing.md",
+  research: "dev/rules/research.md",
+  "agent-governance": "dev/rules/agent-governance.md",
+  release: "dev/rules/release.md",
+  knowledge: "dev/rules/knowledge.md",
+  communication: "dev/rules/communication.md",
+  onboarding: "dev/rules/onboarding.md",
+  integrations: "dev/rules/integrations.md"
+};
+
 const scenarios = [
   {
     name: "coding",
@@ -142,6 +155,7 @@ main();
 
 function main() {
   assertIncludes(router, ["minimum set", "If a task clearly involves safety risk plus another domain", "cannot weaken core safety"], "router minimum loading rule");
+  assertPackStructure();
 
   for (const scenario of scenarios) {
     assertIncludes(router, scenario.route, `${scenario.name} router`);
@@ -164,6 +178,27 @@ function main() {
 
   console.log("");
   console.log("Agent Handoff Kit pack scenario QA passed");
+}
+
+function assertPackStructure() {
+  for (const [packName, installedPath] of Object.entries(expectedPackFiles)) {
+    assert(router.includes(installedPath), `router missing installed path for ${packName}: ${installedPath}`);
+    if (packName === "onboarding") {
+      assertIncludes(packs[packName], ["## Scope", "## Load When", "## Discipline", "## Application Scenario Library", "## Closeout", "## Anti-pattern"], `${packName} pack structure`);
+    } else {
+      assertIncludes(packs[packName], ["## Scope", "## Load When", "## Rules", "## Checks", "## Closeout"], `${packName} pack structure`);
+    }
+  }
+
+  assertIncludes(packs["agent-governance"], [
+    "Before creating durable workflow",
+    "first classify the knowledge type",
+    "reusable operating procedures belong in the relevant rule pack or registered reference",
+    "New runbooks are last resort only",
+    "not stored only in `dev/SESSION_HANDOFF.md`"
+  ], "agent governance durable-home routing");
+
+  console.log("ok: rule pack structure and durable-home routing");
 }
 
 function read(relativePath) {

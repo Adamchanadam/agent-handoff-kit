@@ -1,5 +1,24 @@
 # 變更紀錄
 
+## v0.3.14 — 2026-05-29
+
+### Fixed
+
+- 修正舊版項目跨版本升級時，migration 自己補入 `TBD` lifecycle 欄位，然後同一次升級後自動 `doctor` 又拒絕該欄位的自相矛盾問題。
+- `dev/SESSION_HANDOFF.md` 的 lifecycle migration 現在會寫入明確的重新分類值，說明此欄位由升級補入，下一次 closeout 再核對；不再把舊 handoff 的既有內容誤判成升級失敗。
+
+### QA
+
+- `qa:upgrade` 新增 v0.1.7 substantive handoff regression：先用 v0.1.7 CLI 建立舊 root，再注入已完成工作與驗收內容，最後用 current HEAD 升級並要求自動 `doctor` 通過。
+- `qa:packs` 與 `qa:release` 新增 rules / packs 路由與 durable-home scope 守門，確認自然語言任務能導向相應 pack，且可重用操作程序會進既有 rule pack 或 registered reference。
+- package fileCount 37 → 39：新增 `docs/whatsnew/v0.3.14.md` 與 runtime 共用 prompt mirror 抽取 helper；source repo 另新增固定 prompt mirror 檢查器，防止未錨定 fenced-block 或換行符差異造成假 mismatch。
+
+### Migration path（v0.3.13 → v0.3.14，backward-compat preserved）
+
+- 既有項目不用重裝；可先執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` 預覽。
+- 若預演沒有 conflict，再執行正式 `upgrade`。
+- 升級後自動 `doctor` 若仍指出缺失，請把完整輸出交給 AI 修補；不要用重裝覆寫既有內容。
+
 ## v0.3.13 — 2026-05-29
 
 ### Fixed

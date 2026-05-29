@@ -5,6 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { extractOpeningMessage, normalizePrompt } from "../bin/prompt-mirror-core.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -22,11 +23,13 @@ function main() {
   assert(packageJson.scripts["qa:packs"], "qa:packs script is missing");
   assert(packageJson.scripts["qa:upgrade"], "qa:upgrade script is missing");
   assert(packageJson.scripts["qa:release"], "qa:release script is missing");
+  assert(packageJson.scripts["qa:prompt-mirror"], "qa:prompt-mirror script is missing");
   checkWhatsnewSchema(version);
 
   runQaScript("check-public-prototype.mjs", "prototype QA");
   runQaScript("check-pack-scenarios.mjs", "pack scenario QA");
   runQaScript("check-upgrade-safety.mjs", "upgrade safety QA");
+  runQaScript("check-prompt-mirror.mjs", "prompt mirror checker");
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
@@ -110,6 +113,9 @@ function main() {
     "產品級發佈前全面檢",
     "Product Journey Matrix",
     "QC Gap Backflow",
+    "Rule Pack Routing And Durable-home Scope Sweep",
+    "Natural-language task → rule pack → durable home",
+    "Rules / packs 路由與入庫範圍",
     "產品旅程矩陣",
     "執行落差",
     "技能／子代理流程仲裁驗收",
@@ -137,6 +143,7 @@ function main() {
     "v0.3.3 發佈狀態"
   ]);
   assertLatestCrossMindTableComplete(version);
+  checkRulePackRoutingDurableHomeAudit();
 
   assertIncludes("runtime-core/AGENTS.core.md", [
     "Detect end-of-session or handoff intent",
@@ -1253,22 +1260,6 @@ function extractSectionText(text, markerId, headingTitle) {
   return text.slice(start, nextHeading ? start + nextHeading.index : text.length);
 }
 
-function extractOpeningMessage(text) {
-  const marker = "📋 Next session: copy and paste the whole block below";
-  const markerIndex = text.indexOf(marker);
-  assert(markerIndex >= 0, "opening message marker missing");
-  const fenceStart = text.indexOf("```text", markerIndex);
-  assert(fenceStart >= 0, "opening message text fence missing");
-  const contentStart = text.indexOf("\n", fenceStart);
-  const fenceEnd = text.indexOf("```", contentStart + 1);
-  assert(contentStart >= 0 && fenceEnd >= 0, "opening message text fence is not closed");
-  return text.slice(contentStart + 1, fenceEnd).trim();
-}
-
-function normalizePrompt(text) {
-  return text.replace(/\r\n/g, "\n").trim();
-}
-
 function runQaScript(scriptName, label) {
   run(process.execPath, [path.join("scripts", scriptName)], label);
 }
@@ -1302,7 +1293,7 @@ function checkWhatsnewSchema(version) {
 function expectedPackageFileCount() {
   const whatsnewCount = readdirSync(path.join(root, "docs/whatsnew"))
     .filter((name) => /^v\d+\.\d+\.\d+\.md$/.test(name)).length;
-  return 24 + whatsnewCount;
+  return 25 + whatsnewCount;
 }
 
 function nextPatch(v) {
@@ -1331,6 +1322,48 @@ function run(command, args, label, options = {}) {
 
   console.log(`ok: ${label}`);
   return result;
+}
+
+function checkRulePackRoutingDurableHomeAudit() {
+  assertIncludes("docs/qa/release-grade-qa.md", [
+    "Rule Pack Routing And Durable-home Scope Sweep",
+    "Natural-language task → rule pack → durable home",
+    "Rules / packs 路由與入庫範圍",
+    "可重用操作程序是否被導向既有 pack 或 registered reference",
+    "不得因一次任務就任意新建 governance docs"
+  ]);
+
+  assertIncludes("runtime-core/RULE_PACKS.md", [
+    "First-time user signals",
+    "Destructive file operations",
+    "Code, tests, build",
+    "Draft, edit",
+    "Sources, evidence",
+    "Governance, prompts, agents",
+    "Release, publish",
+    "External notes",
+    "External tool integrations",
+    "Reply format, language",
+    "minimum set",
+    "cannot weaken core safety"
+  ]);
+
+  assertIncludes("runtime-core/AGENTS.core.md", [
+    "Use `dev/RULE_PACKS.md` to decide which pack to read",
+    "persist durable facts into the correct home",
+    "rule packs or registered references for reusable operating procedures",
+    "do not treat handoff/log persistence as sufficient for reusable procedure knowledge"
+  ]);
+
+  assertIncludes("packs/agent-governance.md", [
+    "Before creating durable workflow",
+    "first classify the knowledge type",
+    "reusable operating procedures belong in the relevant rule pack or registered reference",
+    "New runbooks are last resort only",
+    "not stored only in `dev/SESSION_HANDOFF.md`"
+  ]);
+
+  console.log("ok: rule pack routing and durable-home scope audit anchors");
 }
 
 function assertLatestCrossMindTableComplete(version) {

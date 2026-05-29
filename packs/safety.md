@@ -4,6 +4,12 @@
 
 Use for file operations, shell commands, Git changes, package managers, installers, deploy tools, release tools, cloud tools, external APIs, locked files, permission errors, sandbox restrictions, or any task that could affect data loss, credentials, public release state, or external systems.
 
+## Load When
+
+- User requests deletion, overwrite, move, rename, cleanup, Git history changes, package installation, publish, deploy, release, cloud writes, external API calls, or credential handling.
+- A task touches filesystem paths, shell commands, permissions, sandbox limits, locks, secrets, external systems, or public release state.
+- Another pack is loaded but the task includes data-loss, credential, permission, external-system, or irreversible-operation risk.
+
 ## Rules
 
 1. Before deleting, overwriting, moving, renaming, cleaning, resetting, publishing, or running destructive tool operations, list the exact target paths, expected scope, impact, and required confirmation.

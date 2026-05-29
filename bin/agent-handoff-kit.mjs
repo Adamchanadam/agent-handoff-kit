@@ -5,6 +5,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assessPromptMirrorTexts } from "./prompt-mirror-core.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(__dirname, "..");
@@ -933,28 +934,13 @@ async function checkPromptMirror(root) {
   } catch {
     return [{ target: "START_NEXT_SESSION_PROMPT.txt", label: "matches handoff opening message", ok: false, reason: "prompt copy unreadable" }];
   }
-  const openingMessage = extractOpeningMessage(handoffText);
-  if (!openingMessage) {
-    return [{ target: "START_NEXT_SESSION_PROMPT.txt", label: "matches handoff opening message", ok: false, reason: "handoff opening message missing" }];
-  }
-  const ok = normalizePrompt(promptText) === normalizePrompt(openingMessage);
-  return [{ target: "START_NEXT_SESSION_PROMPT.txt", label: "matches handoff opening message", ok, reason: ok ? "" : "convenience copy differs from dev/SESSION_HANDOFF.md" }];
-}
-
-function extractOpeningMessage(text) {
-  const marker = "📋 Next session: copy and paste the whole block below";
-  const markerIndex = text.indexOf(marker);
-  if (markerIndex < 0) return null;
-  const fenceStart = text.indexOf("```text", markerIndex);
-  if (fenceStart < 0) return null;
-  const contentStart = text.indexOf("\n", fenceStart);
-  const fenceEnd = text.indexOf("```", contentStart + 1);
-  if (contentStart < 0 || fenceEnd < 0) return null;
-  return text.slice(contentStart + 1, fenceEnd).trim();
-}
-
-function normalizePrompt(text) {
-  return text.replace(/\r\n/g, "\n").trim();
+  const mirror = assessPromptMirrorTexts(handoffText, promptText);
+  return [{
+    target: "START_NEXT_SESSION_PROMPT.txt",
+    label: "matches handoff opening message",
+    ok: mirror.ok,
+    reason: mirror.ok ? "" : mirror.reason
+  }];
 }
 
 function assessHandoffLifecycleConsistency(text) {
@@ -1322,7 +1308,7 @@ function mergeHandoffLifecycleField(targetText) {
   const openingMarker = "<!-- ack:field:opening-message-matches-current-state -->";
   if (!targetText.includes(openingMarker)) return null;
 
-  const fieldBlock = "<!-- ack:field:lifecycle-conflicts-resolved -->\n- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: TBD\n";
+  const fieldBlock = "<!-- ack:field:lifecycle-conflicts-resolved -->\n- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: Reclassified at upgrade: field added by v0.3.6+ migration; pre-existing handoff state predates it; reconcile at next closeout.\n";
   let merged = targetText.replace(openingMarker, `${fieldBlock}${openingMarker}`);
 
   if (!merged.includes("Lifecycle consistency rule: compare `Completed This Session`")) {

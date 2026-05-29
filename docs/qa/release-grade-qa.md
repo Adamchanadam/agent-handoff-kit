@@ -22,6 +22,7 @@
 | 技能／子代理流程仲裁驗收 | 已併入 `npm run qa:packs` 與 `npm run qa:release` | 檢查外部技能、子代理、demo workspace 或其他工具的 closeout 不可取代目前根目錄自己的 Agent Handoff Kit 持久化。 | 是 |
 | 舊核心升級結構驗收 | 已併入 `npm run qa:upgrade` 與 `npm run qa:release` | 檢查舊版未標記 `AGENTS.md` core 升級後不會留下雙核心、雙收尾合約或 stale 上半段，且保留 core 前後的使用者本地規則。 | 是 |
 | PROJECT_DECISIONS 結構驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `dev/PROJECT_DECISIONS.md` 含 4 個 H2 section heading（Evolution Timeline / Decisions Archive / Architecture Choices / Insights & Learnings）並保持順序；檔頭含 onboarding 句式（「warm 資料層」、「AI 開工不需要讀」、「AI 在收工時自動 update」）。 | 是 |
+| Prompt mirror 固定檢查器 | 已併入 `doctor`、`npm run qa:prompt-mirror` 與 `npm run qa:release` | 以同一 runtime helper 錨定 `ack:section:next-session-opening-message` / `## Next Session Opening Message`、copy marker 與下一個 fenced `text` block；比對前正規化 CRLF / LF，只把真內容差異列為 mismatch。 | 是 |
 | Release Artifact Vocabulary Sweep | 已併入 `npm run qa:release` | 對 `bin/agent-handoff-kit.mjs` + `README.md` + `agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html` 跑禁忌字眼 grep（「人話解讀」「人話補一句」「人話解釋」）；對 `CHANGELOG.md` 限 latest version section (anchor-bounded by `## v` heading) 跑相同 grep；命中數必為 0。 | 是 |
 | Onboarding HTML 書面語紀律 | 已併入 `npm run qa:release` | 對 `agent-handoff-kit-intro.html` 與 `agent-handoff-kit-guide.html` 跑廣東口語字符 grep（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）；命中數必為 0（onboarding HTML 必為繁體中文書面語）。 | 是 |
 | Onboarding Pack 結構驗收 (R-029) | 已併入 `doctor` 與 `npm run qa:release` 與 `npm run qa:packs` | 檢查 `dev/rules/onboarding.md` 含 H2 sections（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）並保持順序；含 6 個 Scenario H3 heading（A 建構系統 / B 整理研究資料 / C 整理電腦檔案 / D 學寫代碼 / E 其他 / F 外部工具治理）；含 transient pack + 5-step walk-through pattern wording；含 Tone Discipline 5 條（書面語 / 講人話 / 敍事+解釋 / 不過度解釋 internals / 鼓勵性而非考試）。 | 是 |
@@ -34,7 +35,7 @@
 | 觸發 | 時機 | 覆蓋 | 通過代表 |
 |---|---|---|---|
 | 🟢 日常快檢（觸發詞：`快檢`） | 日常 source 修改後、commit 前。 | 四條 `npm run qa:*`：`qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`。 | 原始碼層未破壞既有機器驗收。 |
-| 🔴 發佈前全面檢（觸發詞：`全面檢`） | 發佈前，尤其是候選版本、治理結構改動，或使用者明示要求 full audit。 | 快檢 + 本文件人工審閱清單 + 維護者側 WORK 治理健康檢查八維度 + 產品級旅程矩陣 + UX / user journey 審閱 + CLI output sweep + cross-file read-through + upgrade migration / scenario branching semantic sweep + QC gap backflow。 | 候選版本可以進入 tag / GitHub Release / npm publish；仍未代表已發佈完成。 |
+| 🔴 發佈前全面檢（觸發詞：`全面檢`） | 發佈前，尤其是候選版本、治理結構改動，或使用者明示要求 full audit。 | 快檢 + 本文件人工審閱清單 + 維護者側 WORK 治理健康檢查八維度 + 產品級旅程矩陣 + UX / user journey 審閱 + CLI output sweep + cross-file read-through + rules / packs 路由與入庫範圍審核 + upgrade migration / scenario branching semantic sweep + QC gap backflow。 | 候選版本可以進入 tag / GitHub Release / npm publish；仍未代表已發佈完成。 |
 | 🟡 發佈後驗證（觸發詞：`發佈檢`） | GitHub Release 與 `npm publish` 完成後立即執行。 | 七項 registry / release artifact smoke test：GitHub Release metadata、npm latest / fileCount、fresh install、published `--help` / `init` / `doctor`、previous published version → new published version upgrade + sequential doctor。 | 已公開 artifact 經 registry / release / fresh-install / upgrade smoke 驗證，release 才算完成；不承擔產品 QA。 |
 
 `全面檢` 就是 `發佈前全面檢`，不得包含需要已 publish 才能執行的檢查。`發佈檢` 就是 `發佈後驗證`，只在公開發佈完成後執行，性質是 registry / release artifact smoke test，不是產品 QA。完整 release closeout 的順序是：先 `全面檢` PASS，取得明確 publish 批准後才 tag / GitHub Release / npm publish，最後跑 `發佈檢`。
@@ -47,6 +48,7 @@
 2. 產品旅程矩陣：每個場景標記 automated PASS / manual PASS / blocked / not applicable，並附證據。
 3. UX / user journey 結論：CLI、README、runtime handoff、onboarding pack、whatsnew 是否回答用戶在該步最可能問的下一句問題。
 4. QC gap backflow 結論：本次發現的每個新問題，除產品修補外，是否已轉成自動驗收、人工清單、或有理由的暫時人工阻擋。
+5. Rules / packs 路由與入庫範圍結論：`runtime-core/RULE_PACKS.md` 是否能以自然語言任務訊號載入相應 pack；標準 pack 的 Scope / Load When / Rules / Checks / Closeout 是否清楚；onboarding / integrations 等特殊 pack 是否有等效 discipline / closeout / checks 承接；可重用操作程序是否被導向既有 pack 或 registered reference，而不是隨意新建治理文件或只放入 handoff / log。
 
 ### Product Journey Matrix
 
@@ -61,6 +63,7 @@
 | Conflict / blocked state | 工具是否清楚停手，說明沒有覆寫，並指出 migration report / 手動處理方向。 | Scenario 2 / 5 manual checklist until automated fixtures exist | 同類第二次出現即必須轉 automated |
 | Doctor healthy / outdated / lifecycle conflict | `doctor` 是否分清健康、可升級、交接矛盾三類，不混成同一個下一步。 | Scenario 6 automated + scenario 7 manual + lifecycle negative fixture | 阻擋 publish，並補 scenario output contract |
 | AI-generated handoff prose tolerance | `doctor` 不得用任意正文詞語硬猜生命週期；可機器判斷的只限 Kit 控制的結構標記與狀態欄位。 | Scenario 4b automated + lifecycle field fixture | 阻擋 publish，直到誤判 fixture 通過 |
+| Natural-language task → rule pack → durable home | 用戶以自然語言提出寫作、研究、編碼、整合、發佈、治理、回覆格式或新手上手需求時，AI 是否能載入最少必要 pack，並把可重用程序寫入既有 pack / registered reference；不得因一次任務就任意新建 governance docs。 | `qa:packs` + Rule Pack Routing And Durable-home Scope Sweep + 人工抽樣 | 阻擋 publish，直到路由、pack scope、入庫位置與人工樣例對齊 |
 
 ### QC Gap Backflow
 
@@ -98,6 +101,7 @@
 | 交接生命週期一致性 | 用 `doctor` 與 `qa:release` 檢查 `Completed This Session` / `Validation / QC` / `Next Priorities` / `Risks / Blockers` / `Next Session Opening Message`。已完成或已驗證的事項，不得在同一 handoff 中又以未解調查、待辦或下一次開工指令延續；除非明確改成 monitor-only、follow-up scope、blocked 或 reopened。 |
 | 執行落差 | 檢查規則是否有 `doctor`、QA 腳本、負面測試或人工審閱承接；不得只增加提醒文字。 |
 | 技能流程覆蓋 | 用核心規則、治理規則包與 QA 錨點確認外部技能流程只能作 subordinate evidence，不能讓 active root 跳過 handoff/log/index/registry 持久化。 |
+| Rules / packs 路由與入庫範圍 | 每次 release 前確認 `runtime-core/RULE_PACKS.md` 有自然語言任務訊號到各 pack 的路由；每個 `packs/*.md` 都有 Scope / Load When / Rules / Checks / Closeout；`runtime-core/AGENTS.core.md` 與 `packs/agent-governance.md` 都要求可重用操作程序進既有 rule pack 或 registered reference，不可只放 handoff / log，也不可未分類就新建治理文件。 |
 | 舊核心殘留 | 用升級負面測試確認舊版 `AGENTS.md` core 被替換而不是附加；`doctor` 必須擋下同一檔案內兩個 core runtime 標題。 |
 | 升級路徑覆蓋 | `qa:upgrade` 必須含跨版本鏈式升級驗收（`v0.1.4` → `v0.1.5` → `v0.1.6` → 當前 HEAD），每跳用對應版本嘅 CLI 跑 `init`／`upgrade`／`doctor`，最後一跳用當前 HEAD 跑並 self-check 通過。 |
 | 補丁前置狀態枚舉 | 每個 `R-XXX` 補丁必須明文列覆蓋與唔覆蓋嘅前置狀態枚舉，唔填唔放行。例：R-024 覆蓋「夾心 managed + stale」「legacy single core」「無 core」三態，唔覆蓋「managed marker 不成對」（屬 conflict，由人工處理）。 |
@@ -156,6 +160,32 @@
 
 **未來新加 user-invocable surface 嘅紀律**：每加一個新 CLI sub-command 或新場景分流，必同步加 dim row + Sweep row + automated simulation；違反即視為 audit-time blind spot 重演（同 v0.3.0 R-030 5 支柱嘅 P4 紀律一致）。
 
+### Rule Pack Routing And Durable-home Scope Sweep（v0.3.14 候選新增）
+
+對應治理 QA 缺口矩陣「Rules / packs 路由與入庫範圍」。發佈前全面檢必須同時做機器錨點與人工語意審閱，確認 rules / packs 不是只有檔案存在，而是真的能引導 AI 從用戶自然語言進入正確工作模式與正確入庫位置。
+
+`npm run qa:packs` 與 `npm run qa:release` 必須守住以下錨點：
+
+- `runtime-core/RULE_PACKS.md` 有所有已發佈 pack 的自然語言任務訊號路由，並保留 minimum set / safety escalation / cannot weaken core safety 紀律。
+- 標準 `packs/*.md` 有固定結構：Scope、Load When、Rules、Checks、Closeout；特殊 scenario / integration pack 若使用 Discipline / Scenario Library / Cross-reference 等結構，仍必須保留清楚的 Load When、可檢查規則與 Closeout。
+- `packs/agent-governance.md` 明確要求：新增 durable workflow / runbook / instruction files 前，先分類 knowledge type，先找既有 home；可重用 operating procedures 屬於 relevant rule pack 或 registered reference；new runbooks are last resort only。
+- `runtime-core/AGENTS.core.md` Pack Loading 段明確要求：task 後把 durable facts 寫入正確 home；handoff / log 不足以承載 reusable procedure knowledge。
+- `docs/qa/release-grade-qa.md` 本段與 Product Journey Matrix 都保留「Natural-language task → rule pack → durable home」檢查，令 full audit 報告必須對 rules / packs 路由給出結論。
+
+人工審閱時，至少抽樣以下自然語言類型並標記 automated PASS / manual PASS / blocked：
+
+| 自然語言任務類型 | 預期路由 | 入庫判斷 |
+|---|---|---|
+| 「幫我改 code / debug / 跑 test」 | coding；如有檔案破壞、package manager、API、deploy 風險再加 safety | 程式行為與命令地圖進 PROJECT_INDEX / DOC_SYNC；可重用開發程序才進 coding pack 或 registered reference |
+| 「幫我查資料 / 比較方案 / 找最新資料」 | research；如涉及外部知識庫再加 knowledge / integrations | 來源與不確定性進 handoff/log；長期 reference map 進 PROJECT_INDEX；可重用研究流程進 research pack 或 registered reference |
+| 「幫我寫文案 / 改 README / 統一語氣」 | writing / communication | 讀者口徑與格式規則進相應 pack 或 human document governance；不要只留在一次性回覆 |
+| 「幫我同步 Notion / Drive / 知識庫」 | knowledge + integrations；有寫入或權限風險再加 safety | 外部真源與 sync obligation 進 PROJECT_INDEX / DOC_SYNC_REGISTRY；connector 程序進 integrations pack 或 registered reference |
+| 「改 AI 規則 / handoff / closeout / tool-use」 | agent-governance + relevant domain pack | 先找既有 pack / registry / reference；新 governance doc 必須是 last resort 且 indexed |
+| 「發佈 / tag / npm publish / hotfix」 | release + safety | 版本、commit、artifact、驗證證據進 release closeout；未經批准不得外部發佈 |
+| 「我是新手 / 教我用 / 點開始」 | onboarding，再 transition 至 regular scenario pack | first-task scope 入 handoff；完成 onboarding 後 unload onboarding pack |
+
+若 pack change 或 runtime routing change 未能通過以上機器錨點或人工抽樣，候選版本不得進入 publish。
+
 ### Npx Cold-start UX Sweep（v0.3.7 候選新加）
 
 對應治理 QA 缺口矩陣「認知影響」與 Product Journey Matrix「Existing Kit files → official npx doctor path」。本缺口來自真實舊項目實測：目錄內已有舊版 Kit 文件，但執行裸 `npx ... doctor` 時，npm 仍先顯示 `Need to install the following packages`。用戶會合理理解成「doctor 正在安裝」，但實際上 `doctor` 尚未開始執行；npm 只是要先取得 CLI 工具。
@@ -197,7 +227,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 會檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致；安裝後與 closeout 後必須一致，session 進行中若只有便利副本落後，普通 `doctor` 只可警告，不可 fail。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到 AI 對話，不是在終端機繼續輸入。
-- 套件預演目前維持 37 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.13.md` 已納入 npm package，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 39 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.14.md` 已納入 npm package，runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -206,20 +236,43 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | v0.3.13 已由 Adam 批准在 full audit 通過後 commit / release / push / tag / publish |
-| 版本口徑 | `package.json` 目前為 `0.3.13`；v0.3.13 是 upgrade self-check repair UX 與 reusable procedure governance 修補。 | 通過；publish 前須重跑發佈前檢查 |
+| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | v0.3.14 目前只是候選修補；尚未批准 tag / GitHub Release / npm publish |
+| 版本口徑 | `package.json` 目前為 `0.3.14`；v0.3.14 是 lifecycle migration false failure 與 rules / packs full-audit scope 修補。 | 候選口徑已更新；publish 前須重跑發佈前檢查 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 37 files。 | 通過，但發佈前須重跑套件預演 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`docs/whatsnew/`、`README.md`、`LICENSE`；目前 `npm pack --dry-run` 應為 39 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過，但發佈前須重跑 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.13.md` 已轉入 v0.3.13 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
+| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.14.md` 已轉入 v0.3.14 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.13` 段，`docs/whatsnew/v0.3.13.md` 已補本版用戶說明。 | 通過；發佈後須核對 GitHub Release 非 draft / 非 prerelease 與 npm metadata |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.13`。 | 通過；發佈後應驗證 npm latest 為 `0.3.13` |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.14` 段，`docs/whatsnew/v0.3.14.md` 已補本版用戶說明。 | 通過；發佈後須核對 GitHub Release 非 draft / 非 prerelease 與 npm metadata |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並以中性措辭標示目前版本為 `v0.3.14`。 | 通過；發佈後應驗證 npm latest 為 `0.3.14` |
+
+## v0.3.14 發佈狀態
+
+- 發佈版本：`0.3.14`。
+- release notes：`CHANGELOG.md` 的 `v0.3.14` 段落 + `docs/whatsnew/v0.3.14.md`。
+- 發佈內容：修正舊版項目跨版本升級時，migration 寫入 `TBD` lifecycle 欄位而同一次自動 `doctor` 又拒絕該欄位的 false failure；同時把 rules / packs 路由與 durable-home scope 納入發佈前全面檢。
+- 發佈前驗收：快檢四項、v0.1.7 substantive handoff lifecycle migration regression、rules / packs routing and durable-home scope sweep、prompt mirror 固定檢查器、39 個入包檔案、公開文件版本口徑均須通過。
+- npm 狀態：尚未 publish；發佈後應驗證 npm latest 為 `0.3.14`；package fileCount 39（從 37 增加 2，加 `docs/whatsnew/v0.3.14.md` 與 `bin/prompt-mirror-core.mjs`）。
+- 🟡 發佈檢：v0.3.14 publish 後須驗證 GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.13 → v0.3.14 published-package upgrade。
+
+### Cross-mind evidence 9-trigger table（v0.3.14）
+
+| Trigger | Required? | Result | Evidence |
+|---|---|---|---|
+| 1. 發佈說明使用「已修復／可用」等強聲明 | yes | passed | 強聲明只對應 lifecycle migration false failure 與 rules / packs full-audit scope；機器落點為 v0.1.7 substantive handoff regression、`qa:packs`、`qa:release` anchors。 |
+| 2. 同類 bug 連續 2+ 次修補仍未斷 | yes | iterated | v0.3.13 解決 anchor repair UX，但 Jay Mac 報告揭發 migration 自寫 `TBD` 後被同版 `doctor` 拒絕；本版把該狀態轉成 fixture。 |
+| 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：CLI migration lifecycle value；測試層：upgrade safety、pack scenario、release readiness；敘事層：README、CHANGELOG、whatsnew、本段。 |
+| 4. 三個以上治理檔同步改動 | yes | passed | public QA docs、scripts、pack、README、CHANGELOG、whatsnew 與 WORK governance records 同步；WORK session state 不進 npm package。 |
+| 5. 將要對外 commit / tag / publish | yes | passed | 本表只作發佈前證據；tag、GitHub Release、npm publish 仍需 Adam 另行明確批准。 |
+| 6. 結論基於語意判斷而非單一 grep | yes | passed | 產品語意為「upgrade 不可寫入立即 fail 的 lifecycle 值」與「自然語言任務要路由到 pack / durable home」；不是只靠字串 grep。 |
+| 7. 上次同類問題曾被用戶 catch | yes | iterated | Jay Mac 真實升級 log 與 Adam 對 rules / packs 入庫邏輯的追問揭發；已轉成 regression 與 release-grade sweep。 |
+| 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | v0.1.7 root 由真實舊 CLI 生成，再注入 substantive handoff content 以重現舊項目狀態；此人工注入已明確標成 regression seed。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | passed | 發佈聲明對應 migration value、post-upgrade self-check、rule pack structure、durable-home routing、prompt mirror 固定檢查器、whatsnew / README 版本口徑與 package fileCount。 |
 
 ## v0.3.13 發佈狀態
 

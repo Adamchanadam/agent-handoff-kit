@@ -1,6 +1,6 @@
 {
   "name": "@adamchanadam/agent-handoff-kit",
-  "version": "0.3.13",
+  "version": "0.3.14",
   "description": "Lightweight agent harness for project memory, handoff, and multi-session continuity.",
   "type": "module",
   "bin": {
@@ -21,6 +21,7 @@
     "qa:packs": "node scripts/check-pack-scenarios.mjs",
     "qa:upgrade": "node scripts/check-upgrade-safety.mjs",
     "qa:release": "node scripts/check-release-readiness.mjs",
+    "qa:prompt-mirror": "node scripts/check-prompt-mirror.mjs",
     "qa:fixtures": "node scripts/generate-upgrade-fixtures.mjs"
   },
   "engines": {

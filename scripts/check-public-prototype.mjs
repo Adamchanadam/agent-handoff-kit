@@ -125,7 +125,7 @@ function runNpm(args, label) {
 function expectedPackageFileCount() {
   const whatsnewCount = readdirSync(path.join(root, "docs/whatsnew"))
     .filter((name) => /^v\d+\.\d+\.\d+\.md$/.test(name)).length;
-  return 24 + whatsnewCount;
+  return 25 + whatsnewCount;
 }
 
 function scanForbiddenText(startDir) {

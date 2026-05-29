@@ -228,6 +228,20 @@ function main() {
     realFixtureRoots.push(hopRoot);
   }
 
+  const legacySubstantiveRoot = path.join(tmpdir(), `ack-upgrade-legacy-substantive-${Date.now()}`);
+  withWorktree("v0.1.7", (worktreePath) => {
+    const cli = path.join(worktreePath, "bin/agent-handoff-kit.mjs");
+    run(process.execPath, [cli, "init", "--yes", "--root", legacySubstantiveRoot], "init legacy substantive handoff root via v0.1.7 CLI");
+  });
+  seedSubstantiveHandoffStateForLifecycleMigration(legacySubstantiveRoot);
+  const legacySubstantiveUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", legacySubstantiveRoot], "upgrade v0.1.7 substantive handoff lifecycle migration");
+  assert(legacySubstantiveUpgrade.stdout.includes("升級後自動檢查"), "substantive legacy handoff upgrade must run doctor self-check");
+  assert(legacySubstantiveUpgrade.stdout.includes("status: passed"), "substantive legacy handoff upgrade self-check must pass");
+  assert(!legacySubstantiveUpgrade.stdout.includes("missing  dev/SESSION_HANDOFF.md (handoff lifecycle consistency)"), "substantive legacy handoff upgrade must not fail lifecycle consistency");
+  assert(!legacySubstantiveUpgrade.stdout.includes("status: failed"), "substantive legacy handoff upgrade must not report failed status");
+  const legacySubstantiveHandoff = read(path.join(legacySubstantiveRoot, "dev/SESSION_HANDOFF.md"));
+  assert(legacySubstantiveHandoff.includes("Reclassified at upgrade"), "substantive legacy handoff lifecycle field should be explicitly reclassified by migration");
+
   // (B) Real-fixture sandwich: stage 1 upgrade promotes v0.1.4 legacy core
   // into a managed block; then inject v0.1.4 fixture AGENTS.md text as a
   // stale core fragment below the managed block. Current CLI upgrade must
@@ -285,7 +299,8 @@ function main() {
     { ref: "v0.3.10", command: "upgrade" },
     { ref: "v0.3.11", command: "upgrade" },
     { ref: "v0.3.12", command: "upgrade" },
-    { ref: "v0.3.13", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.13", command: "upgrade" },
+    { ref: "v0.3.14", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -579,6 +594,19 @@ function findFile(startDir, targetName) {
 
 function read(filePath) {
   return readFileSync(filePath, "utf8");
+}
+
+function seedSubstantiveHandoffStateForLifecycleMigration(rootDir) {
+  const handoffPath = path.join(rootDir, "dev/SESSION_HANDOFF.md");
+  const before = read(handoffPath);
+  const completedPattern = /(## Completed This Session\r?\n\r?\nRecord only work actually completed in the current session\.\r?\n\r?\n)(?:1\. TBD|- TBD)/;
+  const validationPattern = /(## Validation \/ QC\r?\n\r?\n)- Checks run this session: TBD/;
+  assert(completedPattern.test(before), "guard fixture: failed to find Completed This Session placeholder before v0.3.6 hop");
+  assert(validationPattern.test(before), "guard fixture: failed to find Validation / QC placeholder before v0.3.6 hop");
+  const seeded = before
+    .replace(completedPattern, "$11. Implemented and verified a pre-existing cross-session handoff before lifecycle migration.")
+    .replace(validationPattern, "$1- Checks run this session: Upgrade-safety regression seed verifies substantive handoff content before lifecycle migration.");
+  writeFileSync(handoffPath, seeded, "utf8");
 }
 
 function fixtureVersionDirs() {
