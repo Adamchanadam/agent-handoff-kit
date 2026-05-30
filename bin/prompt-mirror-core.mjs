@@ -3,7 +3,10 @@ import path from "node:path";
 
 const openingSectionMarker = "<!-- ack:section:next-session-opening-message -->";
 const openingHeadingPattern = /^##\s+Next Session Opening Message\s*$/m;
-const copyMarker = "📋 Next session: copy and paste the whole block below";
+const openingContentMarkers = [
+  "📋 Next session: agent-managed startup content below",
+  "📋 Next session: copy and paste the whole block below"
+];
 
 export function assessPromptMirrorRoot(root) {
   const handoffPath = path.join(root, "dev", "SESSION_HANDOFF.md");
@@ -72,10 +75,11 @@ export function extractOpeningMessage(text) {
   if (sectionStart < 0) return null;
 
   const sectionText = text.slice(sectionStart);
-  const markerIndex = sectionText.indexOf(copyMarker);
-  if (markerIndex < 0) return null;
+  const marker = openingContentMarkers.find((candidate) => sectionText.includes(candidate));
+  if (!marker) return null;
 
-  const afterMarker = sectionText.slice(markerIndex + copyMarker.length);
+  const markerIndex = sectionText.indexOf(marker);
+  const afterMarker = sectionText.slice(markerIndex + marker.length);
   const fenceMatch = /```text[^\r\n]*(?:\r\n?|\n)([\s\S]*?)(?:\r\n?|\n)```/.exec(afterMarker);
   if (!fenceMatch) return null;
   return fenceMatch[1];

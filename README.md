@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：目前版本為 `v0.3.18`，已正式發佈。這是早期可用版本，仍在持續完善中。
+狀態：目前版本為 `v0.3.19`，已正式發佈。這是早期可用版本，仍在持續完善中。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -10,13 +10,21 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 > 🚀 **第一次用？你不需要先讀本 README 或任何文件。**
 >
-> 安裝完成後，在能讀寫本機專案資料夾的 AI agent 對話中貼上：
+> 安裝完成後，打開能讀寫本機專案資料夾的 AI agent。若 AI 已經在正確專案資料夾內，只需輸入：
 >
-> ```
-> Work in <你的資料夾>. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.
+> ```text
+> Start Agent Handoff
 > ```
 >
-> AI 會打開專案內的開工提示。第一次安裝後，提示會帶它載入新手引導；之後每次收工後，提示會改成下一次接力需要的真實狀態。本 README 與下方介紹頁是參考對照，不是必讀。
+> 中文可說「開工」。
+>
+> 只有當 AI 還未指向你的專案資料夾時，才使用帶路徑啟動句：
+>
+> ```text
+> Work in <你的資料夾>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
+> ```
+>
+> AI 會依 `AGENTS.md` 打開專案內的 `START_NEXT_SESSION_PROMPT.txt`。第一次安裝後，該檔會帶它載入新手引導；之後每次收工後，該檔會改成下一次接力需要的真實狀態。本 README 與下方介紹頁是參考對照，不是必讀。
 
 想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) —— 新手 60 秒入門。看完想看實際操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) —— 三個日常情境的完整流程示範。本 README 則保留安裝、日常使用與限制。
 
@@ -37,7 +45,7 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 ![Agent Handoff Kit 新手流程](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-new-user-flow.png)
 
-這張圖是給第一次使用的人看的流程摘要：先在專案資料夾安裝，然後在能讀寫本機資料夾的 AI 對話貼固定開工句；AI 會打開 `START_NEXT_SESSION_PROMPT.txt` 進入新手引導。完成工作時說「收工」，讓 AI 留下下一次能接上的交接。
+這張圖是給第一次使用的人看的流程摘要：先在專案資料夾安裝，然後在能讀寫本機資料夾的 AI 對話輸入 `Start Agent Handoff` 或「開工」；AI 會依 `AGENTS.md` 打開 `START_NEXT_SESSION_PROMPT.txt` 進入新手引導。完成工作時說「收工」，讓 AI 留下下一次能接上的交接。
 
 ### 適用工具
 
@@ -55,7 +63,7 @@ npx --yes @adamchanadam/agent-handoff-kit@latest init
 
 出現確認問題時，輸入 `yes`。
 
-安裝完成後，終端機會顯示一段 `Work in ...` 文字。請特別留意：那一段不是給終端機的指令，而是要貼到 AI 對話。
+安裝完成後，終端機會顯示 AI 對話的下一步。請特別留意：`Start Agent Handoff`、中文「開工」或帶路徑啟動句都不是終端機指令，而是給 AI agent 的對話內容。
 
 可用的 AI 工具必須能讀寫此資料夾。不同工具對入口檔的支援可能不同；本工具會同時放置 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，讓常見工具能找到同一套開工路徑。Google 官方遷移文件說明，Antigravity CLI 會讀工作資料夾內的 `GEMINI.md` 和 `AGENTS.md`；因此 `AGENTS.md` 仍是唯一真源，`GEMINI.md` 只做橋接。
 
@@ -77,23 +85,25 @@ npx --yes @adamchanadam/agent-handoff-kit@latest init
 
 ### 二、開工
 
-打開能讀寫本機專案資料夾的 AI agent，在新對話貼上安裝工具顯示的文字。
+打開能讀寫本機專案資料夾的 AI agent。
 
-**日常開工句（第一次安裝後與之後每次接力都用同一句）**：
-
-```text
-Work in <你的專案資料夾>. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.
-```
-
-第一次安裝後，`START_NEXT_SESSION_PROMPT.txt` 內會放新手引導，AI 會帶你選擇使用情境（建構系統 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），再一步一步陪你做第一個任務。每次收工後，同一個檔案會改成下一次接力需要的真實狀態。你不需要手動打開或複製整份交接內容。
-
-如果 AI 工具已經在正確專案資料夾內，而且會讀 `AGENTS.md`，日常也可以只說：
+若 AI 已經在正確專案資料夾內，日常開工只需輸入：
 
 ```text
 Start Agent Handoff
 ```
 
-中文可說「開工」。若你說的是「某某開工」（例如餐廳開工、項目開工）這類帶其他上下文的話，AI 應先反問你是否指 Agent Handoff Kit 接力，而不是立即啟動交接流程。
+中文可說「開工」。
+
+若 AI 還未指向你的專案資料夾，才使用帶路徑啟動句：
+
+```text
+Work in <你的專案資料夾>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
+```
+
+第一次安裝後，`START_NEXT_SESSION_PROMPT.txt` 內會放新手引導，AI 會帶你選擇使用情境（建構系統 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），再一步一步陪你做第一個任務。每次收工後，同一個檔案會改成下一次接力需要的真實狀態。你不需要手動打開或複製整份交接內容。
+
+若你說的是「某某開工」（例如餐廳開工、項目開工）這類帶其他上下文的話，AI 應先反問你是否指 Agent Handoff Kit 接力，而不是立即啟動交接流程。
 
 然後用日常話描述你要完成的任務。AI 應先讀交接文件，說明目前狀態、下一步與風險，再開始工作。
 
@@ -121,7 +131,7 @@ AI 應更新交接文件，並同步更新下一次開工提示副本：
 START_NEXT_SESSION_PROMPT.txt
 ```
 
-這個檔案保存下一次真正要讀的開工內容。你下次仍只需貼同一條日常開工句，讓 AI 自己打開這個檔案。真正的權威來源仍是 `dev/SESSION_HANDOFF.md` 裡的「下次開工提示」段。若兩者不同，永遠以 `dev/SESSION_HANDOFF.md` 為準重新產生副本。
+這個檔案保存下一次真正要讀的開工內容。你下次仍只需說 `Start Agent Handoff` 或「開工」；若 AI 尚未指向專案資料夾，才使用帶路徑啟動句。真正的權威來源仍是 `dev/SESSION_HANDOFF.md` 裡的「下次開工提示」段。若兩者不同，永遠以 `dev/SESSION_HANDOFF.md` 為準重新產生副本。
 
 ## 檢查是否安裝完整
 
@@ -133,7 +143,7 @@ npx --yes @adamchanadam/agent-handoff-kit@latest doctor
 
 看到「檢查通過」代表必要文件與基本結構通過檢查。若 `START_NEXT_SESSION_PROMPT.txt` 落後於 `dev/SESSION_HANDOFF.md`，`doctor` 只會提醒；這個便利副本應在收工 closeout 時由 AI 重新生成，不需要在 session 中途手動更新。
 
-`doctor` 只檢查，不會建立或修改項目文件。這個檢查只能確認文件齊不齊、格式是否正常，不代表 AI 已理解你的專案。真正開始工作前，仍應把 `Work in ...` 起步句貼到能讀寫本機資料夾的 AI agent 對話，讓 AI 讀入口文件並說明目前狀態。
+`doctor` 只檢查，不會建立或修改項目文件。這個檢查只能確認文件齊不齊、格式是否正常，不代表 AI 已理解你的專案。真正開始工作前，應在能讀寫本機資料夾的 AI agent 對話輸入 `Start Agent Handoff` 或「開工」；若 AI 尚未指向資料夾，才使用帶路徑啟動句。
 
 ## 會安裝甚麼
 
@@ -272,7 +282,7 @@ Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templa
 
 ## 目前限制
 
-- 目前版本為 `v0.3.18`，npm registry `latest` 已對齊此版本。
+- 目前版本為 `v0.3.19`，npm registry `latest` 已對齊此版本。
 - 這是早期可用版本，仍在持續完善中。
 - 升級合併屬窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

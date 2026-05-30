@@ -42,9 +42,9 @@ async function main() {
   mkdirSync(tempRoot, { recursive: true });
 
   const initResult = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "install templates");
-  assert(initResult.stdout.includes("Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt"), "post-install CLI output missing stable startup bootstrap prompt");
+  assert(initResult.stdout.includes("Start Agent Handoff"), "post-install CLI output missing primary startup phrase");
+  assert(initResult.stdout.includes("Read AGENTS.md first, then Start Agent Handoff"), "post-install CLI output missing path-bearing startup fallback");
   assert(initResult.stdout.includes("普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具"), "post-install CLI output missing local-agent support boundary");
-  assert(initResult.stdout.includes("Start Agent Handoff"), "post-install CLI output missing short startup intent phrase");
   assert(initResult.stdout.includes("Wrap up Agent Handoff"), "post-install CLI output missing short closeout intent phrase");
   assert(initResult.stdout.includes("某某開工") && initResult.stdout.includes("某某收工"), "post-install CLI output missing ambiguous startup/closeout guard");
   const installedPrompt = readFileSync(path.join(tempRoot, "START_NEXT_SESSION_PROMPT.txt"), "utf8");

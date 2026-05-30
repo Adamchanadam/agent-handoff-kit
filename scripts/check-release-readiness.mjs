@@ -45,13 +45,13 @@ function main() {
   checkPackedPackageUpgradeSmoke(version);
 
   assertIncludes("README.md", [
-    `目前版本為 \`v${version}\``,
+    `v${version}`,
     "AI 對話之間的接力棒",
     "AI 跨對話失憶",
     "適合能讀寫本機專案資料夾的 agentic AI 工具",
     "不適合普通 web chat AI",
     "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
-    "請特別留意：那一段不是給終端機的指令",
+    "不是終端機指令",
     "START_NEXT_SESSION_PROMPT.txt",
     "## 它解決甚麼問題",
     "## 三步上手",
@@ -105,7 +105,7 @@ function main() {
     "v0.1.2 發佈狀態",
     "v0.1.7 發佈狀態",
     "v0.1.6 發佈狀態",
-    "npm latest 已對齊",
+    "npm latest",
     "v0.1.5 發佈狀態",
     "v0.1.4 發佈狀態",
     "v0.1.3 發佈狀態",
@@ -169,7 +169,7 @@ function main() {
     "State Reconciliation Check",
     "handoff lifecycle consistency",
     "START_NEXT_SESSION_PROMPT.txt` is the stateful startup prompt",
-    "stable bootstrap sentence",
+    "next-session startup entry",
     "not a third source of truth",
     "Do not append a new state snapshot",
     "R-010 SESSION_LOG handoff-role discipline",
@@ -294,7 +294,7 @@ function main() {
   const installedHandoff = readAt(tempRoot, "dev/SESSION_HANDOFF.md");
   const installedLog = readAt(tempRoot, "dev/SESSION_LOG.md");
   const installedPrompt = readAt(tempRoot, "START_NEXT_SESSION_PROMPT.txt");
-  assert(installedHandoff.includes("📋 Next session: copy and paste the whole block below"), "installed handoff missing copy marker");
+  assert(installedHandoff.includes("📋 Next session: agent-managed startup content below"), "installed handoff missing agent-managed startup marker");
   assert(installedHandoff.includes("```text"), "installed handoff missing fenced text block");
   assert(normalizePrompt(installedPrompt) === normalizePrompt(extractOpeningMessage(installedHandoff)), "installed START_NEXT_SESSION_PROMPT.txt does not match handoff opening message");
   simulateInSessionPromptConvenienceDrift(installedHandoff);
@@ -378,11 +378,10 @@ function main() {
   checkBookLanguage("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), cantoneseSpokenChars);
 
   // R-029.1 v0.2.1: Cross-surface wording consistency sweep. The R-029 onboarding trigger
-  // phrase must appear identically across all user-facing surfaces (CLI post-install output
-  // + README + onboarding HTML) so first-time users see the same prompt regardless of which
-  // surface they encounter first. v0.2.0 release shipped with inconsistency (CLI output used
-  // legacy "Read AGENTS.md and follow it..." while R-029 callouts used "help me start") —
-  // v0.2.1 patches this by enforcing a single canonical trigger phrase.
+  // startup entry must appear consistently across user-facing surfaces (CLI post-install
+  // output + README + onboarding HTML). v0.3.19 makes short startup the primary route:
+  // `Start Agent Handoff` / `開工` when the local AI is already rooted in the project,
+  // and the path-bearing fallback only when the AI is not yet pointed at the folder.
   checkCrossSurfaceWordingConsistency();
 
   // v0.3.7 candidate discipline: `npx` cold-start UX must be explicit. A project can
@@ -404,13 +403,24 @@ function main() {
 }
 
 function checkCrossSurfaceWordingConsistency() {
-  const canonicalTriggerPhrase = "Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt";
-  const shortcutPhrases = ["Start Agent Handoff", "Wrap up Agent Handoff"];
+  const primaryStartupPhrases = ["Start Agent Handoff", "開工"];
+  const pathFallbackPhrase = "Read AGENTS.md first, then Start Agent Handoff";
+  const closeoutPhrases = ["Wrap up Agent Handoff", "收工"];
   const staleStandaloneOnboardingPhrases = [
     "help me start",
     "I just installed agent-handoff-kit",
     "新手起步句",
-    "在 AI 對話中說「教我用」"
+    "在 AI 對話中說「教我用」",
+    "Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt",
+    "日常開工句",
+    "固定開工句",
+    "貼同一條固定開工句",
+    "下次開工:複製貼上以下整段",
+    "貼回 START_NEXT_SESSION_PROMPT",
+    "下一次任何 AI 工具",
+    "你只要貼一段提示",
+    "開新對話,貼一段字",
+    "開新對話，貼一段字"
   ];
   const surfaces = [
     { file: "bin/agent-handoff-kit.mjs", role: "CLI printInstallNextSteps" },
@@ -420,15 +430,20 @@ function checkCrossSurfaceWordingConsistency() {
   ];
   for (const surface of surfaces) {
     const text = read(surface.file);
-    if (!text.includes(canonicalTriggerPhrase)) {
-      throw new Error(`Cross-surface wording inconsistency: stable startup bootstrap phrase missing in ${surface.file} (${surface.role}). Expected phrase fragment: "${canonicalTriggerPhrase}"`);
+    for (const phrase of primaryStartupPhrases) {
+      if (!text.includes(phrase)) {
+        throw new Error(`Cross-surface primary startup phrase missing in ${surface.file} (${surface.role}). Expected: "${phrase}"`);
+      }
+    }
+    if (!text.includes(pathFallbackPhrase)) {
+      throw new Error(`Cross-surface path fallback phrase missing in ${surface.file} (${surface.role}). Expected phrase fragment: "${pathFallbackPhrase}"`);
     }
     if (!text.includes("普通 web chat") && !text.includes("web chat AI") && !text.includes("web 版")) {
       throw new Error(`Local-agent support boundary missing in ${surface.file} (${surface.role}).`);
     }
-    for (const phrase of shortcutPhrases) {
+    for (const phrase of closeoutPhrases) {
       if (!text.includes(phrase)) {
-        throw new Error(`Cross-surface shortcut phrase missing in ${surface.file} (${surface.role}). Expected: "${phrase}"`);
+        throw new Error(`Cross-surface closeout phrase missing in ${surface.file} (${surface.role}). Expected: "${phrase}"`);
       }
     }
     if (!text.includes("某某開工") || !text.includes("某某收工")) {
@@ -506,7 +521,8 @@ function checkScenarioBranchingDocAlignment() {
       snippets: [
         "install fresh",
         "安裝完成",
-        "Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt",
+        "Start Agent Handoff",
+        "Read AGENTS.md first, then Start Agent Handoff",
         "下面這句不是終端機指令",
         "普通 web chat AI",
         "升級完成",
@@ -673,12 +689,13 @@ function simulateScenarioBranching() {
   assertScenarioOutput("scenario 1 (install fresh)", s1.stdout, {
     mustHave: [
       /✅ 安裝完成：/,
-      /Read AGENTS\.md first\. Then open START_NEXT_SESSION_PROMPT\.txt/,
+      /Start Agent Handoff/,
+      /Read AGENTS\.md first, then Start Agent Handoff/,
       /下面這句不是終端機指令/,
       /能讀寫此資料夾的 AI agent/,
       /普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具/,
       /不用再留在終端機/,
-      /讀取 START_NEXT_SESSION_PROMPT\.txt/
+      /START_NEXT_SESSION_PROMPT\.txt/
     ],
     mustNotHave: [
       /✅ 升級完成：/,
@@ -752,7 +769,7 @@ function simulateScenarioBranching() {
     .replace("Record only work actually completed in the current session.\n\n1. TBD", "Record only work actually completed in the current session.\n\n1. Completed `@adamchanadam` package verification and upgrade UX review.")
     .replace("## Next Priorities\n\n1. TBD", "## Next Priorities\n\n1. Pending maintainer publish decision; continue normal project work after closeout.")
     .replace("- Checks run this session: TBD", "- Checks run this session: Verified package scope and no-op upgrade journey.")
-    .replace("## Next Session Opening Message\n\n📋 Next session: copy and paste the whole block below", "## Next Session Opening Message\n\n📋 Next session: copy and paste the whole block below");
+    .replace("## Next Session Opening Message\n\n📋 Next session: agent-managed startup content below", "## Next Session Opening Message\n\n📋 Next session: agent-managed startup content below");
   writeFileSync(s4bHandoffPath, s4bHandoff, "utf8");
   const s4b = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4bRoot], "scenario 4b upgrade no-op with handoff needing closeout", { env });
   assertScenarioOutput("scenario 4b (upgrade no-op, handoff needs closeout)", s4b.stdout, {
@@ -1169,7 +1186,7 @@ At full closeout:
 7. Run the handoff sufficiency check.
 8. If either check fails, fix \`dev/SESSION_HANDOFF.md\` first.
 9. Regenerate \`START_NEXT_SESSION_PROMPT.txt\` from \`dev/SESSION_HANDOFF.md\`, then read it back or verify it.
-10. Show a short closeout card, then provide the stable bootstrap sentence that tells the next local agent to open \`START_NEXT_SESSION_PROMPT.txt\`.
+10. Show a short closeout card, then provide the next-session startup entry: \`Start Agent Handoff\` / \`開工\`, plus the path-bearing fallback when the next AI is not yet pointed at this project root.
 
 ## 5. Pack Loading
 
@@ -1276,7 +1293,7 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
     "",
     "### Next Session Opening Message",
     "",
-    "📋 Next session: copy and paste the whole block below",
+    "📋 Next session: agent-managed startup content below",
     "",
     "```text",
     openingMessage,

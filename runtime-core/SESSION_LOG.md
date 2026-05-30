@@ -27,7 +27,7 @@ Before closeout, check whether older log detail should be kept, summarized, or a
 
 ### Next Session Opening Message
 
-📋 Next session: copy and paste the whole block below
+📋 Next session: agent-managed startup content below
 
 ```text
 Work in <absolute project root>.

@@ -133,9 +133,9 @@ Continuity rule: this file carries current state and next action. `dev/SESSION_L
 <!-- ack:section:next-session-opening-message -->
 ## Next Session Opening Message
 
-This fenced block is the authoritative startup prompt. At closeout, regenerate `START_NEXT_SESSION_PROMPT.txt` from this block. If the two differ, trust this block and rewrite the convenience copy. User-facing closeout output may show the stable bootstrap sentence that tells the next agent to read this file; do not hand-write a separate stateful prompt in the final response.
+This fenced block is the authoritative agent-managed startup content. At closeout, regenerate `START_NEXT_SESSION_PROMPT.txt` from this block. If the two differ, trust this block and rewrite the convenience copy. User-facing closeout output should show `Start Agent Handoff` / `開工` as the primary next-session entry, plus the path-bearing fallback when the next AI is not yet pointed at this project root; do not hand-write a separate stateful prompt in the final response.
 
-📋 Next session: copy and paste the whole block below
+📋 Next session: agent-managed startup content below
 
 ```text
 Work in <absolute project root>.

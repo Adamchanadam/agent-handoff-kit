@@ -75,7 +75,7 @@ const requiredAnchors = [
       "next-session opening message",
       "fenced `text` code block",
       "handoff saved",
-      "📋 Next session: copy and paste the whole block below",
+      "next-session startup entry",
       "State Reconciliation Check",
       "handoff lifecycle consistency",
       "Do not append a new state snapshot",
@@ -100,7 +100,7 @@ const requiredAnchors = [
       "ack:section:state-reconciliation-check",
       "ack:section:next-session-opening-message",
       "ack:field:lifecycle-conflicts-resolved",
-      "📋 Next session: copy and paste the whole block below",
+      "📋 Next session:",
       "```text",
       "Read in order:",
       "dev/DOC_SYNC_REGISTRY.md"
@@ -116,7 +116,7 @@ const requiredAnchors = [
       "- **Sync:**",
       "- **Log maintenance:**",
       "### Next Session Opening Message",
-      "📋 Next session: copy and paste the whole block below",
+      "📋 Next session:",
       "```text",
       "Read in order:",
       "dev/DOC_SYNC_REGISTRY.md"
@@ -257,7 +257,7 @@ const schemaChecks = [
     target: "dev/SESSION_HANDOFF.md",
     label: "handoff opening message structure",
     checks: [
-      includes("📋 Next session: copy and paste the whole block below"),
+      includes("📋 Next session:"),
       includes("```text"),
       includes("Work in "),
       includes("Read in order:"),
@@ -779,7 +779,7 @@ async function runDoctor(root, version, options = {}) {
 
 function getFirstUseNextStep(root, lastCloseout) {
   if (lastCloseout.date) return null;
-  return `檢查已通過。下一步不要再留在終端機；打開能讀寫此資料夾的 AI agent，貼上：${startupBootstrapPrompt(root)}`;
+  return `檢查已通過。下一步不要再留在終端機；打開能讀寫此資料夾的 AI agent。若 AI 已在此資料夾內，輸入 Start Agent Handoff 或「開工」；若 AI 還未指向此資料夾，才貼：${startupPathBootstrapPrompt(root)}`;
 }
 
 // R-030 v0.3.0+: Credential leak prevention sweep. Scans dev/PROJECT_INDEX.md,
@@ -1833,7 +1833,7 @@ function printInstallSummary(version, command, mode, root, counts) {
   } else if (mode === "partial" || counts.skipped > 0) {
     console.log("🚀 下一步：先看下方提示。若你原本已有 AGENTS.md 或其他 AI 規則，請先執行 upgrade --dry-run 補入口連接，再執行 doctor。");
   } else {
-    console.log("🚀 下一步：不用再留在終端機。打開 AI 工具，貼下方起步句。");
+    console.log("🚀 下一步：不用再留在終端機。打開 AI 工具，啟動 Agent Handoff。");
   }
 }
 
@@ -2045,15 +2045,19 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
   }
   console.log("------------------------------------------------------------");
   console.log("⚠️  下面這句不是終端機指令。");
-  console.log("📋 請打開能讀寫此資料夾的 AI agent，新增對話後貼上：");
+  console.log("📋 請打開能讀寫此資料夾的 AI agent。若 AI 已在此資料夾內，新增對話後輸入：");
   console.log("   例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity。");
   console.log("   普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具。");
   console.log("------------------------------------------------------------");
-  console.log(startupBootstrapPrompt(root));
+  console.log("Start Agent Handoff");
+  console.log("或：開工");
+  console.log("------------------------------------------------------------");
+  console.log("若 AI 還未指向此資料夾，才貼以下帶路徑啟動句：");
+  console.log(startupPathBootstrapPrompt(root));
   console.log("------------------------------------------------------------");
   console.log("");
-  console.log("🚀 AI 會先確認這個資料夾，讀取 START_NEXT_SESSION_PROMPT.txt。第一次安裝後，該檔案會觸發新手引導；收工後，該檔案會承載下一次接力狀態。");
-  console.log("   之後若 AI 已在正確專案內，可說「Start Agent Handoff」/「開工」或「Wrap up Agent Handoff」/「收工」；「某某開工 / 某某收工」會先確認是否指本工具交接。");
+  console.log("🚀 AI 會依 AGENTS.md 讀取 START_NEXT_SESSION_PROMPT.txt。第一次安裝後，該檔案會觸發新手引導；收工後，該檔案會承載下一次接力狀態。");
+  console.log("   收工可說「Wrap up Agent Handoff」/「收工」；「某某開工 / 某某收工」會先確認是否指本工具交接。");
   console.log("============================================================");
 }
 
@@ -2150,13 +2154,16 @@ Commands:
   🩺 不確定狀態：用 doctor 檢查；doctor 只檢查，不會改檔。
 
 安裝之後：
-  不要把顯示出來的 "Work in ..." 文字輸入終端機。
-  請打開能讀寫此資料夾的 AI agent，新增對話後貼上那句起步句。
+  不要把顯示出來的 Start Agent Handoff 或 "Work in ..." 文字輸入終端機。
+  請打開能讀寫此資料夾的 AI agent。若 AI 已在此資料夾內，新增對話後輸入：
+  Start Agent Handoff
+  或：開工
+  若 AI 還未指向此資料夾，才貼帶路徑啟動句：
+  Work in <project root>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
   例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity。
   普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具。
-  AI 會讀取 START_NEXT_SESSION_PROMPT.txt；第一次安裝後該檔案會啟動新手引導，
+  AI 會依 AGENTS.md 讀取 START_NEXT_SESSION_PROMPT.txt；第一次安裝後該檔案會啟動新手引導，
   收工後該檔案會承載下一次接力狀態。
-  AI 已在正確專案內時，可用「Start Agent Handoff」/「開工」開始接力，
   用「Wrap up Agent Handoff」/「收工」保存交接；「某某開工 / 某某收工」
   會先確認是否指本工具交接。
 
@@ -2179,6 +2186,6 @@ Commands:
   console.log(`🚀 下一步：新項目先執行 init；舊項目先執行 upgrade --dry-run；只想檢查才執行 doctor。`);
 }
 
-function startupBootstrapPrompt(root) {
-  return `Work in ${root}. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.`;
+function startupPathBootstrapPrompt(root) {
+  return `Work in ${root}. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.`;
 }

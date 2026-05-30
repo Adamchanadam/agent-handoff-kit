@@ -684,9 +684,9 @@
   <header class="hero">
     <div class="wrap">
       <div>
-        <span class="kicker">v0.3.18 · 60 秒新手入門</span>
+        <span class="kicker">v0.3.19 · 60 秒新手入門</span>
         <h1><span class="accent">AI Session</span><br/>之間的<br/><span class="accent2">接力棒</span></h1>
-        <p class="lede">AI 每次開新對話都是從零開始,不記得你上次和它做過甚麼,也認不出中途新建的文檔和你引入的參考資料。這套工具的作用,是把進度、下一步、要留神之處,連同一份檔案登記,寫進幾份固定文件;下一次任何 AI 工具開啟,你只要貼一段提示,它就接得上上一棒。</p>
+        <p class="lede">AI 每次開新對話都是從零開始,不記得你上次和它做過甚麼,也認不出中途新建的文檔和你引入的參考資料。這套工具的作用,是把進度、下一步、要留神之處,連同一份檔案登記,寫進幾份固定文件;下一次在能讀寫本機專案資料夾的 AI agent 開新對話,只要說 Start Agent Handoff 或「開工」,它就會讀取交接檔案並接上上一棒。普通 web chat AI 若不能讀寫本機資料夾,不屬於支援場景。</p>
         <div class="cta-row">
           <a class="btn primary" href="#howto">看三步上手 →</a>
           <a class="btn secondary" href="agent-handoff-kit-guide.html">實操指南 →</a>
@@ -717,7 +717,7 @@
         <div class="what-cell after">
           <div>
             <h3>用了之後</h3>
-            <p>說一聲「收工」,AI 自動更新交接文件與檔案登記表,輸出一段「下次開工用的提示」。新對話開始時把那段字貼回去,下一個 AI 立即讀齊狀態:做到哪、下一步是甚麼、哪些檔案是真源、哪些只是參考。</p>
+            <p>說一聲「收工」,AI 自動更新交接文件與檔案登記表,並同步更新 <code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code>。下次在同一專案內說 <code style="font-family:var(--font-mono);font-size:13px;">Start Agent Handoff</code> 或「開工」,下一個 AI 立即讀齊狀態:做到哪、下一步是甚麼、哪些檔案是真源、哪些只是參考。</p>
           </div>
           <div class="glyph" role="img" aria-label="清晰、連續"></div>
         </div>
@@ -766,7 +766,7 @@
     <div class="wrap">
       <span class="eyebrow">03 / 只需記住三個字</span>
       <h2>說一句,<br/>AI 自動收工。</h2>
-      <p class="intro">你不需要記住任何長指令,也不需要知道要更新哪份檔案。打一個自然短語,AI 會自己更新交接文件,並輸出一段下次貼回去就能接續的提示。</p>
+      <p class="intro">你不需要記住任何長指令,也不需要知道要更新哪份檔案。打一個自然短語,AI 會自己更新交接文件,並把下一次接力內容寫入提示副本。</p>
 
       <div class="magic-row">
         <div class="magic-word w1">
@@ -789,7 +789,7 @@
 02 · 把本次實際做過的事,寫進工作日誌
 03 · 更新檔案登記:專案索引、同步登錄表
 04 · 接力自測:下一個 AI 能否只憑交接文件接得回去
-05 · 輸出一段明顯標示的提示,你下次開新對話貼回去就能接續
+05 · 同步更新 START_NEXT_SESSION_PROMPT.txt,你下次開新對話說「開工」就能接續
       </div>
     </div>
   </section>
@@ -873,10 +873,14 @@
         <div class="step s2">
           <div class="step-num">2</div>
           <h3>開工</h3>
-          <p>打開能讀寫本機專案資料夾的 AI agent,在新對話貼以下一段。第一次安裝後和日後接力都用同一句:</p>
-          <pre>Work in <span class="hl">&lt;你的資料夾&gt;</span>. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.</pre>
-          <p style="margin-top:12px;">AI 會讀取 <code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code>。第一次安裝後,該檔案會載入新手引導;收工後,同一個檔案會保存下一次接力狀態。</p>
-          <p style="margin-top:12px;">若 AI 已在正確專案內,也可說 <code style="font-family:var(--font-mono);font-size:13px;">Start Agent Handoff</code> 或「開工」。若你說的是「某某開工」這類帶其他上下文的話,AI 應先確認是否指本工具接力。</p>
+          <p>打開能讀寫本機專案資料夾的 AI agent。若 AI 已在正確專案內,新對話只需輸入:</p>
+          <pre><span class="hl">Start Agent Handoff</span>
+或
+<span class="hl">開工</span></pre>
+          <p style="margin-top:12px;">若 AI 還未指向你的專案資料夾,才使用帶路徑啟動句:</p>
+          <pre>Work in <span class="hl">&lt;你的資料夾&gt;</span>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</pre>
+          <p style="margin-top:12px;">AI 會依 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code> 讀取 <code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code>。第一次安裝後,該檔案會載入新手引導;收工後,同一個檔案會保存下一次接力狀態。</p>
+          <p style="margin-top:12px;">若你說的是「某某開工」這類帶其他上下文的話,AI 應先確認是否指本工具接力。</p>
           <ol style="margin-top:12px;padding-left:22px;font-size:14px;line-height:1.65;">
             <li>確認你想做哪一類項目。</li>
             <li>確認資料夾、已有內容與技術方向。</li>
@@ -898,13 +902,13 @@
 或
 <span class="hl">handoff</span></pre>
           <p style="margin-top:12px;">若你說的是「某某收工」這類帶其他上下文的話,AI 應先確認是否要執行 Agent Handoff Kit 收工交接。</p>
-          <p style="margin-top:12px;">AI 會自動更新交接文件,並同步更新 <code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code>。下一輪仍貼同一條開工句,讓 AI 自己讀取檔案即可接力。</p>
+          <p style="margin-top:12px;">AI 會自動更新交接文件,並同步更新 <code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code>。下一輪在同一專案內說 <code style="font-family:var(--font-mono);font-size:13px;">Start Agent Handoff</code> 或「開工」即可接力;若 AI 尚未指向資料夾,才使用帶路徑啟動句。</p>
         </div>
       </div>
 
       <div style="margin-top: 40px; padding: 28px; background: var(--paper); border: 3px solid var(--ink); border-left: 12px solid var(--blue);">
         <h3 style="margin: 0 0 12px; font-size: 20px; text-transform: uppercase; letter-spacing: 0.04em;">🚀 第一次用?最簡單版本</h3>
-        <p style="margin: 0; font-size: 16px; max-width: none;">安裝後貼固定開工句。AI 會打開 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">START_NEXT_SESSION_PROMPT.txt</code>,再用 5 步引導你:選情境、問背景、解釋會記住甚麼、建議第一個小任務、等你確認後才動手。本介紹頁不需要先讀完。</p>
+        <p style="margin: 0; font-size: 16px; max-width: none;">安裝後在已打開專案資料夾的 AI agent 輸入 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">Start Agent Handoff</code> 或「開工」。AI 會打開 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">START_NEXT_SESSION_PROMPT.txt</code>,再用 5 步引導你:選情境、問背景、解釋會記住甚麼、建議第一個小任務、等你確認後才動手。本介紹頁不需要先讀完。</p>
       </div>
     </div>
   </section>
@@ -948,7 +952,7 @@
           <p style="font-size:14px;"><strong>SESSION_HANDOFF</strong>:當前狀態、下一步、風險。</p>
           <p style="font-size:14px;"><strong>PROJECT_INDEX</strong>:檔案登記、真源。</p>
           <p style="font-size:14px;"><strong>AGENTS / CLAUDE / GEMINI.md</strong>:開工規則。</p>
-          <p style="font-size:13px;opacity:0.7;">AI 開工第一輪會讀齊。你貼一段提示後,AI 的第一回應反映你現在做的事。</p>
+          <p style="font-size:13px;opacity:0.7;">AI 開工第一輪會讀齊。你啟動接力後,AI 的第一回應反映你現在做的事。</p>
         </div>
         <div class="mode-cell m2">
           <div class="mode-icon" aria-hidden="true"></div>
@@ -979,8 +983,8 @@
       <div class="recap-row">
         <div class="recap-cell">
           <div class="big">01</div>
-          <h3>開新對話,貼一段字</h3>
-          <p>每次新對話都貼同一句:Work in &lt;資料夾&gt;. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. AI 已在正確專案內時,可說 Start Agent Handoff。</p>
+          <h3>開新對話,說開工</h3>
+          <p>AI 已在正確專案內時,每次新對話說 Start Agent Handoff 或「開工」。若 AI 尚未指向資料夾,才使用: Work in &lt;資料夾&gt;. Read AGENTS.md first, then Start Agent Handoff.</p>
         </div>
         <div class="recap-cell">
           <div class="big">02</div>
@@ -990,7 +994,7 @@
         <div class="recap-cell">
           <div class="big">03</div>
           <h3>完成時講「收工」</h3>
-          <p>AI 會更新交接文件與 START_NEXT_SESSION_PROMPT.txt;下一輪仍用同一句開工,由 AI 自己讀取最新提示。明確收工可說 Wrap up Agent Handoff。</p>
+          <p>AI 會更新交接文件與 START_NEXT_SESSION_PROMPT.txt;下一輪仍說 Start Agent Handoff 或「開工」,由 AI 自己讀取最新提示。明確收工可說 Wrap up Agent Handoff。</p>
         </div>
       </div>
     </div>
@@ -1054,7 +1058,7 @@
         </p>
       </div>
       <div class="meta">
-        v0.3.18 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a> 為準。
+        v0.3.19 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a> 為準。
       </div>
     </div>
   </footer>

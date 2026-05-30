@@ -1,5 +1,25 @@
 # 變更紀錄
 
+## v0.3.19 — 2026-05-30
+
+狀態：正式發佈版本。本版修正公開說明仍把長開工句當成主入口的問題。
+
+### Changed
+
+- README、CLI 安裝後輸出、介紹頁與操作指南改為短開工入口優先：AI 已在專案資料夾內時，用 `Start Agent Handoff` 或「開工」開始接力。
+- 帶路徑啟動句只保留給「AI 尚未指向專案資料夾」的場景：`Work in <project root>. Read AGENTS.md first, then Start Agent Handoff...`。
+- 收工說明改為強調 AI 會同步更新 `START_NEXT_SESSION_PROMPT.txt`，下一輪由 AI 自己讀取，不要求用戶手動打開或貼回整份提示檔。
+- Runtime closeout 規則改為 final response 顯示短開工入口與帶路徑 fallback，不再把舊長句當成唯一穩定句。
+
+### QA
+
+- `qa:prototype` 與 `qa:release` 改為守短入口、帶路徑 fallback、local-agent 支援邊界、收工入口與「某某開工 / 某某收工」歧義保護。
+- Current public surface 新增舊長句與「固定開工句 / 貼回提示」殘留檢查，避免 README、HTML 或 CLI 再漂回舊流程。
+
+### Migration path（v0.3.18 → v0.3.19，backward-compat preserved）
+
+既有項目仍可用同一套檔案。升級後，用戶日常只需在已打開專案的 AI agent 輸入 `Start Agent Handoff` 或「開工」；若 AI 尚未指向資料夾，才使用帶路徑啟動句。`START_NEXT_SESSION_PROMPT.txt` 仍由 AI closeout 自動同步。
+
 ## v0.3.18 — 2026-05-30
 
 狀態：正式發佈版本。本版收緊 Agent Handoff Kit 的工具適用邊界，避免用戶把它誤解成普通 web chat 可用的一段 prompt。
