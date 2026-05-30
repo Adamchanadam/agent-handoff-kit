@@ -45,7 +45,7 @@ function main() {
   checkPackedPackageUpgradeSmoke(version);
 
   assertIncludes("README.md", [
-    `目前版本為 \`v${version}\``,
+    `目前正式發佈版本為 \`v${version}\``,
     "AI 對話之間的接力棒",
     "AI 跨對話失憶",
     "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",

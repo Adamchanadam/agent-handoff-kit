@@ -238,20 +238,20 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | 每次 tag、GitHub Release、npm publish 或 release closeout 必須由使用者另行明確批准。 | v0.3.17 目前只可進入 publish-ready 候選；tag、GitHub Release、npm publish 或 release closeout 仍需 Adam 對 v0.3.17 另行明確批准 |
-| 版本口徑 | `package.json` 目前為 `0.3.17`；v0.3.17 是 upgrade 成功輸出降噪修補。 | 候選口徑已更新；publish 前須重跑發佈前檢查 |
+| 發佈授權 | Adam 已明確授權本輪 v0.3.17 commit、push、tag、GitHub Release、npm publish。 | 已執行並完成；未來版本仍需重新取得明確批准 |
+| 版本口徑 | `package.json` 目前為 `0.3.17`；v0.3.17 是 upgrade 成功輸出降噪修補。 | 已發佈；發佈後驗證通過 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；目前 `npm pack --dry-run` 應為 25 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過；publish 前已用已提交狀態重跑 `qa:release` |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.17.md` 已轉入 v0.3.17 候選口徑。 | 通過；publish 前須重跑文件一致性檢查 |
+| 公開文件一致性 | README、package metadata、CHANGELOG 與 `docs/whatsnew/v0.3.17.md` 已轉入 v0.3.17 正式發佈口徑。 | 通過；發佈後狀態已補記 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
 | GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.17` 段，`docs/whatsnew/v0.3.17.md` 已補本版用戶說明。 | 通過；發佈後須核對 GitHub Release 非 draft / 非 prerelease 與 npm metadata |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.17` 候選準備。 | 通過；發佈後應驗證 npm latest 為 `0.3.17` |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前正式發佈版本為 `v0.3.17`。 | 通過；npm latest 已驗證為 `0.3.17` |
 
 ## v0.3.17 發佈狀態
 
@@ -259,8 +259,8 @@ npm package 由 `package.json` 的 `files` 控制：
 - release notes：`CHANGELOG.md` 的 `v0.3.17` 段落 + `docs/whatsnew/v0.3.17.md`。
 - 發佈內容：修正 Jay 真實升級成功後 CLI 輸出過長問題；`upgrade` 成功後不再 inline 展開多版本 `docs/whatsnew` 全文，只保留完成狀態、自動 `doctor` 提示與 GitHub Release 入口。
 - 發佈前驗收：`qa:release` 必須確認 scenario 3a / 3b / 3c 的 substantive upgrade output 不含「本次升級涵蓋」、markdown 版本標題或「本版新加了甚麼」長篇 release notes 內容；同時用正向短輸出守門限制 upgrade success narrative ≤ 8 條非空行、≤ 430 字，輸出版本必須對齊 package version；再用真正 packed tarball 安裝後跑 v0.3.16 → v0.3.17 upgrade + doctor smoke，防止 package fileCount / files 邊界改動令 published package 缺檔或升級失敗。
-- npm 狀態：候選準備；publish 後應驗證 npm latest 為 `0.3.17`；package fileCount 25（移除 `docs/whatsnew/` 入包，版本說明留在 repo / GitHub Release 材料）。
-- 🟡 發佈檢：v0.3.17 publish 後須驗證 GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.16 → v0.3.17 published-package upgrade。
+- npm 狀態：已 npm publish；npm latest 為 `0.3.17`；package fileCount 25（移除 `docs/whatsnew/` 入包，版本說明留在 repo / GitHub Release 材料）。
+- 🟡 發佈檢：v0.3.17 post-publish artifact smoke 已完成；GitHub Release 非 draft / 非 prerelease，npm latest + fileCount 對齊，fresh install、published `--help` / `init` / `doctor`、以及 v0.3.16 → v0.3.17 published-package upgrade 均通過。
 
 ### Cross-mind evidence 9-trigger table（v0.3.17）
 
@@ -270,7 +270,7 @@ npm package 由 `package.json` 的 `files` 控制：
 | 2. 同類 bug 連續 2+ 次修補仍未斷 | yes | iterated | v0.3.2 曾加入 inline whatsnew 解決「升級不知道改了甚麼」；Jay v0.3.16 實測證明該資訊放在 installer 流程會造成 UX 噪音，本版改由 GitHub Release 承接詳情。 |
 | 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | passed | 功能層：CLI upgrade output；測試層：release readiness scenario contract；敘事層：CHANGELOG、whatsnew、本段、README / HTML 版本口徑。 |
 | 4. 三個以上治理檔同步改動 | yes | passed | public CLI、QA docs、QA script、CHANGELOG、whatsnew、README、HTML 與 WORK governance records 需同步；WORK session state 不進 npm package。 |
-| 5. 將要對外 commit / tag / publish | yes | blocked | 本表只證明 publish-ready 候選；tag、GitHub Release、npm publish 與 release closeout 仍需 Adam 對 v0.3.17 明確批准。 |
+| 5. 將要對外 commit / tag / publish | yes | passed | Adam 已明確批准 v0.3.17 commit、push、tag、GitHub Release、npm publish；發佈後七項 artifact smoke 已通過。 |
 | 6. 結論基於語意判斷而非單一 grep | yes | iterated | 語意為「升級流程只完成升級和驗收，不承載長篇版本詳情」；用禁止長篇標記、正向行數 / 字數上限、版本對齊、GitHub Release 入口與 packed-package upgrade smoke 多層驗證。 |
 | 7. 上次同類問題曾被用戶 catch | yes | iterated | Jay 真實 upgrade 成功輸出被長篇 v0.3.15 / v0.3.16 說明淹沒；本版將該輸出類型轉為發佈前守門。 |
 | 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | scenario 3b 使用真實 v0.1.7 fixture；scenario 3c 通用重建 Jay 類 lifecycle placeholder 狀態；本次 UX guard 針對所有 substantive upgrade output。 |
