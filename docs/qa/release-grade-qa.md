@@ -238,11 +238,11 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | Adam 已明確授權執行 v0.3.19 commit、push、tag、GitHub Release、npm publish 與發佈後驗證。 | 可進入發佈動作 |
+| 發佈授權 | Adam 已明確授權並已完成 v0.3.19 commit、push、tag、GitHub Release、npm publish 與發佈後驗證。 | 已完成 |
 | 版本口徑 | `package.json` 目前為 `0.3.19`；v0.3.19 是短開工入口優先與公開說明去長句化修補。 | 正式發佈口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
-| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；目前 `npm pack --dry-run` 應為 25 files。 | 通過，但發佈前須重跑套件預演 |
-| 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；subagent follow-up 補丁後已在本地未提交候選狀態重跑 `qa:release`。 | 通過；若後續再改 source，publish 前須重跑 |
+| 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
+| 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；subagent follow-up 補丁後已重跑；release-status docs correction 後 `qa:release` 亦須通過。 | 通過 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
 | 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.19.md` 與 onboarding HTML 轉入 v0.3.19 正式發佈口徑。 | 通過 |
@@ -250,7 +250,7 @@ npm package 由 `package.json` 的 `files` 控制：
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.19` 段，`docs/whatsnew/v0.3.19.md` 已補本版用戶說明。 | 可用於 GitHub Release / npm publish |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.19` 段，`docs/whatsnew/v0.3.19.md` 已補本版用戶說明；GitHub Release `v0.3.19 - 開工入口更簡單` 已發佈，npm latest 已對齊 `0.3.19`。 | 已完成 |
 | 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.19` 正式發佈版本。 | 通過 |
 
 ## v0.3.19 發佈狀態
@@ -258,17 +258,18 @@ npm package 由 `package.json` 的 `files` 控制：
 - package version：`0.3.19`。
 - release notes：`CHANGELOG.md` 的 `v0.3.19` 段落 + `docs/whatsnew/v0.3.19.md`。
 - 發佈目標：把公開 README、npm README 來源、CLI 安裝後輸出、intro / guide HTML 與 runtime closeout 顯示統一為短開工入口優先：`Start Agent Handoff` /「開工」；只有 AI 尚未指向專案資料夾時才使用帶路徑啟動句。
-- 發佈狀態：Adam 已明確授權全套發佈；source commit / tag / GitHub Release / npm publish / 發佈後驗證由本輪 release ceremony 執行並在 WORK 紀錄收口。
+- 發佈狀態：已完成。Public release source commit `9a12c31` 已推送並標記 `v0.3.19`；GitHub Release `v0.3.19 - 開工入口更簡單` 已發佈；npm `@adamchanadam/agent-handoff-kit` latest 為 `0.3.19`，fileCount 25。
+- 發佈後驗證：7/7 PASS。GitHub Release 非 draft / 非 prerelease；npm latest / fileCount 對齊；fresh published install PASS；published `--help` / `init` / `doctor` PASS；v0.3.18 → v0.3.19 published-package `upgrade --yes` + sequential doctor PASS。
 
 ### Cross-mind evidence 9-trigger table（v0.3.19）
 
 | Trigger | Required? | Result | Evidence / rationale |
 |---|---|---|---|
-| 1. 失敗或 blocker | no — not observed yet in this candidate | passed | 目前修補來自公開說明殘留舊長句的用戶挑戰；subagent follow-up 後本地機器驗收已 PASS。若要 publish，仍須按流程完成發佈前全面檢 / 授權 / 發佈後驗證。 |
+| 1. 失敗或 blocker | no — not observed in release verification | passed | 修補來自公開說明殘留舊長句的用戶挑戰；subagent follow-up 後本地機器驗收 PASS，發佈後七項 artifact smoke 亦已 PASS。 |
 | 2. 同類 bug 連續 2+ 次修補仍未斷 | yes | iterated | v0.3.18 已修 local-agent 邊界但公開 README / HTML 仍把長句放主入口；v0.3.19 把短入口提升為主流程並新增舊句殘留檢查。 |
 | 3. 真實用戶 / Adam challenge | yes | iterated | Adam 明確指出 GitHub Pages intro 仍不清楚，要求逐句重檢 README、npm README 來源與 HTML。 |
 | 4. 三個以上治理檔同步改動 | yes | iterated | 涉 README、intro、guide、CLI、runtime、QA 腳本與 release-grade QA；同步責任已記錄，subagent follow-up 後本地機器驗收已重跑通過。 |
-| 5. 將要對外 commit / tag / publish | yes | passed | Adam 已明確授權 v0.3.19 全套發佈；publish 後仍須跑發佈後驗證收口。 |
+| 5. 將要對外 commit / tag / publish | yes | passed | Adam 已明確授權 v0.3.19 全套發佈；commit / push / tag / GitHub Release / npm publish 已完成，發佈後驗證 7/7 PASS。 |
 | 6. 存在人工語意判斷而無機器斷言 | yes | iterated | 已把短入口、fallback、舊長句殘留、固定開工句殘留轉入 `checkCrossSurfaceWordingConsistency()` 與 prototype check。 |
 | 7. Cross-agent / cross-session handoff point | yes | iterated | Runtime closeout 顯示改為短入口 + fallback；`START_NEXT_SESSION_PROMPT.txt` 仍由 handoff 真源生成，不把 final response 變第三份 stateful prompt。 |
 | 8. Public-user journey / onboarding wording changed | yes | iterated | README、intro、guide、CLI 均改為「AI 已在專案內：Start Agent Handoff / 開工；未指向資料夾：帶路徑啟動句」。 |
