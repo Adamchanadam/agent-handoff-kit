@@ -1,5 +1,31 @@
 # 變更紀錄
 
+## v0.3.18 — 2026-05-30
+
+狀態：候選準備。本版收緊 Agent Handoff Kit 的工具適用邊界，避免用戶把它誤解成普通 web chat 可用的一段 prompt。
+
+### Added
+
+- README 與 onboarding HTML 明確列明：本工具適合能讀寫本機專案資料夾的 agentic AI 工具，例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity；不適合沒有本機檔案讀寫能力的普通 web chat AI。
+- CLI 安裝後輸出新的固定開工句：先讀 `AGENTS.md`，再打開 `START_NEXT_SESSION_PROMPT.txt`，由 prompt 檔承載初次新手引導或下一輪接力狀態。
+- Runtime `AGENTS.md` 新增清晰的短入口：`Start Agent Handoff` /「開工」用於開始接力，`Wrap up Agent Handoff` /「收工」用於保存交接；「某某開工 / 某某收工」等帶其他上下文的說法須先反問確認。
+
+### Changed
+
+- 初次安裝的 `START_NEXT_SESSION_PROMPT.txt` 內容改為 first-use onboarding prompt；收工後仍由 `dev/SESSION_HANDOFF.md` 生成真正的下一次交接 prompt。
+- closeout 核心規則改為：先重生並驗證 `START_NEXT_SESSION_PROMPT.txt`，final response 顯示穩定 bootstrap 句，不再要求用戶手動複製整份 stateful prompt。
+- README 的「日常開工」改為一條固定句，第一次安裝後與之後每次接力都使用同一入口。
+- 快捷詞只是用戶入口提示；執行優先級與歧義判斷只以 runtime `AGENTS.md` 為單一真源，避免 README、CLI、HTML 各自變成規則來源。
+
+### QA
+
+- `qa:prototype` 與 `qa:release` 改為守新產品邊界：CLI / README / HTML 必須包含 local-agent 支援範圍、`START_NEXT_SESSION_PROMPT.txt` bootstrap 句、快捷詞入口提示與「某某開工 / 某某收工」歧義保護錨點。
+- 保留 prompt mirror 檢查：`START_NEXT_SESSION_PROMPT.txt` 仍必須與 `dev/SESSION_HANDOFF.md` 的 opening message 一致。
+
+### Migration path（v0.3.17 → v0.3.18，backward-compat preserved）
+
+既有項目升級後不需要手動複製整份 `START_NEXT_SESSION_PROMPT.txt`。日常開新 AI 對話時貼固定 bootstrap 句即可；AI 會自己讀取 prompt 檔。若使用的是不能讀寫本機專案資料夾的普通 web chat AI，該工具不屬於 Agent Handoff Kit 的支援場景。
+
 ## v0.3.17 — 2026-05-30
 
 狀態：正式發佈版本。本版修正真實升級流程的輸出過長問題：`upgrade` 成功後不再把跨版本 `docs/whatsnew` 全文直接印在 CLI 內。

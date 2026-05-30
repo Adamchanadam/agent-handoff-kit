@@ -142,7 +142,7 @@ function main() {
     assert(upgradedCore.includes("## User Local Rules"), `${label} upgrade removed post-core local heading`);
     assert(upgradedCore.includes("Keep post-core local rule."), `${label} upgrade removed post-core local rule`);
     assert(upgradedCore.includes("START_NEXT_SESSION_PROMPT.txt"), `${label} upgrade did not add closeout prompt convenience-copy contract`);
-    assert(upgradedCore.includes("pasting the read-back `START_NEXT_SESSION_PROMPT.txt` content"), `${label} upgrade did not add closeout prompt read-back discipline`);
+    assert(upgradedCore.includes("stable bootstrap sentence"), `${label} upgrade did not add closeout prompt bootstrap discipline`);
     assert(upgradedCore.includes("not a third source of truth"), `${label} upgrade did not add closeout third-source guard`);
     assert(!upgradedCore.includes("Show a short closeout card, then provide a fenced opening message"), `${label} upgrade left stale closeout third-copy wording`);
     assert(upgradedCore.includes("External skill flows, subagents, task plans"), `${label} upgrade did not add skill/subagent arbitration`);
@@ -327,7 +327,8 @@ function main() {
     { ref: "v0.3.14", command: "upgrade" },
     { ref: "v0.3.15", command: "upgrade" },
     { ref: "v0.3.16", command: "upgrade" },
-    { ref: "v0.3.17", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.17", command: "upgrade" },
+    { ref: "v0.3.18", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;

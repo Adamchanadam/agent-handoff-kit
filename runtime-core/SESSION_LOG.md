@@ -43,6 +43,8 @@ Read dev/DOC_SYNC_REGISTRY.md before file changes or closeout.
 
 If this root does not match the expected project root, stop and ask for confirmation.
 
-After reading, summarize current objective, confirmed decisions, pending work, risks, and the next recommended action.
+This is the first startup after installing Agent Handoff Kit. Load the onboarding guidance from dev/RULE_PACKS.md when appropriate. Help me choose the right working scenario, then guide me through the first task step by step.
+
+Before changing anything, tell me the current state and your recommended next step.
 ```
 ````

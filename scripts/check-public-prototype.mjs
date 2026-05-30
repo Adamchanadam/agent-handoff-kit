@@ -42,12 +42,14 @@ async function main() {
   mkdirSync(tempRoot, { recursive: true });
 
   const initResult = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "install templates");
-  // R-029.1 v0.2.1: post-install CLI output must contain the canonical R-029 trigger phrase
-  // so first-time users see the onboarding-triggering prompt by default. v0.2.0 shipped with
-  // CLI printing the legacy "Read AGENTS.md and follow it..." which did not trigger R-029
-  // onboarding pack — v0.2.1 patches this so the post-install message matches README/intro/
-  // guide canonical wording.
-  assert(initResult.stdout.includes("I just installed agent-handoff-kit. Help me get started."), "post-install CLI output missing canonical R-029 trigger phrase (R-029.1)");
+  assert(initResult.stdout.includes("Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt"), "post-install CLI output missing stable startup bootstrap prompt");
+  assert(initResult.stdout.includes("普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具"), "post-install CLI output missing local-agent support boundary");
+  assert(initResult.stdout.includes("Start Agent Handoff"), "post-install CLI output missing short startup intent phrase");
+  assert(initResult.stdout.includes("Wrap up Agent Handoff"), "post-install CLI output missing short closeout intent phrase");
+  assert(initResult.stdout.includes("某某開工") && initResult.stdout.includes("某某收工"), "post-install CLI output missing ambiguous startup/closeout guard");
+  const installedPrompt = readFileSync(path.join(tempRoot, "START_NEXT_SESSION_PROMPT.txt"), "utf8");
+  assert(installedPrompt.includes("first startup after installing Agent Handoff Kit"), "initial START_NEXT_SESSION_PROMPT.txt missing first-use onboarding signal");
+  assert(installedPrompt.includes("Help me choose the right working scenario"), "initial START_NEXT_SESSION_PROMPT.txt missing first-task guidance");
   const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor installed templates");
   assert(doctor.stdout.includes("status: passed"), "doctor output did not include status: passed");
   assert(doctor.stdout.includes("✅ 檢查通過"), "doctor output missing beginner-friendly passed message");

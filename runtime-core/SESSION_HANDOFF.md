@@ -133,7 +133,7 @@ Continuity rule: this file carries current state and next action. `dev/SESSION_L
 <!-- ack:section:next-session-opening-message -->
 ## Next Session Opening Message
 
-This fenced block is the authoritative startup prompt. At closeout, regenerate `START_NEXT_SESSION_PROMPT.txt` from this block. If the two differ, trust this block and rewrite the convenience copy.
+This fenced block is the authoritative startup prompt. At closeout, regenerate `START_NEXT_SESSION_PROMPT.txt` from this block. If the two differ, trust this block and rewrite the convenience copy. User-facing closeout output may show the stable bootstrap sentence that tells the next agent to read this file; do not hand-write a separate stateful prompt in the final response.
 
 📋 Next session: copy and paste the whole block below
 
@@ -151,5 +151,7 @@ Read dev/DOC_SYNC_REGISTRY.md before file changes or closeout.
 
 If this root does not match the expected project root, stop and ask for confirmation.
 
-After reading, summarize current objective, task understanding, confirmed decisions, pending work, risks, and the next recommended action.
+This is the first startup after installing Agent Handoff Kit. Load the onboarding guidance from dev/RULE_PACKS.md when appropriate. Help me choose the right working scenario, then guide me through the first task step by step.
+
+Before changing anything, tell me the current state and your recommended next step.
 ```

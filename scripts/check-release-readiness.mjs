@@ -45,9 +45,11 @@ function main() {
   checkPackedPackageUpgradeSmoke(version);
 
   assertIncludes("README.md", [
-    `目前正式發佈版本為 \`v${version}\``,
+    `目前版本為 \`v${version}\``,
     "AI 對話之間的接力棒",
     "AI 跨對話失憶",
+    "適合能讀寫本機專案資料夾的 agentic AI 工具",
+    "不適合普通 web chat AI",
     "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
     "請特別留意：那一段不是給終端機的指令",
     "START_NEXT_SESSION_PROMPT.txt",
@@ -99,11 +101,11 @@ function main() {
     "用戶流程驗收",
     "任務入口",
     "不屬於 npm package",
-    `v${version} 發佈狀態`,
+    `v${version} 候選狀態`,
     "v0.1.2 發佈狀態",
     "v0.1.7 發佈狀態",
     "v0.1.6 發佈狀態",
-    `npm latest 為 \`${version}\``,
+    "npm latest 仍以已發布版本為準",
     "v0.1.5 發佈狀態",
     "v0.1.4 發佈狀態",
     "v0.1.3 發佈狀態",
@@ -154,6 +156,10 @@ function main() {
     "Detect end-of-session or handoff intent",
     "next-session opening message",
     "dev/RULE_PACKS.md",
+    "Start Agent Handoff",
+    "Ambiguous startup phrases",
+    "Wrap up Agent Handoff",
+    "Ambiguous closeout phrases",
     "Reachable is not the same as ingested",
     "Do not treat unread sources as absent",
     "External skill flows, subagents, task plans",
@@ -162,7 +168,8 @@ function main() {
     "ack:section:*",
     "State Reconciliation Check",
     "handoff lifecycle consistency",
-    "pasting the read-back `START_NEXT_SESSION_PROMPT.txt` content",
+    "START_NEXT_SESSION_PROMPT.txt` is the stateful startup prompt",
+    "stable bootstrap sentence",
     "not a third source of truth",
     "Do not append a new state snapshot",
     "R-010 SESSION_LOG handoff-role discipline",
@@ -397,19 +404,42 @@ function main() {
 }
 
 function checkCrossSurfaceWordingConsistency() {
-  const canonicalTriggerPhrase = "I just installed agent-handoff-kit. Help me get started.";
+  const canonicalTriggerPhrase = "Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt";
+  const shortcutPhrases = ["Start Agent Handoff", "Wrap up Agent Handoff"];
+  const staleStandaloneOnboardingPhrases = [
+    "help me start",
+    "I just installed agent-handoff-kit",
+    "新手起步句",
+    "在 AI 對話中說「教我用」"
+  ];
   const surfaces = [
     { file: "bin/agent-handoff-kit.mjs", role: "CLI printInstallNextSteps" },
-    { file: "README.md", role: "README first-screen R-029 callout + 三步上手 step 2" },
+    { file: "README.md", role: "README first-screen startup callout + 三步上手 step 2" },
     { file: "agent-handoff-kit-intro.html", role: "intro #howto Step 2 + #recap cell 1" },
-    { file: "agent-handoff-kit-guide.html", role: "guide hero R-029 callout" }
+    { file: "agent-handoff-kit-guide.html", role: "guide hero startup callout" }
   ];
   for (const surface of surfaces) {
     const text = read(surface.file);
     if (!text.includes(canonicalTriggerPhrase)) {
-      throw new Error(`Cross-surface wording inconsistency (R-029.1): canonical R-029 trigger phrase missing in ${surface.file} (${surface.role}). Expected phrase: "${canonicalTriggerPhrase}"`);
+      throw new Error(`Cross-surface wording inconsistency: stable startup bootstrap phrase missing in ${surface.file} (${surface.role}). Expected phrase fragment: "${canonicalTriggerPhrase}"`);
     }
-    console.log(`ok: ${surface.file} cross-surface R-029 trigger phrase`);
+    if (!text.includes("普通 web chat") && !text.includes("web chat AI") && !text.includes("web 版")) {
+      throw new Error(`Local-agent support boundary missing in ${surface.file} (${surface.role}).`);
+    }
+    for (const phrase of shortcutPhrases) {
+      if (!text.includes(phrase)) {
+        throw new Error(`Cross-surface shortcut phrase missing in ${surface.file} (${surface.role}). Expected: "${phrase}"`);
+      }
+    }
+    if (!text.includes("某某開工") || !text.includes("某某收工")) {
+      throw new Error(`Ambiguous startup/closeout guard missing in ${surface.file} (${surface.role}).`);
+    }
+    for (const stalePhrase of staleStandaloneOnboardingPhrases) {
+      if (text.includes(stalePhrase)) {
+        throw new Error(`Stale standalone onboarding phrase "${stalePhrase}" found in ${surface.file} (${surface.role}); current surface must route through START_NEXT_SESSION_PROMPT.txt.`);
+      }
+    }
+    console.log(`ok: ${surface.file} cross-surface startup boundary`);
   }
 }
 
@@ -476,8 +506,9 @@ function checkScenarioBranchingDocAlignment() {
       snippets: [
         "install fresh",
         "安裝完成",
-        "I just installed agent-handoff-kit. Help me get started.",
+        "Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt",
         "下面這句不是終端機指令",
+        "普通 web chat AI",
         "升級完成",
         "你已經是最新版本"
       ]
@@ -594,7 +625,7 @@ function checkScenarioBranchingDocAlignment() {
         "doctor healthy & latest",
         "status: passed",
         "檢查已通過",
-        "首次使用時提示開啟 AI 工具並貼上起步句",
+        "項目狀態速覽",
         "如要升級到較新版"
       ]
     },
@@ -642,15 +673,17 @@ function simulateScenarioBranching() {
   assertScenarioOutput("scenario 1 (install fresh)", s1.stdout, {
     mustHave: [
       /✅ 安裝完成：/,
-      /I just installed agent-handoff-kit\. Help me get started\./,
+      /Read AGENTS\.md first\. Then open START_NEXT_SESSION_PROMPT\.txt/,
       /下面這句不是終端機指令/,
-      /Claude Code \/ Claude Cowork \/ OpenAI Codex \/ Google Antigravity/,
+      /能讀寫此資料夾的 AI agent/,
+      /普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具/,
       /不用再留在終端機/,
-      /AI 會先確認這個資料夾/
+      /讀取 START_NEXT_SESSION_PROMPT\.txt/
     ],
     mustNotHave: [
       /✅ 升級完成：/,
       /你已經是最新版本/,
+      /I just installed agent-handoff-kit\. Help me get started\./,
       /I just upgraded agent-handoff-kit/
     ]
   });
@@ -674,6 +707,7 @@ function simulateScenarioBranching() {
     mustNotHave: [
       /✅ 安裝完成：下一步請在 AI 對話中操作/,
       /I just installed agent-handoff-kit\. Help me get started\./,
+      /Read AGENTS\.md first\. Then open START_NEXT_SESSION_PROMPT\.txt/,
       /工具已停手，沒有覆寫 conflict 檔案/
     ]
   });
@@ -1014,7 +1048,6 @@ function simulateScenarioBranching() {
     mustHave: [
       /status: passed/,
       /檢查已通過/,
-      /Google Antigravity/,
       // R-031.2 v0.3.2+: 項目狀態速覽（三向 version + 距上次 closeout + 項目首次安裝）
       // Loosened from /📦 版本：工具 v/ to /📦 版本：工具/ — aligned branch wording is
       // "工具 / 項目記錄 / npm latest 三向對齊 vX" where "工具" is followed by "/" not "v",
@@ -1135,8 +1168,8 @@ At full closeout:
 6. Complete the \`State Reconciliation Check\`.
 7. Run the handoff sufficiency check.
 8. If either check fails, fix \`dev/SESSION_HANDOFF.md\` first.
-9. Regenerate \`START_NEXT_SESSION_PROMPT.txt\` from \`dev/SESSION_HANDOFF.md\`, then read it back.
-10. Show a short closeout card, then paste the read-back \`START_NEXT_SESSION_PROMPT.txt\` content.
+9. Regenerate \`START_NEXT_SESSION_PROMPT.txt\` from \`dev/SESSION_HANDOFF.md\`, then read it back or verify it.
+10. Show a short closeout card, then provide the stable bootstrap sentence that tells the next local agent to open \`START_NEXT_SESSION_PROMPT.txt\`.
 
 ## 5. Pack Loading
 
@@ -1263,8 +1296,8 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
 
 function simulateInSessionPromptConvenienceDrift(installedHandoff) {
   const driftedHandoff = installedHandoff.replace(
-    "After reading, summarize current objective, task understanding, confirmed decisions, pending work, risks, and the next recommended action.",
-    "After reading, summarize current objective, task understanding, confirmed decisions, pending work, risks, and the next recommended action. This sentence simulates in-session handoff evolution before closeout."
+    "Before changing anything, tell me the current state and your recommended next step.",
+    "Before changing anything, tell me the current state and your recommended next step. This sentence simulates in-session handoff evolution before closeout."
   );
   writeFileSync(path.join(tempRoot, "dev/SESSION_HANDOFF.md"), driftedHandoff, "utf8");
 

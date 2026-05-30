@@ -49,6 +49,8 @@ const requiredAnchors = [
       "dev/RULE_PACKS.md",
       "Agent Handoff Kit v<version>",
       "continuity ready",
+      "Start Agent Handoff",
+      "Ambiguous startup phrases",
       "Reachable is not the same as ingested",
       "Do not treat unread sources as absent",
       // R-030 v0.3.0+: forces managed-core merge on v0.2.x → v0.3.0 upgrade to propagate
@@ -64,6 +66,8 @@ const requiredAnchors = [
     snippets: [
       "Detect end-of-session or handoff intent",
       "收工",
+      "Wrap up Agent Handoff",
+      "Ambiguous closeout phrases",
       "wrap up",
       "handoff",
       "Reconcile `dev/SESSION_HANDOFF.md`",
@@ -775,7 +779,7 @@ async function runDoctor(root, version, options = {}) {
 
 function getFirstUseNextStep(root, lastCloseout) {
   if (lastCloseout.date) return null;
-  return `檢查已通過。下一步不要再留在終端機；打開 Claude Code / Claude Cowork / OpenAI Codex / Google Antigravity，或任何能讀寫此資料夾的 AI 工具，貼上：Work in ${root}. I just installed agent-handoff-kit. Help me get started.`;
+  return `檢查已通過。下一步不要再留在終端機；打開能讀寫此資料夾的 AI agent，貼上：${startupBootstrapPrompt(root)}`;
 }
 
 // R-030 v0.3.0+: Credential leak prevention sweep. Scans dev/PROJECT_INDEX.md,
@@ -2041,13 +2045,15 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
   }
   console.log("------------------------------------------------------------");
   console.log("⚠️  下面這句不是終端機指令。");
-  console.log("📋 請打開 Claude Code / Claude Cowork / OpenAI Codex / Google Antigravity，");
-  console.log("   或任何能讀寫此資料夾的 AI 工具，新增對話後貼上：");
+  console.log("📋 請打開能讀寫此資料夾的 AI agent，新增對話後貼上：");
+  console.log("   例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity。");
+  console.log("   普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具。");
   console.log("------------------------------------------------------------");
-  console.log(`Work in ${root}. I just installed agent-handoff-kit. Help me get started.`);
+  console.log(startupBootstrapPrompt(root));
   console.log("------------------------------------------------------------");
   console.log("");
-  console.log("🚀 AI 會先確認這個資料夾，然後帶你選擇第一個任務情景：建構系統 / 工具 / 平台 / 網站或應用、研究報告、知識庫整理、學寫代碼，或其他。");
+  console.log("🚀 AI 會先確認這個資料夾，讀取 START_NEXT_SESSION_PROMPT.txt。第一次安裝後，該檔案會觸發新手引導；收工後，該檔案會承載下一次接力狀態。");
+  console.log("   之後若 AI 已在正確專案內，可說「Start Agent Handoff」/「開工」或「Wrap up Agent Handoff」/「收工」；「某某開工 / 某某收工」會先確認是否指本工具交接。");
   console.log("============================================================");
 }
 
@@ -2145,10 +2151,14 @@ Commands:
 
 安裝之後：
   不要把顯示出來的 "Work in ..." 文字輸入終端機。
-  請打開 Claude Code / Claude Cowork / OpenAI Codex / Google Antigravity，
-  或任何能讀寫此資料夾的 AI 工具，新增對話後貼上那句起步句。
-  這句會啟動新手引導；AI 會先帶你選擇情境，
-  再一步一步整理第一個任務。
+  請打開能讀寫此資料夾的 AI agent，新增對話後貼上那句起步句。
+  例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity。
+  普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具。
+  AI 會讀取 START_NEXT_SESSION_PROMPT.txt；第一次安裝後該檔案會啟動新手引導，
+  收工後該檔案會承載下一次接力狀態。
+  AI 已在正確專案內時，可用「Start Agent Handoff」/「開工」開始接力，
+  用「Wrap up Agent Handoff」/「收工」保存交接；「某某開工 / 某某收工」
+  會先確認是否指本工具交接。
 
 終端機範例：
   npx --yes @adamchanadam/agent-handoff-kit@latest init
@@ -2167,4 +2177,8 @@ Commands:
   console.log(`📦 版本：v${version}`);
   console.log(`🛠️  模式：help ready`);
   console.log(`🚀 下一步：新項目先執行 init；舊項目先執行 upgrade --dry-run；只想檢查才執行 doctor。`);
+}
+
+function startupBootstrapPrompt(root) {
+  return `Work in ${root}. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.`;
 }

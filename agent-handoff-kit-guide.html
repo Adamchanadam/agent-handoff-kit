@@ -454,7 +454,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.3.17 · 三個日常情景 · 由第一句指令到長期接力</span>
+    <span class="kicker">v0.3.18 · 三個日常情景 · 由第一句指令到長期接力</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">三個日常情景 —— 整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進 —— 完整示範 Agent Handoff Kit 由安裝到接力的流程。每一步都會看到 AI 主動宣告載入哪個工作模式、寫入哪份交接文件、輸出哪段下次開工提示。</p>
   </div>
@@ -465,10 +465,11 @@
     <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
       <div style="background: var(--yellow); color: var(--ink); padding: 10px 16px; font-family: var(--font-mono); font-weight: 700; font-size: 14px; letter-spacing: 0.05em;">🚀 第一次用?</div>
       <div style="flex: 1; min-width: 280px;">
-        <p style="margin: 0 0 12px; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>安裝完成後,在 AI 對話貼上以下一句:</p>
-        <p style="margin: 0 0 12px; font-family: var(--font-mono); font-size: 13px; background: rgba(255,255,255,0.15); padding: 8px 12px;">Work in &lt;你的資料夾&gt;. I just installed agent-handoff-kit. Help me get started.</p>
-        <p style="margin: 0 0 8px; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會自動開啟新手引導,先問你想做哪一類任務,再一步一步陪你做第一個任務。</p>
-        <p style="margin: 0; font-size: 14px; line-height: 1.55; opacity: 0.9;"><strong>本指南示範的是熟悉後的開工方式</strong> —— 用戶已了解 Handoff Kit 大致運作,直接在開工句之後講出任務描述。兩種方式最終都會讓 AI 先讀入口文件,再按項目狀態接續。本指南屬參考對照,你不需要先讀。</p>
+        <p style="margin: 0 0 12px; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>安裝完成後,在能讀寫本機專案資料夾的 AI agent 對話貼上以下一句:</p>
+        <p style="margin: 0 0 12px; font-family: var(--font-mono); font-size: 13px; background: rgba(255,255,255,0.15); padding: 8px 12px;">Work in &lt;你的資料夾&gt;. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside.</p>
+        <p style="margin: 0 0 8px; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會打開 START_NEXT_SESSION_PROMPT.txt。第一次安裝後,該檔案會開啟新手引導;收工後,該檔案會保存下一次接力狀態。</p>
+        <p style="margin: 0 0 8px; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 已在正確專案內時,可說 Start Agent Handoff 或「開工」;收工可說 Wrap up Agent Handoff。若是「某某開工 / 某某收工」,AI 應先確認是否指本工具交接。</p>
+        <p style="margin: 0; font-size: 14px; line-height: 1.55; opacity: 0.9;">普通 web chat AI 若不能讀寫本機資料夾,並不適合使用本工具。本指南示範的是本機 agent 長任務流程。</p>
       </div>
     </div>
   </div>
@@ -548,7 +549,7 @@ create: 20
 🔀 merged: 0
 ⏭️  skipped existing: 0
 
-📦 版本:v0.3.17
+📦 版本:v0.3.18
 🛠️  模式:first-install
 🔎 剛完成:init 命令;create 20 / merge 0 / skip 0 / conflict 0。
 🚀 下一步:不用再留在終端機。打開 AI 工具,貼下方起步句。
@@ -557,10 +558,11 @@ create: 20
 ✅ 安裝完成:下一步請在 AI 對話中操作
 ============================================================
 ⚠️  下面這句不是終端機指令。
-📋 請打開 Claude Code / Claude Cowork / OpenAI Codex / Google Antigravity,
-   或任何能讀寫此資料夾的 AI 工具,新增對話後貼上:
+📋 請打開能讀寫此資料夾的 AI agent,新增對話後貼上:
+   例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity。
+   普通 web chat AI 若不能讀寫本機資料夾,並不適合使用本工具。
 ------------------------------------------------------------
-<span class="hl">Work in ~/Downloads-tidy. I just installed agent-handoff-kit. Help me get started.</span>
+<span class="hl">Work in ~/Downloads-tidy. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.</span>
 ------------------------------------------------------------
 
 🚀 AI 會先確認這個資料夾,然後帶你選擇第一個任務情境:建構系統 / 工具 / 平台 / 網站或應用、研究報告、知識庫整理、學寫代碼,或其他。
@@ -585,13 +587,13 @@ create: 20
     <div class="wrap">
       <span class="badge">STEP 02 · CASE A</span>
       <h2>開工貼上提示 —— 讓 AI 先帶你釐清第一個任務</h2>
-      <p class="narrative">打開你慣用的 AI 工具(例如 Claude Code、Claude Cowork、OpenAI Codex、Google Antigravity),開一個新對話。第一次使用時,先貼安裝時印出的新手起步句。你不需要一開始就把需求寫得很完整;AI 會先用 5 步引導你把目標、資料夾、技術方向、風險與第一個小任務整理清楚。</p>
+      <p class="narrative">打開能讀寫本機專案資料夾的 AI agent,開一個新對話。第一次使用時,貼安裝時印出的固定開工句。你不需要一開始就把需求寫得很完整;AI 會打開 START_NEXT_SESSION_PROMPT.txt,再用 5 步引導你把目標、資料夾、技術方向、風險與第一個小任務整理清楚。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你</span>
-<pre>Work in ~/Downloads-tidy. I just installed agent-handoff-kit. Help me get started.</pre>
+<pre>Work in ~/Downloads-tidy. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.</pre>
           </div>
         </div>
       </div>
@@ -849,7 +851,7 @@ Failed:              0 files
     <div class="wrap">
       <span class="badge">STEP 06 · CASE A</span>
       <h2>收工 —— 一句「收工」,AI 自動更新交接與輸出下次提示</h2>
-      <p class="narrative">工作完成之後,你不需要記住要更新哪份檔案。輸入一句「收工」、「wrap up」或者「handoff」,AI 偵測到收工意圖,即進入完整收工流程:更新交接文件、寫今次紀錄入工作日誌、生成一段下次開工提示,並同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code> 副本。</p>
+      <p class="narrative">工作完成之後,你不需要記住要更新哪份檔案。輸入一句「收工」、「Wrap up Agent Handoff」、「wrap up」或者「handoff」,AI 偵測到收工意圖,即進入完整收工流程:更新交接文件、寫今次紀錄入工作日誌、生成一段下次開工提示,並同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code> 副本。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -876,9 +878,9 @@ Failed:              0 files
               <li>新增條目入工作日誌 —— 包含今次的預演清單摘要、正式執行結果與本機版本紀錄。</li>
               <li>項目索引加入 <code>sort_downloads.py</code> 的角色描述。</li>
             </ul>
-            <p>下次開工請貼以下一段(已同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code>):</p>
+            <p>下次開工仍貼同一條固定開工句；真正接力內容已同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code>:</p>
             <p>📋 下次開工:複製貼上以下整段</p>
-<pre>Work in ~/Downloads-tidy. Read AGENTS.md and follow it.
+<pre>Work in ~/Downloads-tidy. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside.
 
 當前狀態: sort_downloads.py 完成, 1043 個檔案已移動。
 下一步: 加 README、建版本標籤 v0.1.0、推上 GitHub。
@@ -893,7 +895,7 @@ Failed:              0 files
         <span class="label">實際運作</span>
         <h3>收工觸發了完整的接力流程</h3>
         <ul>
-          <li><strong>自然收工</strong>:「收工」、「wrap up」、「handoff」、「end session」、「done for today」等自然短語都會觸發同一套收工流程,你不需要記長指令。</li>
+          <li><strong>自然收工</strong>:「收工」、「Wrap up Agent Handoff」、「wrap up」、「handoff」、「end session」、「done for today」等清楚短語都會觸發同一套收工流程,你不需要記長指令。</li>
           <li><strong>交接文件對賬式更新</strong>:AI 不會將新狀態追加在舊狀態下面 —— 必須逐段對賬,改為當前事實,避免新日期配舊快照。</li>
           <li><strong>下次開工提示自動同步</strong>:輸出的提示會明顯標示出來,並同時寫入 <code>START_NEXT_SESSION_PROMPT.txt</code> 副本。下次新對話打開直接複製即可。交接文件仍是權威來源,副本只是方便。</li>
           <li><strong>工作日誌自動整理</strong>:長期使用後舊條目會自動縮成短索引,再之後封存。主檔保持簡短,日常開工不需要打開。</li>
@@ -907,13 +909,13 @@ Failed:              0 files
     <div class="wrap">
       <span class="badge">STEP 07 · CASE A</span>
       <h2>下次接力與公開發佈 —— 新對話貼回提示,AI 由上一棒繼續</h2>
-      <p class="narrative">過了一天。你想做埋發佈 —— 加 README、建版本標籤、推上 GitHub。打開新 AI 對話(可能仍是 Claude,或者今次轉用 Codex / Antigravity),貼回 <code>START_NEXT_SESSION_PROMPT.txt</code> 內容。新 AI 啟動,讀入口文件,讀回上次的交接,接得回上一棒 —— 不需要你重新交代任何背景。本案例假設你已在 AI 工具中連好 GitHub 接口,AI 可以直接代你建立 repo、推送代碼、建立 release。</p>
+      <p class="narrative">過了一天。你想做發佈 —— 加 README、建版本標籤、推上 GitHub。打開新 AI 對話(可能仍是 Claude,或者今次轉用 Codex / Antigravity),貼同一條固定開工句。新 AI 啟動,讀入口文件與 START_NEXT_SESSION_PROMPT.txt,接得回上一棒 —— 不需要你重新交代任何背景。本案例假設你已在 AI 工具中連好 GitHub 接口,AI 可以直接代你建立 repo、推送代碼、建立 release。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你 · 第二天新對話</span>
-<pre>Work in ~/Downloads-tidy. Read AGENTS.md and follow it.
+<pre>Work in ~/Downloads-tidy. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside.
 
 當前狀態: sort_downloads.py 完成, 1043 個檔案已移動。
 下一步: 加 README、建版本標籤 v0.1.0、推上 GitHub。
@@ -1064,7 +1066,7 @@ Google Drive
         <div class="block-body">$ <span class="hl">npx --yes @adamchanadam/agent-handoff-kit@latest init</span>
 
 ✅ created: 20
-📦 版本:v0.3.17
+📦 版本:v0.3.18
 🛠️  模式:first-install
 🚀 下一步:開新 AI 對話,按下方提示貼入 Work in &lt;root&gt; 一句後描述任務。</div>
       </div>
@@ -1086,13 +1088,13 @@ Google Drive
     <div class="wrap">
       <span class="badge">STEP 02 · CASE B</span>
       <h2>開工貼上提示 —— 先由新手引導接住,再講三件工具分工</h2>
-      <p class="narrative">如果這是第一次使用,先貼安裝後那句新手起步句。AI 會先問你想做哪一類任務;你選「整理研究資料 / 寫報告」後,再把 Notion、本機 reference、Google Drive 的分工講清楚。這樣比一開始硬背完整開工句更自然,也更不容易漏資料來源。</p>
+      <p class="narrative">如果這是第一次使用,先貼安裝後那句固定開工句。AI 會打開 START_NEXT_SESSION_PROMPT.txt,再問你想做哪一類任務;你選「整理研究資料 / 寫報告」後,再把 Notion、本機 reference、Google Drive 的分工講清楚。這樣不需要一開始硬背資料結構,也更不容易漏資料來源。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你</span>
-<pre>Work in ~/cafe-research. I just installed agent-handoff-kit. Help me get started.</pre>
+<pre>Work in ~/cafe-research. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.</pre>
           </div>
         </div>
 
@@ -1386,9 +1388,9 @@ Google Drive
               <li>工作日誌新增條目:Notion 對齊結果(3 行直接寫入 + 回讀正確)、5 條待處理、章節結構、引用數目、Google Drive 上傳與分享。</li>
               <li>項目索引資料來源:32 條已讀入 reference 加 5 條待處理加報告位置 + Google Drive 資料夾。已連接的 Notion 與 Google Drive 接口最新核實日期更新為今日。</li>
             </ul>
-            <p>下次開工請貼以下一段(已同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code>):</p>
+            <p>下次開工仍貼同一條固定開工句；真正接力內容已同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code>:</p>
             <p>📋 下次開工:複製貼上以下整段</p>
-<pre>Work in ~/cafe-research. Read AGENTS.md and follow it.
+<pre>Work in ~/cafe-research. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside.
 
 當前狀態: 報告最終版 .docx 已寫好, 結論為「6 個月試水溫」。
 5 條 reference 仍待處理, 影響 2 個子章節。
@@ -1420,13 +1422,13 @@ Google Drive 分享連結: https://drive.google.com/file/d/.../view (已分享�
     <div class="wrap">
       <span class="badge">STEP 07 · CASE B</span>
       <h2>下次接力 —— 合伙人意見之後改報告</h2>
-      <p class="narrative">過了幾天,你將報告分享連結傳給了合伙人。對方覺得「6 個月試水溫」的起步資本支出估算還是太高,想看有沒有 3 個月的更輕版本。你打開新對話,貼回 <code>START_NEXT_SESSION_PROMPT.txt</code>,加一句新要求。新 AI 啟動,接得回上次狀態,重新進入研究與寫作模式改報告。</p>
+      <p class="narrative">過了幾天,你將報告分享連結傳給了合伙人。對方覺得「6 個月試水溫」的起步資本支出估算還是太高,想看有沒有 3 個月的更輕版本。你打開新對話,貼同一條固定開工句,再加一句新要求。新 AI 啟動,接得回上次狀態,重新進入研究與寫作模式改報告。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你 · 幾天後新對話</span>
-<pre>Work in ~/cafe-research. Read AGENTS.md and follow it.
+<pre>Work in ~/cafe-research. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside.
 
 當前狀態: 報告最終版 .docx 已寫好, 結論為「6 個月試水溫」。
 5 條 reference 仍待處理, 影響 2 個子章節。
@@ -1537,13 +1539,13 @@ Google Drive 分享連結: https://drive.google.com/file/d/abc123/view (合伙�
     <div class="wrap">
       <span class="badge">DAY 1 · CASE C</span>
       <h2>開新項目 —— 第一個任務描述進入交接文件</h2>
-      <p class="narrative">你先按前面流程安裝,再開新 AI 對話貼新手起步句。AI 完成新手引導後,你描述第一個任務:「我想開發一個 AI 編輯助手」。AI 讀齊入口文件後,將任務描述記入交接文件當前目標。<strong>項目決策日誌</strong>暫時保持空白 —— 因為短期單一任務的信號為主(對話次數 1,沒有任務演進跡象),AI 暫不主動維護。</p>
+      <p class="narrative">你先按前面流程安裝,再開新 AI 對話貼固定開工句。AI 打開 START_NEXT_SESSION_PROMPT.txt 並完成新手引導後,你描述第一個任務:「我想開發一個 AI 編輯助手」。AI 讀齊入口文件後,將任務描述記入交接文件當前目標。<strong>項目決策日誌</strong>暫時保持空白 —— 因為短期單一任務的信號為主(對話次數 1,沒有任務演進跡象),AI 暫不主動維護。</p>
 
       <div class="chat">
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你 · Day 1</span>
-<pre>Work in ~/ai-editor. I just installed agent-handoff-kit. Help me get started.</pre>
+<pre>Work in ~/ai-editor. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.</pre>
             <p>AI 問情境時,我選「建構系統 / 工具 / 平台 / 網站或應用」。完成背景確認後,我補充:</p>
             <p>我想開發一個 AI 編輯助手 —— 主要功能是文字校對與風格建議。先做最簡單的可用版本,只支援 markdown,輸入文字輸出修改建議。</p>
           </div>
@@ -1738,7 +1740,7 @@ Google Drive 分享連結: https://drive.google.com/file/d/abc123/view (合伙�
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.3.17 · MIT License</p>
+      <p>v0.3.18 · MIT License</p>
     </div>
     <div>
       <strong>作者</strong>

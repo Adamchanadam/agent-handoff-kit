@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：目前正式發佈版本為 `v0.3.17`。這是早期可用版本，仍在持續完善中。
+狀態：目前版本為 `v0.3.18` 候選準備。這是早期可用版本，仍在持續完善中。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -10,13 +10,13 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 > 🚀 **第一次用？你不需要先讀本 README 或任何文件。**
 >
-> 安裝完成後，在 AI 對話中講一句：
+> 安裝完成後，在能讀寫本機專案資料夾的 AI agent 對話中貼上：
 >
 > ```
-> Work in <你的資料夾>. I just installed agent-handoff-kit. Help me get started.
+> Work in <你的資料夾>. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.
 > ```
 >
-> AI 會自動引導你選擇使用情境（建構系統 / 寫報告 / 整理知識庫 / 學寫代碼 / 其他），然後一步一步帶你做第一個任務。本 README 與下方介紹頁是參考對照，不是必讀。
+> AI 會打開專案內的開工提示。第一次安裝後，提示會帶它載入新手引導；之後每次收工後，提示會改成下一次接力需要的真實狀態。本 README 與下方介紹頁是參考對照，不是必讀。
 
 想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) —— 新手 60 秒入門。看完想看實際操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) —— 三個日常情境的完整流程示範。本 README 則保留安裝、日常使用與限制。
 
@@ -37,7 +37,13 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 ![Agent Handoff Kit 新手流程](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-new-user-flow.png)
 
-這張圖是給第一次使用的人看的流程摘要：先在專案資料夾安裝，然後在 AI 對話中說「教我用」或 `help me start`，完成工作時說「收工」，讓 AI 留下下一次能接上的交接。
+這張圖是給第一次使用的人看的流程摘要：先在專案資料夾安裝，然後在能讀寫本機資料夾的 AI 對話貼固定開工句；AI 會打開 `START_NEXT_SESSION_PROMPT.txt` 進入新手引導。完成工作時說「收工」，讓 AI 留下下一次能接上的交接。
+
+### 適用工具
+
+Agent Handoff Kit 適合能讀寫本機專案資料夾的 agentic AI 工具，例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity，或其他具備本機工作區讀寫能力的工具。
+
+它不適合普通 web chat AI，例如沒有本機檔案讀寫能力的 ChatGPT、Claude、Gemini 網頁版。上載檔案或貼上交接內容不能取代本工具需要的本機讀寫能力；這類工具不能可靠維護專案內的交接文件。
 
 ### 一、安裝
 
@@ -51,7 +57,7 @@ npx --yes @adamchanadam/agent-handoff-kit@latest init
 
 安裝完成後，終端機會顯示一段 `Work in ...` 文字。請特別留意：那一段不是給終端機的指令，而是要貼到 AI 對話。
 
-可用的 AI 工具包括 Claude Code、Claude Cowork、OpenAI Codex、Google Antigravity，或任何能讀寫此資料夾的 AI 工具。不同工具對入口檔的支援可能不同；本工具會同時放置 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，讓常見工具能找到同一套開工路徑。Google 官方遷移文件說明，Antigravity CLI 會讀工作資料夾內的 `GEMINI.md` 和 `AGENTS.md`；因此 `AGENTS.md` 仍是唯一真源，`GEMINI.md` 只做橋接。
+可用的 AI 工具必須能讀寫此資料夾。不同工具對入口檔的支援可能不同；本工具會同時放置 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，讓常見工具能找到同一套開工路徑。Google 官方遷移文件說明，Antigravity CLI 會讀工作資料夾內的 `GEMINI.md` 和 `AGENTS.md`；因此 `AGENTS.md` 仍是唯一真源，`GEMINI.md` 只做橋接。
 
 > 補充：`--yes` 只是讓 npm 先取得這個工具，避免多問一次安裝確認。真正會建立項目文件的是 `init`；`doctor` 只檢查，不會安裝或改動你的項目文件。
 
@@ -71,21 +77,23 @@ npx --yes @adamchanadam/agent-handoff-kit@latest init
 
 ### 二、開工
 
-打開你想用的 AI 工具，在新對話貼上安裝工具顯示的文字。
+打開能讀寫本機專案資料夾的 AI agent，在新對話貼上安裝工具顯示的文字。
 
-**第一次用（新手引導句）**：
-
-```text
-Work in <你的專案資料夾>. I just installed agent-handoff-kit. Help me get started.
-```
-
-AI 會自動載入新手引導，帶你選擇使用情境（建構系統 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），再一步一步陪你做第一個任務。
-
-**之後熟悉 Handoff Kit 後，可改用更直接的開工句**：
+**日常開工句（第一次安裝後與之後每次接力都用同一句）**：
 
 ```text
-Work in <你的專案資料夾>. Read AGENTS.md and follow it. Before changing anything, tell me the current state and your recommended next step.
+Work in <你的專案資料夾>. Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt and follow the opening message inside. If START_NEXT_SESSION_PROMPT.txt is missing or seems stale, read dev/SESSION_HANDOFF.md instead. Before changing anything, tell me the current state and your recommended next step.
 ```
+
+第一次安裝後，`START_NEXT_SESSION_PROMPT.txt` 內會放新手引導，AI 會帶你選擇使用情境（建構系統 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），再一步一步陪你做第一個任務。每次收工後，同一個檔案會改成下一次接力需要的真實狀態。你不需要手動打開或複製整份交接內容。
+
+如果 AI 工具已經在正確專案資料夾內，而且會讀 `AGENTS.md`，日常也可以只說：
+
+```text
+Start Agent Handoff
+```
+
+中文可說「開工」。若你說的是「某某開工」（例如餐廳開工、項目開工）這類帶其他上下文的話，AI 應先反問你是否指 Agent Handoff Kit 接力，而不是立即啟動交接流程。
 
 然後用日常話描述你要完成的任務。AI 應先讀交接文件，說明目前狀態、下一步與風險，再開始工作。
 
@@ -100,17 +108,20 @@ Work in <你的專案資料夾>. Read AGENTS.md and follow it. Before changing a
 也可以輸入：
 
 ```text
+Wrap up Agent Handoff
 wrap up
 handoff
 ```
 
-AI 應更新交接文件，並輸出下一次可直接貼上的開工文字。最終回覆會把那段文字明確標示出來，方便完整複製。安裝後也會有一個更直覺的副本檔：
+若你說的是「某某收工」（例如餐廳收工、今天活動收工）這類帶其他上下文的話，AI 應先反問你是否要執行 Agent Handoff Kit 收工交接，而不是立即改寫交接文件。
+
+AI 應更新交接文件，並同步更新下一次開工提示副本：
 
 ```text
 START_NEXT_SESSION_PROMPT.txt
 ```
 
-這個檔案只是方便你複製下次開工提示；真正的權威來源仍是 `dev/SESSION_HANDOFF.md` 裡的「下次開工提示」段。若兩者不同，永遠以 `dev/SESSION_HANDOFF.md` 為準重新產生副本。
+這個檔案保存下一次真正要讀的開工內容。你下次仍只需貼同一條日常開工句，讓 AI 自己打開這個檔案。真正的權威來源仍是 `dev/SESSION_HANDOFF.md` 裡的「下次開工提示」段。若兩者不同，永遠以 `dev/SESSION_HANDOFF.md` 為準重新產生副本。
 
 ## 檢查是否安裝完整
 
@@ -122,7 +133,7 @@ npx --yes @adamchanadam/agent-handoff-kit@latest doctor
 
 看到「檢查通過」代表必要文件與基本結構通過檢查。若 `START_NEXT_SESSION_PROMPT.txt` 落後於 `dev/SESSION_HANDOFF.md`，`doctor` 只會提醒；這個便利副本應在收工 closeout 時由 AI 重新生成，不需要在 session 中途手動更新。
 
-`doctor` 只檢查，不會建立或修改項目文件。這個檢查只能確認文件齊不齊、格式是否正常，不代表 AI 已理解你的專案。真正開始工作前，仍應把 `Work in ...` 起步句貼到 AI 對話，讓 AI 讀入口文件並說明目前狀態。
+`doctor` 只檢查，不會建立或修改項目文件。這個檢查只能確認文件齊不齊、格式是否正常，不代表 AI 已理解你的專案。真正開始工作前，仍應把 `Work in ...` 起步句貼到能讀寫本機資料夾的 AI agent 對話，讓 AI 讀入口文件並說明目前狀態。
 
 ## 會安裝甚麼
 
@@ -147,7 +158,7 @@ dev/rules/*.md
 | `AGENTS.md` | AI 開工時最先讀的入口文件。 |
 | `CLAUDE.md` | 讓 Claude Code 找到同一套入口。 |
 | `GEMINI.md` | 讓 Google Antigravity CLI、Gemini CLI 遷移期或相容入口工具找到同一套入口。Antigravity CLI 會讀 `AGENTS.md` 與 `GEMINI.md`，所以此檔只做橋接，不另寫一套規則。 |
-| `START_NEXT_SESSION_PROMPT.txt` | 下次開工時可直接貼上的便利副本；由交接文件自動產生。 |
+| `START_NEXT_SESSION_PROMPT.txt` | 下一次開工時由 AI 讀取的提示副本；初次安裝時放新手引導，收工後由交接文件自動產生。 |
 | `dev/SESSION_HANDOFF.md` | 保存目前狀態、下一步、風險、驗收結果與下一次開工文字。 |
 | `dev/SESSION_LOG.md` | 保存近期實際做過的事與檢查結果。長期使用後舊條目會自動整理入封存資料夾，主檔保持簡短。日常使用不需要打開本檔，做審計或追溯時才看。 |
 | `dev/PROJECT_INDEX.md` | 記錄專案檔案、必讀資料、外部來源與常用檢查。 |
@@ -261,7 +272,7 @@ Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templa
 
 ## 目前限制
 
-- 目前正式發佈版本為 `v0.3.17`；npm registry `latest` 已對齊此版本。
+- 目前版本為 `v0.3.18` 候選準備；npm registry `latest` 在正式發布前仍以已發布版本為準。
 - 這是早期可用版本，仍在持續完善中。
 - 升級合併屬窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

@@ -6,7 +6,7 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 
 | Field | Value | Last verified |
 |---|---|---|
-| Agent Handoff Kit template version | 0.1.7 | package prototype |
+| Agent Handoff Kit template version | 0.3.17 | package prototype |
 | Runtime | TBD | TBD |
 | Framework | TBD | TBD |
 | Package manager | TBD | TBD |
@@ -21,7 +21,7 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 | `AGENTS.md` | primary Agent Handoff Kit entry and startup contract | session startup |
 | `CLAUDE.md` | Claude Code bridge to the same startup path | Claude Code startup |
 | `GEMINI.md` | Google Antigravity CLI / Gemini CLI migration bridge to the same startup path | Antigravity / Gemini startup |
-| `START_NEXT_SESSION_PROMPT.txt` | auto-generated stateful startup prompt for the next local-agent session; `dev/SESSION_HANDOFF.md` remains authoritative | next session startup |
+| `START_NEXT_SESSION_PROMPT.txt` | auto-generated convenience copy of the next-session startup prompt; `dev/SESSION_HANDOFF.md` remains authoritative | next session startup copy/paste |
 | `src/` | application source | coding task |
 | `tests/` | tests | coding/QC |
 | `docs/` | user or product docs | doc/public behavior change |
@@ -123,7 +123,7 @@ Record this at closeout so the next AI can detect wrong-root or workspace drift.
 | UI behavior | TBD | build + visual/manual check |
 | Data model | TBD | migration/checks |
 | Governance behavior | `AGENTS.md`, `dev/*` | doc sync registry |
-| Closeout/startup contract | `AGENTS.md`, `START_NEXT_SESSION_PROMPT.txt`, `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md` | opening message present + workspace identity current + prompt file regenerated from handoff at closeout |
+| Closeout/startup contract | `AGENTS.md`, `START_NEXT_SESSION_PROMPT.txt`, `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md` | opening message present + workspace identity current + prompt convenience copy regenerated from handoff at closeout |
 
 ## External Services
 
