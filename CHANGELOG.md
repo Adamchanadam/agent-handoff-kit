@@ -1,5 +1,28 @@
 # 變更紀錄
 
+## v0.3.17 — 2026-05-29
+
+狀態：候選準備版本。本版修正真實升級流程的輸出過長問題：`upgrade` 成功後不再把跨版本 `docs/whatsnew` 全文直接印在 CLI 內。
+
+### Fixed
+
+- `upgrade` 成功訊息改為短流程：確認升級完成、保留原本 AI 工作方式、提供 GitHub Release 連結，然後立即進入自動 `doctor` 驗收。
+- 移除成功流程中的 inline 版本說明全文，避免用戶在「只想完成升級」時被多個版本的詳細變更淹沒。
+- 發佈前場景驗收新增禁止條件：substantive upgrade output 不得再出現「本次升級涵蓋」、markdown 版本標題或「本版新加了甚麼」長篇 release notes 內容。
+
+### QA
+
+- `scripts/check-release-readiness.mjs` 的 scenario 3a / 3b / 3c 已更新，守住升級成功輸出降噪。
+- `docs/qa/release-grade-qa.md` 的 CLI scenario contract 已改為：版本詳情不在升級流程內展開；詳細內容由 GitHub Release 承接。
+- `qa:release` 已加入正向短輸出守門：upgrade success narrative 必須 ≤ 8 條非空行、≤ 430 字，且輸出版本要對齊 package version；另加入 source contract，確認 CLI 不再保留 `printWhatsnew` 舊路徑。
+- `qa:release` 會用真正 packed tarball 安裝後跑 v0.3.16 fixture upgrade + doctor，並確認 installed package 不含 `docs/whatsnew/`。
+- package fileCount 41 → 25：`docs/whatsnew/` 不再打入 npm package，版本說明保留在 repo / GitHub Release 材料；新增 `docs/whatsnew/v0.3.17.md` 只作發佈敘事來源。本輪候選驗收須覆蓋 `qa:release`、`qa:upgrade`、`npm pack --dry-run --json`、public HTML mirror 與 WORK current-state sync。
+
+### Migration path（v0.3.16 → v0.3.17，backward-compat preserved）
+
+- 既有項目不用重裝；升級流程只改輸出長度，不改文件合併語意。
+- 若用戶想看詳細改動，CLI 只提供 GitHub Release 入口；不在 installer / upgrade 流程中插入長篇版本說明。
+
 ## v0.3.16 — 2026-05-29
 
 狀態：正式發佈版本。本版修正 closeout prompt 可能只在 final response 表面出現、未先持久化到 `START_NEXT_SESSION_PROMPT.txt` 的第三真源風險。

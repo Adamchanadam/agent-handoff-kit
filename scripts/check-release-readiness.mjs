@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,7 @@ function main() {
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
   const version = packageJson.version;
   assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed (expected semver e.g. 0.1.8)");
-  assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "docs/whatsnew/", "README.md", "LICENSE"]), "npm package files boundary changed");
+  assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "LICENSE"]), "npm package files boundary changed");
   assert(packageJson.scripts["qa:prototype"], "qa:prototype script is missing");
   assert(packageJson.scripts["qa:packs"], "qa:packs script is missing");
   assert(packageJson.scripts["qa:upgrade"], "qa:upgrade script is missing");
@@ -26,6 +26,7 @@ function main() {
   assert(packageJson.scripts["qa:prompt-mirror"], "qa:prompt-mirror script is missing");
   checkWhatsnewSchema(version);
   checkPublicOnboardingVersion(version);
+  checkUpgradeSuccessOutputSourceContract(version);
 
   runQaScript("check-public-prototype.mjs", "prototype QA");
   runQaScript("check-pack-scenarios.mjs", "pack scenario QA");
@@ -37,9 +38,11 @@ function main() {
   const expectedFiles = expectedPackageFileCount();
   assert(packText.includes(`total files: ${expectedFiles}`), `npm dry-run did not report expected ${expectedFiles} package files`);
   assert(!packText.includes("docs/qa/"), "QA docs entered npm package");
+  assert(!packText.includes("docs/whatsnew/"), "release-note source docs entered npm package");
   assert(!packText.includes("scripts/"), "source QA scripts entered npm package");
   assert(!packText.includes("test-fixtures/"), "test fixtures entered npm package");
   assert(!existsSync(path.join(root, `adamchanadam-agent-handoff-kit-${version}.tgz`)), "npm dry-run left a tarball behind");
+  checkPackedPackageUpgradeSmoke(version);
 
   assertIncludes("README.md", [
     `目前版本為 \`v${version}\``,
@@ -495,12 +498,14 @@ function checkScenarioBranchingDocAlignment() {
       snippets: [
         "upgrade metadata-only stale",
         "升級完成",
+        "版本詳情不在升級流程內展開",
         "metadata 更新紀錄",
         "template version metadata 更新為當前版本",
         "doctor self-check 不再提示項目版本未對齊",
         "你已經是最新版本，沒有檔案需要建立或合併",
         "安裝完成",
-        "I just installed agent-handoff-kit. Help me get started."
+        "I just installed agent-handoff-kit. Help me get started.",
+        "本次升級涵蓋"
       ]
     },
     {
@@ -509,10 +514,12 @@ function checkScenarioBranchingDocAlignment() {
         "upgrade structurally stale",
         "升級完成",
         "進行中的工作對話已熟悉 Agent Handoff Kit 可繼續使用原本開工方式",
-        "I just upgraded agent-handoff-kit",
+        "版本詳情不在升級流程內展開",
         "template version metadata 更新為當前版本",
         "安裝完成",
-        "I just installed agent-handoff-kit. Help me get started."
+        "I just installed agent-handoff-kit. Help me get started.",
+        "I just upgraded agent-handoff-kit",
+        "本次升級涵蓋"
       ]
     },
     {
@@ -522,7 +529,8 @@ function checkScenarioBranchingDocAlignment() {
         "舊版本 metadata",
         "Reclassified at upgrade",
         "升級驗收完成",
-        "handoff lifecycle consistency"
+        "handoff lifecycle consistency",
+        "本次升級涵蓋"
       ]
     },
     {
@@ -850,7 +858,9 @@ function simulateScenarioBranching() {
   const s3a = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3aRoot], "scenario 3a upgrade metadata-only stale", { env });
   assertScenarioOutput("scenario 3a (upgrade metadata-only stale)", s3a.stdout, {
     mustHave: [
-      /✅ 升級完成：/
+      /✅ 升級完成：/,
+      /版本詳情不在升級流程內展開/,
+      /github\.com\/Adamchanadam\/agent-handoff-kit\/releases\/latest/
     ],
     mustNotHave: [
       // 確認 metadata-only stale case 唔被 plan-time no-op short-circuit 截走
@@ -858,9 +868,14 @@ function simulateScenarioBranching() {
       // historical mention 嘅廣東口語 wording，防 false positive
       /✅ 結果：你已經是最新版本/,
       // 確認 inject 真正生效，doctor self-check 之後唔再講 root 落後
-      /項目內記錄的 Kit 版本與目前工具版本不同/
+      /項目內記錄的 Kit 版本與目前工具版本不同/,
+      /本次升級涵蓋/,
+      /^# v0\./m,
+      /本版新加了甚麼/,
+      /I just upgraded agent-handoff-kit/
     ]
   });
+  assertConciseUpgradeSuccessNarrative("scenario 3a (upgrade metadata-only stale)", s3a.stdout, currentVersion);
   const s3aPostIndex = readFileSync(s3aIndexPath, "utf8");
   const s3aVersionMatch = s3aPostIndex.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
   if (!s3aVersionMatch || s3aVersionMatch[1] !== currentVersion) {
@@ -887,18 +902,20 @@ function simulateScenarioBranching() {
   assertScenarioOutput("scenario 3b (upgrade structurally-stale via real v0.1.7 fixture)", s3b.stdout, {
     mustHave: [
       /✅ 升級完成：/,
-      /本次升級/,
-      /v0\.1\.7/,
-      /跨度較大/,
-      /github\.com\/Adamchanadam\/agent-handoff-kit\/releases/,
-      /I just upgraded agent-handoff-kit/
+      /版本詳情不在升級流程內展開/,
+      /github\.com\/Adamchanadam\/agent-handoff-kit\/releases\/latest/
     ],
     mustNotHave: [
       /✅ 安裝完成：/,
       /I just installed agent-handoff-kit\. Help me get started\./,
-      /項目內記錄的 Kit 版本與目前工具版本不同/
+      /項目內記錄的 Kit 版本與目前工具版本不同/,
+      /本次升級涵蓋/,
+      /^# v0\./m,
+      /本版新加了甚麼/,
+      /I just upgraded agent-handoff-kit/
     ]
   });
+  assertConciseUpgradeSuccessNarrative("scenario 3b (upgrade structurally-stale via real v0.1.7 fixture)", s3b.stdout, currentVersion);
   const s3bPostIndex = readFileSync(s3bIndexPath, "utf8");
   const s3bVersionMatch = s3bPostIndex.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
   if (!s3bVersionMatch || s3bVersionMatch[1] !== currentVersion) {
@@ -937,14 +954,21 @@ function simulateScenarioBranching() {
     mustHave: [
       /✅ 升級完成：/,
       /reclassify stale lifecycle placeholder/,
+      /版本詳情不在升級流程內展開/,
+      /github\.com\/Adamchanadam\/agent-handoff-kit\/releases\/latest/,
       /✅ 升級驗收完成/
     ],
     mustNotHave: [
       /missing  dev\/SESSION_HANDOFF.md \(handoff lifecycle consistency\)/,
       /status: failed/,
-      /交接狀態仍需 AI closeout 核對/
+      /交接狀態仍需 AI closeout 核對/,
+      /本次升級涵蓋/,
+      /^# v0\./m,
+      /本版新加了甚麼/,
+      /I just upgraded agent-handoff-kit/
     ]
   });
+  assertConciseUpgradeSuccessNarrative("scenario 3c (upgrade stale lifecycle placeholder)", s3c.stdout, currentVersion);
   const s3cPostIndex = readFileSync(s3cIndexPath, "utf8");
   const s3cVersionMatch = s3cPostIndex.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
   if (!s3cVersionMatch || s3cVersionMatch[1] !== currentVersion) {
@@ -1040,6 +1064,31 @@ function assertScenarioOutput(label, output, contract) {
     }
   }
   console.log(`ok: ${label} output contract`);
+}
+
+function assertConciseUpgradeSuccessNarrative(label, output, expectedVersion) {
+  const start = output.indexOf("✅ 升級完成：");
+  assert(start >= 0, `${label} missing upgrade success narrative start`);
+  const autoCheck = output.indexOf("🩺 升級後自動檢查", start);
+  assert(autoCheck >= 0, `${label} missing post-upgrade auto-check boundary`);
+
+  const section = output.slice(start, autoCheck);
+  const nonEmptyLines = section
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  assert(nonEmptyLines.length <= 8, `${label} upgrade success narrative too long: ${nonEmptyLines.length} non-empty lines`);
+  assert(section.length <= 430, `${label} upgrade success narrative too long: ${section.length} chars`);
+  assert(section.includes("版本詳情不在升級流程內展開"), `${label} missing concise release-details pointer`);
+  assert(section.includes("https://github.com/Adamchanadam/agent-handoff-kit/releases/latest"), `${label} missing GitHub Release link`);
+  assert(output.includes(`📦 版本：v${expectedVersion}`), `${label} output version does not match package version v${expectedVersion}`);
+  assert(!/^#\s+v\d+\.\d+\.\d+/m.test(section), `${label} printed markdown release-note heading`);
+  assert(!/^##\s+/m.test(section), `${label} printed markdown release-note subsection`);
+  assert(!section.includes("本版新加了甚麼"), `${label} printed release-note body heading`);
+  assert(!section.includes("對你已有檔案的影響"), `${label} printed release-note impact section`);
+  assert(!section.includes("建議下一步"), `${label} printed release-note recommendation section`);
+  console.log(`ok: ${label} concise upgrade success narrative (${nonEmptyLines.length} lines, ${section.length} chars)`);
 }
 
 function staleCoreFixture() {
@@ -1369,10 +1418,55 @@ function checkWhatsnewSchema(version) {
   console.log(`ok: docs/whatsnew schema (${files.length} files, current v${version})`);
 }
 
+function checkUpgradeSuccessOutputSourceContract(version) {
+  const cli = read("bin/agent-handoff-kit.mjs");
+  assert(cli.includes("const version = await readPackageVersion();"), "CLI no longer reads its version from package.json");
+  assert(!cli.includes("function printWhatsnew"), "CLI still defines old inline whatsnew printer");
+  assert(!cli.includes("await printWhatsnew"), "CLI still calls old inline whatsnew printer");
+  assert(!cli.includes("I just upgraded agent-handoff-kit"), "CLI still contains old optional upgraded-project AI prompt");
+  assert(cli.includes("function printUpgradeNextSteps(root, conflictCount)"), "CLI upgrade success output is not routed through the concise helper");
+  assert(cli.includes("https://github.com/Adamchanadam/agent-handoff-kit/releases/latest"), "CLI upgrade success output missing GitHub Release latest link");
+  assert(cli.includes("版本詳情不在升級流程內展開"), "CLI upgrade success output missing concise release-details wording");
+  console.log("ok: upgrade success output source contract");
+}
+
 function expectedPackageFileCount() {
-  const whatsnewCount = readdirSync(path.join(root, "docs/whatsnew"))
-    .filter((name) => /^v\d+\.\d+\.\d+\.md$/.test(name)).length;
-  return 25 + whatsnewCount;
+  return 25;
+}
+
+function checkPackedPackageUpgradeSmoke(version) {
+  const smokeBase = path.join(tmpdir(), `ack-packed-smoke-${Date.now()}`);
+  const packDir = path.join(smokeBase, "pack");
+  const prefix = path.join(smokeBase, "prefix");
+  const upgradeRoot = path.join(smokeBase, "upgrade-root");
+  mkdirSync(packDir, { recursive: true });
+  mkdirSync(prefix, { recursive: true });
+  mkdirSync(upgradeRoot, { recursive: true });
+
+  runNpm(["pack", "--pack-destination", packDir, "--json"], "npm package packed smoke tarball");
+  const tgz = readdirSync(packDir).find((name) => name.endsWith(".tgz"));
+  assert(tgz, "packed smoke tarball missing");
+  const tgzPath = path.join(packDir, tgz);
+
+  runNpm(["install", "--prefix", prefix, tgzPath], "npm package packed smoke install");
+  const packageRoot = path.join(prefix, "node_modules", "@adamchanadam", "agent-handoff-kit");
+  const packedBin = path.join(packageRoot, "bin", "agent-handoff-kit.mjs");
+  assert(existsSync(packedBin), "packed smoke installed CLI missing");
+  assert(!existsSync(path.join(packageRoot, "docs", "whatsnew")), "packed smoke unexpectedly includes docs/whatsnew");
+
+  const fixtureRoot = path.join(root, "test-fixtures", `v${previousPatch(version)}`);
+  assert(existsSync(fixtureRoot), `packed smoke fixture missing: test-fixtures/v${previousPatch(version)}`);
+  cpSync(fixtureRoot, upgradeRoot, { recursive: true });
+
+  const upgrade = run(process.execPath, [packedBin, "upgrade", "--yes", "--root", upgradeRoot], "packed package prior-version upgrade smoke");
+  const upgradeText = outputText(upgrade);
+  assert(upgradeText.includes("版本詳情不在升級流程內展開"), "packed upgrade smoke missing concise release-details pointer");
+  assert(!upgradeText.includes("本次升級涵蓋"), "packed upgrade smoke printed inline release-note range");
+  assert(!/^# v\d+\.\d+\.\d+/m.test(upgradeText), "packed upgrade smoke printed markdown release-note heading");
+  assert(!upgradeText.includes("本版新加了甚麼"), "packed upgrade smoke printed release-note body heading");
+  assertConciseUpgradeSuccessNarrative("packed package prior-version upgrade smoke", upgradeText, version);
+
+  run(process.execPath, [packedBin, "doctor", "--root", upgradeRoot], "packed package doctor after upgrade smoke");
 }
 
 function nextPatch(v) {

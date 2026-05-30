@@ -498,23 +498,6 @@ async function runInstall(command, root, options, version) {
     return;
   }
 
-  // R-031.3 v0.3.3+: For upgrade scenarios, capture pre-upgrade root template version
-  // before the create/merge/inject loops mutate PROJECT_INDEX. This snapshot is later
-  // passed to printWhatsnew so the version range narrative reflects the actual user
-  // journey (v{pre-upgrade} → v{current CLI}), not the post-inject state which would
-  // make printWhatsnew see fromVersion == toVersion and skip the summary entirely.
-  let preUpgradeRootVersion = null;
-  if (command === "upgrade") {
-    try {
-      const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
-      const text = await readFile(indexPath, "utf8");
-      const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
-      if (m) preUpgradeRootVersion = m[1];
-    } catch {
-      // ignore
-    }
-  }
-
   printPlan(command, root, mode, plan, version, options.dryRun);
 
   if (options.dryRun) {
@@ -620,11 +603,8 @@ async function runInstall(command, root, options, version) {
   });
 
   // R-031 v0.3.1+: install vs upgrade narrative split.
-  // R-031.2 v0.3.2+: printUpgradeNextSteps async (awaits inline whatsnew print).
-  // R-031.3 v0.3.3+: pass preUpgradeRootVersion so whatsnew narrative reflects the
-  // actual user journey (v{pre-upgrade} → v{current}), not the post-inject state.
   if (command === "upgrade") {
-    await printUpgradeNextSteps(root, conflicts.length, version, preUpgradeRootVersion);
+    printUpgradeNextSteps(root, conflicts.length);
   } else {
     printInstallNextSteps(root, conflicts.length, mode, skippedCount);
   }
@@ -2074,7 +2054,7 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
 // R-031 v0.3.1+: Upgrade substantive next-step block. Distinct from install
 // (`printInstallNextSteps`) because the user is not first-time; pushing them through
 // the onboarding canonical phrase resets context they already have.
-async function printUpgradeNextSteps(root, conflictCount, version, preUpgradeRootVersion) {
+function printUpgradeNextSteps(root, conflictCount) {
   console.log("");
   console.log("============================================================");
   if (conflictCount > 0) {
@@ -2088,110 +2068,13 @@ async function printUpgradeNextSteps(root, conflictCount, version, preUpgradeRoo
   }
   console.log("✅ 升級完成：Kit 檔案已更新到最新版本");
   console.log("============================================================");
-  // R-031.2 v0.3.2+: Inline whatsnew summary — directly surface what changed in this
-  // version (and any intermediate versions the user skipped).
-  // R-031.3 v0.3.3+: fromVersion now uses pre-upgrade snapshot (captured before
-  // inject mutated PROJECT_INDEX), so the range narrative reflects actual user
-  // journey instead of degenerate v{current} → v{current}.
-  await printWhatsnew(root, version, preUpgradeRootVersion);
   console.log("📋 如你正在進行中的工作對話已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
   console.log("");
-  console.log("💡 如想了解本版本新加了甚麼功能，可選用以下開工句（非強制）：");
-  console.log("------------------------------------------------------------");
-  console.log(`Work in ${root}. I just upgraded agent-handoff-kit. Brief me on what changed in this version and what I should pay attention to.`);
-  console.log("------------------------------------------------------------");
+  console.log("💡 版本詳情不在升級流程內展開；如需要，可稍後查看 GitHub Release：");
+  console.log("   https://github.com/Adamchanadam/agent-handoff-kit/releases/latest");
   console.log("");
   console.log("🩺 升級驗收會在下方自動執行 doctor；若全綠即升級完成。");
   console.log("============================================================");
-}
-
-// R-031.2 v0.3.2+: Print whatsnew summaries for the version range crossed by this
-// upgrade. fromVersion = user root template metadata version (the state before
-// upgrade; R-016 preserves this row so it still reflects the prior state after
-// upgrade finishes). toVersion = current CLI version. Range is exclusive-fromVersion
-// inclusive-toVersion. Limit to first + last when crossing > 3 versions (elide middle).
-async function printWhatsnew(root, toVersion, fromVersionOverride) {
-  // R-031.3 v0.3.3+: fromVersion sourced from explicit override (pre-upgrade snapshot)
-  // when called from upgrade flow; falls back to reading current PROJECT_INDEX
-  // template version row otherwise.
-  let fromVersion = fromVersionOverride ?? null;
-  if (!fromVersion) {
-    const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
-    try {
-      const text = await readFile(indexPath, "utf8");
-      const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
-      if (m) fromVersion = m[1];
-    } catch {
-      return;
-    }
-  }
-  if (!fromVersion || !isStableSemver(fromVersion) || compareSemver(fromVersion, toVersion) >= 0) {
-    return;
-  }
-
-  const whatsnewDir = path.join(packageRoot, "docs/whatsnew");
-  let entries = [];
-  try {
-    entries = await readdir(whatsnewDir);
-  } catch {
-    console.log(`💡 本版 release notes：https://github.com/Adamchanadam/agent-handoff-kit/releases/tag/v${toVersion}`);
-    console.log("");
-    return;
-  }
-
-  const relevant = entries
-    .filter((name) => /^v\d+\.\d+\.\d+\.md$/.test(name))
-    .map((name) => name.replace(/^v/, "").replace(/\.md$/, ""))
-    .filter((v) => compareSemver(v, fromVersion) > 0 && compareSemver(v, toVersion) <= 0)
-    .sort((a, b) => compareSemver(a, b));
-
-  if (relevant.length === 0) {
-    console.log(`💡 本版 release notes：https://github.com/Adamchanadam/agent-handoff-kit/releases`);
-    console.log(`   （v${fromVersion} → v${toVersion} 跨版本的完整變更見 GitHub Release 全列表）`);
-    console.log("");
-    return;
-  }
-
-  // R-031.3 v0.3.3+: Deep range narrative — if fromVersion considerably older than
-  // the oldest available whatsnew, explicitly tell user this is a multi-version
-  // upgrade where older changelog only lives on GitHub Release (not shipped).
-  // Heuristic: deep range if fromVersion's major < oldest's major, or same major
-  // but minor differs by ≥ 1 (i.e. fromVersion is at least one minor release older
-  // than the oldest available whatsnew).
-  const oldestAvailable = relevant[0];
-  const [fromMajor, fromMinor] = fromVersion.split(".").map((n) => Number.parseInt(n, 10));
-  const [oldMajor, oldMinor] = oldestAvailable.split(".").map((n) => Number.parseInt(n, 10));
-  const isDeepRange = (fromMajor < oldMajor) || (fromMajor === oldMajor && fromMinor < oldMinor);
-  if (isDeepRange) {
-    console.log(`💡 注意：本次升級 v${fromVersion} → v${toVersion} 跨度較大；本工具的版本說明只涵蓋由 v${oldestAvailable} 起的 ${relevant.length} 個版本。較舊版本（v${fromVersion} 至 v${oldestAvailable} 之前）的完整變更見：`);
-    console.log(`   https://github.com/Adamchanadam/agent-handoff-kit/releases`);
-    console.log("");
-  }
-
-  console.log(`📰 本次升級涵蓋 ${relevant.length} 個版本的版本說明（${isDeepRange ? `由 v${oldestAvailable} 起` : `v${fromVersion} → v${toVersion}`}）：`);
-  console.log("");
-
-  const toShow = relevant.length <= 3 ? relevant : [relevant[0], relevant[relevant.length - 1]];
-  const elidedCount = relevant.length > 3 ? relevant.length - 2 : 0;
-
-  for (let i = 0; i < toShow.length; i += 1) {
-    const v = toShow[i];
-    const filePath = path.join(whatsnewDir, `v${v}.md`);
-    try {
-      const content = await readFile(filePath, "utf8");
-      console.log(content.trimEnd());
-      console.log("");
-      if (i === 0 && elidedCount > 0) {
-        console.log(`   ⋯ 中間 ${elidedCount} 個版本的版本說明略；完整列表見 https://github.com/Adamchanadam/agent-handoff-kit/releases ⋯`);
-        console.log("");
-      }
-    } catch {
-      console.log(`(v${v} release notes 檔缺失，見 https://github.com/Adamchanadam/agent-handoff-kit/releases/tag/v${v})`);
-      console.log("");
-    }
-  }
-  console.log("------------------------------------------------------------");
-  console.log("");
 }
 
 // R-031 v0.3.1+: Upgrade no-op short-circuit. When the user runs upgrade on a root
