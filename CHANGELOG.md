@@ -2,7 +2,7 @@
 
 ## v0.3.18 — 2026-05-30
 
-狀態：候選準備。本版收緊 Agent Handoff Kit 的工具適用邊界，避免用戶把它誤解成普通 web chat 可用的一段 prompt。
+狀態：正式發佈版本。本版收緊 Agent Handoff Kit 的工具適用邊界，避免用戶把它誤解成普通 web chat 可用的一段 prompt。
 
 ### Added
 
@@ -21,6 +21,7 @@
 
 - `qa:prototype` 與 `qa:release` 改為守新產品邊界：CLI / README / HTML 必須包含 local-agent 支援範圍、`START_NEXT_SESSION_PROMPT.txt` bootstrap 句、快捷詞入口提示與「某某開工 / 某某收工」歧義保護錨點。
 - 保留 prompt mirror 檢查：`START_NEXT_SESSION_PROMPT.txt` 仍必須與 `dev/SESSION_HANDOFF.md` 的 opening message 一致。
+- 發佈前全面檢與發佈後 7/7 artifact smoke 均已通過；npm latest 為 `0.3.18`，package fileCount 25。
 
 ### Migration path（v0.3.17 → v0.3.18，backward-compat preserved）
 

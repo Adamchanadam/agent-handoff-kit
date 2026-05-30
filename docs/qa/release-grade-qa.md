@@ -238,43 +238,43 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | v0.3.18 目前只獲授權修補候選內容；commit、push、tag、GitHub Release、npm publish 尚未授權。 | 阻擋公開發佈動作；需另行明確批准 |
-| 版本口徑 | `package.json` 目前為 `0.3.18`；v0.3.18 是 local-agent 適用邊界與固定開工句修補。 | 候選準備；npm latest 仍以已發布版本為準 |
+| 發佈授權 | v0.3.18 已獲 Adam 明確授權執行 commit、push、tag、GitHub Release、npm publish 與發佈後驗證。 | 已完成公開發佈動作 |
+| 版本口徑 | `package.json` 目前為 `0.3.18`；v0.3.18 是 local-agent 適用邊界與固定開工句修補。 | 已正式發佈；npm latest 已對齊 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；目前 `npm pack --dry-run` 應為 25 files。 | 通過，但發佈前須重跑套件預演 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過。 | 通過；publish 前已用已提交狀態重跑 `qa:release` |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.18.md` 與 onboarding HTML 已轉入 v0.3.18 候選口徑。 | 候選準備；發佈前須重跑完整驗收 |
+| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.18.md` 與 onboarding HTML 已轉入 v0.3.18 發佈口徑。 | 通過；發佈後已重跑 `qa:release` |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern。 | 通過，但發佈前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.18` 段，`docs/whatsnew/v0.3.18.md` 已補本版用戶說明。 | 候選準備；發佈後須核對 GitHub Release 非 draft / 非 prerelease 與 npm metadata |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.18` 候選準備。 | 候選準備；npm latest 仍以已發布版本為準 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.18` 段，`docs/whatsnew/v0.3.18.md` 已補本版用戶說明；GitHub Release 已發布，npm latest 已對齊。 | 通過 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.18` 已正式發佈。 | 通過 |
 
-## v0.3.18 候選狀態
+## v0.3.18 發佈狀態
 
-- 候選版本：`0.3.18`。
+- 發佈版本：`0.3.18`。
 - release notes：`CHANGELOG.md` 的 `v0.3.18` 段落 + `docs/whatsnew/v0.3.18.md`。
-- 候選內容：收緊工具適用邊界；Agent Handoff Kit 面向能讀寫本機專案資料夾的 agentic AI 長任務，不面向不能讀寫本機檔案的普通 web chat AI。
+- 發佈內容：收緊工具適用邊界；Agent Handoff Kit 面向能讀寫本機專案資料夾的 agentic AI 長任務，不面向不能讀寫本機檔案的普通 web chat AI。
 - 開工口徑：CLI / README / HTML 顯示固定 bootstrap 句，要求 AI 先讀 `AGENTS.md`，再打開 `START_NEXT_SESSION_PROMPT.txt`；初次安裝的 prompt 檔承載新手引導，收工後的 prompt 檔承載真正接力狀態。`Start Agent Handoff` / `Wrap up Agent Handoff` 只作簡短入口提示；真正的開工 / 收工意圖偵測與「某某開工 / 某某收工」反問規則只放 runtime `AGENTS.md`。
-- 發佈前驗收：`qa:prototype` 與 `qa:release` 必須確認 CLI / README / HTML 含 local-agent 邊界、普通 web chat 不支援聲明、固定 bootstrap 句；prompt mirror 仍須確認 `START_NEXT_SESSION_PROMPT.txt` 與 handoff opening message 同源。
-- npm 狀態：尚未 npm publish；npm latest 仍以已發布版本為準；package fileCount 預期仍為 25。
+- 發佈前驗收：全面檢 PASS；`qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 均通過，並確認 CLI / README / HTML 含 local-agent 邊界、普通 web chat 不支援聲明、固定 bootstrap 句；prompt mirror 仍確認 `START_NEXT_SESSION_PROMPT.txt` 與 handoff opening message 同源。
+- 發佈後驗證：7/7 artifact smoke PASS；GitHub Release `v0.3.18 - 開工接力更清楚` 非 draft / 非 prerelease，npm latest 為 `0.3.18`，package fileCount 25；fresh published install、published `--help` / `init` / `doctor`、以及 v0.3.17 → v0.3.18 published-package upgrade + sequential doctor 均通過。
 
 ### Cross-mind evidence 9-trigger table（v0.3.18）
 
 | Trigger | Required? | Result | Evidence |
 |---|---|---|---|
-| 1. 發佈說明使用「已修復／可用」等強聲明 | yes | iterated | 目前僅作候選準備；未發佈前不宣稱 npm README 已修正。 |
+| 1. 發佈說明使用「已修復／可用」等強聲明 | yes | passed | 已以全面檢、`qa:release`、npm metadata 與發佈後 7/7 artifact smoke 支撐。 |
 | 2. 同類 bug 連續 2+ 次修補仍未斷 | yes | iterated | README 曾把 `Read AGENTS.md...` 放成日常開工句，令用戶誤以為不用 `START_NEXT_SESSION_PROMPT.txt`；本版改成固定 bootstrap 句。 |
 | 3. 改動跨越功能 + 測試 + 發佈敘事三層 | yes | iterated | 功能層：CLI / runtime prompt；測試層：prototype / release readiness；敘事層：README / HTML / CHANGELOG / whatsnew。 |
 | 4. 三個以上治理檔同步改動 | yes | iterated | README、CLI、runtime core、QA scripts、QA doc、HTML、WORK governance map 與 registered mirrors 需同步。 |
-| 5. 將要對外 commit / tag / publish | yes | blocked | 尚未取得 v0.3.18 commit / push / tag / GitHub Release / npm publish 授權。 |
+| 5. 將要對外 commit / tag / publish | yes | passed | Adam 已授權發佈；source commit `d3bd498` 已 push，tag `v0.3.18`、GitHub Release 與 npm publish 已完成。 |
 | 6. 結論基於語意判斷而非單一 grep | yes | iterated | 語意為「Kit 需要本機讀寫能力」與「prompt 檔承載狀態，surface 只給 bootstrap」。 |
 | 7. 上次同類問題曾被用戶 catch | yes | iterated | Adam 指出 README / npm README 會誤導用戶，並要求明確工具範圍。 |
 | 8. 測試 fixture 屬人工合成（非歷史真實版本） | yes | iterated | 新檢查以 fresh install CLI、installed prompt、README / HTML 文案共同守門。 |
-| 9. 發佈聲明與測試斷言不是一對一映射 | yes | iterated | 需以 QA、人工終讀與後續 npm publish 後 registry README 驗證共同收口。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | passed | local-agent 邊界、固定 bootstrap、快捷詞與歧義保護均已有 QA 斷言；npm publish 後 registry metadata 已對齊。 |
 
 ## v0.3.17 發佈狀態
 
