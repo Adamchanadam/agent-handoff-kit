@@ -1,5 +1,25 @@
 # 變更紀錄
 
+## v0.3.21 — 2026-05-31
+
+狀態：正式發佈版本。本版把收工時的長期維護改為「每次短檢、命中才完整整理」，降低長期使用時 AI 被過重流程拖慢的風險。
+
+### Changed
+
+- Runtime closeout 規則改為每次先做 maintenance trigger check，而不是每次都完整整理 `SESSION_LOG` 與 `PROJECT_DECISIONS`。
+- `SESSION_LOG` 完整整理只在 N≥11、主檔超過 1500 行，或 10 次收工兜底時啟動。
+- `PROJECT_DECISIONS` 維護保留決策數 ≥30、任務方向演進、多方案架構取捨、跨 session 模式與用戶追問歷史理由等觸發條件。
+- README 與治理規則包同步說明：重大決策可即時記錄，不必等到收工才回想。
+
+### QA
+
+- `qa:release` 加入新錨點，確認 runtime core、SESSION_LOG template 與 release-grade QA 都保留 trigger check 與 10-closeout backstop 口徑。
+- 保留舊 `SESSION_LOG` anchor 相容性，避免既有 doctor schema check 因 wording 變更而誤報缺段。
+
+### Migration path（v0.3.20 → v0.3.21，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。升級後，收工仍會保存交接；長期整理會在命中條件或定期兜底時才完整執行。
+
 ## v0.3.20 — 2026-05-31
 
 狀態：正式發佈版本。本版修正 README、CLI help 與介紹頁的入口說明，避免新手把 `upgrade --dry-run` 誤解成已完成升級。

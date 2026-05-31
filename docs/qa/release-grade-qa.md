@@ -230,7 +230,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 會檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致；安裝後與 closeout 後必須一致，session 進行中若只有便利副本落後，普通 `doctor` 只可警告，不可 fail。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到能讀寫本機專案資料夾的 AI agent 對話，不是在終端機繼續輸入；普通 web chat AI 若不能讀寫本機資料夾，不屬於支援場景。
-- 套件預演目前維持 25 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.20.md` 保留在 repo 作 GitHub Release / changelog 材料，但不入 npm package；runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 25 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.21.md` 保留在 repo 作 GitHub Release / changelog 材料，但不入 npm package；runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -239,20 +239,42 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | Adam 已明確授權本輪繼續做到 publish；v0.3.20 已完成 `qa:release`、push、tag、GitHub Release、npm publish 與發佈後驗證。 | 已完成 |
-| 版本口徑 | `package.json` 目前為 `0.3.20`；v0.3.20 是 README / CLI 常見入口與開工收工介紹文案修補。 | 正式發佈口徑 |
+| 發佈授權 | Adam 已明確授權本輪繼續做到 push / tag / release / publish；本候選目標為 v0.3.21。 | 已授權，publish 前須完成發佈前驗收 |
+| 版本口徑 | `package.json` 目前為 `0.3.21`；v0.3.21 是收工長期維護觸發式混合方案。 | 候選發佈口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；subagent follow-up 補丁後已重跑；release-status docs correction 後 `qa:release` 亦須通過。 | 通過 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.20.md` 與 onboarding HTML 轉入 v0.3.20 正式發佈口徑。 | 通過 |
+| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.21.md` 與 onboarding HTML 轉入 v0.3.21 候選發佈口徑。 | 通過 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.20` 段，`docs/whatsnew/v0.3.20.md` 已補本版用戶說明；GitHub Release `v0.3.20 - 常見入口更清楚` 已發佈，npm latest 已對齊 `0.3.20`。 | 已完成 |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.20` 正式發佈版本。 | 通過 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.21` 段，`docs/whatsnew/v0.3.21.md` 已補本版用戶說明；GitHub Release / npm publish 待發佈步驟執行。 | 已準備 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.21`。 | 通過 |
+
+## v0.3.21 發佈狀態
+
+- package version：`0.3.21`。
+- release notes：`CHANGELOG.md` 的 `v0.3.21` 段落 + `docs/whatsnew/v0.3.21.md`。
+- 發佈目標：把 closeout 長期維護改為每次短觸發檢查，完整整理只在硬觸發、語意觸發或 10 次收工兜底時執行。
+- 發佈狀態：候選準備中；tag、GitHub Release、npm publish 待執行。
+- 發佈後驗證：publish 後須跑 7/7 artifact smoke。
+
+### Cross-mind evidence 9-trigger table（v0.3.21）
+
+| Trigger | Required? | Result | Evidence / rationale |
+|---|---|---|---|
+| 1. 失敗或 blocker | yes | iterated | 初次 `qa:release` 因缺 v0.3.20 fixture blocked；補 fixture、generator target 與 chainSteps 後 upgrade safety PASS。 |
+| 2. 高風險 / 安全 / 發佈 | yes | passed | 本輪涉及 runtime closeout 行為與 publish；發佈前跑 `qa:release`，publish 後須跑 7/7 artifact smoke。 |
+| 3. 用戶明確挑戰 | yes | passed | Adam 問分拆長期維護會否漏做；方案採硬觸發、語意觸發與 10-closeout backstop。 |
+| 4. 複雜推理 / 多層取捨 | yes | passed | 比較每次完整維護、純 optional trigger、混合 trigger + backstop；採混合方案。 |
+| 5. 跨檔 / 跨 surface 改動 | yes | passed | runtime core、SESSION_LOG template、PROJECT_DECISIONS template、README、agent-governance pack、release QA 與 upgrade fixtures 同步。 |
+| 6. 結論基於語意判斷而非單一 grep | yes | passed | 發佈語意為「routine closeout remains mandatory, long-term maintenance is trigger-driven」；QA 同時守 runtime wording、template wording 與 upgrade behavior。 |
+| 7. 外部 AI / cross-mind review | yes | passed | Claude abstract review 支持「daily lightweight + hard gates + N-session backstop + immediate decision capture」，反對純 optional trigger。 |
+| 8. 真實用戶旅程 | yes | passed | 長期用戶收工路徑降低負擔；不要求用戶手動維護，仍保留定期兜底避免長期漂移。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | iterated | 聲明涵蓋 closeout runtime、README、template 與 QA；測試補足 previous-release fixture 與 chain final hop，避免只改文字不驗升級。 |
 
 ## v0.3.20 發佈狀態
 
