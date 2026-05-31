@@ -230,7 +230,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 會檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致；安裝後與 closeout 後必須一致，session 進行中若只有便利副本落後，普通 `doctor` 只可警告，不可 fail。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到能讀寫本機專案資料夾的 AI agent 對話，不是在終端機繼續輸入；普通 web chat AI 若不能讀寫本機資料夾，不屬於支援場景。
-- 套件預演目前維持 25 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.19.md` 保留在 repo 作 GitHub Release / changelog 材料，但不入 npm package；runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 25 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.20.md` 保留在 repo 作 GitHub Release / changelog 材料，但不入 npm package；runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -239,20 +239,42 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | Adam 已明確授權並已完成 v0.3.19 commit、push、tag、GitHub Release、npm publish 與發佈後驗證。 | 已完成 |
-| 版本口徑 | `package.json` 目前為 `0.3.19`；v0.3.19 是短開工入口優先與公開說明去長句化修補。 | 正式發佈口徑 |
+| 發佈授權 | Adam 已明確授權本輪繼續做到 publish；v0.3.20 發佈前須先通過 `qa:release`，再執行 push、tag、GitHub Release、npm publish 與發佈後驗證。 | 已授權，待執行 |
+| 版本口徑 | `package.json` 目前為 `0.3.20`；v0.3.20 是 README / CLI 常見入口與開工收工介紹文案修補。 | 候選發佈口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；subagent follow-up 補丁後已重跑；release-status docs correction 後 `qa:release` 亦須通過。 | 通過 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.19.md` 與 onboarding HTML 轉入 v0.3.19 正式發佈口徑。 | 通過 |
+| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.20.md` 與 onboarding HTML 轉入 v0.3.20 候選發佈口徑。 | 通過 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.19` 段，`docs/whatsnew/v0.3.19.md` 已補本版用戶說明；GitHub Release `v0.3.19 - 開工入口更簡單` 已發佈，npm latest 已對齊 `0.3.19`。 | 已完成 |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.19` 正式發佈版本。 | 通過 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.20` 段，`docs/whatsnew/v0.3.20.md` 已補本版用戶說明；GitHub Release 與 npm publish 待 pre-publish checks 通過後執行。 | 待執行 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.20` 正式發佈版本。 | 通過 |
+
+## v0.3.20 發佈狀態
+
+- package version：`0.3.20`。
+- release notes：`CHANGELOG.md` 的 `v0.3.20` 段落 + `docs/whatsnew/v0.3.20.md`。
+- 發佈目標：把 README、npm README 來源、CLI help / next steps 與 intro HTML 統一為三個正式入口：`init`、`upgrade`、`doctor`；`upgrade --dry-run` 只保留作預演，並明示不會完成升級。
+- 發佈狀態：待執行。Adam 已授權繼續做到 publish；pre-publish `qa:release` 通過後才 push、tag、GitHub Release、npm publish。
+- 發佈後驗證：待執行 7/7 artifact smoke。
+
+### Cross-mind evidence 9-trigger table（v0.3.20）
+
+| Trigger | Required? | Result | Evidence / rationale |
+|---|---|---|---|
+| 1. 失敗或 blocker | no — no machine blocker observed before candidate checks | passed | 本輪修補來自公開入口文案風險；提交前 `qa:release` 已曾通過，版本提升後仍須重跑。 |
+| 2. 同類 bug 連續 2+ 次修補仍未斷 | yes | iterated | v0.3.19 修短開工入口後，README / CLI 仍把 `upgrade --dry-run` 放得太像正式入口；本版把正式入口收斂為 `init` / `upgrade` / `doctor`。 |
+| 3. 真實用戶 / Adam challenge | yes | iterated | Adam 明確指出新手做完 `upgrade --dry-run` 會誤以為已完成升級，並指出「已安裝舊版」段落太低。 |
+| 4. 三個以上治理檔同步改動 | yes | iterated | 涉 README、CLI、intro HTML、release QA 腳本、release-grade QA、CHANGELOG 與 whatsnew；已新增對應守門。 |
+| 5. 將要對外 commit / tag / publish | yes | passed | Adam 已明確要求繼續做到 publish；外部動作仍以 pre-publish checks 與 post-publish smoke 作完成條件。 |
+| 6. 存在人工語意判斷而無機器斷言 | yes | iterated | `checkNpxColdStartUxGuidance()` 已守正式入口與 dry-run 非完成升級；cross-surface check 已守 intro 第 03 區不可回到收工-only。 |
+| 7. Cross-agent / cross-session handoff point | yes | iterated | 介紹頁改為「開工接上狀態，收工留下交接」，避免下一輪 AI 只看到 closeout-only 流程敘事。 |
+| 8. Public-user journey / onboarding wording changed | yes | iterated | README 前段與 CLI help 改為新項目 `init`、舊項目 `upgrade`、檢查 `doctor`；`dry-run` 只作預演。 |
+| 9. QC framework exposed or should have exposed the gap | yes | iterated | 本輪把用戶指出的文案誤導轉為 release readiness 守門，避免下一版再把 dry-run 當入口。 |
 
 ## v0.3.19 發佈狀態
 

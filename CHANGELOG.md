@@ -1,5 +1,25 @@
 # 變更紀錄
 
+## v0.3.20 — 2026-05-31
+
+狀態：正式發佈版本。本版修正 README、CLI help 與介紹頁的入口說明，避免新手把 `upgrade --dry-run` 誤解成已完成升級。
+
+### Changed
+
+- README 的「常見入口」改為三個正式入口：`init`、`upgrade`、`doctor`。
+- 「已安裝舊版，或已有 AI 記憶文件？」移到 README 前段，讓舊用戶不用在長文底部才找到升級路徑。
+- CLI help 與安裝後提示同步改為：舊項目正式執行 `upgrade`；只有想先預覽時才使用 `upgrade --dry-run`。
+- 介紹頁第 03 區改為「開工接上狀態，收工留下交接」，不再把流程描述成只需記住收工。
+
+### QA
+
+- `qa:release` 新增守門：README / CLI 常見入口必須是 `init`、`upgrade`、`doctor`；`upgrade --dry-run` 只能作升級前預演，且必須明示不會完成升級。
+- Cross-surface wording check 新增守門：介紹頁第 03 區必須同時說明「開工」與「收工」，不得回到收工-only 文案。
+
+### Migration path（v0.3.19 → v0.3.20，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。若只想先看會改甚麼，才加 `--dry-run`；預演不會寫入檔案，也不代表升級已完成。
+
 ## v0.3.19 — 2026-05-30
 
 狀態：正式發佈版本。本版修正公開說明仍把長開工句當成主入口的問題。
