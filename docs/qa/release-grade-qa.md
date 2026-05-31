@@ -239,19 +239,19 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | Adam 已明確授權本輪繼續做到 push / tag / release / publish；本候選目標為 v0.3.21。 | 已授權，publish 前須完成發佈前驗收 |
-| 版本口徑 | `package.json` 目前為 `0.3.21`；v0.3.21 是收工長期維護觸發式混合方案。 | 候選發佈口徑 |
+| 發佈授權 | Adam 已明確授權本輪繼續做到 push / tag / release / publish；本輪目標為 v0.3.21。 | 已完成；發佈前驗收與發佈後驗證均通過 |
+| 版本口徑 | `package.json` 目前為 `0.3.21`；v0.3.21 是收工長期維護觸發式混合方案。 | 正式發佈口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；subagent follow-up 補丁後已重跑；release-status docs correction 後 `qa:release` 亦須通過。 | 通過 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.21.md` 與 onboarding HTML 轉入 v0.3.21 候選發佈口徑。 | 通過 |
+| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.21.md` 與 onboarding HTML 轉入 v0.3.21 正式發佈口徑。 | 通過 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.21` 段，`docs/whatsnew/v0.3.21.md` 已補本版用戶說明；GitHub Release / npm publish 待發佈步驟執行。 | 已準備 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.21` 段，`docs/whatsnew/v0.3.21.md` 已補本版用戶說明；GitHub Release 與 npm publish 已完成。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.21`。 | 通過 |
 
 ## v0.3.21 發佈狀態
@@ -259,15 +259,15 @@ npm package 由 `package.json` 的 `files` 控制：
 - package version：`0.3.21`。
 - release notes：`CHANGELOG.md` 的 `v0.3.21` 段落 + `docs/whatsnew/v0.3.21.md`。
 - 發佈目標：把 closeout 長期維護改為每次短觸發檢查，完整整理只在硬觸發、語意觸發或 10 次收工兜底時執行。
-- 發佈狀態：候選準備中；tag、GitHub Release、npm publish 待執行。
-- 發佈後驗證：publish 後須跑 7/7 artifact smoke。
+- 發佈狀態：已完成。Public release source commit `f07e682` 已推送並標記 `v0.3.21`；GitHub Release `v0.3.21 - 收工流程更輕` 已發佈；npm `@adamchanadam/agent-handoff-kit` latest 為 `0.3.21`，fileCount 25。
+- 發佈後驗證：7/7 PASS。GitHub Release 非 draft / 非 prerelease；npm latest / fileCount 對齊；fresh published install PASS；published `--help` / `init` / `doctor` PASS；v0.3.20 → v0.3.21 published-package `upgrade --yes` + sequential doctor PASS。
 
 ### Cross-mind evidence 9-trigger table（v0.3.21）
 
 | Trigger | Required? | Result | Evidence / rationale |
 |---|---|---|---|
 | 1. 失敗或 blocker | yes | iterated | 初次 `qa:release` 因缺 v0.3.20 fixture blocked；補 fixture、generator target 與 chainSteps 後 upgrade safety PASS。 |
-| 2. 高風險 / 安全 / 發佈 | yes | passed | 本輪涉及 runtime closeout 行為與 publish；發佈前跑 `qa:release`，publish 後須跑 7/7 artifact smoke。 |
+| 2. 高風險 / 安全 / 發佈 | yes | passed | 本輪涉及 runtime closeout 行為與 publish；發佈前 `qa:release` PASS，publish 後 7/7 artifact smoke PASS。 |
 | 3. 用戶明確挑戰 | yes | passed | Adam 問分拆長期維護會否漏做；方案採硬觸發、語意觸發與 10-closeout backstop。 |
 | 4. 複雜推理 / 多層取捨 | yes | passed | 比較每次完整維護、純 optional trigger、混合 trigger + backstop；採混合方案。 |
 | 5. 跨檔 / 跨 surface 改動 | yes | passed | runtime core、SESSION_LOG template、PROJECT_DECISIONS template、README、agent-governance pack、release QA 與 upgrade fixtures 同步。 |
