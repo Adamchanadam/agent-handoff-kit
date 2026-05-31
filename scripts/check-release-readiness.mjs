@@ -456,6 +456,11 @@ function checkCrossSurfaceWordingConsistency() {
     }
     console.log(`ok: ${surface.file} cross-surface startup boundary`);
   }
+  const intro = read("agent-handoff-kit-intro.html");
+  assert(intro.includes("開工接上狀態"), "intro #magic section must explain startup as well as closeout");
+  assert(intro.includes("收工留下交接"), "intro #magic section must explain closeout as part of the full flow");
+  assert(!intro.includes("03 / 只需記住三個字"), "intro #magic section must not frame the flow as closeout-only three-word memory");
+  assert(!intro.includes("AI 自動收工"), "intro #magic heading must not frame Agent Handoff Kit as closeout-only");
 }
 
 function checkPublicOnboardingVersion(version) {
@@ -479,15 +484,20 @@ function checkNpxColdStartUxGuidance() {
   const qaDoc = read("docs/qa/release-grade-qa.md");
   const intro = stripHtml(read("agent-handoff-kit-intro.html"));
   const guide = stripHtml(read("agent-handoff-kit-guide.html"));
-  const canonicalCommands = [
+  const commonEntryCommands = [
     "npx --yes @adamchanadam/agent-handoff-kit@latest init",
     "npx --yes @adamchanadam/agent-handoff-kit@latest doctor",
-    "npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run"
+    "npx --yes @adamchanadam/agent-handoff-kit@latest upgrade"
   ];
-  for (const command of canonicalCommands) {
+  for (const command of commonEntryCommands) {
     assert(readme.includes(command), `README missing npx cold-start-safe command: ${command}`);
     assert(cli.includes(command), `CLI help / next-step output missing npx cold-start-safe command: ${command}`);
   }
+  assert(readme.includes("| 已安裝舊版，或已有 AI 記憶文件 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade` |"), "README common entries must point old installs to formal upgrade, not dry-run");
+  assert(!readme.includes("| 已裝過舊版，想先看升級會改甚麼 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` |"), "README common entries must not present upgrade --dry-run as the old-install entry");
+  assert(readme.includes("`dry-run` 只會預覽，不會完成升級，也不會寫入檔案"), "README must explain dry-run previews only and is not a completed upgrade");
+  assert(cli.includes("已裝過：執行 upgrade；若想先預覽，才加 --dry-run"), "CLI help must present upgrade as the old-install entry and dry-run as optional preview");
+  assert(cli.includes("--dry-run 只預覽、不寫入；它不是正式升級完成"), "CLI help must explain dry-run is not a completed upgrade");
   assert(intro.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "intro page missing canonical npx init command");
   assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "guide page missing canonical npx init command");
   assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest doctor"), "guide page missing canonical npx doctor command");

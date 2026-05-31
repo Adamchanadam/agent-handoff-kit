@@ -2150,7 +2150,7 @@ Commands:
 
 中文速讀：
   ✅ 第一次用：先在項目資料夾執行 init。
-  🔄 已裝過：先用 upgrade --dry-run 預演，再決定是否正式升級。
+  🔄 已裝過：執行 upgrade；若想先預覽，才加 --dry-run。
   🩺 不確定狀態：用 doctor 檢查；doctor 只檢查，不會改檔。
 
 安裝之後：
@@ -2169,21 +2169,25 @@ Commands:
 
 終端機範例：
   npx --yes @adamchanadam/agent-handoff-kit@latest init
+  npx --yes @adamchanadam/agent-handoff-kit@latest upgrade
   npx --yes @adamchanadam/agent-handoff-kit@latest doctor
+
+  升級前如想先看會改甚麼，才用預演：
   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
+  --dry-run 只預覽、不寫入；它不是正式升級完成。
 
   以上才是建議的 npx 用戶路徑。裸寫不帶 --yes / @latest 的 npx doctor
   不是本工具的建議用戶路徑，容易先出現 npm 自己的安裝提示。
 
   即使資料夾已有 AGENTS.md 或 dev/，電腦也未必已經有可直接執行的工具；
-  npx --yes 只是先取得工具，然後才執行你指定的 init / doctor / upgrade。
+  npx --yes 只是先取得工具，然後才執行你指定的 init / upgrade / doctor。
 
   放在 package 名稱前的 --yes 只讓 npm 先取得執行工具，避免額外出現
   "Need to install" 提示。真正會建立項目文件的是 init；doctor 只檢查。
 `);
   console.log(`📦 版本：v${version}`);
   console.log(`🛠️  模式：help ready`);
-  console.log(`🚀 下一步：新項目先執行 init；舊項目先執行 upgrade --dry-run；只想檢查才執行 doctor。`);
+  console.log(`🚀 下一步：新項目先執行 init；舊項目執行 upgrade；只想檢查才執行 doctor。`);
 }
 
 function startupPathBootstrapPrompt(root) {

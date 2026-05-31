@@ -76,10 +76,28 @@ npx --yes @adamchanadam/agent-handoff-kit@latest init
 | 你現在的狀態 | 建議指令 |
 |---|---|
 | 第一次在新資料夾使用 | `npx --yes @adamchanadam/agent-handoff-kit@latest init` |
-| 不確定是否安裝完整 | `npx --yes @adamchanadam/agent-handoff-kit@latest doctor` |
-| 已裝過舊版，想先看升級會改甚麼 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` |
+| 已安裝舊版，或已有 AI 記憶文件 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade` |
+| 不確定是否安裝完整，或升級後想檢查 | `npx --yes @adamchanadam/agent-handoff-kit@latest doctor` |
 
-舊資料夾若原本已有 `AGENTS.md` 或其他 AI 記憶檔，`init` 會保留既有檔案。這時請先用 `upgrade --dry-run` 看清工具準備怎樣合併，不要手動覆寫。
+### 已安裝舊版，或已有 AI 記憶文件？
+
+如果你的專案已經裝過舊版 Agent Handoff Kit，或本來已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 等 AI 記憶文件，不要重新 `init`，改用 `upgrade`。
+
+你可以先預演：
+
+```bash
+npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
+```
+
+`dry-run` 只會預覽，不會完成升級，也不會寫入檔案。確認沒有問題後，才執行正式升級：
+
+```bash
+npx --yes @adamchanadam/agent-handoff-kit@latest upgrade
+```
+
+`@latest` 代表使用 npm 上最新版本的 Agent Handoff Kit。`upgrade` 負責把專案內已安裝的文件、規則與檢查結構安全更新。升級工具會保留既有檔案；能安全合併時才合併，不能安全合併時會回報衝突，不會靜默覆寫。
+
+看到「衝突」不代表檔案壞掉。它只代表工具不能安全判斷怎樣合併，所以先停手，等你或 AI 判斷下一步。最簡單做法是把預演輸出貼給 AI，請它幫你判斷要保留、合併還是手動修改。
 
 即使目前資料夾已安裝舊版 Kit 文件，電腦也未必已經有可直接執行的 npm 工具。判斷點不是資料夾有沒有 `AGENTS.md` 或 `dev/`，而是你是否用上方 `npx --yes ... @latest` 路徑取得最新工具。裸寫不帶 `--yes` / `@latest` 的 `npx ... doctor` 不是本工具的建議用戶路徑，容易先出現 npm 自己的安裝提示。
 
@@ -242,24 +260,6 @@ dev/rules/*.md
 - 查證不猜：使用第三方服務或工具前先查官方文件；查不到就標示未核實。
 - 權限不足就停手：檔案被鎖或沒有權限時，輸出手動操作清單，不嘗試繞過。
 - 發佈需明確批准：建立版本標籤、GitHub Release、npm publish、部署或上傳，都不能因「準備好了」而自動執行。
-
-## 已安裝舊版，或已有 AI 記憶文件？
-
-如果你的專案已經裝過舊版 Agent Handoff Kit，或本來已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 等 AI 記憶文件，可先用最新版安裝工具預演會發生甚麼：
-
-```bash
-npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
-```
-
-確認沒有問題後，再執行：
-
-```bash
-npx --yes @adamchanadam/agent-handoff-kit@latest upgrade
-```
-
-`@latest` 代表使用 npm 上最新版本的 Agent Handoff Kit。`upgrade` 負責把專案內已安裝的文件、規則與檢查結構安全更新。升級工具會保留既有檔案；能安全合併時才合併，不能安全合併時會回報衝突，不會靜默覆寫。
-
-看到「衝突」不代表檔案壞掉。它只代表工具不能安全判斷怎樣合併，所以先停手，等你或 AI 判斷下一步。最簡單做法是把預演輸出貼給 AI，請它幫你判斷要保留、合併還是手動修改。
 
 ## 版本提示
 
