@@ -1,14 +1,14 @@
 # Session Log
 
-> **Handoff role**: This log is the trace-back / audit trail layer. Handoff capability rests on `dev/SESSION_HANDOFF.md`. The next AI session can continue by reading `AGENTS.md` + `dev/SESSION_HANDOFF.md` + `dev/PROJECT_INDEX.md` + needed rule packs; reading this log is not required for continuity. Each closeout must advance the N-rule per `AGENTS.md` `## Closeout And Handoff` step 11 (R-010 SESSION_LOG handoff-role discipline): N=1–3 keep full, N=4–10 short-index after absorbed-source check, N=11+ archive into `dev/SESSION_LOG_archive/`.
+> **Handoff role**: This log is the trace-back / audit trail layer. Handoff capability rests on `dev/SESSION_HANDOFF.md`. The next AI session can continue by reading `AGENTS.md` + `dev/SESSION_HANDOFF.md` + `dev/PROJECT_INDEX.md` + needed rule packs; reading this log is not required for continuity. Each closeout must run the maintenance trigger check per `AGENTS.md` `## Closeout And Handoff` step 11 (R-010 SESSION_LOG handoff-role discipline): N=1–3 keep full, N=4–10 may short-index after absorbed-source check when triggered, N=11+ archive into `dev/SESSION_LOG_archive/`.
 
 Add new session entries at the top. Record what actually happened in the session; do not copy old completed work forward as new work.
 
 This log carries recent evidence, not current state. Put the current objective, next action, risks, and workspace identity in `dev/SESSION_HANDOFF.md`.
 
-Keep recent entries concise. If older entries no longer affect the next action, reduce them to short dated indexes that point to the durable source of truth. Archive long error output, validation detail, or research trails only when needed; do not create an archive directory by default.
+Keep recent entries concise. If older entries no longer affect the next action and the maintenance trigger check says cleanup is due, reduce them to short dated indexes that point to the durable source of truth. Archive long error output, validation detail, or research trails only when triggered; do not create an archive directory by default.
 
-Before closeout, check whether older log detail should be kept, summarized, or archived. Do not remove validation evidence, unresolved risks, or the latest opening message.
+Before closeout, record whether older log detail was kept, summarized, or archived, and whether the maintenance trigger check was no-op, triggered, or backstop-driven. Do not remove validation evidence, unresolved risks, or the latest opening message.
 
 ## Entry Template
 
@@ -23,7 +23,7 @@ Before closeout, check whether older log detail should be kept, summarized, or a
 - **Sync:** <doc/external sync status>
 - **Pending:** <next work>
 - **Risks:** <known risks or none>
-- **Log maintenance:** <kept/summarized/archived/not_needed and why>
+- **Log maintenance:** <trigger check result; full maintenance action if triggered, otherwise no-op reason>
 
 ### Next Session Opening Message
 

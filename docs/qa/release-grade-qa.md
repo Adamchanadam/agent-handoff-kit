@@ -108,9 +108,9 @@
 | 升級路徑覆蓋 | `qa:upgrade` 必須含跨版本鏈式升級驗收（`v0.1.4` → `v0.1.5` → `v0.1.6` → 當前 HEAD），每跳用對應版本嘅 CLI 跑 `init`／`upgrade`／`doctor`，最後一跳用當前 HEAD 跑並 self-check 通過。 |
 | 補丁前置狀態枚舉 | 每個 `R-XXX` 補丁必須明文列覆蓋與唔覆蓋嘅前置狀態枚舉，唔填唔放行。例：R-024 覆蓋「夾心 managed + stale」「legacy single core」「無 core」三態，唔覆蓋「managed marker 不成對」（屬 conflict，由人工處理）。 |
 | CLI Output Contract 一致性 | 每次 release 前 sweep `bin/agent-handoff-kit.mjs`：（a）`init`／`upgrade`／`doctor` 完成輸出必含版本（v0.X.Y）、模式（mode）、剛完成（counts）、下一步四項；（b）禁忌用語清單命中 = 0（含「人話解讀」等自貶字眼）；（c）內部 action 名（create／merge／skip／conflict／status）保留唔變。 |
-| SESSION_LOG handoff-role discipline（R-010）| 每次 release 前 grep `bin/agent-handoff-kit.mjs` 含 `assessSessionLogDiscipline` 函數 + doctor 集成；grep `runtime-core/AGENTS.core.md` closeout step list 含「Advance the SESSION_LOG N-rule」+「R-010 SESSION_LOG handoff-role discipline」；grep `runtime-core/SESSION_LOG.md` template 含「Handoff role」blockquote。Fresh install + doctor 跑出「SESSION_LOG discipline (R-010): ok」（warn-only：N=11+ warn，doctor exit 不變 0）。 |
+| SESSION_LOG handoff-role discipline（R-010）| 每次 release 前 grep `bin/agent-handoff-kit.mjs` 含 `assessSessionLogDiscipline` 函數 + doctor 集成；grep `runtime-core/AGENTS.core.md` closeout step list 含「closeout maintenance trigger check」+「Advance the SESSION_LOG N-rule」+「R-010 SESSION_LOG handoff-role discipline」+「10-closeout backstop」；grep `runtime-core/SESSION_LOG.md` template 含「Handoff role」blockquote 與 `Log maintenance` 觸發檢查欄。Fresh install + doctor 跑出「SESSION_LOG discipline (R-010): ok」（warn-only：N=11+ warn，doctor exit 不變 0）。 |
 | Plan scope coverage matrix | 每次 release 嘅 plan 必明文列出三層 artifact families 嘅對齊範圍：（a）**Content layer** — `README.md` 版本字串 + `已正式發佈` 句、`CHANGELOG.md` prepend 新版本段、`package.json` version bump、`docs/qa/release-grade-qa.md` prepend 新版本「發佈狀態」段、對外 onboarding HTML（intro / guide）版本字串 + 任何因 release notes 觸發嘅描述更新；（b）**Script layer** — `scripts/check-release-readiness.mjs` 嘅 release baseline assertion + tarball name + README/CHANGELOG/release-grade-qa.md required string、`scripts/check-public-prototype.mjs` 嘅 tarball name + update notice mock newer version；（c）**Source layer** — `runtime-core/*.md` 嘅模板更新、`bin/agent-handoff-kit.mjs` 嘅功能改動、`packs/*.md` 嘅工作模式紀律。Plan 漏列任何 family 即視為 plan design gap，需 root-fix 或補 plan amend 後再 release。本維度由 v0.1.8 R-005 治理健康檢查（維護者側紀錄，2026-05-22）落地：v0.1.7 → v0.1.8 plan 初版漏咗 script layer，qa:release fail 揭發後加 root-fix（dynamic baseline refactor），令 script layer 之後自動同 package.json 對齊；future release plan 仍必明文列三層 families 做覆蓋自驗。 |
-| Project Decisions discipline（R-028） | 每次 release 前須驗證：（a）`runtime-core/PROJECT_DECISIONS.md` template 含 4 個 H2 section heading 順序正確 + 檔頭 onboarding 句式；（b）`runtime-core/AGENTS.core.md` closeout step 12 wording 命中（含「Maintain `dev/PROJECT_DECISIONS.md`」、「R-028 project narrative discipline」、4 個 H2 section name）；（c）`bin/agent-handoff-kit.mjs` mappings 含 `runtime-core/PROJECT_DECISIONS.md` → `dev/PROJECT_DECISIONS.md`；（d）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 `dev/PROJECT_DECISIONS.md` rule + group；（e）Fresh install 後 `dev/PROJECT_DECISIONS.md` 存在且 doctor 「project decisions log structure」schema check pass；（f）Upgrade 既有專案後 `dev/PROJECT_DECISIONS.md` 自動建立（若不存在）或保留（若用戶已有 content）。`npm run qa:release` 自動驗 (a)-(e)；(f) 由 `npm run qa:upgrade` mergeRoot scenario 嘅 existsSync assertion 驗。 |
+| Project Decisions discipline（R-028） | 每次 release 前須驗證：（a）`runtime-core/PROJECT_DECISIONS.md` template 含 4 個 H2 section heading 順序正確 + 檔頭 onboarding 句式；（b）`runtime-core/AGENTS.core.md` closeout maintenance trigger wording 命中（含「Maintain `dev/PROJECT_DECISIONS.md`」、「R-028 project narrative discipline」、4 個 H2 section name、硬觸發、語意觸發、10 次收工兜底）；（c）`bin/agent-handoff-kit.mjs` mappings 含 `runtime-core/PROJECT_DECISIONS.md` → `dev/PROJECT_DECISIONS.md`；（d）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 `dev/PROJECT_DECISIONS.md` rule + group；（e）Fresh install 後 `dev/PROJECT_DECISIONS.md` 存在且 doctor 「project decisions log structure」schema check pass；（f）Upgrade 既有專案後 `dev/PROJECT_DECISIONS.md` 自動建立（若不存在）或保留（若用戶已有 content）。`npm run qa:release` 自動驗 (a)-(e)；(f) 由 `npm run qa:upgrade` mergeRoot scenario 嘅 existsSync assertion 驗。 |
 | 書面語紀律（HTML 輸出） | 對外 onboarding HTML（`agent-handoff-kit-intro.html` + `agent-handoff-kit-guide.html`）必為繁體中文書面語，廣東口語字符（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）grep 命中數必為 0。Release 前 `npm run qa:release` 自動驗。違反即視為 release artifact 質量落差，需逐句修正後再 release。 |
 | Onboarding UX discipline（R-029） | 每次 release 前須驗證：（a）`packs/onboarding.md` template 含 7 個 H2 section（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）+ 6 個 Scenario H3 + Anti-pattern table；（b）`runtime-core/AGENTS.core.md` `## 1. Startup Reads` 含 first-time-user signal detection wording + onboarding pack proactive load 紀律；（c）`runtime-core/RULE_PACKS.md` 含 onboarding signal routing row；（d）`bin/agent-handoff-kit.mjs` mappings 含 `packs/onboarding.md` → `dev/rules/onboarding.md`；（e）`bin/agent-handoff-kit.mjs` requiredAnchors + schemaChecks 含 onboarding pack rule + group；（f）Fresh install 後 `dev/rules/onboarding.md` 存在且 doctor schema check pass；（g）`npm run qa:packs` 嘅 onboarding routing scenario + first-time onboarding to first task mixed scenario 通過。`npm run qa:release` 自動驗 (a)-(f)；(g) 由 `qa:packs` 驗。 |
 | Cross-surface wording alignment（R-029.1，v0.2.1 新加 dim；v0.3.19 更新） | v0.2.0 release ceremony 嘅 critical QC gap：plan scope coverage matrix 嘅三層（content / script / source）唔 cover cross-surface wording alignment。R-029 嘅 onboarding trigger phrase 跨 5 個 surface（CLI source + README + intro.html + guide.html + onboarding pack 自身），但 v0.2.0 release 時 CLI source 仍係 legacy wording 而其他 surface 已 update —— silent disconnect。v0.3.19 起 current public surface 改為短入口優先：`Start Agent Handoff` /「開工」是 AI 已在專案內的主入口，`Read AGENTS.md first, then Start Agent Handoff` 是 AI 尚未指向資料夾時的帶路徑 fallback；`scripts/check-release-readiness.mjs` 嘅 `checkCrossSurfaceWordingConsistency()` helper 自動 enforce 主入口、fallback、local-agent 支援邊界、收工入口與歧義保護喺 4 個 surface（bin + README + intro + guide）一致，並禁止舊長句或「固定開工句 / 貼回提示」回流。違反即 throw error，release 阻擋。 |
@@ -926,7 +926,7 @@ grep -c "warm 資料層" runtime-core/PROJECT_DECISIONS.md                     #
 
 grep -c "Maintain \`dev/PROJECT_DECISIONS.md\`" runtime-core/AGENTS.core.md  # 期望 ≥ 1
 grep -c "R-028 project narrative discipline" runtime-core/AGENTS.core.md    # 期望 ≥ 1
-grep -c "Evolution Timeline" runtime-core/AGENTS.core.md                    # 期望 ≥ 1（在 closeout step 12 內）
+grep -c "Evolution Timeline" runtime-core/AGENTS.core.md                    # 期望 ≥ 1（在 closeout maintenance trigger 內）
 grep -c "Decisions Archive" runtime-core/AGENTS.core.md                     # 期望 ≥ 1
 grep -c "Architecture Choices" runtime-core/AGENTS.core.md                  # 期望 ≥ 1
 grep -c "Insights & Learnings" runtime-core/AGENTS.core.md                  # 期望 ≥ 1
@@ -951,7 +951,7 @@ Upgrade behavior 驗證（由 `npm run qa:upgrade` mergeRoot scenario 自動驗�
 
 - 安裝後嘅 `dev/PROJECT_DECISIONS.md` 檔頭 onboarding tone 對新手友善（明文「AI 開工不需要讀」「不需要你手動寫」），不會誤導用戶以為自己要 fill in。
 - 4 個 H2 section 順序保持（Evolution → Decisions Archive → Architecture → Insights），不可被 random order。
-- Closeout step 12 嘅 4 個 trigger 條件 (a)/(b)/(c)/(d) 紀律 wording 清晰，AI 自律執行有 anchor。
+- Closeout maintenance trigger 嘅硬觸發、語意觸發與 10 次收工兜底 wording 清晰，AI 自律執行有 anchor。
 
 ## Onboarding Pack Discipline Sweep（R-029，v0.2.0 起新加）
 
@@ -1041,7 +1041,10 @@ grep -c "assessSessionLogDiscipline" bin/agent-handoff-kit.mjs       # 期望 �
 grep -c "SESSION_LOG discipline (R-010)" bin/agent-handoff-kit.mjs   # 期望 ≥ 1（doctor output line）
 grep -c "R-010 SESSION_LOG handoff-role discipline" runtime-core/AGENTS.core.md  # 期望 ≥ 1
 grep -c "Advance the SESSION_LOG N-rule" runtime-core/AGENTS.core.md            # 期望 ≥ 1
+grep -c "closeout maintenance trigger check" runtime-core/AGENTS.core.md        # 期望 ≥ 1
+grep -c "10-closeout backstop" runtime-core/AGENTS.core.md                      # 期望 ≥ 1
 grep -c "Handoff role" runtime-core/SESSION_LOG.md                              # 期望 ≥ 1（blockquote）
+grep -c "Log maintenance" runtime-core/SESSION_LOG.md                           # 期望 ≥ 1（trigger check result 欄）
 ```
 
 Fresh install 嘅 runtime behavior 驗證：
@@ -1056,7 +1059,7 @@ Warn behavior 驗證（人工或 fixture-based）：
 
 人工驗證：
 
-- AI Closeout flow 是否自動執行 N 規則推進（由 `runtime-core/AGENTS.core.md` `## Closeout And Handoff` 步驟 11 enforce）。
+- AI Closeout flow 是否每次記錄維護觸發檢查，並只在 N≥11、主檔過長、決策拆分、語意觸發或 10 次收工兜底時做完整長期維護。
 - Doctor warn 是否唔 block release（exit 0；release-grade QA 唔會因 warn 而 fail）。
 - 接力角色定位是否清晰（HANDOFF carries handoff capability；SESSION_LOG carries trace-back only）。
 

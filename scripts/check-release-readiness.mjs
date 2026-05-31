@@ -174,6 +174,8 @@ function main() {
     "Do not append a new state snapshot",
     "R-010 SESSION_LOG handoff-role discipline",
     "Advance the SESSION_LOG N-rule",
+    "closeout maintenance trigger check",
+    "10-closeout backstop",
     "dev/SESSION_LOG_archive/INDEX.md",
     "Maintain `dev/PROJECT_DECISIONS.md`",
     "R-028 project narrative discipline",
@@ -254,7 +256,9 @@ function main() {
   assertIncludes("runtime-core/SESSION_LOG.md", [
     "Handoff role",
     "trace-back / audit trail layer",
-    "R-010 SESSION_LOG handoff-role discipline"
+    "R-010 SESSION_LOG handoff-role discipline",
+    "maintenance trigger check",
+    "Log maintenance"
   ]);
 
   assertIncludes("bin/agent-handoff-kit.mjs", [
