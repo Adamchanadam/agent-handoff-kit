@@ -632,12 +632,28 @@ function checkScenarioBranchingDocAlignment() {
     {
       id: "4d",
       snippets: [
-        "upgrade self-check anchor failure",
-        "missing anchor text",
-        "怎樣修這個",
-        "不要重跑 upgrade",
-        "upgrade --dry-run"
-      ]
+        "upgrade anchor drift auto-repair",
+        "dev/rules/safety.md",
+        "cmd /c rmdir",
+        "restore safety pack high-risk rules in ## Rules section",
+        "升級驗收完成",
+        "anchor checks failed"
+      ],
+      mustHaveCell: ["dev/rules/safety.md", "restore safety pack high-risk rules in ## Rules section", "cmd /c rmdir"],
+      mustNotCell: ["anchor checks failed", "不要重跑 upgrade"]
+    },
+    {
+      id: "4e",
+      snippets: [
+        "upgrade handoff continuity anchor auto-repair",
+        "dev/SESSION_HANDOFF.md",
+        "do not create an archive directory by default",
+        "insert handoff archive continuity rule",
+        "升級驗收完成",
+        "anchor checks failed"
+      ],
+      mustHaveCell: ["dev/SESSION_HANDOFF.md", "insert handoff archive continuity rule", "do not create an archive directory by default"],
+      mustNotCell: ["anchor checks failed", "不要重跑 upgrade"]
     },
     {
       id: "5",
@@ -672,14 +688,37 @@ function checkScenarioBranchingDocAlignment() {
 
   for (const row of rows) {
     const line = qaDoc.split(/\r?\n/).find((candidate) => candidate.startsWith(`| ${row.id} |`));
-    assert(line, `docs/qa/release-grade-qa.md missing scenario ${row.id} row in seven-scenario table`);
+    assert(line, `docs/qa/release-grade-qa.md missing scenario ${row.id} row in multi-scenario table`);
     for (const snippet of row.snippets) {
       assert(line.includes(snippet), `docs/qa/release-grade-qa.md scenario ${row.id} row is not aligned with release scenario contract; missing: ${snippet}`);
     }
+    const cells = markdownTableCells(line);
+    if (row.mustHaveCell) {
+      for (const snippet of row.mustHaveCell) {
+        assert(cells[2]?.includes(snippet), `docs/qa/release-grade-qa.md scenario ${row.id} must-have cell missing: ${snippet}`);
+      }
+    }
+    if (row.mustNotCell) {
+      for (const snippet of row.mustNotCell) {
+        assert(cells[3]?.includes(snippet), `docs/qa/release-grade-qa.md scenario ${row.id} must-NOT-have cell missing: ${snippet}`);
+      }
+    }
   }
-  assert(qaDoc.includes("場景 1 / 2 / 3a / 3b / 3c / 4 / 4b / 4c / 4d / 5 / 6 / 7 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list every scenario");
+  assert(qaDoc.includes("場景 1 / 2 / 3a / 3b / 3c / 4 / 4b / 4c / 4d / 4e / 5 / 6 / 7 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list every scenario");
+  assert(qaDoc.includes("upgrade quality matrix"), "docs/qa/release-grade-qa.md must document the upgrade quality matrix");
+  assert(qaDoc.includes("版本、功能、穩定性三軸"), "docs/qa/release-grade-qa.md must define upgrade as version, function, and stability coverage");
+  assert(qaDoc.includes("dev/SESSION_LOG.md") && qaDoc.includes("dev/PROJECT_DECISIONS.md") && qaDoc.includes("dev/rules/integrations.md") && qaDoc.includes("dev/rules/onboarding.md"), "docs/qa/release-grade-qa.md upgrade quality matrix must list the non-single-file upgrade drift coverage");
   assert(!qaDoc.includes("場景 2 / 5 / 7 屬 conditional state"), "docs/qa/release-grade-qa.md still claims scenario 2 / 5 / 7 are manual-only");
-  console.log("ok: docs/qa/release-grade-qa.md seven-scenario table aligned with CLI scenario contract");
+  assert(!qaDoc.includes("七個場景嘅 output contract"), "docs/qa/release-grade-qa.md still describes the scenario table as seven scenarios");
+  console.log("ok: docs/qa/release-grade-qa.md multi-scenario table aligned with CLI scenario contract");
+}
+
+function markdownTableCells(line) {
+  return line
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
 }
 
 // R-031.1 v0.3.1+: CLI scenario branching simulation. Real-invoke bin in automated
@@ -853,9 +892,9 @@ function simulateScenarioBranching() {
     ]
   });
 
-  // Scenario 4d: when a preserved existing file truly lacks a blocking anchor,
-  // the failed upgrade self-check must be self-diagnosing and must not loop the
-  // novice back to dry-run after a formal upgrade already ran.
+  // Scenario 4d: when a Kit-maintained file lacks a required anchor, upgrade
+  // must repair the bounded missing anchor and pass self-check. A novice should
+  // not be sent to ask AI to repair the upgrade result.
   const s4dRoot = path.join(tempBase, "scenario-upgrade-self-check-anchor-failure");
   const s4dInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4dRoot], { encoding: "utf8", env, cwd: root });
   if (s4dInit.status !== 0) {
@@ -875,23 +914,55 @@ function simulateScenarioBranching() {
     readFileSync(s4dSafetyPath, "utf8").replace("cmd /c rmdir", "cmd command removed from this stale local copy"),
     "utf8"
   );
-  const s4d = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4dRoot], { encoding: "utf8", env, cwd: root });
-  if (s4d.status === 0) {
-    throw new Error(`scenario 4d upgrade self-check anchor failure expected non-zero exit\n${s4d.stdout}`);
-  }
-  assertScenarioOutput("scenario 4d (upgrade self-check anchor failure gives repair steps)", s4d.stdout, {
+  const s4d = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4dRoot], "scenario 4d anchor drift auto-repair", { env });
+  assertScenarioOutput("scenario 4d (upgrade anchor drift auto-repair)", s4d.stdout, {
     mustHave: [
-      /status: failed \(1 anchor checks failed\)/,
-      /missing anchor text:/,
       /dev\/rules\/safety.md/,
-      /怎樣修這個「缺少段落」的問題/,
-      /不要重跑 upgrade/,
-      /非破壞性補回缺失 anchor/
+      /restore safety pack high-risk rules in ## Rules section/,
+      /✅ 升級驗收完成/,
+      /status: passed/
     ],
     mustNotHave: [
+      /anchor checks failed/,
+      /不要重跑 upgrade/,
+      /非破壞性補回缺失 anchor/,
       /請執行：npx --yes @adamchanadam\/agent-handoff-kit@latest upgrade --dry-run；不要手動覆寫既有檔案/
     ]
   });
+
+  // Scenario 4e: a Kit-owned handoff continuity anchor is missing from
+  // SESSION_HANDOFF.md. Unlike user-owned safety-rule drift, this can be
+  // non-destructively restored by upgrade because the missing line belongs to the
+  // maintained handoff template contract. This guards the v0.3.21 public runtime
+  // failure where upgrade skipped SESSION_HANDOFF.md and doctor immediately failed.
+  const s4eRoot = path.join(tempBase, "scenario-upgrade-handoff-continuity-auto-repair");
+  const s4eInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4eRoot], { encoding: "utf8", env, cwd: root });
+  if (s4eInit.status !== 0) {
+    throw new Error(`Scenario 4e init prep failed: ${s4eInit.stderr || s4eInit.stdout}`);
+  }
+  const s4eHandoffPath = path.join(s4eRoot, "dev/SESSION_HANDOFF.md");
+  writeFileSync(
+    s4eHandoffPath,
+    readFileSync(s4eHandoffPath, "utf8").replace("; do not create an archive directory by default", ""),
+    "utf8"
+  );
+  const s4e = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4eRoot], "scenario 4e handoff continuity auto-repair", { env });
+  assertScenarioOutput("scenario 4e (handoff continuity anchor auto-repair)", s4e.stdout, {
+    mustHave: [
+      /merged: 1/,
+      /insert handoff archive continuity rule/,
+      /✅ 升級驗收完成/,
+      /status: passed/
+    ],
+    mustNotHave: [
+      /anchor checks failed/,
+      /不要重跑 upgrade/,
+      /非破壞性補回缺失 anchor/,
+      /Agent Handoff Kit Anchor Repair/
+    ]
+  });
+  const s4eHandoffPost = readFileSync(s4eHandoffPath, "utf8");
+  assert(s4eHandoffPost.includes("do not create an archive directory by default"), "scenario 4e did not restore handoff archive continuity anchor");
 
   // R-031.3 v0.3.4+: Scenario 3 split into 3a (metadata-only stale) + 3b (structurally
   // stale via real test-fixtures/v0.1.7 fixture) per minimum-correct fix from cross-AI

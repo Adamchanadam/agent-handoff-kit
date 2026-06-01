@@ -47,6 +47,7 @@ tagged release should be added to the fixture set.
 - v0.3.18
 - v0.3.19
 - v0.3.20
+- v0.3.21
 
 ## Fixture files per version
 

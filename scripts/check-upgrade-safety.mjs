@@ -331,7 +331,8 @@ function main() {
     { ref: "v0.3.18", command: "upgrade" },
     { ref: "v0.3.19", command: "upgrade" },
     { ref: "v0.3.20", command: "upgrade" },
-    { ref: "v0.3.21", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.21", command: "upgrade" },
+    { ref: "v0.3.22", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -503,16 +504,37 @@ function main() {
   assert(stalePromptOut.includes("升級驗收完成"), "stale prompt scenario should complete upgrade validation");
   assert(!stalePromptOut.includes("anchor checks failed"), "stale prompt convenience copy must not be a blocking anchor failure");
 
+  // Regression: handoff archive continuity anchor drift on a Kit-owned template note.
+  // This is auto-repairable because the missing text belongs to the maintained
+  // SESSION_HANDOFF template contract, not to user-owned project prose. A real
+  // v0.3.21 public upgrade hit this path: upgrade preserved SESSION_HANDOFF.md,
+  // then doctor failed on the missing "do not create an archive directory by default"
+  // anchor. Upgrade must now merge the missing continuity rule and pass self-check.
+  const handoffContinuityRoot = path.join(tmpdir(), `ack-handoff-continuity-${Date.now()}`);
+  mkdirSync(handoffContinuityRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", handoffContinuityRoot], "handoff-continuity bootstrap install");
+  const handoffContinuityPath = path.join(handoffContinuityRoot, "dev/SESSION_HANDOFF.md");
+  const driftedHandoff = read(handoffContinuityPath).replace("; do not create an archive directory by default", "");
+  assert(!driftedHandoff.includes("do not create an archive directory by default"), "handoff-continuity precondition: anchor text still present after removal");
+  writeFileSync(handoffContinuityPath, driftedHandoff, "utf8");
+
+  const handoffContinuityUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", handoffContinuityRoot], "handoff-continuity upgrade self-repair");
+  const handoffContinuityOut = outputText(handoffContinuityUpgrade);
+  assert(handoffContinuityOut.includes("merged: 1"), "handoff-continuity upgrade must merge SESSION_HANDOFF.md instead of preserving the drifted file");
+  assert(handoffContinuityOut.includes("insert handoff archive continuity rule"), "handoff-continuity upgrade plan must describe the self-repair");
+  assert(handoffContinuityOut.includes("status: passed"), "handoff-continuity upgrade self-check must pass after auto-repair");
+  assert(!handoffContinuityOut.includes("anchor checks failed"), "handoff-continuity upgrade must not route the user to manual anchor repair");
+  assert(read(handoffContinuityPath).includes("do not create an archive directory by default"), "handoff-continuity upgrade did not restore the missing anchor text");
+  const handoffContinuityDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", handoffContinuityRoot], "handoff-continuity doctor after upgrade");
+  assert(handoffContinuityDoctor.stdout.includes("status: passed"), "doctor must pass after handoff continuity auto-repair");
+
   // Regression: anchor drift on a skip-preserved file.
-  // Real-world roots accumulate drift in files that upgrade preserves verbatim
-  // (SESSION_LOG.md, rules/*.md, PROJECT_DECISIONS.md).
-  // When such a file is missing a required anchor snippet, the post-upgrade self-check
-  // fails — and re-running upgrade skips the same preserved file again, so the old
-  // "run upgrade --dry-run" next step was a circular dead-end. This scenario locks two
-  // contract guarantees: (1) doctor names the EXACT missing anchor text, not just the
-  // rule label; (2) the guidance does NOT route the user back to upgrade, but to a
-  // non-destructive AI content repair. The chain test never caught this because every
-  // fixture is a clean init artifact, never a drifted preserved file.
+  // Real-world roots accumulate drift in files that upgrade used to preserve
+  // verbatim (SESSION_LOG.md, rules/*.md, PROJECT_DECISIONS.md). For a novice,
+  // a formal upgrade must not end with "ask AI to repair the upgrade result".
+  // Missing Kit-maintained anchor snippets are now restored in their semantic
+  // section, with backup + migration report, so doctor passes immediately
+  // without accepting naked anchor text at file tail.
   const anchorDriftRoot = path.join(tmpdir(), `ack-anchor-drift-${Date.now()}`);
   mkdirSync(anchorDriftRoot, { recursive: true });
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", anchorDriftRoot], "anchor-drift bootstrap install");
@@ -531,23 +553,222 @@ function main() {
   assert(!driftedSafety.includes("cmd /c rmdir"), "anchor-drift precondition: safety file still contains the anchor after removal");
   writeFileSync(driftSafetyPath, driftedSafety, "utf8");
 
-  const anchorDriftUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", anchorDriftRoot], "anchor-drift upgrade self-check", { allowFailure: true });
+  const anchorDriftUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", anchorDriftRoot], "anchor-drift upgrade self-check");
   const anchorDriftOut = outputText(anchorDriftUpgrade);
-  assert(anchorDriftUpgrade.status !== 0, "anchor-drift upgrade self-check must fail (preserved file missing a required anchor)");
-  assert(anchorDriftOut.includes("merged: 1"), "anchor-drift scenario must perform a substantive AGENTS.md merge so the self-check runs");
-  // (1) exact missing anchor text surfaced (not just the rule label).
-  assert(anchorDriftOut.includes("missing anchor text:"), "doctor must label the exact missing anchor text on anchor failure");
-  assert(anchorDriftOut.includes("cmd /c rmdir"), "doctor must name the exact missing anchor snippet, not just the rule label");
-  assert(anchorDriftOut.includes("dev/rules/safety.md"), "doctor must name the file that is missing the anchor");
-  // (2) guidance is non-circular.
-  assert(anchorDriftOut.includes("不要重跑 upgrade"), "anchor-failure guidance must tell the user NOT to re-run upgrade (the preserved file would be skipped again)");
-  assert(anchorDriftOut.includes("非破壞性補回"), "anchor-failure guidance must route the fix to the AI as a non-destructive content repair");
-  assert(!anchorDriftOut.includes("upgrade --dry-run"), "anchor-failure guidance must not advise the circular upgrade --dry-run path");
-
-  // AI-repair path: restoring the missing anchor line clears the failure.
-  writeFileSync(driftSafetyPath, `${read(driftSafetyPath).trimEnd()}\nDo not run cmd /c rmdir for destructive directory cleanup.\n`, "utf8");
-  const anchorDriftDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", anchorDriftRoot], "anchor-drift doctor after AI repair");
+  assert(anchorDriftOut.includes("merged: 2"), "anchor-drift scenario must merge AGENTS.md plus the drifted safety pack");
+  assert(anchorDriftOut.includes("restore safety pack high-risk rules in ## Rules section"), "anchor-drift upgrade must explain semantic safety repair");
+  assert(anchorDriftOut.includes("status: passed"), "anchor-drift upgrade self-check must pass after automatic anchor repair");
+  assert(anchorDriftOut.includes("升級驗收完成"), "anchor-drift scenario should complete upgrade validation");
+  assert(!anchorDriftOut.includes("anchor checks failed"), "anchor-drift upgrade must not leave a blocking anchor failure");
+  assert(!anchorDriftOut.includes("不要重跑 upgrade"), "anchor-drift upgrade must not route the user to manual repair when the Kit anchor can be restored");
+  assert(read(driftSafetyPath).includes("cmd /c rmdir"), "anchor-drift upgrade did not restore the missing safety anchor text");
+  assertSnippetBetween(read(driftSafetyPath), "cmd /c rmdir", "## Rules", "## Checks", "anchor-drift safety anchor must be restored inside ## Rules");
+  assert(!read(driftSafetyPath).includes("Agent Handoff Kit Anchor Repair"), "anchor-drift upgrade must not use naked anchor repair blocks");
+  const anchorDriftDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", anchorDriftRoot], "anchor-drift doctor after automatic repair");
   assert(anchorDriftDoctor.stdout.includes("status: passed"), "doctor must pass once the missing anchor text is restored");
+
+  const upgradeQualityMatrixRoots = [
+    assertUpgradeQualityMatrixCase({
+      label: "session-log-anchor",
+      targetRel: "dev/SESSION_LOG.md",
+      snippet: "not current state",
+      replacement: "not-current-state anchor removed from this stale local copy",
+      expectedReason: "restore SESSION_LOG Kit preamble before ## Entry Template",
+      beforeHeading: "## Entry Template"
+    }),
+    assertUpgradeQualityMatrixCase({
+      label: "project-decisions-anchor",
+      targetRel: "dev/PROJECT_DECISIONS.md",
+      snippet: "warm 資料層",
+      replacement: "warm-tier anchor removed from this stale local copy",
+      expectedReason: "restore PROJECT_DECISIONS onboarding preamble before ## Evolution Timeline",
+      beforeHeading: "## Evolution Timeline"
+    }),
+    assertUpgradeQualityMatrixCase({
+      label: "integrations-anchor",
+      targetRel: "dev/rules/integrations.md",
+      snippet: "機密分離原則",
+      replacement: "credential-separation anchor removed from this stale local copy",
+      expectedReason: "restore integrations credential-separation section in semantic position",
+      betweenHeadings: ["## Discipline", "### 2. 四類整合嘅紀律差異"]
+    }),
+    assertUpgradeQualityMatrixCase({
+      label: "onboarding-scenario-f",
+      targetRel: "dev/rules/onboarding.md",
+      snippet: "Scenario F. 審視已裝外部工具",
+      replacement: "Scenario F anchor removed from this stale local copy",
+      expectedReason: "insert ### Scenario F block",
+      betweenHeadings: ["## Application Scenario Library", "## Cross-reference to guide.html"]
+    })
+  ];
+
+  const unsafeRepairRoot = path.join(tmpdir(), `ack-unsafe-anchor-repair-${Date.now()}`);
+  mkdirSync(unsafeRepairRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", unsafeRepairRoot], "unsafe anchor repair bootstrap install");
+  const unsafeSafetyPath = path.join(unsafeRepairRoot, "dev/rules/safety.md");
+  const unsafeSafety = read(unsafeSafetyPath)
+    .replace("## Rules", "## Local Rules")
+    .replace("cmd /c rmdir", "cmd command removed from this structurally ambiguous local copy");
+  writeFileSync(unsafeSafetyPath, unsafeSafety, "utf8");
+  const unsafeUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", unsafeRepairRoot], "unsafe anchor repair conflict", { allowFailure: true });
+  const unsafeOut = outputText(unsafeUpgrade);
+  assert(unsafeUpgrade.status !== 0, "unsafe anchor repair must fail rather than append naked anchor text");
+  assert(unsafeOut.includes("conflict"), "unsafe anchor repair must report conflict");
+  assert(unsafeOut.includes("no safe semantic repair path") || unsafeOut.includes("升級未完成"), "unsafe anchor repair must explain safe semantic repair boundary");
+  assert(!unsafeOut.includes("升級驗收完成"), "unsafe anchor repair must not claim upgrade validation completed");
+  assert(!read(unsafeSafetyPath).includes("Agent Handoff Kit Anchor Repair"), "unsafe anchor repair must not create naked repair block");
+
+  const misplacedTailRoot = path.join(tmpdir(), `ack-misplaced-anchor-tail-${Date.now()}`);
+  mkdirSync(misplacedTailRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", misplacedTailRoot], "misplaced anchor tail bootstrap install");
+  const misplacedSafetyPath = path.join(misplacedTailRoot, "dev/rules/safety.md");
+  const misplacedSafety = read(misplacedSafetyPath)
+    .replace("cmd /c rmdir", "cmd command removed from the semantic rule")
+    + "\n\ncmd /c rmdir\n";
+  writeFileSync(misplacedSafetyPath, misplacedSafety, "utf8");
+  const misplacedUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", misplacedTailRoot], "misplaced anchor tail conflict", { allowFailure: true });
+  const misplacedOut = outputText(misplacedUpgrade);
+  assert(misplacedUpgrade.status !== 0, "misplaced naked anchor text must fail rather than make doctor green");
+  assert(misplacedOut.includes("outside trusted semantic sections"), "misplaced naked anchor text must be reported as semantic-position drift");
+  assert(!misplacedOut.includes("升級驗收完成"), "misplaced naked anchor text must not claim upgrade validation completed");
+
+  const misplacedHandoffRoot = path.join(tmpdir(), `ack-misplaced-handoff-${Date.now()}`);
+  mkdirSync(misplacedHandoffRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", misplacedHandoffRoot], "misplaced handoff anchor bootstrap install");
+  const misplacedHandoffPath = path.join(misplacedHandoffRoot, "dev/SESSION_HANDOFF.md");
+  const misplacedHandoff = read(misplacedHandoffPath)
+    .replace("do not create an archive directory by default", "archive default anchor removed from semantic continuity rule")
+    + "\n\ndo not create an archive directory by default\n";
+  writeFileSync(misplacedHandoffPath, misplacedHandoff, "utf8");
+  const misplacedHandoffDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", misplacedHandoffRoot], "misplaced handoff anchor doctor", { allowFailure: true });
+  assert(misplacedHandoffDoctor.status !== 0, "misplaced handoff continuity anchor must fail doctor rather than make it green");
+  assert(misplacedHandoffDoctor.stdout.includes("misplaced: do not create an archive directory by default"), "misplaced handoff continuity anchor must report semantic-position drift");
+  const misplacedHandoffUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", misplacedHandoffRoot], "misplaced handoff anchor upgrade", { allowFailure: true });
+  const misplacedHandoffOut = outputText(misplacedHandoffUpgrade);
+  assert(misplacedHandoffUpgrade.status !== 0, "misplaced handoff continuity anchor must stop upgrade");
+  assert(misplacedHandoffOut.includes("outside trusted semantic sections"), "misplaced handoff continuity anchor upgrade must explain semantic-position drift");
+
+  const repairMarkerRoot = path.join(tmpdir(), `ack-repair-marker-drift-${Date.now()}`);
+  mkdirSync(repairMarkerRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", repairMarkerRoot], "repair marker drift bootstrap install");
+  const repairMarkerSafetyPath = path.join(repairMarkerRoot, "dev/rules/safety.md");
+  writeFileSync(
+    repairMarkerSafetyPath,
+    read(repairMarkerSafetyPath) + "\n\n<!-- BEGIN Agent Handoff Kit anchor repair -->\ncmd /c rmdir\n<!-- END Agent Handoff Kit anchor repair -->\n",
+    "utf8"
+  );
+  const repairMarkerUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", repairMarkerRoot], "repair marker drift conflict", { allowFailure: true });
+  const repairMarkerOut = outputText(repairMarkerUpgrade);
+  assert(repairMarkerUpgrade.status !== 0, "legacy repair marker drift must fail rather than be accepted");
+  assert(repairMarkerOut.includes("legacy anchor repair block markers"), "legacy repair marker drift must explain the cleanup boundary");
+  assert(!repairMarkerOut.includes("升級驗收完成"), "legacy repair marker drift must not claim upgrade validation completed");
+
+  const fakeProjectIndexRoot = path.join(tmpdir(), `ack-fake-project-index-${Date.now()}`);
+  mkdirSync(fakeProjectIndexRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", fakeProjectIndexRoot], "fake project index bootstrap install");
+  const fakeProjectIndexPath = path.join(fakeProjectIndexRoot, "dev/PROJECT_INDEX.md");
+  const fakeProjectIndex = read(fakeProjectIndexPath)
+    .replace(/^\| Agent Handoff Kit template version \| [\d.]+ \| [^|\n]+ \|\r?\n/m, "")
+    + "\n\n| Agent Handoff Kit template version | 9.9.9 | fake tail row |\n";
+  writeFileSync(fakeProjectIndexPath, fakeProjectIndex, "utf8");
+  const fakeProjectIndexDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", fakeProjectIndexRoot], "fake project index doctor", { allowFailure: true });
+  assert(fakeProjectIndexDoctor.status !== 0, "fake PROJECT_INDEX version row outside ## Stack must fail doctor");
+  assert(fakeProjectIndexDoctor.stdout.includes("misplaced: Agent Handoff Kit template version"), "fake PROJECT_INDEX version row must report semantic-position drift");
+  const fakeProjectIndexUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", fakeProjectIndexRoot], "fake project index upgrade", { allowFailure: true });
+  const fakeProjectIndexOut = outputText(fakeProjectIndexUpgrade);
+  assert(fakeProjectIndexUpgrade.status !== 0, "fake PROJECT_INDEX version row outside ## Stack must stop upgrade");
+  assert(fakeProjectIndexOut.includes("outside trusted semantic sections"), "fake PROJECT_INDEX version row upgrade must explain semantic-position drift");
+
+  const unsafeSafetyCustomRoot = path.join(tmpdir(), `ack-unsafe-safety-custom-${Date.now()}`);
+  mkdirSync(unsafeSafetyCustomRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", unsafeSafetyCustomRoot], "unsafe safety custom bootstrap install");
+  const unsafeSafetyCustomPath = path.join(unsafeSafetyCustomRoot, "dev/rules/safety.md");
+  const unsafeSafetyCustom = read(unsafeSafetyCustomPath)
+    .replace(/^6\. .+cmd \/c rmdir.+$/m, "6. Local custom cleanup rule intentionally uses a different meaning and lacks the Kit anchor.");
+  writeFileSync(unsafeSafetyCustomPath, unsafeSafetyCustom, "utf8");
+  const unsafeSafetyCustomUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", unsafeSafetyCustomRoot], "unsafe safety custom conflict", { allowFailure: true });
+  const unsafeSafetyCustomOut = outputText(unsafeSafetyCustomUpgrade);
+  assert(unsafeSafetyCustomUpgrade.status !== 0, "safety same-number custom rule must fail rather than be overwritten");
+  assert(unsafeSafetyCustomOut.includes("conflict"), "safety same-number custom rule must report conflict");
+  assert(!read(unsafeSafetyCustomPath).includes("cmd /c rmdir"), "safety same-number custom rule must not be overwritten with Kit rule");
+
+  const unsafeSafetyPrefixRoot = path.join(tmpdir(), `ack-unsafe-safety-prefix-${Date.now()}`);
+  mkdirSync(unsafeSafetyPrefixRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", unsafeSafetyPrefixRoot], "unsafe safety prefix bootstrap install");
+  const unsafeSafetyPrefixPath = path.join(unsafeSafetyPrefixRoot, "dev/rules/safety.md");
+  const unsafeSafetyPrefix = read(unsafeSafetyPrefixPath)
+    .replace(/^6\. .+cmd \/c rmdir.+$/m, "6. On Windows, do not use `cmd /c rmdir` as a generic project cleanup shortcut, but local policy permits other custom deletion wrappers after review.");
+  writeFileSync(unsafeSafetyPrefixPath, unsafeSafetyPrefix, "utf8");
+  const unsafeSafetyPrefixUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", unsafeSafetyPrefixRoot], "unsafe safety prefix conflict", { allowFailure: true });
+  const unsafeSafetyPrefixOut = outputText(unsafeSafetyPrefixUpgrade);
+  assert(unsafeSafetyPrefixUpgrade.status !== 0, "safety partially similar custom rule must fail rather than be overwritten");
+  assert(unsafeSafetyPrefixOut.includes("outside trusted semantic sections") || unsafeSafetyPrefixOut.includes("conflict"), "safety partially similar custom rule must report conflict or semantic drift");
+  assert(read(unsafeSafetyPrefixPath).includes("local policy permits"), "safety partially similar custom rule must be preserved");
+
+  const unsafeIntegrationsRoot = path.join(tmpdir(), `ack-unsafe-integrations-${Date.now()}`);
+  mkdirSync(unsafeIntegrationsRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", unsafeIntegrationsRoot], "unsafe integrations bootstrap install");
+  const unsafeIntegrationsPath = path.join(unsafeIntegrationsRoot, "dev/rules/integrations.md");
+  const unsafeIntegrations = read(unsafeIntegrationsPath)
+    .replace("## Discipline", "## Local Discipline")
+    .replace("### 1. 機密分離原則", "### 1. Local Credential Notes")
+    .replace("機密分離原則", "credential-separation anchor removed from trusted section");
+  writeFileSync(unsafeIntegrationsPath, unsafeIntegrations, "utf8");
+  const unsafeIntegrationsUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", unsafeIntegrationsRoot], "unsafe integrations conflict", { allowFailure: true });
+  const unsafeIntegrationsOut = outputText(unsafeIntegrationsUpgrade);
+  assert(unsafeIntegrationsUpgrade.status !== 0, "integrations ambiguous heading repair must fail");
+  assert(unsafeIntegrationsOut.includes("conflict"), "integrations ambiguous heading repair must report conflict");
+
+  const unsafeIntegrationsDuplicateRoot = path.join(tmpdir(), `ack-unsafe-integrations-dup-${Date.now()}`);
+  mkdirSync(unsafeIntegrationsDuplicateRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", unsafeIntegrationsDuplicateRoot], "unsafe integrations duplicate bootstrap install");
+  const unsafeIntegrationsDuplicatePath = path.join(unsafeIntegrationsDuplicateRoot, "dev/rules/integrations.md");
+  const unsafeIntegrationsDuplicate = read(unsafeIntegrationsDuplicatePath)
+    .replace("機密分離原則", "credential-separation anchor removed from trusted section")
+    .replace("## Rules", "### 2. 四類整合嘅紀律差異\n\nDuplicate ambiguous local heading.\n\n## Rules");
+  writeFileSync(unsafeIntegrationsDuplicatePath, unsafeIntegrationsDuplicate, "utf8");
+  const unsafeIntegrationsDuplicateUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", unsafeIntegrationsDuplicateRoot], "unsafe integrations duplicate conflict", { allowFailure: true });
+  const unsafeIntegrationsDuplicateOut = outputText(unsafeIntegrationsDuplicateUpgrade);
+  assert(unsafeIntegrationsDuplicateUpgrade.status !== 0, "integrations duplicate heading repair must fail");
+  assert(unsafeIntegrationsDuplicateOut.includes("conflict"), "integrations duplicate heading repair must report conflict");
+
+  const unsafeOnboardingRoot = path.join(tmpdir(), `ack-unsafe-onboarding-${Date.now()}`);
+  mkdirSync(unsafeOnboardingRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", unsafeOnboardingRoot], "unsafe onboarding bootstrap install");
+  const unsafeOnboardingPath = path.join(unsafeOnboardingRoot, "dev/rules/onboarding.md");
+  const unsafeOnboarding = read(unsafeOnboardingPath)
+    .replace("### Scenario A. 建構系統 / 工具 / 平台 / 網站或應用", "### Local Scenario A")
+    .replace("Scenario F. 審視已裝外部工具", "Scenario F anchor removed from structurally ambiguous onboarding");
+  writeFileSync(unsafeOnboardingPath, unsafeOnboarding, "utf8");
+  const unsafeOnboardingUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", unsafeOnboardingRoot], "unsafe onboarding conflict", { allowFailure: true });
+  const unsafeOnboardingOut = outputText(unsafeOnboardingUpgrade);
+  assert(unsafeOnboardingUpgrade.status !== 0, "structurally ambiguous onboarding repair must fail");
+  assert(unsafeOnboardingOut.includes("conflict"), "structurally ambiguous onboarding repair must report conflict");
+
+  const logPreserveRoot = path.join(tmpdir(), `ack-session-log-preserve-${Date.now()}`);
+  mkdirSync(logPreserveRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", logPreserveRoot], "session log preserve bootstrap install");
+  writeFileSync(path.join(logPreserveRoot, "AGENTS.md"), [
+    "# Project Local Preamble",
+    "",
+    "Keep this local rule.",
+    "",
+    staleCoreFixture({ skillArbitration: true, promptMirror: true })
+  ].join("\n"), "utf8");
+  const logPreservePath = path.join(logPreserveRoot, "dev/SESSION_LOG.md");
+  const existingEntry = "## 2026-06-01 — Existing user evidence\n\n- **Summary:** keep this real audit entry.\n";
+  writeFileSync(
+    logPreservePath,
+    read(logPreservePath)
+      .replace("# Session Log\n\n", `# Session Log\n\n${existingEntry}\n`)
+      .replace("not current state", "not-current-state anchor removed from stale log"),
+    "utf8"
+  );
+  const logPreserveUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", logPreserveRoot], "session log preserve upgrade");
+  const logPreserveAfter = read(logPreservePath);
+  assert(logPreserveUpgrade.stdout.includes("status: passed"), "session log preserve upgrade self-check must pass");
+  assert(logPreserveAfter.includes(existingEntry.trim()), "SESSION_LOG semantic repair must preserve existing user evidence entries");
+  assertSnippetBefore(logPreserveAfter, "not current state", "## Entry Template", "SESSION_LOG semantic repair must restore preamble before ## Entry Template");
 
   console.log("");
   console.log("Agent Handoff Kit upgrade safety QA passed");
@@ -561,6 +782,82 @@ function main() {
   console.log(`user-data regression root: ${userDataRoot}`);
   console.log(`stale-prompt root: ${stalePromptRoot}`);
   console.log(`anchor-drift root: ${anchorDriftRoot}`);
+  console.log(`unsafe anchor repair root: ${unsafeRepairRoot}`);
+  console.log(`misplaced anchor tail root: ${misplacedTailRoot}`);
+  console.log(`misplaced handoff anchor root: ${misplacedHandoffRoot}`);
+  console.log(`repair marker drift root: ${repairMarkerRoot}`);
+  console.log(`fake project index root: ${fakeProjectIndexRoot}`);
+  console.log(`unsafe safety custom root: ${unsafeSafetyCustomRoot}`);
+  console.log(`unsafe safety prefix root: ${unsafeSafetyPrefixRoot}`);
+  console.log(`unsafe integrations root: ${unsafeIntegrationsRoot}`);
+  console.log(`unsafe integrations duplicate root: ${unsafeIntegrationsDuplicateRoot}`);
+  console.log(`unsafe onboarding root: ${unsafeOnboardingRoot}`);
+  console.log(`session log preserve root: ${logPreserveRoot}`);
+  console.log(`upgrade quality matrix roots: ${upgradeQualityMatrixRoots.join(", ")}`);
+}
+
+function assertUpgradeQualityMatrixCase({
+  label,
+  targetRel,
+  snippet,
+  replacement,
+  expectedReason,
+  beforeHeading = null,
+  betweenHeadings = null
+}) {
+  const caseRoot = path.join(tmpdir(), `ack-upgrade-quality-${label}-${Date.now()}`);
+  mkdirSync(caseRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", caseRoot], `upgrade quality ${label} bootstrap install`);
+
+  const targetPath = path.join(caseRoot, targetRel);
+  const before = read(targetPath);
+  assert(before.includes(snippet), `upgrade quality ${label} precondition missing snippet: ${snippet}`);
+  writeFileSync(targetPath, before.split(snippet).join(replacement), "utf8");
+  assert(!read(targetPath).includes(snippet), `upgrade quality ${label} precondition still contains snippet after drift`);
+
+  const upgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", caseRoot], `upgrade quality ${label} auto-repair`);
+  const out = outputText(upgrade);
+  assert(out.includes(targetRel), `upgrade quality ${label} must report the drifted target`);
+  assert(out.includes(expectedReason), `upgrade quality ${label} must explain the automatic repair path`);
+  assert(out.includes("status: passed"), `upgrade quality ${label} self-check must pass`);
+  assert(out.includes("升級驗收完成"), `upgrade quality ${label} should complete upgrade validation`);
+  assert(!out.includes("anchor checks failed"), `upgrade quality ${label} must not leave a blocking anchor failure`);
+  assert(!out.includes("不要重跑 upgrade"), `upgrade quality ${label} must not route a repairable Kit gap to manual AI repair`);
+
+  const after = read(targetPath);
+  assert(after.includes(snippet), `upgrade quality ${label} did not restore the missing Kit-maintained text`);
+  assert(!after.includes("Agent Handoff Kit Anchor Repair"), `upgrade quality ${label} must not use naked repair blocks`);
+  if (beforeHeading) {
+    assertSnippetBefore(after, snippet, beforeHeading, `upgrade quality ${label} must restore snippet before ${beforeHeading}`);
+  }
+  if (betweenHeadings) {
+    assertSnippetBetween(after, snippet, betweenHeadings[0], betweenHeadings[1], `upgrade quality ${label} must restore snippet in semantic section`);
+  }
+
+  const index = read(path.join(caseRoot, "dev/PROJECT_INDEX.md"));
+  assert(index.includes(`| Agent Handoff Kit template version | ${packageJson.version} |`), `upgrade quality ${label} did not align template version metadata`);
+  assert(new RegExp(`^\\| Agent Handoff Kit template version \\| ${escapeRegExp(packageJson.version)} \\| [^|\\n]+ \\|$`, "m").test(index), `upgrade quality ${label} did not preserve the three-column PROJECT_INDEX Stack table row`);
+
+  const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", caseRoot], `upgrade quality ${label} doctor after auto-repair`);
+  assert(doctor.stdout.includes("status: passed"), `doctor must pass after upgrade quality ${label} auto-repair`);
+  return caseRoot;
+}
+
+function assertSnippetBefore(text, snippet, heading, message) {
+  const snippetIndex = text.indexOf(snippet);
+  const headingIndex = text.indexOf(heading);
+  assert(snippetIndex >= 0 && headingIndex >= 0 && snippetIndex < headingIndex, message);
+}
+
+function assertSnippetBetween(text, snippet, startHeading, endHeading, message) {
+  const startIndex = text.indexOf(startHeading);
+  const snippetIndex = text.indexOf(snippet);
+  const endIndex = text.indexOf(endHeading);
+  assert(startIndex >= 0 && snippetIndex > startIndex && endIndex > snippetIndex, message);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function withWorktree(ref, callback) {

@@ -1,5 +1,26 @@
 # 變更紀錄
 
+## v0.3.22 — 2026-06-01
+
+狀態：發佈前候選版本。本版修補真實 runtime upgrade 測試揭發的 root-fix：舊項目升級時，若缺的是 Kit 自己可定位的維護文字，工具應非破壞性補回正確語義位置並讓 `doctor` 穩定通過；只有結構標記損壞、管理區重名，或安全規則語義不可判斷時才停手。
+
+### Fixed
+
+- `doctor` 與 `upgrade` 不再把裸 anchor 字串出現在錯誤位置視為有效狀態，避免檔尾補字令檢查假性通過。
+- `requiredAnchors` 收斂為 single upgrade contract：snippet、合法位置判斷、缺失 / 錯位分類與修補策略由同一組 contract / strategy 管理，避免 CLI、測試與修補流程各自維護第二套規則。
+- `upgrade` 可自動修補可信 Kit 維護區內的 anchor drift，包括 `dev/SESSION_HANDOFF.md`、`dev/SESSION_LOG.md`、`dev/PROJECT_DECISIONS.md`、`dev/rules/safety.md`、`dev/rules/integrations.md` 與 `dev/rules/onboarding.md` 的可定位缺段。
+- 高風險 rules pack 仍維持保護線：若 `dev/rules/safety.md` 的安全規則被改成自訂語義、`dev/rules/integrations.md` heading 重名或不可定位、`dev/rules/onboarding.md` scenario skeleton 不可信，工具會以 `conflict` 停手，不會覆寫。
+
+### QA
+
+- `qa:upgrade` 新增 upgrade quality matrix，覆蓋版本 metadata、功能 anchor 與 post-upgrade `doctor` 穩定性三軸。
+- 負面 fixture 覆蓋錯位 handoff anchor、假 `PROJECT_INDEX` 版本列、舊 repair marker、`SESSION_LOG` 既有紀錄保留、安全規則自訂 row、integrations 表頭已被改動 / 重名、onboarding skeleton 不可信等情境。
+- `qa:release` 的 CLI scenario branching 增加 4e handoff continuity auto-repair，並把 anchor drift auto-repair 由單一 bug regression 提升為產品級升級旅程驗收。
+
+### Migration path（v0.3.21 → v0.3.22，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。如想先看會改甚麼，可先執行 `upgrade --dry-run`；預演不會寫入檔案。正式升級後，工具會保留用戶內容、建立備份與 migration report，並在可判斷時補回 Kit 維護文字；真正不可信的結構會停手交由 AI 或人工審視。
+
 ## v0.3.21 — 2026-05-31
 
 狀態：正式發佈版本。本版把收工時的長期維護改為「每次短檢、命中才完整整理」，降低長期使用時 AI 被過重流程拖慢的風險。

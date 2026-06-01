@@ -109,6 +109,7 @@ const requiredAnchors = [
   {
     target: "dev/SESSION_LOG.md",
     label: "session log event and opening message schema",
+    placement: sessionLogAnchorPlacement,
     snippets: [
       "Record what actually happened in the session",
       "## Entry Template",
@@ -125,6 +126,7 @@ const requiredAnchors = [
   {
     target: "dev/SESSION_HANDOFF.md",
     label: "handoff log archive continuity",
+    placement: handoffContinuityAnchorPlacement,
     snippets: [
       "ack:section:handoff-sufficiency-check",
       "ack:section:state-reconciliation-check",
@@ -138,6 +140,7 @@ const requiredAnchors = [
   {
     target: "dev/SESSION_LOG.md",
     label: "log retention and evidence schema",
+    placement: sessionLogAnchorPlacement,
     snippets: [
       "kept, summarized, or archived",
       "Do not remove validation evidence",
@@ -148,6 +151,7 @@ const requiredAnchors = [
   {
     target: "dev/PROJECT_INDEX.md",
     label: "template version metadata",
+    placement: projectIndexAnchorPlacement,
     snippets: [
       "Agent Handoff Kit template version"
     ]
@@ -155,6 +159,7 @@ const requiredAnchors = [
   {
     target: "dev/rules/safety.md",
     label: "safety pack high-risk anchors",
+    placement: safetyAnchorPlacement,
     snippets: [
       "deleting, overwriting, moving, renaming",
       "filesystem root, drive root",
@@ -167,6 +172,7 @@ const requiredAnchors = [
   {
     target: "dev/PROJECT_DECISIONS.md",
     label: "project decisions narrative anchors",
+    placement: projectDecisionsAnchorPlacement,
     snippets: [
       "Project Decisions Log",
       "warm 資料層",
@@ -182,6 +188,7 @@ const requiredAnchors = [
   {
     target: "dev/rules/onboarding.md",
     label: "onboarding pack core anchors",
+    placement: onboardingAnchorPlacement,
     snippets: [
       "Onboarding Pack",
       "transient pack",
@@ -200,6 +207,7 @@ const requiredAnchors = [
   {
     target: "dev/rules/integrations.md",
     label: "integrations pack core anchors",
+    placement: integrationsAnchorPlacement,
     snippets: [
       "Integrations Pack",
       "Connectors",
@@ -1013,10 +1021,12 @@ async function checkRequiredAnchors(root) {
       continue;
     }
 
-    // Report which specific anchor snippets are absent, not just pass/fail. Mirrors
-    // the schema-check contract (checkSchema returns `missing`) so an anchor failure
-    // is self-diagnosing: the user and the AI can see the exact text to restore.
-    const missing = rule.snippets.filter((snippet) => !text.includes(snippet));
+    // Report which specific anchor snippets are absent or semantically misplaced,
+    // not just pass/fail. A naked snippet at file tail must not make doctor green.
+    const failures = requiredAnchorFailures(rule, text);
+    const missing = failures.map((failure) => failure.kind === "missing"
+      ? failure.snippet
+      : `misplaced: ${failure.snippet}`);
     rows.push({
       target: rule.target,
       label: rule.label,
@@ -1222,7 +1232,7 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   // those on fresh install only or can manually patch following CHANGELOG migration guidance.
   if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && !targetText.includes("Scenario F. 審視已裝外部工具")) {
     const sourceScenarioFMatch = sourceText.match(/(### Scenario F\. 審視已裝外部工具[\s\S]*?)(?=## Cross-reference to guide\.html)/);
-    if (sourceScenarioFMatch && targetText.includes("## Cross-reference to guide.html")) {
+    if (sourceScenarioFMatch && hasTrustedOnboardingScenarioLibrary(targetText)) {
       const scenarioFBlock = sourceScenarioFMatch[1];
       return {
         ...base,
@@ -1272,6 +1282,31 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
         mergedText: mergedHandoff
       };
     }
+  }
+  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && hasMissingRequiredAnchor(targetRel, targetText, "handoff log archive continuity")) {
+    const mergedHandoff = mergeHandoffArchiveContinuityRule(targetText, sourceText);
+    if (!mergedHandoff) {
+      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md handoff sufficiency markers were changed; manual merge required to add archive continuity rule" };
+    }
+    return {
+      ...base,
+      action: "merge",
+      reason: "insert handoff archive continuity rule so upgrade self-check can pass without requiring manual anchor repair",
+      mergedText: mergedHandoff
+    };
+  }
+  if (command === "upgrade" && hasAnchorRepairMarkerDrift(targetText)) {
+    return { ...base, action: "conflict", reason: "legacy anchor repair block markers are incomplete or obsolete; manual semantic cleanup required before upgrade can safely continue" };
+  }
+  if (command === "upgrade" && hasMisplacedRequiredAnchor(targetRel, targetText)) {
+    return { ...base, action: "conflict", reason: "required Kit anchors are present outside trusted semantic sections; upgrade stopped to avoid accepting naked anchor text as valid state" };
+  }
+  if (command === "upgrade" && hasMissingRequiredAnchor(targetRel, targetText)) {
+    const semanticRepair = mergeMissingRequiredAnchorsSemantically(targetRel, targetText, sourceText);
+    if (semanticRepair) {
+      return { ...base, ...semanticRepair };
+    }
+    return { ...base, action: "conflict", reason: "required Kit anchors are missing but no safe semantic repair path exists; upgrade stopped without appending naked anchor text" };
   }
   if (targetRel === "CLAUDE.md" || targetRel === "GEMINI.md") {
     if (!targetText.includes("AGENTS.md")) {
@@ -1325,6 +1360,395 @@ function mergeOnboardingScenarioALabel(targetText) {
   return merged;
 }
 
+function hasTrustedOnboardingScenarioLibrary(text) {
+  const bounds = textSectionBounds(text, "## Application Scenario Library", "## Cross-reference to guide.html");
+  if (!bounds) return false;
+  const section = text.slice(bounds.start, bounds.end);
+  return [
+    "### Scenario A.",
+    "### Scenario B.",
+    "### Scenario C.",
+    "### Scenario D.",
+    "### Scenario E."
+  ].every((headingText) => section.includes(headingText));
+}
+
+function hasMissingRequiredAnchor(targetRel, targetText, label = null) {
+  return requiredAnchors
+    .filter((rule) => rule.target === targetRel && (!label || rule.label === label))
+    .some((rule) => requiredAnchorFailures(rule, targetText).some((failure) => failure.kind === "missing"));
+}
+
+function hasMisplacedRequiredAnchor(targetRel, targetText, label = null) {
+  return requiredAnchors
+    .filter((rule) => rule.target === targetRel && (!label || rule.label === label))
+    .some((rule) => requiredAnchorFailures(rule, targetText).some((failure) => failure.kind === "misplaced"));
+}
+
+function hasAnchorRepairMarkerDrift(text) {
+  const start = countText(text, "<!-- BEGIN Agent Handoff Kit anchor repair -->");
+  const end = countText(text, "<!-- END Agent Handoff Kit anchor repair -->");
+  return start > 0 || end > 0;
+}
+
+function countText(text, needle) {
+  return text.split(needle).length - 1;
+}
+
+function countRegex(text, pattern) {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  return [...text.matchAll(new RegExp(pattern.source, flags))].length;
+}
+
+function missingRequiredAnchorSnippets(targetRel, targetText) {
+  return [...new Set(requiredAnchors
+    .filter((rule) => rule.target === targetRel)
+    .flatMap((rule) => requiredAnchorFailures(rule, targetText)
+      .filter((failure) => failure.kind === "missing")
+      .map((failure) => failure.snippet)))];
+}
+
+function requiredAnchorFailures(rule, text) {
+  return rule.snippets.flatMap((snippet) => {
+    if (!text.includes(snippet)) return [{ kind: "missing", snippet }];
+    if (!isRequiredAnchorSemanticallyPlaced(rule, snippet, text)) return [{ kind: "misplaced", snippet }];
+    return [];
+  });
+}
+
+function isRequiredAnchorSemanticallyPlaced(rule, snippet, text) {
+  return rule.placement ? rule.placement(snippet, text) : true;
+}
+
+function sessionLogAnchorPlacement(snippet, text) {
+  if (snippet === "## Entry Template") return /^## Entry Template\s*$/m.test(text);
+  const preamble = [
+    "Record what actually happened in the session",
+    "kept, summarized, or archived",
+    "Do not remove validation evidence",
+    "latest opening message",
+    "not current state"
+  ];
+  if (preamble.includes(snippet)) return snippetAppearsBeforeHeading(text, snippet, "## Entry Template");
+  return snippetAppearsAfterHeading(text, snippet, "## Entry Template");
+}
+
+function handoffContinuityAnchorPlacement(snippet, text) {
+  const suffixContinuityAnchors = [
+    "without searching old log history",
+    "SESSION_LOG.md` carries recent evidence",
+    "do not create an archive directory by default"
+  ];
+  if (suffixContinuityAnchors.includes(snippet)) {
+    return snippetAppearsInSemanticSection(text, snippet, "handoff-sufficiency-check", "Handoff Sufficiency Check", "next-session-opening-message", "Next Session Opening Message");
+  }
+  return true;
+}
+
+function projectIndexAnchorPlacement(snippet, text) {
+  if (snippet === "Agent Handoff Kit template version") return Boolean(projectIndexTemplateVersion(text));
+  return true;
+}
+
+function safetyAnchorPlacement(snippet, text) {
+  return safetyAnchorHasTrustedRuleShape(text, snippet);
+}
+
+function projectDecisionsAnchorPlacement(snippet, text) {
+  const preamble = [
+    "Project Decisions Log",
+    "warm 資料層",
+    "AI 開工",
+    "不需要讀",
+    "AI 在收工時自動 update"
+  ];
+  if (preamble.includes(snippet)) return snippetAppearsBeforeHeading(text, snippet, "## Evolution Timeline");
+  return true;
+}
+
+function onboardingAnchorPlacement(snippet, text) {
+  if (snippet === "Application Scenario Library") {
+    return Boolean(textSectionBounds(text, "## Application Scenario Library", "## Cross-reference to guide.html"));
+  }
+  if (/^Scenario [A-F]\./.test(snippet)) {
+    return snippetAppearsBetweenHeadings(text, snippet, "## Application Scenario Library", "## Cross-reference to guide.html");
+  }
+  return true;
+}
+
+function integrationsAnchorPlacement(snippet, text) {
+  if (snippet === "機密分離原則" || snippet === "Source-of-truth Architecture" || snippet === "Cross-session Lifecycle") {
+    return snippetAppearsBetweenHeadings(text, snippet, "## Discipline", "## Rules");
+  }
+  if (snippet === "Connector-first default") {
+    return snippetAppearsBetweenHeadings(text, snippet, "## Rules", "## Checks");
+  }
+  if (snippet === "Anti-pattern") return text.includes("## Anti-pattern（不要做的事）");
+  return true;
+}
+
+function snippetAppearsBeforeHeading(text, snippet, headingText) {
+  const headingIndex = text.indexOf(headingText);
+  if (headingIndex < 0) return false;
+  return text.slice(0, headingIndex).includes(snippet);
+}
+
+function snippetAppearsAfterHeading(text, snippet, headingText) {
+  const headingIndex = text.indexOf(headingText);
+  if (headingIndex < 0) return false;
+  return text.slice(headingIndex + headingText.length).includes(snippet);
+}
+
+function snippetAppearsBetweenHeadings(text, snippet, startHeading, endHeading) {
+  const startIndex = text.indexOf(startHeading);
+  const endIndex = text.indexOf(endHeading);
+  if (startIndex < 0 || endIndex < 0 || endIndex <= startIndex) return false;
+  return text.slice(startIndex + startHeading.length, endIndex).includes(snippet);
+}
+
+function snippetAppearsInSemanticSection(text, snippet, startId, startHeading, endId, endHeading) {
+  const startMarker = `<!-- ack:section:${startId} -->`;
+  const endMarker = `<!-- ack:section:${endId} -->`;
+  const markerStart = text.indexOf(startMarker);
+  const markerEnd = text.indexOf(endMarker, markerStart + startMarker.length);
+  if (markerStart >= 0 && markerEnd > markerStart) {
+    return text.slice(markerStart + startMarker.length, markerEnd).includes(snippet);
+  }
+  return snippetAppearsBetweenHeadings(text, snippet, `## ${startHeading}`, `## ${endHeading}`);
+}
+
+const semanticAnchorRepairStrategies = {
+  "dev/PROJECT_INDEX.md": (targetText, sourceText) => {
+    const mergedIndex = mergeProjectIndexTemplateVersionRow(targetText, sourceText);
+    return mergedIndex ? {
+      action: "merge",
+      reason: "restore PROJECT_INDEX template version metadata row in ## Stack table",
+      mergedText: mergedIndex
+    } : null;
+  },
+  "dev/SESSION_LOG.md": (targetText, sourceText) => {
+    const mergedLog = insertSourcePreambleBeforeHeading(targetText, sourceText, "## Entry Template");
+    return mergedLog ? {
+      action: "merge",
+      reason: "restore SESSION_LOG Kit preamble before ## Entry Template",
+      mergedText: mergedLog
+    } : null;
+  },
+  "dev/PROJECT_DECISIONS.md": (targetText, sourceText) => {
+    const mergedDecisions = insertSourcePreambleBeforeHeading(targetText, sourceText, "## Evolution Timeline");
+    return mergedDecisions ? {
+      action: "merge",
+      reason: "restore PROJECT_DECISIONS onboarding preamble before ## Evolution Timeline",
+      mergedText: mergedDecisions
+    } : null;
+  },
+  "dev/rules/safety.md": (targetText, sourceText, missing) => {
+    const mergedSafety = mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing);
+    return mergedSafety ? {
+      action: "merge",
+      reason: "restore safety pack high-risk rules in ## Rules section",
+      mergedText: mergedSafety
+    } : null;
+  },
+  "dev/rules/integrations.md": (targetText, sourceText, missing) => {
+    const mergedIntegrations = mergeIntegrationsCredentialSection(targetText, sourceText, missing);
+    return mergedIntegrations ? {
+      action: "merge",
+      reason: "restore integrations credential-separation section in semantic position",
+      mergedText: mergedIntegrations
+    } : null;
+  }
+};
+
+function mergeMissingRequiredAnchorsSemantically(targetRel, targetText, sourceText) {
+  const missing = missingRequiredAnchorSnippets(targetRel, targetText);
+  if (missing.length === 0) return null;
+
+  return semanticAnchorRepairStrategies[targetRel]?.(targetText, sourceText, missing) ?? null;
+}
+
+function insertSourcePreambleBeforeHeading(targetText, sourceText, headingText) {
+  const targetIndex = targetText.indexOf(headingText);
+  const sourceIndex = sourceText.indexOf(headingText);
+  if (targetIndex < 0 || sourceIndex < 0) return null;
+  const sourcePreamble = sourceText.slice(0, sourceIndex).trim();
+  if (!sourcePreamble) return null;
+  const targetBefore = targetText.slice(0, targetIndex).trimEnd();
+  const targetAfter = targetText.slice(targetIndex);
+  return `${targetBefore}\n\n${sourcePreamble}\n\n${targetAfter}`;
+}
+
+function mergeProjectIndexTemplateVersionRow(targetText, sourceText) {
+  if (projectIndexTemplateVersion(targetText)) return targetText;
+  const sourceRow = sourceText.match(/^\| Agent Handoff Kit template version \| [\d.]+ \| [^|\n]+ \|$/m)?.[0];
+  if (!sourceRow) return null;
+  const lines = targetText.split(/\r?\n/);
+  const stackIndex = lines.findIndex((line) => line.trim() === "## Stack");
+  if (stackIndex < 0) return null;
+  const tableHeaderIndex = lines.findIndex((line, index) => index > stackIndex && line.trim() === "| Field | Value | Last verified |");
+  if (tableHeaderIndex < 0) return null;
+  const separatorIndex = tableHeaderIndex + 1;
+  if (!lines[separatorIndex]?.startsWith("|---")) return null;
+  lines.splice(separatorIndex + 1, 0, sourceRow);
+  return lines.join("\n");
+}
+
+function mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing) {
+  if (!hasTrustedSafetyPackShape(targetText)) return null;
+  const targetBounds = sectionBounds(targetText, "## Rules", "## Checks");
+  const sourceBounds = sectionBounds(sourceText, "## Rules", "## Checks");
+  if (!targetBounds || !sourceBounds) return null;
+  const targetLines = targetText.split(/\r?\n/);
+  const sourceLines = sourceText.split(/\r?\n/);
+  const targetRuleStart = targetBounds.start + 1;
+  const targetRuleEnd = targetBounds.end;
+  const sourceRuleLines = sourceLines.slice(sourceBounds.start + 1, sourceBounds.end);
+
+  let changed = false;
+  for (const snippet of missing) {
+    const sourceLine = sourceRuleLines.find((line) => line.includes(snippet));
+    if (!sourceLine) return null;
+    const ruleNumber = sourceLine.match(/^(\d+)\. /)?.[1];
+    if (!ruleNumber) return null;
+    const targetIndex = targetLines.findIndex((line, index) => index >= targetRuleStart && index < targetRuleEnd && line.startsWith(`${ruleNumber}. `));
+    if (targetIndex < 0) return null;
+    if (!sameRuleShape(targetLines[targetIndex], sourceLine, snippet)) return null;
+    targetLines[targetIndex] = sourceLine;
+    changed = true;
+  }
+
+  return changed ? targetLines.join("\n") : targetText;
+}
+
+function mergeIntegrationsCredentialSection(targetText, sourceText, missing) {
+  if (!missing.some((snippet) => snippet === "機密分離原則")) return null;
+  return replaceSectionByHeadingWithinBounds(
+    targetText,
+    sourceText,
+    /^### 1\. 機密分離原則/m,
+    /^### 2\. 四類整合嘅紀律差異/m,
+    "## Discipline",
+    "## Rules"
+  );
+}
+
+function hasTrustedSafetyPackShape(text) {
+  return text.includes("# Safety Pack")
+    && text.includes("## Scope")
+    && text.includes("## Load When")
+    && Boolean(sectionBounds(text, "## Rules", "## Checks"))
+    && text.includes("## Closeout");
+}
+
+function sameRuleShape(targetLine, sourceLine, snippet) {
+  const snippetIndex = sourceLine.indexOf(snippet);
+  if (snippetIndex < 0) return false;
+  const prefix = sourceLine.slice(0, snippetIndex);
+  const suffix = sourceLine.slice(snippetIndex + snippet.length);
+  return prefix.length >= 12
+    && suffix.length >= 8
+    && targetLine.startsWith(prefix)
+    && targetLine.endsWith(suffix);
+}
+
+function safetyAnchorHasTrustedRuleShape(text, snippet) {
+  const bounds = sectionBounds(text, "## Rules", "## Checks");
+  if (!bounds) return false;
+  const lines = text.split(/\r?\n/).slice(bounds.start + 1, bounds.end);
+  const line = lines.find((candidate) => candidate.includes(snippet));
+  if (!line) return false;
+  if (snippet === "cmd /c rmdir") {
+    return line.includes("cmd /c rd")
+      && line.includes("cmd.exe /c")
+      && line.includes("combined with `rmdir` or `rd`")
+      && line.includes("Prefer native PowerShell cmdlets")
+      && line.includes("do not compose filesystem modification commands across shells");
+  }
+  if (snippet === "git reset --hard") {
+    return line.includes("branch deletion")
+      && line.includes("force push")
+      && line.includes("history rewrite");
+  }
+  if (snippet === "secret values") {
+    return line.includes("Do not print")
+      && line.includes("log")
+      && line.includes("commit")
+      && line.includes("redacted placeholders");
+  }
+  if (snippet === "external APIs, SDKs, CLIs") {
+    return line.includes("package managers")
+      && line.includes("official documentation")
+      && line.includes("project-local runbooks");
+  }
+  return true;
+}
+
+function replaceSectionByHeadingWithinBounds(targetText, sourceText, startPattern, nextPattern, boundsStart, boundsEnd) {
+  if (countText(targetText, boundsStart) !== 1 || countText(targetText, boundsEnd) !== 1) return null;
+  const targetBounds = textSectionBounds(targetText, boundsStart, boundsEnd);
+  const sourceBounds = textSectionBounds(sourceText, boundsStart, boundsEnd);
+  if (!targetBounds || !sourceBounds) return null;
+
+  const boundedTarget = targetText.slice(targetBounds.start, targetBounds.end);
+  const boundedSource = sourceText.slice(sourceBounds.start, sourceBounds.end);
+  if (countRegex(boundedTarget, startPattern) > 1 || countRegex(boundedTarget, nextPattern) !== 1) return null;
+  const sourceSection = extractSection(boundedSource, startPattern, nextPattern);
+  if (!sourceSection) return null;
+  const targetSection = extractSection(boundedTarget, startPattern, nextPattern);
+  if (targetSection) {
+    return `${targetText.slice(0, targetBounds.start + targetSection.start)}${sourceSection.text}${targetText.slice(targetBounds.start + targetSection.end)}`;
+  }
+  const nextMatch = nextPattern.exec(boundedTarget);
+  if (!nextMatch) return null;
+  return `${targetText.slice(0, targetBounds.start + nextMatch.index)}${sourceSection.text}${targetText.slice(targetBounds.start + nextMatch.index)}`;
+}
+
+function replaceSectionByHeading(targetText, sourceText, startPattern, nextPattern) {
+  const sourceSection = extractSection(sourceText, startPattern, nextPattern);
+  if (!sourceSection) return null;
+  const targetSection = extractSection(targetText, startPattern, nextPattern);
+  if (targetSection) {
+    return `${targetText.slice(0, targetSection.start)}${sourceSection.text}${targetText.slice(targetSection.end)}`;
+  }
+  const nextMatch = nextPattern.exec(targetText);
+  if (!nextMatch) return null;
+  return `${targetText.slice(0, nextMatch.index)}${sourceSection.text}${targetText.slice(nextMatch.index)}`;
+}
+
+function extractSection(text, startPattern, nextPattern) {
+  const startMatch = startPattern.exec(text);
+  if (!startMatch) return null;
+  const afterStart = text.slice(startMatch.index + startMatch[0].length);
+  const nextMatch = nextPattern.exec(afterStart);
+  const end = nextMatch ? startMatch.index + startMatch[0].length + nextMatch.index : text.length;
+  return { start: startMatch.index, end, text: text.slice(startMatch.index, end) };
+}
+
+function sectionBounds(text, startHeading, endHeading) {
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim() === startHeading);
+  if (start < 0) return null;
+  const end = lines.findIndex((line, index) => index > start && line.trim() === endHeading);
+  if (end < 0) return null;
+  return { start, end };
+}
+
+function textSectionBounds(text, startHeading, endHeading) {
+  const startIndex = text.indexOf(startHeading);
+  if (startIndex < 0) return null;
+  const endIndex = text.indexOf(endHeading, startIndex + startHeading.length);
+  if (endIndex < 0) return null;
+  return { start: startIndex, end: endIndex };
+}
+
+function projectIndexTemplateVersion(text) {
+  const bounds = textSectionBounds(text, "## Stack", "## Directory Map");
+  if (!bounds) return null;
+  const stack = text.slice(bounds.start, bounds.end);
+  const row = stack.match(/^\| Agent Handoff Kit template version \| ([\d.]+) \| [^|\n]+ \|$/m);
+  return row ? row[1] : null;
+}
+
 function mergeHandoffLifecycleField(targetText) {
   const openingMarker = "<!-- ack:field:opening-message-matches-current-state -->";
   if (!targetText.includes(openingMarker)) return null;
@@ -1374,6 +1798,30 @@ function reclassifyExistingHandoffLifecyclePlaceholder(targetText) {
   return merged;
 }
 
+function mergeHandoffArchiveContinuityRule(targetText, sourceText) {
+  const sourceMatch = sourceText.match(/Continuity rule: this file carries current state and next action\.[^\r\n]*/);
+  if (!sourceMatch) return null;
+  const continuityRule = sourceMatch[0];
+  if (targetText.includes(continuityRule)) return targetText;
+
+  const existingRulePattern = /Continuity rule: this file carries current state and next action\.[^\r\n]*/;
+  if (existingRulePattern.test(targetText)) {
+    return targetText.replace(existingRulePattern, continuityRule);
+  }
+
+  const nextSectionMarker = "<!-- ack:section:next-session-opening-message -->";
+  if (targetText.includes(nextSectionMarker)) {
+    return targetText.replace(nextSectionMarker, `${continuityRule}\n\n${nextSectionMarker}`);
+  }
+
+  const sufficiencyMarker = "<!-- ack:section:handoff-sufficiency-check -->";
+  if (targetText.includes(sufficiencyMarker)) {
+    return `${targetText.trimEnd()}\n\n${continuityRule}\n`;
+  }
+
+  return null;
+}
+
 function mergeRulePacksRows(targetText, sourceText) {
   const requiredPacks = [
     "dev/rules/onboarding.md",
@@ -1420,8 +1868,7 @@ async function assessVersionAlignment(root, cliVersion) {
   let rootVersion = null;
   try {
     const text = await readFile(indexPath, "utf8");
-    const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
-    if (m) rootVersion = m[1];
+    rootVersion = projectIndexTemplateVersion(text);
   } catch {
     // file missing or unreadable; rootVersion stays null
   }
