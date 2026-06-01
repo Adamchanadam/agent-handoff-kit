@@ -244,28 +244,28 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | Adam 已授權 source release-prep 與 `全面檢`；尚未授權 commit / push / tag / GitHub Release / npm publish。 | 發佈前候選；外部發佈前須另取明確批准 |
-| 版本口徑 | `package.json` 目前為 `0.3.22`；v0.3.22 是 upgrade anchor drift root-fix。 | 發佈前候選口徑 |
+| 發佈授權 | Adam 已明確批准 commit / push / tag / GitHub Release / npm publish；本輪目標為 v0.3.22。 | 已完成；發佈前驗收與發佈後驗證均通過 |
+| 版本口徑 | `package.json` 目前為 `0.3.22`；v0.3.22 是 upgrade anchor drift root-fix。 | 正式發佈口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；subagent follow-up 補丁後已重跑；release-status docs correction 後 `qa:release` 亦須通過。 | 通過 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.22.md` 與 onboarding HTML 轉入 v0.3.22 候選口徑。 | 候選驗收中 |
+| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.22.md` 與 onboarding HTML 轉入 v0.3.22 正式發佈口徑。 | 通過 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.22` 段，`docs/whatsnew/v0.3.22.md` 已補本版用戶說明；GitHub Release 與 npm publish 尚未執行。 | 候選驗收中；外部發佈後須跑 `發佈檢` |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.22`。 | 候選驗收中 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.22` 段，`docs/whatsnew/v0.3.22.md` 已補本版用戶說明；GitHub Release 與 npm publish 已完成。 | 通過 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.22`。 | 通過 |
 
 ## v0.3.22 發佈狀態
 
 - package version：`0.3.22`。
 - release notes：`CHANGELOG.md` 的 `v0.3.22` 段落 + `docs/whatsnew/v0.3.22.md`。
 - 發佈目標：修補 upgrade anchor drift root-fix，讓可定位的 Kit 維護文字缺失可非破壞性補回；真正不可判斷的結構衝突仍停手。
-- 發佈前狀態：候選 source 已進入 `全面檢`；尚未 commit / push / tag / 建立 GitHub Release / npm publish。
-- 發佈後驗證：未適用；外部發佈後才執行七項 `發佈檢`。
+- 發佈狀態：已完成。Public release source commit `a083e77` 已推送並標記 `v0.3.22`；GitHub Release `v0.3.22 - Upgrade anchor repair` 已發佈；npm `@adamchanadam/agent-handoff-kit` latest 為 `0.3.22`，fileCount 25。
+- 發佈後驗證：7/7 PASS。GitHub Release 非 draft / 非 prerelease；npm latest / fileCount 對齊；fresh published install PASS；published `--help` / `init` / `doctor` PASS；v0.3.21 → v0.3.22 published-package `upgrade --yes` + sequential doctor PASS。
 
 ### Cross-mind evidence 9-trigger table（v0.3.22）
 
