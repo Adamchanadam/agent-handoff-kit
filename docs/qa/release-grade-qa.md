@@ -133,7 +133,7 @@
 
 對應 7-dim 第七項 dim「Upgrade migration safety from prior minor versions」嘅 automated enforcement Sweep。`scripts/check-upgrade-safety.mjs` 強制 grep + assertion：
 
-- (a) **Chain test 覆蓋全部 already-released minor / patch versions**：chainSteps array 含 v0.1.4 → v0.1.5 → v0.1.6 → v0.1.7 → v0.1.8 → v0.2.0 → v0.2.1 → v0.2.2 → v0.2.3 → v0.3.0 → v0.3.1 → v0.3.2 → v0.3.3 → v0.3.4 → v0.3.5 → v0.3.6 → v0.3.7 → v0.3.8 → v0.3.9 → v0.3.10 → v0.3.11 → v0.3.12 → v0.3.13 → v0.3.14 → v0.3.15 → v0.3.16 → v0.3.17 → v0.3.18 → v0.3.19 → v0.3.20 → v0.3.21 → v0.3.22 → current HEAD v0.3.23。每次新 release 必 append 新 tag 至 array，否則該 release 失「upgrade chain coverage from prior version」紀律；v0.3.6 起另由機器斷言候選 patch 版本不可漏上一個已發佈 patch tag。
+- (a) **Chain test 覆蓋全部 already-released minor / patch versions**：chainSteps array 含 v0.1.4 → v0.1.5 → v0.1.6 → v0.1.7 → v0.1.8 → v0.2.0 → v0.2.1 → v0.2.2 → v0.2.3 → v0.3.0 → v0.3.1 → v0.3.2 → v0.3.3 → v0.3.4 → v0.3.5 → v0.3.6 → v0.3.7 → v0.3.8 → v0.3.9 → v0.3.10 → v0.3.11 → v0.3.12 → v0.3.13 → v0.3.14 → v0.3.15 → v0.3.16 → v0.3.17 → v0.3.18 → v0.3.19 → v0.3.20 → v0.3.21 → v0.3.22 → v0.3.23 → current HEAD v0.3.24。每次新 release 必 append 新 tag 至 array，否則該 release 失「upgrade chain coverage from prior version」紀律；v0.3.6 起另由機器斷言候選 patch 版本不可漏上一個已發佈 patch tag。
 - (b) **User-data-preservation regression fixture**：`test-fixtures/user-data/dev/PROJECT_INDEX.md` 含 Notion DB「Project Tasks」/ Drive「Project Files/」/ Linear「Project Backlog」/ Python 3.11 Stack / pytest QC commands / a1b2c3d Workspace Identity 等用戶填過 rows。chain test 之後 run upgrade，8+ assertion 驗證 rows 全部 preserved + Installed Integrations section 已 insert（non-destructive migration）。
 - (c) **Prior-version requiredAnchors propagation test**：chain final 後 explicit assert AGENTS.md 含當前 major release 新 anchors（v0.3.0：「startup availability probe」/「dev/rules/integrations.md」/「Credential separation」）+ onboarding.md 含 Scenario F（v0.3.0 R-030 anchor）—— 確認 managed-core merge + smart-merge 對 v(N-1) state propagation 觸發。
 
@@ -149,21 +149,23 @@
 |---|---|---|---|
 | 1 | install fresh（新目錄首次 init） | 「安裝完成」/「Start Agent Handoff」主入口 /「Read AGENTS.md first, then Start Agent Handoff」帶路徑 fallback /「普通 web chat AI」不支援邊界 /「下面這句不是終端機指令」 | 「升級完成」/「你已經是最新版本」/「Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt」 |
 | 2 | init with existing local rules（資料夾已有本地 AI 規則） | 「已補齊缺少檔案，但仍要檢查入口連接」/「upgrade --dry-run」/ 既有 `AGENTS.md` 保留 | 「乾淨首次安裝」起步句 / 覆寫既有規則 |
-| 3a | upgrade metadata-only stale（結構已最新，只有 template version metadata 過期） | 「升級完成」/「版本詳情不在升級流程內展開」/ metadata 更新紀錄 / template version metadata 更新為當前版本 / doctor self-check 不再提示項目版本未對齊 | 「你已經是最新版本，沒有檔案需要建立或合併」/「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」/「本次升級涵蓋」（避免重做 onboarding 或在 CLI 內展開長篇 release notes） |
-| 3b | upgrade structurally stale（真實舊版 fixture → 當前，含 create + merge） | 「升級完成」/「進行中的工作對話已熟悉 Agent Handoff Kit 可繼續使用原本開工方式」/「版本詳情不在升級流程內展開」/ template version metadata 更新為當前版本 | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」/「I just upgraded agent-handoff-kit」/「本次升級涵蓋」（避免重做 onboarding 或要求用戶在升級當刻讀長篇版本說明） |
-| 3c | upgrade stale lifecycle placeholder（舊版本 metadata + 既有 lifecycle 欄位仍為 placeholder + handoff 已有 substantive Completed / Validation） | 「升級完成」/ `Reclassified at upgrade` /「升級驗收完成」/ template version metadata 更新為當前版本 | `missing dev/SESSION_HANDOFF.md (handoff lifecycle consistency)` / `status: failed` /「交接狀態仍需 AI closeout 核對」/「本次升級涵蓋」（避免工具自己升級後又被自己擋住，亦避免升級成功輸出被 release notes 淹沒） |
+| 3a | upgrade metadata-only stale（結構已最新，只有 template version metadata 過期） | 「Kit 檔案已更新」/「版本詳情不在升級流程內展開」/ metadata 更新紀錄 / template version metadata 更新為當前版本 / doctor self-check 不再提示項目版本未對齊 /「升級驗收完成」 | 「你已經是最新版本，沒有檔案需要建立或合併」/「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」/「本次升級涵蓋」（避免重做 onboarding 或在 CLI 內展開長篇 release notes） |
+| 3b | upgrade structurally stale（真實舊版 fixture → 當前，含 create + merge） | 「Kit 檔案已更新」/「進行中的工作對話已熟悉 Agent Handoff Kit 可繼續使用原本開工方式」/「版本詳情不在升級流程內展開」/ template version metadata 更新為當前版本 /「升級驗收完成」 | 「安裝完成」/「I just installed agent-handoff-kit. Help me get started.」/「I just upgraded agent-handoff-kit」/「本次升級涵蓋」（避免重做 onboarding 或要求用戶在升級當刻讀長篇版本說明） |
+| 3c | upgrade stale lifecycle placeholder（舊版本 metadata + 既有 lifecycle 欄位仍為 placeholder + handoff 已有 substantive Completed / Validation） | 「Kit 檔案已更新」/ `Reclassified at upgrade` /「升級驗收完成」/ template version metadata 更新為當前版本 | `missing dev/SESSION_HANDOFF.md (handoff lifecycle consistency)` / `status: failed` /「交接狀態仍需 AI closeout 核對」/「本次升級涵蓋」（避免工具自己升級後又被自己擋住，亦避免升級成功輸出被 release notes 淹沒） |
 | 4 | upgrade no-op（已 latest 零改動，交接健康） | 「你已經是最新版本，沒有檔案需要建立或合併」/ output 行數 ≤ 20 行 | 「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/「migration report」/「升級後自動檢查」 |
-| 4b | upgrade no-op（已 latest 零改動，但 handoff 欄位仍需 closeout 核對） | 「Kit 檔案已是最新版本，沒有檔案需要建立或合併」/「交接狀態仍需 AI closeout 核對」/「不要重裝或覆寫用戶內容」 | 「繼續日常使用即可」/「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」 |
+| 4b | upgrade no-op（已 latest 零改動，但完整 `doctor` 仍失敗：handoff lifecycle） | 「Kit 檔案已是最新版本，沒有檔案需要建立或合併」/「完整 doctor 健康檢查未通過」/ `status: failed` / `handoff lifecycle consistency` /「不要重裝或覆寫用戶內容」 | 「繼續日常使用即可」/「你已經是最新版本」成功句 /「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」 |
 | 4c | upgrade substantive with stale prompt convenience copy（mac 用戶實測類型：正式 upgrade 合併 `AGENTS.md`，但 `START_NEXT_SESSION_PROMPT.txt` 是舊便利副本） | `START_NEXT_SESSION_PROMPT.txt` 便利副本落後只可 warning / 「升級驗收完成」 | `status: failed` / anchor checks failed / 正式 upgrade 後叫用戶回頭跑 `upgrade --dry-run` |
 | 4d | upgrade anchor drift auto-repair（`dev/rules/safety.md` 缺 Kit 維護 anchor） | `dev/rules/safety.md` merge / `restore safety pack high-risk rules in ## Rules section` / `cmd /c rmdir` 被補回到 `## Rules` 語義位置 /「升級驗收完成」 | `anchor checks failed` /「不要重跑 upgrade」/ `Agent Handoff Kit Anchor Repair` / 把可自動補的 rules pack 缺段推給用戶手修 |
 | 4e | upgrade handoff continuity anchor auto-repair（`dev/SESSION_HANDOFF.md` 缺 Kit 自己的 archive continuity 句） | `dev/SESSION_HANDOFF.md` merge / `insert handoff archive continuity rule` / `do not create an archive directory by default` 被補回 /「升級驗收完成」 | `anchor checks failed` /「不要重跑 upgrade」/ 把可自動補的 handoff template 缺段推給用戶手修 |
+| 4f | upgrade no-op schema auto-repair（已 latest 零改動，但 opening message 缺 root mismatch guard） | `restore root mismatch guard in Next Session Opening Message` / `handoff opening message structure` / `If this root does not match the expected project root` / `status: passed` /「升級驗收完成」 | 「完整 doctor 健康檢查未通過」/ `status: failed` /「你已經是最新版本」成功句 /「繼續日常使用即可」/「安裝完成」/「升級完成」 |
+| 4g | upgrade no-op temperature auto-repair（已 latest 零改動，但歷史 release / npm 證據污染熱層與 prompt mirror） | `move historical evidence out of hot handoff state` / `regenerate prompt from repaired handoff opening message` / `handoff temperature boundary checks` / `historical npm latest state` / `historical GitHub Release state` / `status: passed` /「升級驗收完成」 | 「完整 doctor 健康檢查未通過」/ `status: failed` /「你已經是最新版本」成功句 /「繼續日常使用即可」/「安裝完成」/「升級完成」 |
 | 5 | upgrade with conflict | 「conflict」count > 0 / 「migration report」/「工具已停手，沒有覆寫」 | 「升級完成」 |
 | 6 | doctor healthy & latest（已係最新版） | 「status: passed」/「檢查已通過」/「項目狀態速覽」/版本、上次收工、首次安裝距今三向狀態 | 「如要升級到較新版」/「繼續日常使用即可」（避免叫剛升完嘅用戶再升，亦避免把 doctor 健康輸出膨脹成安裝後新手指引） |
 | 7 | doctor healthy with newer available | startup `maybePrintUpdateNotice` 嘅升級通知 / 「status: passed」 | doctor 結尾再講一次升級指令（避免 redundant） |
 
-**Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3；v0.3.8 add handoff-needs-closeout no-op；v0.3.9 add affirmative lifecycle wording regression；v0.3.10 post-release debt cleanup add scenario 2 / 5 / 7；v0.3.13 add post-upgrade self-check UX scenarios 4c / 4d；v0.3.15 add scenario 3c stale lifecycle placeholder；v0.3.22 update 4d to anchor drift auto-repair + add scenario 4e handoff continuity auto-repair + add upgrade quality matrix）**：場景 1 / 2 / 3a / 3b / 3c / 4 / 4b / 4c / 4d / 4e / 5 / 6 / 7 為 automated。場景 2 改以「已有本地 AI 規則的 init」表示真實可觸發的安裝邊界：`init` 不覆寫既有規則，而是補齊缺檔並指向 `upgrade --dry-run`。
+**Automated simulation 範圍（v0.3.1 first land；v0.3.4 split scenario 3；v0.3.8 add handoff-needs-closeout no-op；v0.3.9 add affirmative lifecycle wording regression；v0.3.10 post-release debt cleanup add scenario 2 / 5 / 7；v0.3.13 add post-upgrade self-check UX scenarios 4c / 4d；v0.3.15 add scenario 3c stale lifecycle placeholder；v0.3.22 update 4d to anchor drift auto-repair + add scenario 4e handoff continuity auto-repair + add upgrade quality matrix；v0.3.24 add no-op full-doctor gate scenarios 4f / 4g）**：場景 1 / 2 / 3a / 3b / 3c / 4 / 4b / 4c / 4d / 4e / 4f / 4g / 5 / 6 / 7 為 automated。場景 2 改以「已有本地 AI 規則的 init」表示真實可觸發的安裝邊界：`init` 不覆寫既有規則，而是補齊缺檔並指向 `upgrade --dry-run`。
 
-場景 4b / 4c / 4d 是通用舊項目旅程，不綁定任何單一用戶目錄。真實項目只能作發現問題的證據；自動驗收必須用可重建 fixture 表達同類狀態，避免把個別專案文字硬寫成產品規則。
+場景 4b / 4c / 4d / 4f / 4g 是通用舊項目旅程，不綁定任何單一用戶目錄。真實項目只能作發現問題的證據；自動驗收必須用可重建 fixture 表達同類狀態，避免把個別專案文字硬寫成產品規則。
 
 Upgrade quality matrix 屬 `qa:upgrade` 的多情境測試：每個可定位的 Kit 維護文字缺失，都要驗證 upgrade report、template version metadata、功能 anchor 的語義位置修復、post-upgrade `doctor` 四項同時通過；目前覆蓋 `dev/SESSION_HANDOFF.md`、`dev/SESSION_LOG.md`、`dev/PROJECT_DECISIONS.md`、`dev/rules/safety.md`、`dev/rules/integrations.md`、`dev/rules/onboarding.md`。這一組測試是版本、功能、穩定性三軸升級門檻，不是單一 bug regression；不得用檔尾裸字串 repair block 令 `doctor` 假性通過。
 
@@ -238,7 +240,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 會檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致；安裝後與 closeout 後必須一致，session 進行中若只有便利副本落後，普通 `doctor` 只可警告，不可 fail。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到能讀寫本機專案資料夾的 AI agent 對話，不是在終端機繼續輸入；普通 web chat AI 若不能讀寫本機資料夾，不屬於支援場景。
-- 套件預演目前維持 25 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.23.md` 保留在 repo 作 GitHub Release / changelog 材料，但不入 npm package；runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 25 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.24.md` 保留在 repo 作 GitHub Release / changelog 材料，但不入 npm package；runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -247,28 +249,59 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | Adam 已批准本輪 root-fix 與版本 bump；尚未批准 commit / push / tag / GitHub Release / npm publish。本輪候選目標為 v0.3.23。 | 可進入候選驗收；發佈操作仍需另行批准 |
-| 版本口徑 | `package.json` 目前為 `0.3.23`；v0.3.23 是 research trace + current-state evidence boundary + startup / closeout display-version root-fix。 | 候選發佈口徑 |
+| 發佈授權 | Adam 已批准追查並解決 upgrade 多次出錯根因；尚未批准 commit / push / tag / GitHub Release / npm publish。本輪候選目標為 v0.3.24。 | 可進入候選驗收；發佈操作仍需另行批准 |
+| 版本口徑 | `package.json` 目前為 `0.3.24`；v0.3.24 是 no-op upgrade full-doctor gate root-fix。 | 候選發佈口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；subagent follow-up 補丁後已重跑；release-status docs correction 後 `qa:release` 亦須通過。 | 通過 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.23.md` 與 onboarding HTML 轉入 v0.3.23 候選口徑。 | 通過 |
+| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.24.md` 與 onboarding HTML 轉入 v0.3.24 候選口徑。 | 通過 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.23` 段，`docs/whatsnew/v0.3.23.md` 已補本版用戶說明；GitHub Release 與 npm publish 尚未執行。 | 發佈前材料已準備；公開發佈仍待明確批准 |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.23`。 | 通過 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.24` 段，`docs/whatsnew/v0.3.24.md` 已補本版用戶說明；GitHub Release 與 npm publish 尚未執行。 | 發佈前材料已準備；公開發佈仍待明確批准 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.24`。 | 通過 |
+
+## v0.3.24 發佈狀態
+
+- package version：`0.3.24`。
+- release notes：`CHANGELOG.md` 的 `v0.3.24` 段落 + `docs/whatsnew/v0.3.24.md`。
+- 發佈目標：修補 no-op upgrade 假成功，並把源頭寫入收斂到一套 marker standard。當 Kit 檔案已是最新但完整 `doctor` 仍失敗時，`upgrade` 不得顯示成功語氣；若屬工具可安全判斷的 Kit-owned 結構／熱層污染問題，`upgrade` 必須自行修復並重新驗收；若無法安全判斷，才以非零狀態退出。新 closeout 寫入必須用 `ack:section:*` / `ack:field:*` / `ack:log-entry:start/end` / managed-core BEGIN/END 作唯一機器邊界，舊 heading fallback 只作遷移用途；`SESSION_LOG` 新裝與舊版升級後均須驗證四個標準註解錨點存在、只出現一次、順序正確。
+- 發佈狀態：候選源碼已通過發佈前全面檢；尚未 commit / push / tag / GitHub Release / npm publish，公開發佈仍待明確批准。
+- 發佈後驗證：未適用，須待 GitHub Release 與 npm publish 完成後才可執行。
+
+### v0.3.24 發佈前全面檢正式結論
+
+- 正式報告：`docs/qa/full-audit-v0.3.24-candidate.md`。
+- 全面檢結論：PASS，可在取得明確批准後進入 commit / push / tag / GitHub Release / npm publish。
+- 治理健康總判定：緊張；建議方向：繼續。原因是本輪為 upgrade / handoff root-fix，跨檔同步面積大，但產品行為、升級安全、規則包路由與 QC gap backflow 均已有機器或人工承接；發佈前不應再擴建新規則。
+- Product Journey Matrix：fresh install、closeout handoff、evidence disposition、existing upgrade、anchor drift auto-repair、official npx doctor path、non-empty local rules、conflict stop、doctor state split、AI prose tolerance、natural-language task routing 均標記 automated PASS 或 manual PASS，無 blocked 項。
+- Rules / packs routing 結論：PASS。`qa:packs` 與 `qa:release` 覆蓋最少必要 pack 載入與 durable-home scope；本輪不新增 pack，不新增平行治理文件。
+- QC gap backflow 結論：PASS。原先 marker 存在檢查未明確保證唯一性與順序的 precision gap 已回流為 `qa:release` fresh install / simulated closeout 與 `qa:upgrade` old log migration / preservation assertions；本次全面檢沒有 open QC gap。
+
+### Cross-mind evidence 9-trigger table（v0.3.24）
+
+| Trigger | Required? | Result | Evidence / rationale |
+|---|---|---|---|
+| 1. 失敗或 blocker | yes | iterated | 三個 runtime upgrade 回饋揭發「第一次 doctor 失敗，第二次 no-op upgrade 報成功」假成功路徑。 |
+| 2. 高風險 / 安全 / 發佈 | yes | passed | 本輪只做 source 候選修補；commit / push / tag / release / publish 仍需另行批准。 |
+| 3. 用戶明確挑戰 | yes | passed | Adam 要求檢討 upgrade 機制是否通用、不得 hardcode runtime 情景；修補改為 no-op 成功語氣必須由完整 `doctor` 背書。 |
+| 4. 複雜推理 / 多層取捨 | yes | passed | 子程序跑 doctor 會受 AI runtime 沙箱影響；最終改為同一進程共用 `runDoctor()`，降低外部執行環境變體風險。 |
+| 5. 跨檔 / 跨 surface 改動 | yes | passed | `bin/agent-handoff-kit.mjs`、runtime templates、`scripts/check-release-readiness.mjs`、release QA、CHANGELOG、whatsnew、README 與 onboarding HTML 已同步；統一 marker standard 改動後 `qa:upgrade` / `qa:release` 已重跑通過。 |
+| 6. 結論基於語意判斷而非單一 grep | yes | passed | `qa:release` 新增 4b / 4f / 4g no-op full-doctor gate，並檢查 fresh install / simulated closeout 的 `SESSION_LOG` 標準註解錨點只出現一次且順序正確；`qa:upgrade` 鏈式升級須把舊 `SESSION_LOG` 非破壞性遷移到 `ack:log-entry` marker、保留既有歷史 entry，並以最終 doctor / 結構驗收為準，不硬綁單次 merged 數字。 |
+| 7. 外部 AI / cross-mind review | no | passed | 本輪用真實 runtime log + 機器 fixture 已足以定位；未再外送 private runtime 內容。 |
+| 8. 真實用戶旅程 | yes | passed | 真實 runtime 回饋只作證據來源；驗收提煉為三類通用狀態：健康 no-op 通過、可安全自修的 Kit-owned drift 自動修復、需要判斷用戶意圖的狀態不得假成功。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | passed | 主要聲明對應到同進程 `runDoctor()` gate、非零 exit、三類 negative no-op fixture 與真實 runtime dry-run 回測。 |
 
 ## v0.3.23 發佈狀態
 
 - package version：`0.3.23`。
 - release notes：`CHANGELOG.md` 的 `v0.3.23` 段落 + `docs/whatsnew/v0.3.23.md`。
 - 發佈目標：修補 research-derived decision trace、current-state evidence boundary 與 startup / closeout display-version source，避免來源脈絡失真、歷史證據污染下一輪開工，並避免開工／收工卡片漏印版本或輸出 `v<version>` 佔位符。
-- 發佈狀態：發佈前全面檢 PASS；尚未 commit / push / tag / GitHub Release / npm publish，公開發佈仍待明確批准。
-- 發佈後驗證：未適用，須待 GitHub Release 與 npm publish 完成後才可執行。
+- 發佈狀態：已完成。Public release source commit `c5024c9` 已推送並標記 `v0.3.23`；GitHub Release `v0.3.23 - 交接來源脈絡與證據邊界修補` 已發佈；npm `@adamchanadam/agent-handoff-kit` latest 為 `0.3.23`，fileCount 25。
+- 發佈後驗證：7/7 PASS。GitHub Release 非 draft / 非 prerelease；npm latest / fileCount 對齊；fresh published install PASS；published `--help` / `init` / `doctor` PASS；v0.3.22 → v0.3.23 published-package upgrade smoke PASS。
 
 ### Cross-mind evidence 9-trigger table（v0.3.23）
 

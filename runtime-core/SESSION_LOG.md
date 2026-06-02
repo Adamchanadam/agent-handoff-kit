@@ -1,5 +1,7 @@
 # Session Log
 
+<!-- ack:section:session-log-preamble -->
+
 > **Handoff role**: This log is the trace-back / audit trail layer. Handoff capability rests on `dev/SESSION_HANDOFF.md`. The next AI session can continue by reading `AGENTS.md` + `dev/SESSION_HANDOFF.md` + `dev/PROJECT_INDEX.md` + needed rule packs; reading this log is not required for continuity. Each closeout must run the maintenance trigger check per `AGENTS.md` `## Closeout And Handoff` step 11 (R-010 SESSION_LOG handoff-role discipline): N=1–3 keep full, N=4–10 may short-index after absorbed-source check when triggered, N=11+ archive into `dev/SESSION_LOG_archive/`.
 
 Add new session entries at the top. Record what actually happened in the session; do not copy old completed work forward as new work.
@@ -10,9 +12,12 @@ Keep recent entries concise. If older entries no longer affect the next action a
 
 Before closeout, record whether older log detail was kept, summarized, or archived, and whether the maintenance trigger check was no-op, triggered, or backstop-driven. Do not remove validation evidence, unresolved risks, or the latest opening message.
 
+<!-- ack:section:session-log-entry-template -->
+
 ## Entry Template
 
 ````markdown
+<!-- ack:log-entry:start -->
 ## <YYYY-MM-DD> — <short session title>
 
 - **ID:** <agent_or_session_id>
@@ -48,4 +53,5 @@ This is the first startup after installing Agent Handoff Kit. Load the onboardin
 
 Before changing anything, tell me the current state and your recommended next step.
 ```
+<!-- ack:log-entry:end -->
 ````

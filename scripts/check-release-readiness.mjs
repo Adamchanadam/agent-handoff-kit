@@ -338,6 +338,7 @@ function main() {
   assertHandoffMarker(installedHandoff, "section", "task-understanding-summary");
   assertHandoffMarker(installedHandoff, "section", "state-reconciliation-check");
   assert(installedLog.includes("### Next Session Opening Message"), "installed log missing opening message schema");
+  assertSessionLogMarkerContract(installedLog, "fresh install SESSION_LOG");
   const installedIndex = readAt(tempRoot, "dev/PROJECT_INDEX.md");
   assert(installedIndex.includes("## Fact Base"), "installed project index missing fact base section");
   assert(installedIndex.includes("## External Sources"), "installed project index missing external sources section");
@@ -590,7 +591,7 @@ function checkScenarioBranchingDocAlignment() {
       id: "3a",
       snippets: [
         "upgrade metadata-only stale",
-        "升級完成",
+        "Kit 檔案已更新",
         "版本詳情不在升級流程內展開",
         "metadata 更新紀錄",
         "template version metadata 更新為當前版本",
@@ -605,7 +606,7 @@ function checkScenarioBranchingDocAlignment() {
       id: "3b",
       snippets: [
         "upgrade structurally stale",
-        "升級完成",
+        "Kit 檔案已更新",
         "進行中的工作對話已熟悉 Agent Handoff Kit 可繼續使用原本開工方式",
         "版本詳情不在升級流程內展開",
         "template version metadata 更新為當前版本",
@@ -644,11 +645,37 @@ function checkScenarioBranchingDocAlignment() {
       id: "4b",
       snippets: [
         "upgrade no-op",
-        "handoff 欄位仍需 closeout 核對",
+        "handoff lifecycle",
         "Kit 檔案已是最新版本，沒有檔案需要建立或合併",
-        "交接狀態仍需 AI closeout 核對",
+        "完整 doctor 健康檢查未通過",
+        "status: failed",
+        "handoff lifecycle consistency",
         "不要重裝或覆寫用戶內容",
         "繼續日常使用即可"
+      ]
+    },
+    {
+      id: "4f",
+      snippets: [
+        "upgrade no-op schema auto-repair",
+        "handoff opening message structure",
+        "If this root does not match the expected project root",
+        "restore root mismatch guard in Next Session Opening Message",
+        "status: passed",
+        "升級驗收完成"
+      ]
+    },
+    {
+      id: "4g",
+      snippets: [
+        "upgrade no-op temperature auto-repair",
+        "handoff temperature boundary checks",
+        "historical npm latest state",
+        "historical GitHub Release state",
+        "move historical evidence out of hot handoff state",
+        "regenerate prompt from repaired handoff opening message",
+        "status: passed",
+        "升級驗收完成"
       ]
     },
     {
@@ -736,7 +763,7 @@ function checkScenarioBranchingDocAlignment() {
       }
     }
   }
-  assert(qaDoc.includes("場景 1 / 2 / 3a / 3b / 3c / 4 / 4b / 4c / 4d / 4e / 5 / 6 / 7 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list every scenario");
+  assert(qaDoc.includes("場景 1 / 2 / 3a / 3b / 3c / 4 / 4b / 4c / 4d / 4e / 4f / 4g / 5 / 6 / 7 為 automated"), "docs/qa/release-grade-qa.md automated simulation scope must list every scenario");
   assert(qaDoc.includes("upgrade quality matrix"), "docs/qa/release-grade-qa.md must document the upgrade quality matrix");
   assert(qaDoc.includes("版本、功能、穩定性三軸"), "docs/qa/release-grade-qa.md must define upgrade as version, function, and stability coverage");
   assert(qaDoc.includes("dev/SESSION_LOG.md") && qaDoc.includes("dev/PROJECT_DECISIONS.md") && qaDoc.includes("dev/rules/integrations.md") && qaDoc.includes("dev/rules/onboarding.md"), "docs/qa/release-grade-qa.md upgrade quality matrix must list the non-single-file upgrade drift coverage");
@@ -856,15 +883,21 @@ function simulateScenarioBranching() {
     .replace("- Checks run this session: TBD", "- Checks run this session: Verified package scope and no-op upgrade journey.")
     .replace("## Next Session Opening Message\n\n📋 Next session: agent-managed startup content below", "## Next Session Opening Message\n\n📋 Next session: agent-managed startup content below");
   writeFileSync(s4bHandoffPath, s4bHandoff, "utf8");
-  const s4b = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4bRoot], "scenario 4b upgrade no-op with handoff needing closeout", { env });
-  assertScenarioOutput("scenario 4b (upgrade no-op, handoff needs closeout)", s4b.stdout, {
+  const s4b = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
+  if (s4b.status === 0) {
+    throw new Error(`scenario 4b upgrade no-op expected failure but exited 0\n${s4b.stdout}`);
+  }
+  assertScenarioOutput("scenario 4b (upgrade no-op, handoff needs closeout)", `${s4b.stdout}\n${s4b.stderr}`, {
     mustHave: [
       /Kit 檔案已是最新版本，沒有檔案需要建立或合併/,
-      /交接狀態仍需 AI closeout 核對/,
+      /完整 doctor 健康檢查未通過/,
+      /status: failed/,
+      /handoff lifecycle consistency/,
       /不要重裝或覆寫用戶內容/
     ],
     mustNotHave: [
       /繼續日常使用即可/,
+      /✅ 結果：你已經是最新版本/,
       /✅ 安裝完成：/,
       /✅ 升級完成：/,
       /I just installed agent-handoff-kit\. Help me get started\./,
@@ -887,10 +920,88 @@ function simulateScenarioBranching() {
     ]
   });
 
-  // Scenario 4c: real-user mac-style path from v0.3.12 feedback. The project has
-  // a legacy unmarked AGENTS core, so upgrade performs a substantive merge, while
-  // START_NEXT_SESSION_PROMPT.txt remains an old convenience copy. That prompt
-  // copy is closeout-time material; it must warn, not fail the upgrade self-check.
+  // Scenario 4f: upgrade no-op with a repairable schema failure. The handoff
+  // opening message lost the root mismatch guard, which is Kit-owned startup
+  // safety text. Upgrade should restore it and pass doctor, not offload this
+  // template drift to the user.
+  const s4fRoot = path.join(tempBase, "scenario-upgrade-noop-schema-auto-repair");
+  const s4fInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4fRoot], { encoding: "utf8", env, cwd: root });
+  if (s4fInit.status !== 0) {
+    throw new Error(`Scenario 4f init prep failed: ${s4fInit.stderr || s4fInit.stdout}`);
+  }
+  const s4fHandoffPath = path.join(s4fRoot, "dev/SESSION_HANDOFF.md");
+  writeFileSync(
+    s4fHandoffPath,
+    readFileSync(s4fHandoffPath, "utf8").replace("If this root does not match the expected project root", "If this startup guard is missing"),
+    "utf8"
+  );
+  const s4f = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4fRoot], "scenario 4f upgrade no-op schema auto-repair", { env });
+  assertScenarioOutput("scenario 4f (upgrade no-op, schema auto-repair)", s4f.stdout, {
+    mustHave: [
+      /restore root mismatch guard in Next Session Opening Message/,
+      /status: passed/,
+      /✅ 升級驗收完成/
+    ],
+    mustNotHave: [
+      /handoff opening message structure[\s\S]*missing/,
+      /完整 doctor 健康檢查未通過/,
+      /status: failed/,
+      /繼續日常使用即可/,
+      /✅ 安裝完成：/,
+      /✅ 升級完成：/
+    ]
+  });
+  const s4fDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s4fRoot], "scenario 4f doctor after schema auto-repair", { env });
+  assert(s4fDoctor.stdout.includes("status: passed"), "scenario 4f doctor must pass after schema auto-repair");
+
+  // Scenario 4g: upgrade no-op with repairable current-state temperature failure.
+  // This reproduces the real Agent_Public_Squares class in generic form:
+  // historical release/npm evidence sits in hot handoff and prompt state. Upgrade
+  // should clean the hot state, regenerate the prompt copy, and pass doctor.
+  const s4gRoot = path.join(tempBase, "scenario-upgrade-noop-temperature-auto-repair");
+  const s4gInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4gRoot], { encoding: "utf8", env, cwd: root });
+  if (s4gInit.status !== 0) {
+    throw new Error(`Scenario 4g init prep failed: ${s4gInit.stderr || s4gInit.stdout}`);
+  }
+  const s4gHandoffPath = path.join(s4gRoot, "dev/SESSION_HANDOFF.md");
+  writeFileSync(
+    s4gHandoffPath,
+    readFileSync(s4gHandoffPath, "utf8").replace(
+      "6. Installed Integrations registry:",
+      "6. npm latest 0.3.23 and GitHub Release v0.3.23 are historical release evidence.\n7. Installed Integrations registry:"
+    ),
+    "utf8"
+  );
+  writeFileSync(
+    path.join(s4gRoot, "START_NEXT_SESSION_PROMPT.txt"),
+    `${readFileSync(path.join(s4gRoot, "START_NEXT_SESSION_PROMPT.txt"), "utf8").trimEnd()}\n\nnpm latest 0.3.23 and GitHub Release v0.3.23 are historical release evidence.\n`,
+    "utf8"
+  );
+  const s4g = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4gRoot], "scenario 4g upgrade no-op temperature auto-repair", { env });
+  assertScenarioOutput("scenario 4g (upgrade no-op, temperature auto-repair)", s4g.stdout, {
+    mustHave: [
+      /move historical evidence out of hot handoff state/,
+      /regenerate prompt from repaired handoff opening message/,
+      /status: passed/,
+      /✅ 升級驗收完成/
+    ],
+    mustNotHave: [
+      /✅ 結果：你已經是最新版本/,
+      /完整 doctor 健康檢查未通過/,
+      /status: failed/,
+      /繼續日常使用即可/,
+      /✅ 安裝完成：/,
+      /✅ 升級完成：/
+    ]
+  });
+  const s4gDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s4gRoot], "scenario 4g doctor after temperature auto-repair", { env });
+  assert(s4gDoctor.stdout.includes("status: passed"), "scenario 4g doctor must pass after temperature auto-repair");
+
+  // Scenario 4c: stale START_NEXT_SESSION_PROMPT.txt convenience copy. The project
+  // has a legacy unmarked AGENTS core, so upgrade performs a substantive merge.
+  // If the authoritative handoff opening message is readable, the prompt copy is
+  // Kit-owned and can be regenerated safely; upgrade should repair it instead of
+  // leaving a warning for the user.
   const s4cRoot = path.join(tempBase, "scenario-upgrade-stale-prompt-copy");
   const s4cInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4cRoot], { encoding: "utf8", env, cwd: root });
   if (s4cInit.status !== 0) {
@@ -910,19 +1021,21 @@ function simulateScenarioBranching() {
     "utf8"
   );
   const s4c = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4cRoot], "scenario 4c upgrade with stale prompt convenience copy", { env });
-  assertScenarioOutput("scenario 4c (stale prompt convenience copy warns only)", s4c.stdout, {
+  assertScenarioOutput("scenario 4c (stale prompt convenience copy auto-repair)", s4c.stdout, {
     mustHave: [
       /replace unmarked legacy Agent Handoff Kit core with managed-marker block/,
-      /warn  START_NEXT_SESSION_PROMPT.txt/,
-      /session 進行中不用手動重生/,
+      /regenerate prompt from repaired handoff opening message/,
       /✅ 升級驗收完成/
     ],
     mustNotHave: [
+      /warn  START_NEXT_SESSION_PROMPT.txt/,
       /status: failed/,
       /anchor checks failed/,
       /請執行：npx --yes @adamchanadam\/agent-handoff-kit@latest upgrade --dry-run/
     ]
   });
+  const s4cPrompt = readFileSync(path.join(s4cRoot, "START_NEXT_SESSION_PROMPT.txt"), "utf8");
+  assert(s4cPrompt.includes("Read in order:"), "scenario 4c prompt copy must be regenerated from handoff opening message");
 
   // Scenario 4d: when a Kit-maintained file lacks a required anchor, upgrade
   // must repair the bounded missing anchor and pass self-check. A novice should
@@ -1026,7 +1139,7 @@ function simulateScenarioBranching() {
   const s3a = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3aRoot], "scenario 3a upgrade metadata-only stale", { env });
   assertScenarioOutput("scenario 3a (upgrade metadata-only stale)", s3a.stdout, {
     mustHave: [
-      /✅ 升級完成：/,
+      /Kit 檔案已更新：等待下方 doctor 驗收/,
       /版本詳情不在升級流程內展開/,
       /github\.com\/Adamchanadam\/agent-handoff-kit\/releases\/latest/
     ],
@@ -1069,7 +1182,7 @@ function simulateScenarioBranching() {
   const s3b = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3bRoot], "scenario 3b upgrade structurally-stale (real v0.1.7 fixture)", { env });
   assertScenarioOutput("scenario 3b (upgrade structurally-stale via real v0.1.7 fixture)", s3b.stdout, {
     mustHave: [
-      /✅ 升級完成：/,
+      /Kit 檔案已更新：等待下方 doctor 驗收/,
       /版本詳情不在升級流程內展開/,
       /github\.com\/Adamchanadam\/agent-handoff-kit\/releases\/latest/
     ],
@@ -1120,7 +1233,7 @@ function simulateScenarioBranching() {
   const s3c = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3cRoot], "scenario 3c upgrade stale lifecycle placeholder", { env });
   assertScenarioOutput("scenario 3c (upgrade stale lifecycle placeholder)", s3c.stdout, {
     mustHave: [
-      /✅ 升級完成：/,
+      /Kit 檔案已更新：等待下方 doctor 驗收/,
       /reclassify stale lifecycle placeholder/,
       /版本詳情不在升級流程內展開/,
       /github\.com\/Adamchanadam\/agent-handoff-kit\/releases\/latest/,
@@ -1234,8 +1347,8 @@ function assertScenarioOutput(label, output, contract) {
 }
 
 function assertConciseUpgradeSuccessNarrative(label, output, expectedVersion) {
-  const start = output.indexOf("✅ 升級完成：");
-  assert(start >= 0, `${label} missing upgrade success narrative start`);
+  const start = output.indexOf("🛠️  Kit 檔案已更新：");
+  assert(start >= 0, `${label} missing upgrade pre-check narrative start`);
   const autoCheck = output.indexOf("🩺 升級後自動檢查", start);
   assert(autoCheck >= 0, `${label} missing post-upgrade auto-check boundary`);
 
@@ -1418,6 +1531,7 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
     "",
     installedLog
   ].join("\n");
+  assertSessionLogMarkerContract(logEntry, "simulated closeout SESSION_LOG");
 
   writeFileSync(path.join(tempRoot, "dev/SESSION_HANDOFF.md"), closedHandoff, "utf8");
   writeFileSync(path.join(tempRoot, "dev/SESSION_LOG.md"), logEntry, "utf8");
@@ -1823,6 +1937,22 @@ function assertHandoffMarker(text, type, id) {
   assert(text.includes(expected), `installed handoff missing semantic marker: ${expected}`);
 }
 
+function assertSessionLogMarkerContract(text, label) {
+  const markers = [
+    "<!-- ack:section:session-log-preamble -->",
+    "<!-- ack:section:session-log-entry-template -->",
+    "<!-- ack:log-entry:start -->",
+    "<!-- ack:log-entry:end -->"
+  ];
+  for (const marker of markers) {
+    assert(count(text, marker) === 1, `${label}: expected exactly one ${marker}`);
+  }
+  const positions = markers.map((marker) => text.indexOf(marker));
+  for (let i = 1; i < positions.length; i += 1) {
+    assert(positions[i - 1] < positions[i], `${label}: SESSION_LOG markers are out of order`);
+  }
+}
+
 function read(relativePath) {
   return readAt(root, relativePath);
 }
@@ -1841,6 +1971,10 @@ function outputText(result) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function count(text, needle) {
+  return text.split(needle).length - 1;
 }
 
 function assert(condition, message) {

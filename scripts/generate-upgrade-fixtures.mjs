@@ -57,7 +57,8 @@ const TARGETS = [
   "v0.3.19",
   "v0.3.20",
   "v0.3.21",
-  "v0.3.22"
+  "v0.3.22",
+  "v0.3.23"
 ];
 
 // Key files needed to reproduce older-version core states for R-024 / R-025.

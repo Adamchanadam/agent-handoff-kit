@@ -5,7 +5,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { assessPromptMirrorTexts } from "./prompt-mirror-core.mjs";
+import { assessPromptMirrorTexts, extractOpeningMessage } from "./prompt-mirror-core.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(__dirname, "..");
@@ -74,6 +74,8 @@ const requiredAnchors = [
       "handoff",
       "Reconcile `dev/SESSION_HANDOFF.md`",
       "Add a concise entry to `dev/SESSION_LOG.md`",
+      "Closeout Write Contract",
+      "ack:log-entry:start/end",
       "next-session opening message",
       "fenced `text` code block",
       "handoff saved",
@@ -116,6 +118,10 @@ const requiredAnchors = [
     label: "session log event and opening message schema",
     placement: sessionLogAnchorPlacement,
     snippets: [
+      "ack:section:session-log-preamble",
+      "ack:section:session-log-entry-template",
+      "ack:log-entry:start",
+      "ack:log-entry:end",
       "Record what actually happened in the session",
       "## Entry Template",
       "- **QC:**",
@@ -295,6 +301,10 @@ const schemaChecks = [
     label: "session log entry fields",
     checks: [
       heading("Entry Template"),
+      marker("section", "session-log-preamble", "Handoff role"),
+      marker("section", "session-log-entry-template", "Entry Template"),
+      includes("ack:log-entry:start"),
+      includes("ack:log-entry:end"),
       includes("- **ID:**"),
       includes("- **Summary:**"),
       includes("- **Changed:**"),
@@ -504,7 +514,7 @@ async function runInstall(command, root, options, version) {
     && !projectIndexVersionNeedsInject;
 
   if (isUpgradeNoopAtPlanTime) {
-    const noOpHealth = await assessUpgradeNoopHealth(root);
+    const noOpHealth = await assessUpgradeNoopHealth(root, version);
     printCard(version, "continuity ready", "o.o");
     console.log(`command: ${command}`);
     console.log(`current directory: ${process.cwd()}`);
@@ -517,6 +527,7 @@ async function runInstall(command, root, options, version) {
       console.log("dry-run: no files written");
     }
     printUpgradeNoopShortCircuit(version, noOpHealth);
+    if (!noOpHealth.ok) process.exitCode = 1;
     return;
   }
 
@@ -559,7 +570,12 @@ async function runInstall(command, root, options, version) {
     await mkdir(path.dirname(backupPath), { recursive: true });
     await copyFile(item.targetAbs, backupPath);
     await writeFile(item.targetAbs, item.mergedText, "utf8");
-    merged.push(item.targetRel);
+    merged.push(item.reason ? `${item.targetRel} - ${item.reason}` : item.targetRel);
+  }
+
+  const promptRegenerated = await regeneratePromptFromHandoffIfHotEvidence(root, backupDir, merged);
+  if (promptRegenerated) {
+    console.log("auto-repair: START_NEXT_SESSION_PROMPT.txt - regenerate prompt from repaired handoff opening message");
   }
 
   // R-031.3 v0.3.4+: Inject current CLI version into PROJECT_INDEX template version
@@ -610,7 +626,9 @@ async function runInstall(command, root, options, version) {
     && !metadataUpdated;
 
   if (isUpgradeNoop) {
-    printUpgradeNoopShortCircuit(version);
+    const noOpHealth = await assessUpgradeNoopHealth(root, version);
+    printUpgradeNoopShortCircuit(version, noOpHealth);
+    if (!noOpHealth.ok) process.exitCode = 1;
     return;
   }
 
@@ -914,7 +932,18 @@ async function checkHandoffTemperatureBoundary(root) {
     // Missing prompt mirror is handled by prompt mirror checks; do not duplicate the failure here.
   }
 
-  const evidencePatterns = [
+  for (const section of sections) {
+    if (!section.text) continue;
+    findings.push(...currentStateEvidenceFindings(section.label, section.text, { allowSourceTokens: section.allowSourceTokens }));
+  }
+
+  return { ok: findings.length === 0, checked: 1, findings };
+}
+
+const rootMismatchGuard = "If this root does not match the expected project root";
+
+function currentStateEvidenceRules() {
+  return [
     { pattern: /post-publish artifact smoke/i, label: "post-publish artifact smoke evidence" },
     { pattern: /PASS\s+7\/7/i, label: "historical PASS count" },
     { pattern: /\bfileCount\b/i, label: "published artifact fileCount evidence" },
@@ -924,21 +953,86 @@ async function checkHandoffTemperatureBoundary(root) {
     { pattern: /\bnpm latest\s+(?:is|=|v?\d)/i, label: "historical npm latest state" },
     { pattern: /GitHub Release\s+(?:metadata|published|view|`?v?\d)/i, label: "historical GitHub Release state" }
   ];
-  const sourceTokenPattern = /\bsource:[A-Za-z0-9._-]+\b/;
+}
 
-  for (const section of sections) {
-    if (!section.text) continue;
-    for (const rule of evidencePatterns) {
-      if (rule.pattern.test(section.text)) {
-        findings.push(`${section.label} contains ${rule.label}; keep it in trace evidence unless it still affects the next action`);
-      }
-    }
-    if (!section.allowSourceTokens && sourceTokenPattern.test(section.text)) {
-      findings.push(`${section.label} contains source:<id>; keep source tokens in PROJECT_INDEX / PROJECT_DECISIONS, not hot startup state`);
+function currentStateEvidenceFindings(sectionLabel, text, options = {}) {
+  const findings = [];
+  for (const rule of currentStateEvidenceRules()) {
+    if (rule.pattern.test(text)) {
+      findings.push(`${sectionLabel} contains ${rule.label}; keep it in trace evidence unless it still affects the next action`);
     }
   }
+  if (!options.allowSourceTokens && /\bsource:[A-Za-z0-9._-]+\b/.test(text)) {
+    findings.push(`${sectionLabel} contains source:<id>; keep source tokens in PROJECT_INDEX / PROJECT_DECISIONS, not hot startup state`);
+  }
+  return findings;
+}
 
-  return { ok: findings.length === 0, checked: 1, findings };
+function lineHasCurrentStateEvidence(line, options = {}) {
+  return currentStateEvidenceFindings("line", line, options).length > 0;
+}
+
+function repairHandoffOpeningRootGuard(text) {
+  if (text.includes(rootMismatchGuard)) return { changed: false, text };
+  const bounds = handoffSectionContentBounds(text, "next-session-opening-message", "Next Session Opening Message");
+  if (!bounds) return { changed: false, text };
+  const section = text.slice(bounds.start, bounds.end);
+  if (!section.includes("```text")) return { changed: false, text };
+
+  let repairedSection = section;
+  if (/^Before changing anything,/m.test(repairedSection)) {
+    repairedSection = repairedSection.replace(/^Before changing anything,/m, `${rootMismatchGuard}, stop and ask for confirmation.\n\nBefore changing anything,`);
+  } else if (/\n```/.test(repairedSection)) {
+    repairedSection = repairedSection.replace(/\n```/, `\n${rootMismatchGuard}, stop and ask for confirmation.\n\n\`\`\``);
+  } else {
+    return { changed: false, text };
+  }
+
+  return {
+    changed: repairedSection !== section,
+    text: `${text.slice(0, bounds.start)}${repairedSection}${text.slice(bounds.end)}`
+  };
+}
+
+function repairHandoffCurrentStateEvidenceBoundary(text) {
+  let repaired = text;
+  let changed = false;
+  for (const section of [
+    { id: "durable-anchors", heading: "Durable Anchors" },
+    { id: "next-priorities", heading: "Next Priorities" },
+    { id: "next-session-opening-message", heading: "Next Session Opening Message" }
+  ]) {
+    const bounds = handoffSectionContentBounds(repaired, section.id, section.heading);
+    if (!bounds) continue;
+    const originalSection = repaired.slice(bounds.start, bounds.end);
+    const lines = originalSection.split(/\r?\n/);
+    const cleanedLines = lines.filter((line) => !lineHasCurrentStateEvidence(line));
+    if (cleanedLines.length !== lines.length) {
+      const cleanedSection = cleanedLines.join("\n");
+      repaired = `${repaired.slice(0, bounds.start)}${cleanedSection}${repaired.slice(bounds.end)}`;
+      changed = true;
+    }
+  }
+  return { changed, text: repaired };
+}
+
+function handoffSectionContentBounds(text, id, headingText) {
+  const marker = `<!-- ack:section:${id} -->`;
+  const markerStart = text.indexOf(marker);
+  if (markerStart >= 0) {
+    const start = markerStart + marker.length;
+    const nextMarker = text.indexOf("<!-- ack:section:", start);
+    return { start, end: nextMarker >= 0 ? nextMarker : text.length };
+  }
+
+  const headingPattern = new RegExp(`^##\\s+${escapeRegExp(headingText)}\\s*$`, "m");
+  const headingMatch = headingPattern.exec(text);
+  if (!headingMatch) return null;
+  const start = headingMatch.index + headingMatch[0].length;
+  const nextHeading = /\n##\s+/g;
+  nextHeading.lastIndex = start;
+  const nextMatch = nextHeading.exec(text);
+  return { start, end: nextMatch ? nextMatch.index : text.length };
 }
 
 function extractHandoffSectionText(text, id, headingText) {
@@ -958,6 +1052,35 @@ function extractHandoffSectionText(text, id, headingText) {
   nextHeading.lastIndex = start;
   const nextMatch = nextHeading.exec(text);
   return text.slice(start, nextMatch ? nextMatch.index : text.length);
+}
+
+async function regeneratePromptFromHandoffIfHotEvidence(root, backupDir, merged) {
+  const handoffPath = path.join(root, "dev/SESSION_HANDOFF.md");
+  const promptPath = path.join(root, "START_NEXT_SESSION_PROMPT.txt");
+  let handoffText = "";
+  let promptText = "";
+  try {
+    handoffText = await readFile(handoffPath, "utf8");
+    promptText = await readFile(promptPath, "utf8");
+  } catch {
+    return false;
+  }
+
+  const opening = extractOpeningMessage(handoffText);
+  if (opening == null) return false;
+
+  const promptNeedsRepair = lineHasCurrentStateEvidence(promptText)
+    || (!promptText.includes(rootMismatchGuard) && opening.includes(rootMismatchGuard));
+  if (!promptNeedsRepair) return false;
+
+  const backupPath = path.join(backupDir, "START_NEXT_SESSION_PROMPT.txt");
+  await mkdir(path.dirname(backupPath), { recursive: true });
+  await copyFile(promptPath, backupPath);
+  await writeFile(promptPath, `${opening}\n`, "utf8");
+  if (!merged.some((item) => item.startsWith("START_NEXT_SESSION_PROMPT.txt"))) {
+    merged.push("START_NEXT_SESSION_PROMPT.txt - regenerate prompt from repaired handoff opening message");
+  }
+  return true;
 }
 
 function getFirstUseNextStep(root, lastCloseout) {
@@ -1470,6 +1593,9 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
   }
+  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && hasMisplacedRequiredAnchor(targetRel, targetText, "handoff log archive continuity")) {
+    return { ...base, action: "conflict", reason: "required Kit anchors are present outside trusted semantic sections; upgrade stopped to avoid accepting naked anchor text as valid state" };
+  }
   if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && hasMissingRequiredAnchor(targetRel, targetText, "handoff log archive continuity")) {
     const mergedHandoff = mergeHandoffArchiveContinuityRule(targetText, sourceText);
     if (!mergedHandoff) {
@@ -1481,6 +1607,28 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       reason: "insert handoff archive continuity rule so upgrade self-check can pass without requiring manual anchor repair",
       mergedText: mergedHandoff
     };
+  }
+  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade") {
+    const repairedOpening = repairHandoffOpeningRootGuard(targetText);
+    if (repairedOpening.changed) {
+      return {
+        ...base,
+        action: "merge",
+        reason: "restore root mismatch guard in Next Session Opening Message",
+        mergedText: repairedOpening.text
+      };
+    }
+  }
+  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade") {
+    const repairedTemperature = repairHandoffCurrentStateEvidenceBoundary(targetText);
+    if (repairedTemperature.changed) {
+      return {
+        ...base,
+        action: "merge",
+        reason: "move historical evidence out of hot handoff state",
+        mergedText: repairedTemperature.text
+      };
+    }
   }
   if (targetRel === "dev/SESSION_LOG.md" && command === "upgrade" && !targetText.includes("- **Evidence disposition:**")) {
     const mergedLog = mergeSessionLogEvidenceDispositionField(targetText);
@@ -1620,7 +1768,12 @@ function isRequiredAnchorSemanticallyPlaced(rule, snippet, text) {
 }
 
 function sessionLogAnchorPlacement(snippet, text) {
+  if (snippet === "ack:section:session-log-preamble") return text.includes("ack:section:session-log-preamble");
+  if (snippet === "ack:section:session-log-entry-template") return text.includes("ack:section:session-log-entry-template");
   if (snippet === "## Entry Template") return /^## Entry Template\s*$/m.test(text);
+  if (snippet === "ack:log-entry:start" || snippet === "ack:log-entry:end") {
+    return sessionLogEntryTemplateContains(text, snippet);
+  }
   const preamble = [
     "Record what actually happened in the session",
     "kept, summarized, or archived",
@@ -1628,7 +1781,19 @@ function sessionLogAnchorPlacement(snippet, text) {
     "latest opening message",
     "not current state"
   ];
-  if (preamble.includes(snippet)) return snippetAppearsBeforeHeading(text, snippet, "## Entry Template");
+  if (preamble.includes(snippet)) return sessionLogPreambleContains(text, snippet);
+  return sessionLogEntryTemplateContains(text, snippet);
+}
+
+function sessionLogPreambleContains(text, snippet) {
+  const markerBounds = textSectionBounds(text, "<!-- ack:section:session-log-preamble -->", "<!-- ack:section:session-log-entry-template -->");
+  if (markerBounds) return text.slice(markerBounds.start, markerBounds.end).includes(snippet);
+  return snippetAppearsBeforeHeading(text, snippet, "## Entry Template");
+}
+
+function sessionLogEntryTemplateContains(text, snippet) {
+  const markerIndex = text.indexOf("<!-- ack:section:session-log-entry-template -->");
+  if (markerIndex >= 0) return text.slice(markerIndex).includes(snippet);
   return snippetAppearsAfterHeading(text, snippet, "## Entry Template");
 }
 
@@ -1728,10 +1893,10 @@ const semanticAnchorRepairStrategies = {
     } : null;
   },
   "dev/SESSION_LOG.md": (targetText, sourceText) => {
-    const mergedLog = insertSourcePreambleBeforeHeading(targetText, sourceText, "## Entry Template");
+    const mergedLog = mergeSessionLogTemplateContract(targetText, sourceText);
     return mergedLog ? {
       action: "merge",
-      reason: "restore SESSION_LOG Kit preamble before ## Entry Template",
+      reason: "restore SESSION_LOG machine boundaries and entry template contract",
       mergedText: mergedLog
     } : null;
   },
@@ -2037,10 +2202,95 @@ function ensureHandoffStateReconciliationRules(targetText) {
 }
 
 function mergeSessionLogEvidenceDispositionField(targetText) {
-  if (targetText.includes("- **Evidence disposition:**")) return targetText;
+  if (targetText.includes("- **Evidence disposition:**")) return mergeSessionLogTemplateContract(targetText, null) ?? targetText;
   const qcField = "- **QC:**";
   if (!targetText.includes(qcField)) return null;
-  return targetText.replace(qcField, `${qcField}\n- **Evidence disposition:** <one-time only / kept as recent trace evidence / absorbed into handoff / indexed in PROJECT_INDEX / promoted to PROJECT_DECISIONS / promoted to rule pack>`);
+  const withEvidence = targetText.replace(qcField, `${qcField}\n- **Evidence disposition:** <one-time only / kept as recent trace evidence / absorbed into handoff / indexed in PROJECT_INDEX / promoted to PROJECT_DECISIONS / promoted to rule pack>`);
+  return mergeSessionLogTemplateContract(withEvidence, null) ?? withEvidence;
+}
+
+function mergeSessionLogTemplateContract(targetText, sourceText = null) {
+  let merged = targetText;
+  let changed = false;
+
+  if (!merged.includes("ack:section:session-log-preamble")) {
+    const titleMatch = /^# Session Log\s*$/m.exec(merged);
+    if (titleMatch) {
+      const insertAt = titleMatch.index + titleMatch[0].length;
+      merged = `${merged.slice(0, insertAt)}\n\n<!-- ack:section:session-log-preamble -->${merged.slice(insertAt)}`;
+      changed = true;
+    } else if (sourceText?.includes("ack:section:session-log-preamble")) {
+      const sourcePreambleMarker = "<!-- ack:section:session-log-preamble -->";
+      merged = `${sourcePreambleMarker}\n\n${merged}`;
+      changed = true;
+    }
+  }
+
+  if (!merged.includes("ack:section:session-log-entry-template")) {
+    const headingMatch = /^## Entry Template\s*$/m.exec(merged);
+    if (headingMatch) {
+      merged = `${merged.slice(0, headingMatch.index)}<!-- ack:section:session-log-entry-template -->\n\n${merged.slice(headingMatch.index)}`;
+      changed = true;
+    }
+  }
+
+  if (sourceText) {
+    const restored = restoreMissingSessionLogPreambleLines(merged, sourceText);
+    if (restored !== merged) {
+      merged = restored;
+      changed = true;
+    }
+  }
+
+  const entryTemplateIndex = merged.search(/^## Entry Template\s*$/m);
+  if (entryTemplateIndex >= 0) {
+    const beforeTemplate = merged.slice(0, entryTemplateIndex);
+    let templateAndAfter = merged.slice(entryTemplateIndex);
+    if (!templateAndAfter.includes("ack:log-entry:start")) {
+      const replaced = templateAndAfter.replace(/````markdown(\r?\n)/, "````markdown$1<!-- ack:log-entry:start -->$1");
+      if (replaced !== templateAndAfter) {
+        templateAndAfter = replaced;
+        changed = true;
+      }
+    }
+    if (!templateAndAfter.includes("ack:log-entry:end")) {
+      const openingIndex = templateAndAfter.indexOf("````markdown");
+      const closingIndex = openingIndex >= 0
+        ? templateAndAfter.indexOf("\n````", openingIndex + "````markdown".length)
+        : -1;
+      if (closingIndex >= 0) {
+        templateAndAfter = `${templateAndAfter.slice(0, closingIndex)}\n<!-- ack:log-entry:end -->${templateAndAfter.slice(closingIndex)}`;
+        changed = true;
+      }
+    }
+    merged = `${beforeTemplate}${templateAndAfter}`;
+  }
+
+  return changed ? merged : targetText;
+}
+
+function restoreMissingSessionLogPreambleLines(targetText, sourceText) {
+  const sourceEntryIndex = sourceText.search(/^## Entry Template\s*$/m);
+  const targetEntryMarkerIndex = targetText.indexOf("<!-- ack:section:session-log-entry-template -->");
+  const targetEntryHeadingIndex = targetText.search(/^## Entry Template\s*$/m);
+  const insertIndex = targetEntryMarkerIndex >= 0 ? targetEntryMarkerIndex : targetEntryHeadingIndex;
+  if (sourceEntryIndex < 0 || insertIndex < 0) return targetText;
+
+  const sourcePreamble = sourceText.slice(0, sourceEntryIndex);
+  const missingLines = [
+    "Record what actually happened in the session",
+    "kept, summarized, or archived",
+    "Do not remove validation evidence",
+    "latest opening message",
+    "not current state"
+  ].flatMap((snippet) => {
+    if (targetText.includes(snippet)) return [];
+    const line = sourcePreamble.split(/\r?\n/).find((candidate) => candidate.includes(snippet));
+    return line ? [line] : [];
+  });
+
+  if (missingLines.length === 0) return targetText;
+  return `${targetText.slice(0, insertIndex).trimEnd()}\n\n${missingLines.join("\n\n")}\n\n${targetText.slice(insertIndex)}`;
 }
 
 function mergeHandoffArchiveContinuityRule(targetText, sourceText) {
@@ -2768,7 +3018,7 @@ function printUpgradeNextSteps(root, conflictCount) {
     console.log("============================================================");
     return;
   }
-  console.log("✅ 升級完成：Kit 檔案已更新到最新版本");
+  console.log("🛠️  Kit 檔案已更新：等待下方 doctor 驗收");
   console.log("============================================================");
   console.log("📋 如你正在進行中的工作對話已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
   console.log("");
@@ -2779,36 +3029,66 @@ function printUpgradeNextSteps(root, conflictCount) {
   console.log("============================================================");
 }
 
-// R-031 v0.3.1+: Upgrade no-op short-circuit. When the user runs upgrade on a root
-// already at latest version (skip all / create 0 / merge 0 / conflict 0), print a
-// short factual message and return. Saves disk (no migration report) + reduces noise
-// (no self-check doctor) + avoids misleading "安裝完成" framing for an idempotent
-// operation where nothing changed.
-async function assessUpgradeNoopHealth(root) {
+// R-031 v0.3.24+: Upgrade no-op may skip file writes, but it must not skip the
+// single health authority. If the CLI says a latest root can continue, that claim
+// is backed by the same runDoctor() implementation users would invoke manually.
+async function assessUpgradeNoopHealth(root, version) {
+  const originalLog = console.log;
+  const originalError = console.error;
+  const previousExitCode = process.exitCode;
+  const stdout = [];
+  const stderr = [];
+
   try {
-    const handoffText = await readFile(path.join(root, "dev/SESSION_HANDOFF.md"), "utf8");
-    return { handoffLifecycle: assessHandoffLifecycleConsistency(handoffText) };
-  } catch {
-    return { handoffLifecycle: { ok: false, reason: "dev/SESSION_HANDOFF.md unreadable" } };
+    console.log = (...args) => stdout.push(args.join(" "));
+    console.error = (...args) => stderr.push(args.join(" "));
+    process.exitCode = undefined;
+    const status = await runDoctor(root, version, { silentCard: true, context: "upgrade-noop-health-check" });
+    const doctorExitCode = process.exitCode;
+    return {
+      ok: status === "passed" && !doctorExitCode,
+      status,
+      stdout: stdout.join("\n"),
+      stderr: stderr.join("\n"),
+      error: null
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "failed",
+      stdout: stdout.join("\n"),
+      stderr: stderr.join("\n"),
+      error: error.message
+    };
+  } finally {
+    console.log = originalLog;
+    console.error = originalError;
+    process.exitCode = previousExitCode;
   }
 }
 
-function printUpgradeNoopShortCircuit(version, health = { handoffLifecycle: { ok: true } }) {
+function printUpgradeNoopShortCircuit(version, health = { ok: true }) {
   console.log("");
   console.log(`📦 版本：v${version}`);
   console.log("🛠️  模式：upgrade-existing");
   console.log("🔎 剛完成：檢查所有 Kit 檔案的狀態（含 AGENTS.md、dev/SESSION_HANDOFF.md、dev/PROJECT_INDEX.md 等）。");
-  if (health.handoffLifecycle?.ok) {
+  if (health.ok) {
     console.log("✅ 結果：你已經是最新版本，沒有檔案需要建立或合併；用戶填寫的內容全部保留現狀。");
     console.log("");
     console.log("🚀 下一步：回到原本的 AI 對話或開工句即可；如果剛完成任務，記得在 AI 對話輸入「收工」保存交接。");
     console.log("");
     return;
   }
-  console.log("⚠️  結果：Kit 檔案已是最新版本，沒有檔案需要建立或合併；但交接狀態仍需 AI closeout 核對。");
+  console.log("⚠️  結果：Kit 檔案已是最新版本，沒有檔案需要建立或合併；但完整 doctor 健康檢查未通過。");
   console.log("");
-  console.log("🚀 下一步：先執行 doctor 取得待修項，再把輸出貼給 AI；不要重裝或覆寫用戶內容。");
-  console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest doctor");
+  console.log("🩺 doctor 輸出：");
+  const doctorOutput = [health.stdout, health.stderr, health.error ? `error: ${health.error}` : ""]
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+  console.log(doctorOutput || "doctor did not return readable output.");
+  console.log("");
+  console.log("🚀 下一步：把上方 doctor 輸出貼給能讀寫此資料夾的 AI，請它按失敗項修補；不要重裝或覆寫用戶內容。");
   console.log("");
 }
 

@@ -1,8 +1,33 @@
 # 變更紀錄
 
+## v0.3.24 — 2026-06-02
+
+狀態：發佈前候選版本。本版修補真實 runtime 揭發的 `upgrade` no-op 假成功問題，並把修補重心提升到源頭寫入標準：新版本之後，交接資料必須使用同一套 Agent Handoff Kit marker standard；舊資料可安全遷移才自動修，不能安全判斷用戶意圖時才交給 AI。
+
+### Fixed
+
+- `upgrade` no-op 分支不再只檢查局部 handoff lifecycle；改為在同一進程內共用 `runDoctor()`，避免外部子程序或 runtime 權限差異令健康檢查失真。
+- 若 no-op upgrade 遇到可安全修復的 Kit-owned 結構、熱層污染或 prompt mirror 問題，CLI 會自動修復並重新跑 `doctor`。
+- 若 no-op upgrade 的完整 `doctor` 仍失敗，而且問題不是工具可安全自修的類型，CLI 會明確輸出「Kit 檔案已是最新，但完整 doctor 健康檢查未通過」，顯示 doctor 證據，並以非零狀態結束。
+- 實質升級路徑不再於 `doctor` 前印「升級完成」；中途只說「Kit 檔案已更新」，真正完成只由 `doctor` 通過後的「升級驗收完成」表示。
+- 健康 no-op 項目仍保持短輸出；只有 `doctor` 通過時才會顯示「你已經是最新版本，沒有檔案需要建立或合併」的成功語氣。
+- `SESSION_LOG` 新增最低機器邊界：`ack:section:session-log-preamble`、`ack:section:session-log-entry-template`、`ack:log-entry:start/end`。新 closeout 寫入必須用統一 marker；舊 heading fallback 只作舊資料遷移 / repair，不作新正常路徑。
+- 核心 closeout 寫入合同明確收斂為一套 marker standard：`ack:section:*`、`ack:field:*`、`ack:log-entry:start/end`、managed-core BEGIN/END。這是今版的治理根因修補，不新增平行治理文件。
+
+### QA
+
+- `qa:release` 新增 no-op full-doctor gate 情景：handoff lifecycle 失敗、opening message schema 失敗、handoff temperature boundary 失敗三類都必須阻止 `upgrade` 報成功。
+- 發佈級多情境表新增通用 no-op auto-repair 情景，確認解法不綁定任何單一 runtime 目錄、專案名稱或一次性 log。
+- `qa:upgrade` 鏈式升級必須把舊 `SESSION_LOG` 非破壞性遷移到統一 marker standard，並保留既有 log 內容；測試驗收改看最後結構與 `doctor`，不再硬綁單次 `merged: 1`。
+- 真實 runtime 回饋只作證據來源；提煉後的修補以通用狀態類型驗收：健康 no-op 必須通過、可安全自修的 Kit-owned drift 必須自動修、需要判斷用戶意圖的狀態不得假成功。
+
+### Migration path（v0.3.23 → v0.3.24，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。工具會盡量把舊格式遷移到統一 marker standard，並用完整 `doctor` 判斷項目健康。若剩下的問題需要判斷用戶意圖，CLI 會列出位置與修復 prompt；請交給能讀寫該資料夾的 AI 按 doctor 失敗項修補，不要重裝覆寫。
+
 ## v0.3.23 — 2026-06-02
 
-狀態：發佈前候選版本。本版修補跨 session 交接被壓縮後的來源脈絡與歷史證據污染問題：研究導向長期決策必須保留可追溯 evidence chain；一次性任務證據、舊版本狀態、build / QC / release evidence 不可再留在下一輪開工的 current state、Durable Anchors、Next Priorities 或 opening message 中驅動行動。
+狀態：正式發佈版本。本版修補跨 session 交接被壓縮後的來源脈絡與歷史證據污染問題：研究導向長期決策必須保留可追溯 evidence chain；一次性任務證據、舊版本狀態、build / QC / release evidence 不可再留在下一輪開工的 current state、Durable Anchors、Next Priorities 或 opening message 中驅動行動。
 
 ### Fixed
 

@@ -183,7 +183,7 @@ function main() {
   assert(count(sandwichInjected, "BEGIN Agent Handoff Kit managed core") === 1, "sandwich precondition: AGENTS.md must already contain one managed marker pair");
 
   const sandwichUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", sandwichRoot], "upgrade R-024 sandwich dup core");
-  assert(sandwichUpgrade.stdout.includes("merged: 1"), "R-024 sandwich upgrade must report one merged file (not skip)");
+  assertMergedAtLeast(sandwichUpgrade.stdout, 1, "R-024 sandwich upgrade must report at least one merged file (not skip)");
   assert(sandwichUpgrade.stdout.includes("sandwich dup core") || sandwichUpgrade.stdout.includes("replace sandwich dup core"), "R-024 sandwich upgrade plan should describe sandwich replacement");
 
   const sandwichResult = read(path.join(sandwichRoot, "AGENTS.md"));
@@ -283,7 +283,7 @@ function main() {
   writeFileSync(path.join(realSandwichRoot, "AGENTS.md"), injectedAgents, "utf8");
   assert(countCoreHeadings(injectedAgents) === 2, "real-sandwich precondition: must have two core headings before final upgrade");
   const realSandwichUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", realSandwichRoot], "real-sandwich final upgrade");
-  assert(realSandwichUpgrade.stdout.includes("merged: 1"), "real-sandwich final upgrade must report one merged file");
+  assertMergedAtLeast(realSandwichUpgrade.stdout, 1, "real-sandwich final upgrade must report at least one merged file");
   assert(realSandwichUpgrade.stdout.includes("升級後自動檢查"), "real-sandwich final upgrade must run doctor self-check");
   assert(realSandwichUpgrade.stdout.includes("status: passed"), "real-sandwich self-check must pass");
   const realSandwichResult = read(path.join(realSandwichRoot, "AGENTS.md"));
@@ -333,7 +333,8 @@ function main() {
     { ref: "v0.3.20", command: "upgrade" },
     { ref: "v0.3.21", command: "upgrade" },
     { ref: "v0.3.22", command: "upgrade" },
-    { ref: "v0.3.23", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.23", command: "upgrade", source: "tag" },
+    { ref: "v0.3.24", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -389,7 +390,7 @@ function main() {
     + "\n| Custom user workflow | `dev/rules/custom.md` | keep this user row |\n";
   writeFileSync(customRulePacksPath, customRulePacksBefore, "utf8");
   const customRulePacksUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", customRulePacksRoot], "rulepacks custom-row preservation upgrade");
-  assert(customRulePacksUpgrade.stdout.includes("merged: 1"), "RULE_PACKS custom-row scenario should merge one routing table file");
+  assertMergedAtLeast(customRulePacksUpgrade.stdout, 1, "RULE_PACKS custom-row scenario should merge at least one file");
   const customRulePacksAfter = read(customRulePacksPath);
   assert(customRulePacksAfter.includes("Custom user workflow"), "RULE_PACKS custom user row was lost during upgrade");
   assert(customRulePacksAfter.includes("First-time user signals"), "RULE_PACKS onboarding routing row was not restored");
@@ -512,8 +513,8 @@ function main() {
   );
   const stalePromptUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", stalePromptRoot], "stale-prompt upgrade self-check");
   const stalePromptOut = outputText(stalePromptUpgrade);
-  assert(stalePromptOut.includes("merged: 1"), "stale-prompt scenario must perform a substantive AGENTS.md merge so the self-check runs");
-  assert(stalePromptOut.includes("warn  START_NEXT_SESSION_PROMPT.txt"), "stale prompt convenience copy should warn during ordinary doctor");
+  assertMergedAtLeast(stalePromptOut, 1, "stale-prompt scenario must perform a substantive merge so the self-check runs");
+  assert(!stalePromptOut.includes("missing  START_NEXT_SESSION_PROMPT.txt"), "stale prompt convenience copy must not block upgrade health");
   assert(stalePromptOut.includes("status: passed"), "stale prompt convenience copy must not fail upgrade self-check");
   assert(stalePromptOut.includes("升級驗收完成"), "stale prompt scenario should complete upgrade validation");
   assert(!stalePromptOut.includes("anchor checks failed"), "stale prompt convenience copy must not be a blocking anchor failure");
@@ -569,7 +570,7 @@ function main() {
 
   const anchorDriftUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", anchorDriftRoot], "anchor-drift upgrade self-check");
   const anchorDriftOut = outputText(anchorDriftUpgrade);
-  assert(anchorDriftOut.includes("merged: 2"), "anchor-drift scenario must merge AGENTS.md plus the drifted safety pack");
+  assertMergedAtLeast(anchorDriftOut, 2, "anchor-drift scenario must merge AGENTS.md plus the drifted safety pack");
   assert(anchorDriftOut.includes("restore safety pack high-risk rules in ## Rules section"), "anchor-drift upgrade must explain semantic safety repair");
   assert(anchorDriftOut.includes("status: passed"), "anchor-drift upgrade self-check must pass after automatic anchor repair");
   assert(anchorDriftOut.includes("升級驗收完成"), "anchor-drift scenario should complete upgrade validation");
@@ -587,7 +588,7 @@ function main() {
       targetRel: "dev/SESSION_LOG.md",
       snippet: "not current state",
       replacement: "not-current-state anchor removed from this stale local copy",
-      expectedReason: "restore SESSION_LOG Kit preamble before ## Entry Template",
+      expectedReason: "restore SESSION_LOG machine boundaries and entry template contract",
       beforeHeading: "## Entry Template"
     }),
     assertUpgradeQualityMatrixCase({
@@ -783,6 +784,7 @@ function main() {
   assert(logPreserveUpgrade.stdout.includes("status: passed"), "session log preserve upgrade self-check must pass");
   assert(logPreserveAfter.includes(existingEntry.trim()), "SESSION_LOG semantic repair must preserve existing user evidence entries");
   assertSnippetBefore(logPreserveAfter, "not current state", "## Entry Template", "SESSION_LOG semantic repair must restore preamble before ## Entry Template");
+  assertSessionLogMarkerContract(logPreserveAfter, "session log preserve upgrade");
 
   console.log("");
   console.log("Agent Handoff Kit upgrade safety QA passed");
@@ -846,6 +848,9 @@ function assertUpgradeQualityMatrixCase({
   }
   if (betweenHeadings) {
     assertSnippetBetween(after, snippet, betweenHeadings[0], betweenHeadings[1], `upgrade quality ${label} must restore snippet in semantic section`);
+  }
+  if (targetRel === "dev/SESSION_LOG.md") {
+    assertSessionLogMarkerContract(after, `upgrade quality ${label}`);
   }
 
   const index = read(path.join(caseRoot, "dev/PROJECT_INDEX.md"));
@@ -981,6 +986,22 @@ function assertSingleCore(text, label) {
   assert(count(text, "BEGIN Agent Handoff Kit managed core") === count(text, "END Agent Handoff Kit managed core"), `${label}: managed core markers are not paired`);
 }
 
+function assertSessionLogMarkerContract(text, label) {
+  const markers = [
+    "<!-- ack:section:session-log-preamble -->",
+    "<!-- ack:section:session-log-entry-template -->",
+    "<!-- ack:log-entry:start -->",
+    "<!-- ack:log-entry:end -->"
+  ];
+  for (const marker of markers) {
+    assert(count(text, marker) === 1, `${label}: expected exactly one ${marker}`);
+  }
+  const positions = markers.map((marker) => text.indexOf(marker));
+  for (let i = 1; i < positions.length; i += 1) {
+    assert(positions[i - 1] < positions[i], `${label}: SESSION_LOG markers are out of order`);
+  }
+}
+
 function count(text, needle) {
   return text.split(needle).length - 1;
 }
@@ -1077,6 +1098,15 @@ function previousPatchTag(version) {
   const patch = Number(match[3]);
   assert(patch > 0, `previous released patch is undefined for ${version}`);
   return `v${match[1]}.${match[2]}.${patch - 1}`;
+}
+
+function mergedCount(output) {
+  const match = output.match(/merged:\s*(\d+)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function assertMergedAtLeast(output, minimum, message) {
+  assert(mergedCount(output) >= minimum, `${message}; saw merged: ${mergedCount(output)}`);
 }
 
 function assert(condition, message) {
