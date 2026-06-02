@@ -1,8 +1,31 @@
 # 變更紀錄
 
+## v0.3.23 — 2026-06-02
+
+狀態：發佈前候選版本。本版修補跨 session 交接被壓縮後的來源脈絡與歷史證據污染問題：研究導向長期決策必須保留可追溯 evidence chain；一次性任務證據、舊版本狀態、build / QC / release evidence 不可再留在下一輪開工的 current state、Durable Anchors、Next Priorities 或 opening message 中驅動行動。
+
+### Fixed
+
+- `doctor` 新增 research decision trace checks：若 `dev/PROJECT_DECISIONS.md` 出現 research-derived decision 或 `Evidence chain:`，必須包含完整 evidence chain，且 `Source=source:<id>` 必須已登記在 `dev/PROJECT_INDEX.md`。
+- `doctor` 新增 current-state evidence boundary checks：檢查 `dev/SESSION_HANDOFF.md` 與 `START_NEXT_SESSION_PROMPT.txt`，阻擋一次性 release / build / QC evidence、舊 npm latest 狀態、source token 或 research evidence chain 污染當前交接。
+- `SESSION_HANDOFF` template 新增 `Persistence routing checked` 欄位；`SESSION_LOG` template 新增 `Evidence disposition` 欄位，讓 closeout 能明確分辨 current state、trace evidence、project index、project decisions 與 rule pack 的落點。
+- `PROJECT_DECISIONS` template 新增 research-derived decision evidence-chain 格式與邊界說明，避免原始 build / upload / QC evidence 被誤放入長期決策檔。
+- 開工與收工卡片新增明確版本顯示來源：AI 必須從 `dev/PROJECT_INDEX.md` 的 `Agent Handoff Kit template version` 讀取版本；讀不到時顯示 `version unverified`，不得把 `v<version>` 佔位符直接輸出。
+
+### QA
+
+- `qa:release` 新增 research trace 正反 fixture 與 handoff evidence-boundary 負面 fixture。
+- Product Journey Matrix 新增 `Task evidence → closeout disposition → next session startup` full-audit 場景，確認任務證據可保留，但不可拖住下一輪開工。
+- `qa:upgrade` 鏈式升級改為 v0.3.22 已發佈 hop + v0.3.23 current HEAD hop，並驗證舊專案可非破壞性補齊 `SESSION_HANDOFF`、`SESSION_LOG` 與 `PROJECT_DECISIONS` 新欄位 / 新錨點。
+- `qa:release` 新增 runtime core 錨點，確認開工／收工版本顯示規則仍存在，避免模板回到只印佔位符或漏印版本。
+
+### Migration path（v0.3.22 → v0.3.23，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。升級會保留既有 handoff、log、index、decisions 與 rule pack 內容；缺少的新欄位或可定位 Kit 錨點會以備份加 migration report 的方式非破壞性補回。升級後請執行 `doctor`；若它指出當前交接混入歷史證據，請讓 AI 在 closeout 中把證據移回 `SESSION_LOG`、`PROJECT_INDEX` 或 `PROJECT_DECISIONS`。
+
 ## v0.3.22 — 2026-06-01
 
-狀態：發佈前候選版本。本版修補真實 runtime upgrade 測試揭發的 root-fix：舊項目升級時，若缺的是 Kit 自己可定位的維護文字，工具應非破壞性補回正確語義位置並讓 `doctor` 穩定通過；只有結構標記損壞、管理區重名，或安全規則語義不可判斷時才停手。
+狀態：正式發佈版本。本版修補真實 runtime upgrade 測試揭發的 root-fix：舊項目升級時，若缺的是 Kit 自己可定位的維護文字，工具應非破壞性補回正確語義位置並讓 `doctor` 穩定通過；只有結構標記損壞、管理區重名，或安全規則語義不可判斷時才停手。
 
 ### Fixed
 

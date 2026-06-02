@@ -332,7 +332,8 @@ function main() {
     { ref: "v0.3.19", command: "upgrade" },
     { ref: "v0.3.20", command: "upgrade" },
     { ref: "v0.3.21", command: "upgrade" },
-    { ref: "v0.3.22", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.22", command: "upgrade" },
+    { ref: "v0.3.23", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -460,17 +461,30 @@ function main() {
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", userDataRoot], "user-data regression bootstrap install");
   // Then overwrite PROJECT_INDEX with user-filled fixture (simulating v0.2.x user state with custom data).
   copyFileSync(path.join(userDataFixtureDir, "dev/PROJECT_INDEX.md"), path.join(userDataRoot, "dev/PROJECT_INDEX.md"));
+  const userDataDecisionsPath = path.join(userDataRoot, "dev/PROJECT_DECISIONS.md");
+  writeFileSync(
+    userDataDecisionsPath,
+    read(userDataDecisionsPath).replace(
+      "(empty)",
+      "- 2026-05-22 [research-derived] API contract decision. Evidence chain: Source=source:api-spec; Summary=API spec defines endpoint behavior; Inference=route changes must follow spec; Decision impact=release checks preserve API source map; Uncertainty=none."
+    ),
+    "utf8"
+  );
   // Run upgrade — should trigger PROJECT_INDEX migration (insert Installed Integrations) without overwriting user content.
   const userDataUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", userDataRoot], "user-data regression upgrade");
   assert(userDataUpgrade.stdout.includes("status: passed"), "user-data regression upgrade self-check must pass");
   // Verify user-filled rows preserved post-upgrade.
   const userDataPostIndex = read(path.join(userDataRoot, "dev/PROJECT_INDEX.md"));
+  const userDataPostDecisions = read(path.join(userDataRoot, "dev/PROJECT_DECISIONS.md"));
   assert(userDataPostIndex.includes("Python 3.11"), "P2 regression: user-filled Stack row『Python 3.11』lost after upgrade");
   assert(userDataPostIndex.includes("Notion DB「Project Tasks」"), "P2 regression: user-filled External Sources row『Notion DB「Project Tasks」』lost after upgrade");
   assert(userDataPostIndex.includes("https://notion.so/abc123def456"), "P2 regression: user-filled Notion URL lost after upgrade");
   assert(userDataPostIndex.includes("Google Drive「Project Files/」"), "P2 regression: user-filled External Sources row『Google Drive』lost after upgrade");
   assert(userDataPostIndex.includes("Linear「Project Backlog」"), "P2 regression: user-filled External Sources row『Linear』lost after upgrade");
   assert(userDataPostIndex.includes("~/project/docs/api-spec.md"), "P2 regression: user-filled Fact Base row lost after upgrade");
+  assert(userDataPostIndex.includes("source:api-spec"), "P2 regression: research source token lost after upgrade");
+  assert(userDataPostDecisions.includes("[research-derived] API contract decision"), "P2 regression: research-derived decision lost after upgrade");
+  assert(userDataPostDecisions.includes("Evidence chain: Source=source:api-spec"), "P2 regression: research-derived evidence chain lost after upgrade");
   assert(userDataPostIndex.includes("pytest tests/unit/"), "P2 regression: user-filled Local QC Commands row lost after upgrade");
   assert(userDataPostIndex.includes("a1b2c3d"), "P2 regression: user-filled Workspace Identity row lost after upgrade");
   // Verify Installed Integrations section was correctly inserted (non-destructive migration).

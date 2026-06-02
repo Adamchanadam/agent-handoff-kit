@@ -20,6 +20,7 @@ Before closeout, record whether older log detail was kept, summarized, or archiv
 - **Changed:** <files changed, or none>
 - **Done:** <work completed this session>
 - **QC:** <checks run and results, or why not run>
+- **Evidence disposition:** <one-time only / kept as recent trace evidence / absorbed into handoff / indexed in PROJECT_INDEX / promoted to PROJECT_DECISIONS / promoted to rule pack>
 - **Sync:** <doc/external sync status>
 - **Pending:** <next work>
 - **Risks:** <known risks or none>

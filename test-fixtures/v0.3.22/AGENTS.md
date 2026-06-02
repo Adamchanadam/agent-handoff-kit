@@ -34,8 +34,6 @@ After reading `dev/PROJECT_INDEX.md`, if `## Installed Integrations` is non-empt
 
 After startup reads are complete, show one short startup card. If onboarding is loaded, combine this card and the onboarding choice list into one first response. Do not print any standalone startup card before the onboarding rule has been read. Do not print a partial card. Do not print the cat banner twice. If you started drafting a card and then discovered onboarding applies, discard the draft and output only the final combined response.
 
-Display version rule: after reading `dev/PROJECT_INDEX.md`, take the card version from the `## Stack` row `Agent Handoff Kit template version`. Print it as `vX.Y.Z`. If that row is missing, unreadable, or not a version, print `version unverified`. Never print the literal placeholder `v<version>` in user-facing startup or closeout output.
-
 ```text
    /\_/\   Agent Handoff Kit v<version>
   ( o.o )  continuity ready
@@ -47,7 +45,7 @@ Display version rule: after reading `dev/PROJECT_INDEX.md`, take the card versio
 🚀 下一步：<next action>
 ```
 
-Keep the card short. Use plain Traditional Chinese labels in user-facing output. Use the full product name, not an abbreviation.
+Keep the card short. Use plain Traditional Chinese labels in user-facing output. Use the full product name, not an abbreviation. If the installed template or CLI version is unknown, write `version unverified` instead of guessing.
 
 ## 2. Work Loop
 
@@ -57,7 +55,7 @@ Use this loop for every task:
 2. READ: inspect relevant files from `PROJECT_INDEX.md` and search for related definitions before editing.
 3. CHANGE: make focused changes only.
 4. QC: run available checks or state why they cannot run.
-5. PERSIST: classify durable facts before writing them. Current state belongs in handoff, chronological evidence in log, file / command / reference maps in project index, sync obligations in doc sync registry, and reusable operating procedure in the relevant rule pack or registered reference. Do not persist one-time delivery instructions, historical validation evidence, old hashes, old version facts, or incident notes as current state, next priorities, durable anchors, or startup instructions. Do not store reusable procedure knowledge only in handoff or log.
+5. PERSIST: classify durable facts before writing them. Current state belongs in handoff, chronological evidence in log, file / command / reference maps in project index, sync obligations in doc sync registry, and reusable operating procedure in the relevant rule pack or registered reference. Do not store reusable procedure knowledge only in handoff or log.
 
 External skill flows, subagents, task plans, or another tool's "finish" step do not replace this loop. If you use any of them, the PLAN must include a final Agent Handoff Kit persistence step for the active project root, and completion cannot be claimed until that root's `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md`, and `dev/DOC_SYNC_REGISTRY.md` have been inspected and updated or explicitly marked not applicable.
 
@@ -96,7 +94,7 @@ At full closeout:
 3. Update `dev/PROJECT_INDEX.md` if files, stack, commands, entry points, workspace identity, or durable document map changed.
 4. Check `dev/DOC_SYNC_REGISTRY.md` and record required sync status.
 5. Record unresolved drift risk, active worktree, parallel workspace, uncommitted changes, or blocked verification.
-6. Complete the `State Reconciliation Check`: it must state when reconciliation happened, which state sections were rewritten or confirmed current, whether stale snapshots remain, whether the `Persistence routing checked` field is complete, whether completed / pending / risk / opening-message lifecycle conflicts were resolved, and whether the opening message matches current state. In the same step, run the handoff lifecycle consistency check before declaring handoff ready: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.
+6. Complete the `State Reconciliation Check`: it must state when reconciliation happened, which state sections were rewritten or confirmed current, whether stale snapshots remain, whether completed / pending / risk / opening-message lifecycle conflicts were resolved, and whether the opening message matches current state. In the same step, run the handoff lifecycle consistency check before declaring handoff ready: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.
 7. Run the handoff sufficiency check: the next AI should be able to continue from `AGENTS.md`, `dev/SESSION_HANDOFF.md`, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history.
 8. If either check fails, fix `dev/SESSION_HANDOFF.md` first; do not push current-state responsibility into `dev/SESSION_LOG.md`.
 9. Regenerate `START_NEXT_SESSION_PROMPT.txt` from the fenced opening message in `dev/SESSION_HANDOFF.md`, then read it back or run the project's prompt mirror check before declaring closeout ready. `dev/SESSION_HANDOFF.md` is authoritative; `START_NEXT_SESSION_PROMPT.txt` is the stateful startup prompt that the next local agent must read. During an active session, do not regenerate it just to silence `doctor`; normal `doctor` may warn about drift, but closeout must make the copy match before handoff is declared ready.
@@ -105,11 +103,11 @@ At full closeout:
 
     Hard triggers:
 
-    (a) Advance the SESSION_LOG N-rule (R-010 SESSION_LOG handoff-role discipline) when `dev/SESSION_LOG.md` reaches N ≥ 11 entries, or when the main log exceeds 1500 lines. If triggered, move N ≥ 11 entries into `dev/SESSION_LOG_archive/archive_<batch>_<low_date>_to_<high_date>.md` with raw content preserved, maintain `dev/SESSION_LOG_archive/INDEX.md`, collapse absorbed N=4–10 entries to short-index lines, and port any unique narrative into the relevant durable source before collapsing it. If a research trail affected a long-term decision, public claim, strategy, governance rule, or material selection, port its evidence chain into `dev/PROJECT_DECISIONS.md` using that file's research-derived decision format before collapsing the log. Handoff capability rests on `dev/SESSION_HANDOFF.md`; `dev/SESSION_LOG.md` is trace-back / audit trail and does not carry handoff responsibility.
+    (a) Advance the SESSION_LOG N-rule (R-010 SESSION_LOG handoff-role discipline) when `dev/SESSION_LOG.md` reaches N ≥ 11 entries, or when the main log exceeds 1500 lines. If triggered, move N ≥ 11 entries into `dev/SESSION_LOG_archive/archive_<batch>_<low_date>_to_<high_date>.md` with raw content preserved, maintain `dev/SESSION_LOG_archive/INDEX.md`, collapse absorbed N=4–10 entries to short-index lines, and port any unique narrative into the relevant durable source before collapsing it. Handoff capability rests on `dev/SESSION_HANDOFF.md`; `dev/SESSION_LOG.md` is trace-back / audit trail and does not carry handoff responsibility.
 
     (b) Maintain `dev/PROJECT_DECISIONS.md` per R-028 project narrative discipline when `dev/SESSION_HANDOFF.md` contains a decisions-like H2 section (e.g. `## Confirmed Decisions`, `## Decisions`, `## 已定案決策`) with a numbered list of ≥ 30 entries. If triggered, split the oldest entries, retaining the most recent 8–22 in the handoff hot tier, into `dev/PROJECT_DECISIONS.md` `## Decisions Archive`, newest first.
 
-    (c) Append to `dev/PROJECT_DECISIONS.md` immediately, or at closeout, when the current session includes substantive task evolution, a multi-option architectural trade-off with recorded rationale, a cross-session accumulated pattern, or a user retrospective question. Use `## Evolution Timeline`, `## Architecture Choices`, or `## Insights & Learnings` as appropriate. If the decision is research-derived, use that file's evidence-chain format so the source, summary, inference, decision impact, and uncertainty survive future compression.
+    (c) Append to `dev/PROJECT_DECISIONS.md` immediately, or at closeout, when the current session includes substantive task evolution, a multi-option architectural trade-off with recorded rationale, a cross-session accumulated pattern, or a user retrospective question. Use `## Evolution Timeline`, `## Architecture Choices`, or `## Insights & Learnings` as appropriate.
 
     (d) Run a full long-term maintenance pass every 10 closeouts as a backstop, even if no trigger seems obvious. Count closeouts from the main `dev/SESSION_LOG.md` entries plus archive index entry counts when an archive exists; if the count cannot be determined confidently, treat the current N=10 boundary as the backstop trigger.
 
@@ -118,8 +116,6 @@ At full closeout:
 Installed handoff templates use English headings by default for cross-tool stability, but project teams may translate `dev/SESSION_HANDOFF.md` section headings and visible field labels into the project's working language. Keep the `ack:section:*` and `ack:field:*` semantic markers intact; `doctor` validates those markers so localized handoff notes remain supported.
 
 Use this closeout card:
-
-Use the same display version rule as startup: take the version from `dev/PROJECT_INDEX.md` `## Stack` row `Agent Handoff Kit template version`, print it as `vX.Y.Z`, and fall back to `version unverified` only when it cannot be verified. Never print the literal placeholder `v<version>`.
 
 ```text
    /\_/\   Agent Handoff Kit v<version>
@@ -150,7 +146,7 @@ A pack may add task-specific requirements. A pack cannot weaken core safety. If 
 
 When a task references external tools (Notion / Google Drive / Slack / Linear / GitHub / Dropbox / HubSpot / Atlassian / etc.) or `dev/PROJECT_INDEX.md` `## Installed Integrations` is non-empty, load `dev/rules/integrations.md` together with the relevant domain pack. The integrations pack covers Connector-first defaults, credential separation, multi-layer source-of-truth architecture, and cross-session resilience for declared integrations.
 
-After the task, persist durable facts into the correct home: handoff for current state, log for trace evidence, project index for file / command / reference maps, doc sync registry for sync obligations, project decisions for long-term decisions or research-derived rationale, and rule packs or registered references for reusable operating procedures. Do not assume the next session remembers pack context unless it is recorded, and do not treat handoff/log persistence as sufficient for reusable procedure knowledge.
+After the task, persist durable facts into the correct home: handoff for current state, log for trace evidence, project index for file / command / reference maps, doc sync registry for sync obligations, and rule packs or registered references for reusable operating procedures. Do not assume the next session remembers pack context unless it is recorded, and do not treat handoff/log persistence as sufficient for reusable procedure knowledge.
 
 If a pack, skill, subagent plan, demo workspace, or external workflow produces its own closeout, treat it as subordinate evidence. The active project root still needs Agent Handoff Kit persistence before the task is complete.
 

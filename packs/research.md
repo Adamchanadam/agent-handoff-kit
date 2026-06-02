@@ -26,3 +26,5 @@ Use for source gathering, evidence comparison, fact synthesis, recommendations, 
 ## Closeout
 
 Record sources used, conclusions, uncertainty, and any facts that should be persisted into project files.
+
+If research changes a long-term decision, public claim, strategy, governance rule, or material selection, persist a research-derived decision entry using the `dev/PROJECT_DECISIONS.md` evidence-chain format. One-time fact checks do not need this extra structure.

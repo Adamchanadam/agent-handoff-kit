@@ -40,7 +40,7 @@ Reachable means the source can be found. It does not mean the source has been re
 
 | Source | Role | Required before | Access method | Last verified |
 |---|---|---|---|---|
-| ~/project/docs/api-spec.md | source of truth | every API change | local file | 2026-05-22 |
+| source:api-spec ~/project/docs/api-spec.md | source of truth | every API change | local file | 2026-05-22 |
 | ~/project/CHANGELOG.md | source of truth | release | local file | 2026-05-22 |
 | ~/project/docs/architecture.md | reference | architectural decisions | local file | 2026-05-22 |
 

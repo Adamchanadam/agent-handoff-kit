@@ -48,6 +48,8 @@ const requiredAnchors = [
       "dev/PROJECT_INDEX.md",
       "dev/RULE_PACKS.md",
       "Agent Handoff Kit v<version>",
+      "Display version rule",
+      "Agent Handoff Kit template version",
       "continuity ready",
       "Start Agent Handoff",
       "Ambiguous startup phrases",
@@ -75,6 +77,8 @@ const requiredAnchors = [
       "next-session opening message",
       "fenced `text` code block",
       "handoff saved",
+      "Use the same display version rule as startup",
+      "Never print the literal placeholder `v<version>`",
       "next-session startup entry",
       "State Reconciliation Check",
       "handoff lifecycle consistency",
@@ -100,6 +104,7 @@ const requiredAnchors = [
       "ack:section:state-reconciliation-check",
       "ack:section:next-session-opening-message",
       "ack:field:lifecycle-conflicts-resolved",
+      "ack:field:persistence-routing-checked",
       "📋 Next session:",
       "```text",
       "Read in order:",
@@ -179,6 +184,8 @@ const requiredAnchors = [
       "AI 開工",
       "不需要讀",
       "AI 在收工時自動 update",
+      "Evidence chain: Source=source:<id>; Summary=<source finding>; Inference=<reasoning>; Decision impact=<what changed>; Uncertainty=<limits or none>.",
+      "This file does not store raw build / upload / QC evidence",
       "Evolution Timeline",
       "Decisions Archive",
       "Architecture Choices",
@@ -254,6 +261,7 @@ const schemaChecks = [
       section("next-session-opening-message", "Next Session Opening Message"),
       marker("field", "stale-snapshots-left", "Stale snapshots left in this handoff"),
       marker("field", "lifecycle-conflicts-resolved", "Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified"),
+      marker("field", "persistence-routing-checked", "Persistence routing checked"),
       marker("field", "opening-message-matches-current-state", "Opening message matches current state"),
       marker("field", "state-sections-rewritten-or-confirmed", "State sections rewritten or confirmed current"),
       marker("field", "user-intent", "User intent:"),
@@ -292,6 +300,7 @@ const schemaChecks = [
       includes("- **Changed:**"),
       includes("- **Done:**"),
       includes("- **QC:**"),
+      includes("- **Evidence disposition:**"),
       includes("- **Sync:**"),
       includes("- **Pending:**"),
       includes("- **Risks:**"),
@@ -369,6 +378,7 @@ const schemaChecks = [
       heading("Decisions Archive"),
       heading("Architecture Choices"),
       heading("Insights & Learnings"),
+      includes("Evidence chain: Source=source:<id>; Summary=<source finding>; Inference=<reasoning>; Decision impact=<what changed>; Uncertainty=<limits or none>."),
       includes("(empty)")
     ]
   },
@@ -713,6 +723,40 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
+  const researchTraceResult = await checkResearchDecisionTrace(root);
+  console.log(`\nresearch decision trace checks: ${researchTraceResult.checked}`);
+  console.log(`${researchTraceResult.ok ? "ok" : "missing"}  dev/PROJECT_DECISIONS.md (research-derived decision evidence chains)`);
+  if (!researchTraceResult.ok) {
+    for (const finding of researchTraceResult.findings) {
+      console.log(`  missing: ${finding}`);
+    }
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked,
+      failedKind: "research decision trace checks",
+      failedCount: researchTraceResult.findings.length,
+      nextStep: "把 research-derived decision 的 Evidence chain 補齊，並確認 Source=source:<id> token 已登記在 dev/PROJECT_INDEX.md 的 Fact Base 或 External Sources。"
+    });
+    process.exitCode = 1;
+    return "failed";
+  }
+
+  const temperatureResult = await checkHandoffTemperatureBoundary(root);
+  console.log(`\nhandoff temperature boundary checks: ${temperatureResult.checked}`);
+  console.log(`${temperatureResult.ok ? "ok" : "missing"}  dev/SESSION_HANDOFF.md / START_NEXT_SESSION_PROMPT.txt (current-state evidence boundary)`);
+  if (!temperatureResult.ok) {
+    for (const finding of temperatureResult.findings) {
+      console.log(`  missing: ${finding}`);
+    }
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked + temperatureResult.checked,
+      failedKind: "handoff temperature boundary checks",
+      failedCount: temperatureResult.findings.length,
+      nextStep: "把一次性驗收證據、舊版本狀態、source token 或 Evidence chain 從 Durable Anchors / Next Priorities / opening message 移回 SESSION_LOG、PROJECT_INDEX 或 PROJECT_DECISIONS。"
+    });
+    process.exitCode = 1;
+    return "failed";
+  }
+
   const mirrorRows = await checkPromptMirror(root);
   const mirrorBlockingFailures = mirrorRows.filter((row) => !row.ok && row.reason !== "convenience copy differs from dev/SESSION_HANDOFF.md");
   const mirrorWarnings = mirrorRows.filter((row) => !row.ok && row.reason === "convenience copy differs from dev/SESSION_HANDOFF.md");
@@ -771,7 +815,7 @@ async function runDoctor(root, version, options = {}) {
 
   const overallHealthy = credentialResult.ok;
   printDoctorSummary(version, root, overallHealthy ? "healthy" : "needs-attention", {
-    checked: rows.length + anchorRows.length + schemaRows.length + mirrorRows.length + 2,
+    checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked + temperatureResult.checked + mirrorRows.length + 2,
     failedKind: !credentialResult.ok ? "credential leak" : null,
     failedCount: !credentialResult.ok ? credentialResult.findings.length : 0,
     warningKind: mirrorWarnings.length > 0 ? "prompt mirror warning" : null,
@@ -783,6 +827,137 @@ async function runDoctor(root, version, options = {}) {
       : "繼續使用；下次 closeout 時 AI 應自動執行 SESSION_LOG N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
   });
   return overallHealthy ? "passed" : "failed";
+}
+
+async function checkResearchDecisionTrace(root) {
+  const decisionsPath = path.join(root, "dev/PROJECT_DECISIONS.md");
+  const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
+  let decisionsText = "";
+  let indexText = "";
+  try {
+    decisionsText = await readFile(decisionsPath, "utf8");
+    indexText = await readFile(indexPath, "utf8");
+  } catch {
+    return { ok: false, checked: 1, findings: ["dev/PROJECT_DECISIONS.md or dev/PROJECT_INDEX.md unreadable"] };
+  }
+
+  const findings = [];
+  const sourceTokenPattern = /\bsource:[A-Za-z0-9._-]+\b/g;
+  const blocks = markdownListBlocks(stripFencedCodeBlocks(decisionsText));
+  const researchBlocks = blocks.filter((block) => /\bresearch-derived\b/i.test(block) || /Evidence chain:/i.test(block));
+
+  researchBlocks.forEach((block, index) => {
+    const label = `research-derived decision #${index + 1}`;
+    if (!/Evidence chain:/i.test(block)) {
+      findings.push(`${label} missing Evidence chain`);
+    }
+    const tokens = [...block.matchAll(sourceTokenPattern)].map((match) => match[0]);
+    if (tokens.length === 0) {
+      findings.push(`${label} missing source:<id> token`);
+    }
+    for (const token of tokens) {
+      if (!indexText.includes(token)) {
+        findings.push(`${label} references ${token}, but dev/PROJECT_INDEX.md does not contain that token`);
+      }
+    }
+  });
+
+  return { ok: findings.length === 0, checked: 1, findings };
+}
+
+function stripFencedCodeBlocks(text) {
+  return text.replace(/```[\s\S]*?```/g, "");
+}
+
+function markdownListBlocks(text) {
+  const blocks = [];
+  let current = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (/^\s*[-*]\s+/.test(line)) {
+      if (current.length > 0) blocks.push(current.join("\n"));
+      current = [line];
+    } else if (current.length > 0 && (/^\s{2,}\S/.test(line) || /^\s*$/.test(line))) {
+      current.push(line);
+    } else if (current.length > 0) {
+      blocks.push(current.join("\n"));
+      current = [];
+    }
+  }
+  if (current.length > 0) blocks.push(current.join("\n"));
+  return blocks;
+}
+
+async function checkHandoffTemperatureBoundary(root) {
+  const findings = [];
+  const sections = [];
+  let handoffText = "";
+
+  try {
+    handoffText = await readFile(path.join(root, "dev/SESSION_HANDOFF.md"), "utf8");
+  } catch {
+    return { ok: false, checked: 1, findings: ["dev/SESSION_HANDOFF.md unreadable"] };
+  }
+
+  sections.push(
+    { label: "Durable Anchors", text: extractHandoffSectionText(handoffText, "durable-anchors", "Durable Anchors") },
+    { label: "Next Priorities", text: extractHandoffSectionText(handoffText, "next-priorities", "Next Priorities") },
+    { label: "Next Session Opening Message", text: extractHandoffSectionText(handoffText, "next-session-opening-message", "Next Session Opening Message") }
+  );
+
+  const requiredReading = extractHandoffSectionText(handoffText, "next-task-required-reading", "Next Task Required Reading");
+  sections.push({ label: "Next Task Required Reading", text: requiredReading, allowSourceTokens: true });
+
+  try {
+    const promptText = await readFile(path.join(root, "START_NEXT_SESSION_PROMPT.txt"), "utf8");
+    sections.push({ label: "START_NEXT_SESSION_PROMPT.txt", text: promptText });
+  } catch {
+    // Missing prompt mirror is handled by prompt mirror checks; do not duplicate the failure here.
+  }
+
+  const evidencePatterns = [
+    { pattern: /post-publish artifact smoke/i, label: "post-publish artifact smoke evidence" },
+    { pattern: /PASS\s+7\/7/i, label: "historical PASS count" },
+    { pattern: /\bfileCount\b/i, label: "published artifact fileCount evidence" },
+    { pattern: /\brelease source\b/i, label: "release source evidence" },
+    { pattern: /Cross-mind evidence/i, label: "cross-agent review evidence" },
+    { pattern: /Evidence chain:/i, label: "research evidence chain" },
+    { pattern: /\bnpm latest\s+(?:is|=|v?\d)/i, label: "historical npm latest state" },
+    { pattern: /GitHub Release\s+(?:metadata|published|view|`?v?\d)/i, label: "historical GitHub Release state" }
+  ];
+  const sourceTokenPattern = /\bsource:[A-Za-z0-9._-]+\b/;
+
+  for (const section of sections) {
+    if (!section.text) continue;
+    for (const rule of evidencePatterns) {
+      if (rule.pattern.test(section.text)) {
+        findings.push(`${section.label} contains ${rule.label}; keep it in trace evidence unless it still affects the next action`);
+      }
+    }
+    if (!section.allowSourceTokens && sourceTokenPattern.test(section.text)) {
+      findings.push(`${section.label} contains source:<id>; keep source tokens in PROJECT_INDEX / PROJECT_DECISIONS, not hot startup state`);
+    }
+  }
+
+  return { ok: findings.length === 0, checked: 1, findings };
+}
+
+function extractHandoffSectionText(text, id, headingText) {
+  const marker = `<!-- ack:section:${id} -->`;
+  const markerStart = text.indexOf(marker);
+  if (markerStart >= 0) {
+    const afterMarker = markerStart + marker.length;
+    const nextMarker = text.indexOf("<!-- ack:section:", afterMarker);
+    return text.slice(afterMarker, nextMarker >= 0 ? nextMarker : text.length);
+  }
+
+  const headingPattern = new RegExp(`^##\\s+${escapeRegExp(headingText)}\\s*$`, "m");
+  const headingMatch = headingPattern.exec(text);
+  if (!headingMatch) return "";
+  const start = headingMatch.index + headingMatch[0].length;
+  const nextHeading = /\n##\s+/g;
+  nextHeading.lastIndex = start;
+  const nextMatch = nextHeading.exec(text);
+  return text.slice(start, nextMatch ? nextMatch.index : text.length);
 }
 
 function getFirstUseNextStep(root, lastCloseout) {
@@ -848,7 +1023,7 @@ function printDoctorSummary(version, root, mode, details) {
     }
   } else {
     console.log(`status: failed (${details.failedCount} ${details.failedKind} failed)`);
-    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : "下次開工提示副本與 handoff 真源不同。"}`);
+    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : details.failedKind === "research decision trace checks" ? "研究導向決策缺少可追溯來源鏈。" : details.failedKind === "handoff temperature boundary checks" ? "當前交接內容混入一次性或歷史證據。" : "下次開工提示副本與 handoff 真源不同。"}`);
   }
   console.log("");
   console.log(`📦 版本：v${version}`);
@@ -1268,6 +1443,18 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergedHandoff
     };
   }
+  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && !targetText.includes("ack:field:persistence-routing-checked")) {
+    const mergedHandoff = mergeHandoffPersistenceRoutingField(targetText);
+    if (!mergedHandoff) {
+      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md state reconciliation markers were changed; manual merge required to add persistence routing field" };
+    }
+    return {
+      ...base,
+      action: "merge",
+      reason: "insert persistence routing field into State Reconciliation Check (one-time evidence must not drive next-session state)",
+      mergedText: mergedHandoff
+    };
+  }
   if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && isUpgradeFromOlderTemplate(context)) {
     const lifecycleValue = fieldValueAfterMarker(targetText, "lifecycle-conflicts-resolved");
     if (isPlaceholderLifecycleFieldValue(lifecycleValue) && hasSubstantiveHandoffState(targetText)) {
@@ -1293,6 +1480,18 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       action: "merge",
       reason: "insert handoff archive continuity rule so upgrade self-check can pass without requiring manual anchor repair",
       mergedText: mergedHandoff
+    };
+  }
+  if (targetRel === "dev/SESSION_LOG.md" && command === "upgrade" && !targetText.includes("- **Evidence disposition:**")) {
+    const mergedLog = mergeSessionLogEvidenceDispositionField(targetText);
+    if (!mergedLog) {
+      return { ...base, action: "conflict", reason: "SESSION_LOG.md entry template markers were changed; manual merge required to add evidence disposition field" };
+    }
+    return {
+      ...base,
+      action: "merge",
+      reason: "insert SESSION_LOG evidence disposition field into Entry Template",
+      mergedText: mergedLog
     };
   }
   if (command === "upgrade" && hasAnchorRepairMarkerDrift(targetText)) {
@@ -1460,7 +1659,9 @@ function projectDecisionsAnchorPlacement(snippet, text) {
     "warm 資料層",
     "AI 開工",
     "不需要讀",
-    "AI 在收工時自動 update"
+    "AI 在收工時自動 update",
+    "Evidence chain: Source=source:<id>; Summary=<source finding>; Inference=<reasoning>; Decision impact=<what changed>; Uncertainty=<limits or none>.",
+    "This file does not store raw build / upload / QC evidence"
   ];
   if (preamble.includes(snippet)) return snippetAppearsBeforeHeading(text, snippet, "## Evolution Timeline");
   return true;
@@ -1534,8 +1735,8 @@ const semanticAnchorRepairStrategies = {
       mergedText: mergedLog
     } : null;
   },
-  "dev/PROJECT_DECISIONS.md": (targetText, sourceText) => {
-    const mergedDecisions = insertSourcePreambleBeforeHeading(targetText, sourceText, "## Evolution Timeline");
+  "dev/PROJECT_DECISIONS.md": (targetText, sourceText, missing) => {
+    const mergedDecisions = mergeProjectDecisionsPreamble(targetText, sourceText, missing);
     return mergedDecisions ? {
       action: "merge",
       reason: "restore PROJECT_DECISIONS onboarding preamble before ## Evolution Timeline",
@@ -1576,6 +1777,33 @@ function insertSourcePreambleBeforeHeading(targetText, sourceText, headingText) 
   const targetBefore = targetText.slice(0, targetIndex).trimEnd();
   const targetAfter = targetText.slice(targetIndex);
   return `${targetBefore}\n\n${sourcePreamble}\n\n${targetAfter}`;
+}
+
+function mergeProjectDecisionsPreamble(targetText, sourceText, missing) {
+  const evidenceSnippet = "Evidence chain: Source=source:<id>; Summary=<source finding>; Inference=<reasoning>; Decision impact=<what changed>; Uncertainty=<limits or none>.";
+  const boundarySnippet = "This file does not store raw build / upload / QC evidence";
+  const targetIndex = targetText.indexOf("## Evolution Timeline");
+  const sourceIndex = sourceText.indexOf("## Evolution Timeline");
+  if (targetIndex < 0 || sourceIndex < 0) return null;
+  if (targetText.includes("Project Decisions Log")) {
+    const sourcePreamble = sourceText.slice(0, sourceIndex).trim();
+    const blocks = [];
+    if (missing.includes(evidenceSnippet)) {
+      const researchBlock = sourcePreamble.match(/Research-derived decisions use[\s\S]*?source map\./)?.[0];
+      if (!researchBlock) return null;
+      if (!targetText.includes(researchBlock)) blocks.push(researchBlock);
+    }
+    if (missing.includes(boundarySnippet)) {
+      const boundaryBlock = sourcePreamble.match(/This file does not store raw build \/ upload \/ QC evidence[^\r\n]*/)?.[0];
+      if (!boundaryBlock) return null;
+      if (!targetText.includes(boundaryBlock)) blocks.push(boundaryBlock);
+    }
+    if (blocks.length > 0) {
+      return `${targetText.slice(0, targetIndex).trimEnd()}\n\n${blocks.join("\n\n")}\n\n${targetText.slice(targetIndex)}`;
+    }
+    if (missing.includes(evidenceSnippet) || missing.includes(boundarySnippet)) return targetText;
+  }
+  return insertSourcePreambleBeforeHeading(targetText, sourceText, "## Evolution Timeline");
 }
 
 function mergeProjectIndexTemplateVersionRow(targetText, sourceText) {
@@ -1755,18 +1983,7 @@ function mergeHandoffLifecycleField(targetText) {
 
   const fieldBlock = "<!-- ack:field:lifecycle-conflicts-resolved -->\n- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: Reclassified at upgrade: field added by v0.3.6+ migration; pre-existing handoff state predates it; reconcile at next closeout.\n";
   let merged = targetText.replace(openingMarker, `${fieldBlock}${openingMarker}`);
-
-  if (!merged.includes("Lifecycle consistency rule: compare `Completed This Session`")) {
-    const ruleBlock = "Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.\n\n";
-    const sufficiencyMarker = "<!-- ack:section:handoff-sufficiency-check -->";
-    if (merged.includes(sufficiencyMarker)) {
-      merged = merged.replace(sufficiencyMarker, `${ruleBlock}${sufficiencyMarker}`);
-    } else {
-      merged = `${merged.trimEnd()}\n\n${ruleBlock}`;
-    }
-  }
-
-  return merged;
+  return ensureHandoffStateReconciliationRules(ensureHandoffPersistenceRoutingField(merged));
 }
 
 function reclassifyExistingHandoffLifecyclePlaceholder(targetText) {
@@ -1784,18 +2001,46 @@ function reclassifyExistingHandoffLifecyclePlaceholder(targetText) {
   if (colonIndex < 0) return null;
   lines[fieldIndex] = `${lines[fieldIndex].slice(0, colonIndex + 1)} Reclassified at upgrade: existing lifecycle placeholder predates this version; pre-existing handoff state predates this check; reconcile at next closeout.`;
 
-  let merged = lines.join("\n");
-  if (!merged.includes("Lifecycle consistency rule: compare `Completed This Session`")) {
-    const ruleBlock = "Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.\n\n";
-    const sufficiencyMarker = "<!-- ack:section:handoff-sufficiency-check -->";
-    if (merged.includes(sufficiencyMarker)) {
-      merged = merged.replace(sufficiencyMarker, `${ruleBlock}${sufficiencyMarker}`);
-    } else {
-      merged = `${merged.trimEnd()}\n\n${ruleBlock}`;
-    }
-  }
+  return ensureHandoffStateReconciliationRules(lines.join("\n"));
+}
 
-  return merged;
+function mergeHandoffPersistenceRoutingField(targetText) {
+  const merged = ensureHandoffPersistenceRoutingField(targetText);
+  if (!merged || merged === targetText) return null;
+  return ensureHandoffStateReconciliationRules(merged);
+}
+
+function ensureHandoffPersistenceRoutingField(targetText) {
+  if (targetText.includes("ack:field:persistence-routing-checked")) return targetText;
+  const openingMarker = "<!-- ack:field:opening-message-matches-current-state -->";
+  if (!targetText.includes(openingMarker)) return null;
+  const fieldBlock = "<!-- ack:field:persistence-routing-checked -->\n- Persistence routing checked: Reclassified at upgrade: field added by template migration; pre-existing handoff state predates it; reconcile at next closeout.\n";
+  return targetText.replace(openingMarker, `${fieldBlock}${openingMarker}`);
+}
+
+function ensureHandoffStateReconciliationRules(targetText) {
+  if (!targetText) return null;
+  const rules = [];
+  if (!targetText.includes("Lifecycle consistency rule: compare `Completed This Session`")) {
+    rules.push("Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.");
+  }
+  if (!targetText.includes("Persistence routing rule: one-time delivery instructions")) {
+    rules.push("Persistence routing rule: one-time delivery instructions, historical validation evidence, old hashes, old version facts, and incident notes must stay in trace evidence unless they still affect the next action.");
+  }
+  if (rules.length === 0) return targetText;
+  const ruleBlock = `${rules.join("\n")}\n\n`;
+  const sufficiencyMarker = "<!-- ack:section:handoff-sufficiency-check -->";
+  if (targetText.includes(sufficiencyMarker)) {
+    return targetText.replace(sufficiencyMarker, `${ruleBlock}${sufficiencyMarker}`);
+  }
+  return `${targetText.trimEnd()}\n\n${ruleBlock}`;
+}
+
+function mergeSessionLogEvidenceDispositionField(targetText) {
+  if (targetText.includes("- **Evidence disposition:**")) return targetText;
+  const qcField = "- **QC:**";
+  if (!targetText.includes(qcField)) return null;
+  return targetText.replace(qcField, `${qcField}\n- **Evidence disposition:** <one-time only / kept as recent trace evidence / absorbed into handoff / indexed in PROJECT_INDEX / promoted to PROJECT_DECISIONS / promoted to rule pack>`);
 }
 
 function mergeHandoffArchiveContinuityRule(targetText, sourceText) {

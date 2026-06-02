@@ -118,6 +118,10 @@ function main() {
     "治理 QA 缺口矩陣",
     "產品級發佈前全面檢",
     "Product Journey Matrix",
+    "Task evidence → closeout disposition → next session startup",
+    "current-state evidence boundary",
+    "Evidence disposition field",
+    "Persistence routing checked field",
     "QC Gap Backflow",
     "收工三面同源驗收",
     "Rule Pack Routing And Durable-home Scope Sweep",
@@ -129,6 +133,8 @@ function main() {
     "技能流程覆蓋",
     "PROJECT_DECISIONS 結構驗收",
     "Project Decisions Discipline Sweep",
+    "research-derived decision trace",
+    "Evidence chain: Source=source:<id>",
     "Release Artifact Vocabulary Sweep",
     "R-028 project narrative discipline",
     "Onboarding Pack 結構驗收 (R-029)",
@@ -157,8 +163,12 @@ function main() {
     "next-session opening message",
     "dev/RULE_PACKS.md",
     "Start Agent Handoff",
+    "Display version rule",
+    "Agent Handoff Kit template version",
     "Ambiguous startup phrases",
     "Wrap up Agent Handoff",
+    "Use the same display version rule as startup",
+    "Never print the literal placeholder `v<version>`",
     "Ambiguous closeout phrases",
     "Reachable is not the same as ingested",
     "Do not treat unread sources as absent",
@@ -179,6 +189,10 @@ function main() {
     "dev/SESSION_LOG_archive/INDEX.md",
     "Maintain `dev/PROJECT_DECISIONS.md`",
     "R-028 project narrative discipline",
+    "research-derived decision format",
+    "Do not persist one-time delivery instructions",
+    "Persistence routing checked",
+    "project decisions for long-term decisions",
     "Evolution Timeline",
     "Decisions Archive",
     "Architecture Choices",
@@ -208,7 +222,16 @@ function main() {
   assertIncludes("runtime-core/SESSION_HANDOFF.md", [
     "Installed Integrations registry",
     "availability probe",
-    "ack:field:lifecycle-conflicts-resolved"
+    "ack:field:lifecycle-conflicts-resolved",
+    "ack:field:persistence-routing-checked",
+    "Persistence routing checked",
+    "Persistence routing rule"
+  ]);
+
+  assertIncludes("runtime-core/PROJECT_DECISIONS.md", [
+    "Research-derived decisions use this compact evidence-chain format",
+    "Evidence chain: Source=source:<id>; Summary=<source finding>; Inference=<reasoning>; Decision impact=<what changed>; Uncertainty=<limits or none>.",
+    "This file does not store raw build / upload / QC evidence"
   ]);
 
   assertIncludes("runtime-core/RULE_PACKS.md", [
@@ -258,7 +281,8 @@ function main() {
     "trace-back / audit trail layer",
     "R-010 SESSION_LOG handoff-role discipline",
     "maintenance trigger check",
-    "Log maintenance"
+    "Log maintenance",
+    "Evidence disposition"
   ]);
 
   assertIncludes("bin/agent-handoff-kit.mjs", [
@@ -275,7 +299,9 @@ function main() {
     "dev/rules/integrations.md",
     "integrations pack structure (外部工具治理)",
     "checkInstalledIntegrationsCredentialLeak",
-    "assessHandoffLifecycleConsistency"
+    "assessHandoffLifecycleConsistency",
+    "checkHandoffTemperatureBoundary",
+    "handoff temperature boundary checks"
   ]);
 
   const install = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");
@@ -290,6 +316,10 @@ function main() {
   assert(doctor.stdout.includes("dev/PROJECT_INDEX.md (project index tables)"), "doctor did not check project index schema");
   assert(doctor.stdout.includes("dev/RULE_PACKS.md (rule pack router coverage)"), "doctor did not check rule pack router schema");
   assert(doctor.stdout.includes("dev/PROJECT_DECISIONS.md (project decisions log structure)"), "doctor did not check PROJECT_DECISIONS schema (R-028)");
+  assert(doctor.stdout.includes("research decision trace checks: 1"), "doctor did not run research decision trace checks");
+  assert(doctor.stdout.includes("dev/PROJECT_DECISIONS.md (research-derived decision evidence chains)"), "doctor did not report research-derived decision trace check");
+  assert(doctor.stdout.includes("handoff temperature boundary checks: 1"), "doctor did not run handoff temperature boundary checks");
+  assert(doctor.stdout.includes("dev/SESSION_HANDOFF.md / START_NEXT_SESSION_PROMPT.txt (current-state evidence boundary)"), "doctor did not report handoff temperature boundary check");
   assert(doctor.stdout.includes("dev/rules/onboarding.md (onboarding pack structure (新手引導包))"), "doctor did not check onboarding pack schema");
   assert(doctor.stdout.includes("dev/rules/integrations.md (integrations pack structure (外部工具治理))"), "doctor did not check integrations pack schema (R-030 v0.3.0+)");
   assert(doctor.stdout.includes("SESSION_LOG 接力角色紀律: ok"), "doctor did not run SESSION_LOG discipline check, or fresh install triggered an unexpected warning");
@@ -314,6 +344,8 @@ function main() {
   assert(installedIndex.includes("## Local QC Commands"), "installed project index missing local QC commands section");
   assert(installedIndex.includes("Reachable means the source can be found"), "installed project index missing reachable-versus-ingested note");
   assert(!existsSync(path.join(tempRoot, "archive")), "installer created archive directory by default");
+  checkResearchDecisionTraceContract();
+  checkHandoffTemperatureBoundaryContract();
   simulateMultiSessionFlow(installedHandoff, installedLog);
   simulateLocalizedHandoffHeadings();
 
@@ -1638,6 +1670,79 @@ function run(command, args, label, options = {}) {
 
   console.log(`ok: ${label}`);
   return result;
+}
+
+function checkResearchDecisionTraceContract() {
+  const positiveRoot = path.join(tmpdir(), `ack-research-trace-pass-${Date.now()}`);
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", positiveRoot], "research trace positive bootstrap");
+  const positiveIndexPath = path.join(positiveRoot, "dev/PROJECT_INDEX.md");
+  const positiveDecisionsPath = path.join(positiveRoot, "dev/PROJECT_DECISIONS.md");
+  writeFileSync(
+    positiveIndexPath,
+    readFileSync(positiveIndexPath, "utf8").replace(
+      "| TBD | local source of truth / reference / draft / archive | TBD | path or instruction | TBD |",
+      "| source:becoming-positioning | memoir positioning reference | before brand strategy decisions | Notion command page | 2026-06-02 |"
+    ),
+    "utf8"
+  );
+  writeFileSync(
+    positiveDecisionsPath,
+    readFileSync(positiveDecisionsPath, "utf8").replace(
+      "(empty)",
+      "- 2026-06-02 [research-derived] Brand positioning. Evidence chain: Source=source:becoming-positioning; Summary=memoir positioning avoids resume chronology; Inference=invite readers into the life world first; Decision impact=homepage voice; Uncertainty=none."
+    ),
+    "utf8"
+  );
+  const positiveDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", positiveRoot], "research trace positive doctor");
+  assert(positiveDoctor.stdout.includes("status: passed"), "research trace positive fixture should pass doctor");
+
+  const negativeRoot = path.join(tmpdir(), `ack-research-trace-fail-${Date.now()}`);
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", negativeRoot], "research trace negative bootstrap");
+  const negativeDecisionsPath = path.join(negativeRoot, "dev/PROJECT_DECISIONS.md");
+  writeFileSync(
+    negativeDecisionsPath,
+    readFileSync(negativeDecisionsPath, "utf8").replace(
+      "(empty)",
+      "- 2026-06-02 [research-derived] Brand positioning changed without persisted source chain."
+    ),
+    "utf8"
+  );
+  const negativeDoctor = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  assert(negativeDoctor.status !== 0, "research trace negative fixture should fail doctor");
+  assert(outputText(negativeDoctor).includes("research decision trace checks"), "research trace negative fixture did not fail the trace check");
+  assert(outputText(negativeDoctor).includes("missing Evidence chain"), "research trace negative fixture did not report missing Evidence chain");
+  console.log("ok: research-derived decision trace contract");
+}
+
+function checkHandoffTemperatureBoundaryContract() {
+  const tempRoot = path.join(tmpdir(), `ack-handoff-temperature-fail-${Date.now()}`);
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "handoff temperature boundary bootstrap");
+  const handoffPath = path.join(tempRoot, "dev/SESSION_HANDOFF.md");
+  const handoffText = readFileSync(handoffPath, "utf8");
+  const pollutedHandoff = handoffText.replace(
+    "Before changing anything, tell me the current state and your recommended next step.",
+    [
+      "Before changing anything, tell me the current state and your recommended next step.",
+      "",
+      "Post-publish artifact smoke passed 7/7; npm latest is v0.3.22; continue monitoring this release as next priority."
+    ].join("\n")
+  );
+  writeFileSync(handoffPath, pollutedHandoff, "utf8");
+  writeFileSync(path.join(tempRoot, "START_NEXT_SESSION_PROMPT.txt"), extractOpeningMessage(pollutedHandoff), "utf8");
+
+  const doctor = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  const output = outputText(doctor);
+  assert(doctor.status !== 0, "handoff temperature negative fixture should fail doctor");
+  assert(output.includes("handoff temperature boundary checks"), "handoff temperature negative fixture did not fail the boundary check");
+  assert(output.includes("post-publish artifact smoke evidence"), "handoff temperature negative fixture did not report one-time release evidence");
+  assert(output.includes("historical npm latest state"), "handoff temperature negative fixture did not report stale npm latest evidence");
+  console.log("ok: handoff temperature boundary contract");
 }
 
 function checkRulePackRoutingDurableHomeAudit() {
