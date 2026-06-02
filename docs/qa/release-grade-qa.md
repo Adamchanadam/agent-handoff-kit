@@ -133,7 +133,7 @@
 
 對應 7-dim 第七項 dim「Upgrade migration safety from prior minor versions」嘅 automated enforcement Sweep。`scripts/check-upgrade-safety.mjs` 強制 grep + assertion：
 
-- (a) **Chain test 覆蓋全部 already-released minor / patch versions**：chainSteps array 含 v0.1.4 → v0.1.5 → v0.1.6 → v0.1.7 → v0.1.8 → v0.2.0 → v0.2.1 → v0.2.2 → v0.2.3 → v0.3.0 → v0.3.1 → v0.3.2 → v0.3.3 → v0.3.4 → v0.3.5 → v0.3.6 → v0.3.7 → v0.3.8 → v0.3.9 → v0.3.10 → v0.3.11 → v0.3.12 → v0.3.13 → v0.3.14 → v0.3.15 → v0.3.16 → v0.3.17 → v0.3.18 → v0.3.19 → v0.3.20 → v0.3.21 → v0.3.22 → v0.3.23 → current HEAD v0.3.24。每次新 release 必 append 新 tag 至 array，否則該 release 失「upgrade chain coverage from prior version」紀律；v0.3.6 起另由機器斷言候選 patch 版本不可漏上一個已發佈 patch tag。
+- (a) **Chain test 覆蓋全部 already-released minor / patch versions**：chainSteps array 含 v0.1.4 → v0.1.5 → v0.1.6 → v0.1.7 → v0.1.8 → v0.2.0 → v0.2.1 → v0.2.2 → v0.2.3 → v0.3.0 → v0.3.1 → v0.3.2 → v0.3.3 → v0.3.4 → v0.3.5 → v0.3.6 → v0.3.7 → v0.3.8 → v0.3.9 → v0.3.10 → v0.3.11 → v0.3.12 → v0.3.13 → v0.3.14 → v0.3.15 → v0.3.16 → v0.3.17 → v0.3.18 → v0.3.19 → v0.3.20 → v0.3.21 → v0.3.22 → v0.3.23 → v0.3.24。每次新 release 必 append 新 tag 至 array；下一個候選版本須把 v0.3.24 當作已發佈基線，再以 current HEAD 覆蓋候選版本，否則該 release 失「upgrade chain coverage from prior version」紀律；v0.3.6 起另由機器斷言候選 patch 版本不可漏上一個已發佈 patch tag。
 - (b) **User-data-preservation regression fixture**：`test-fixtures/user-data/dev/PROJECT_INDEX.md` 含 Notion DB「Project Tasks」/ Drive「Project Files/」/ Linear「Project Backlog」/ Python 3.11 Stack / pytest QC commands / a1b2c3d Workspace Identity 等用戶填過 rows。chain test 之後 run upgrade，8+ assertion 驗證 rows 全部 preserved + Installed Integrations section 已 insert（non-destructive migration）。
 - (c) **Prior-version requiredAnchors propagation test**：chain final 後 explicit assert AGENTS.md 含當前 major release 新 anchors（v0.3.0：「startup availability probe」/「dev/rules/integrations.md」/「Credential separation」）+ onboarding.md 含 Scenario F（v0.3.0 R-030 anchor）—— 確認 managed-core merge + smart-merge 對 v(N-1) state propagation 觸發。
 
@@ -249,19 +249,19 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | Adam 已批准追查並解決 upgrade 多次出錯根因；尚未批准 commit / push / tag / GitHub Release / npm publish。本輪候選目標為 v0.3.24。 | 可進入候選驗收；發佈操作仍需另行批准 |
-| 版本口徑 | `package.json` 目前為 `0.3.24`；v0.3.24 是 no-op upgrade full-doctor gate root-fix。 | 候選發佈口徑 |
+| 發佈授權 | Adam 已批准 commit / push / tag / GitHub Release / npm publish；v0.3.24 已完成公開發佈與發佈後驗證。 | 已完成 |
+| 版本口徑 | `package.json` 目前為 `0.3.24`；v0.3.24 是 no-op upgrade full-doctor gate root-fix。 | 正式發佈口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；subagent follow-up 補丁後已重跑；release-status docs correction 後 `qa:release` 亦須通過。 | 通過 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.24.md` 與 onboarding HTML 轉入 v0.3.24 候選口徑。 | 通過 |
+| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.24.md` 與 onboarding HTML 轉入 v0.3.24 正式發佈口徑。 | 通過 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.24` 段，`docs/whatsnew/v0.3.24.md` 已補本版用戶說明；GitHub Release 與 npm publish 尚未執行。 | 發佈前材料已準備；公開發佈仍待明確批准 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.24` 段，`docs/whatsnew/v0.3.24.md` 已補本版用戶說明；GitHub Release 與 npm publish 已完成。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.24`。 | 通過 |
 
 ## v0.3.24 發佈狀態
@@ -269,13 +269,13 @@ npm package 由 `package.json` 的 `files` 控制：
 - package version：`0.3.24`。
 - release notes：`CHANGELOG.md` 的 `v0.3.24` 段落 + `docs/whatsnew/v0.3.24.md`。
 - 發佈目標：修補 no-op upgrade 假成功，並把源頭寫入收斂到一套 marker standard。當 Kit 檔案已是最新但完整 `doctor` 仍失敗時，`upgrade` 不得顯示成功語氣；若屬工具可安全判斷的 Kit-owned 結構／熱層污染問題，`upgrade` 必須自行修復並重新驗收；若無法安全判斷，才以非零狀態退出。新 closeout 寫入必須用 `ack:section:*` / `ack:field:*` / `ack:log-entry:start/end` / managed-core BEGIN/END 作唯一機器邊界，舊 heading fallback 只作遷移用途；`SESSION_LOG` 新裝與舊版升級後均須驗證四個標準註解錨點存在、只出現一次、順序正確。
-- 發佈狀態：候選源碼已通過發佈前全面檢；尚未 commit / push / tag / GitHub Release / npm publish，公開發佈仍待明確批准。
-- 發佈後驗證：未適用，須待 GitHub Release 與 npm publish 完成後才可執行。
+- 發佈狀態：已完成。Public release source commit `0ad866c` 已推送並標記 `v0.3.24`；GitHub Release `v0.3.24 - 升級檢查更可靠` 已發佈；npm `@adamchanadam/agent-handoff-kit` latest 為 `0.3.24`，fileCount 25。
+- 發佈後驗證：7/7 PASS。GitHub Release 非 draft / 非 prerelease；npm latest / fileCount 對齊；fresh published install PASS；published `--help` / `init` / `doctor` PASS；v0.3.23 → v0.3.24 published-package upgrade smoke PASS。
 
 ### v0.3.24 發佈前全面檢正式結論
 
 - 正式報告：`docs/qa/full-audit-v0.3.24-candidate.md`。
-- 全面檢結論：PASS，可在取得明確批准後進入 commit / push / tag / GitHub Release / npm publish。
+- 全面檢結論：PASS；已取得批准並完成 commit / push / tag / GitHub Release / npm publish。
 - 治理健康總判定：緊張；建議方向：繼續。原因是本輪為 upgrade / handoff root-fix，跨檔同步面積大，但產品行為、升級安全、規則包路由與 QC gap backflow 均已有機器或人工承接；發佈前不應再擴建新規則。
 - Product Journey Matrix：fresh install、closeout handoff、evidence disposition、existing upgrade、anchor drift auto-repair、official npx doctor path、non-empty local rules、conflict stop、doctor state split、AI prose tolerance、natural-language task routing 均標記 automated PASS 或 manual PASS，無 blocked 項。
 - Rules / packs routing 結論：PASS。`qa:packs` 與 `qa:release` 覆蓋最少必要 pack 載入與 durable-home scope；本輪不新增 pack，不新增平行治理文件。
@@ -286,10 +286,10 @@ npm package 由 `package.json` 的 `files` 控制：
 | Trigger | Required? | Result | Evidence / rationale |
 |---|---|---|---|
 | 1. 失敗或 blocker | yes | iterated | 三個 runtime upgrade 回饋揭發「第一次 doctor 失敗，第二次 no-op upgrade 報成功」假成功路徑。 |
-| 2. 高風險 / 安全 / 發佈 | yes | passed | 本輪只做 source 候選修補；commit / push / tag / release / publish 仍需另行批准。 |
+| 2. 高風險 / 安全 / 發佈 | yes | passed | Adam 已明確批准 commit / push / tag / GitHub Release / npm publish；公開發佈已完成，發佈後驗證 7/7 PASS。 |
 | 3. 用戶明確挑戰 | yes | passed | Adam 要求檢討 upgrade 機制是否通用、不得 hardcode runtime 情景；修補改為 no-op 成功語氣必須由完整 `doctor` 背書。 |
 | 4. 複雜推理 / 多層取捨 | yes | passed | 子程序跑 doctor 會受 AI runtime 沙箱影響；最終改為同一進程共用 `runDoctor()`，降低外部執行環境變體風險。 |
-| 5. 跨檔 / 跨 surface 改動 | yes | passed | `bin/agent-handoff-kit.mjs`、runtime templates、`scripts/check-release-readiness.mjs`、release QA、CHANGELOG、whatsnew、README 與 onboarding HTML 已同步；統一 marker standard 改動後 `qa:upgrade` / `qa:release` 已重跑通過。 |
+| 5. 跨檔 / 跨 surface 改動 | yes | passed | `bin/agent-handoff-kit.mjs`、runtime templates、`scripts/check-release-readiness.mjs`、release QA、CHANGELOG、whatsnew、README 與 onboarding HTML 已同步；統一 marker standard 改動後四條 QA 與發佈後驗證均通過。 |
 | 6. 結論基於語意判斷而非單一 grep | yes | passed | `qa:release` 新增 4b / 4f / 4g no-op full-doctor gate，並檢查 fresh install / simulated closeout 的 `SESSION_LOG` 標準註解錨點只出現一次且順序正確；`qa:upgrade` 鏈式升級須把舊 `SESSION_LOG` 非破壞性遷移到 `ack:log-entry` marker、保留既有歷史 entry，並以最終 doctor / 結構驗收為準，不硬綁單次 merged 數字。 |
 | 7. 外部 AI / cross-mind review | no | passed | 本輪用真實 runtime log + 機器 fixture 已足以定位；未再外送 private runtime 內容。 |
 | 8. 真實用戶旅程 | yes | passed | 真實 runtime 回饋只作證據來源；驗收提煉為三類通用狀態：健康 no-op 通過、可安全自修的 Kit-owned drift 自動修復、需要判斷用戶意圖的狀態不得假成功。 |

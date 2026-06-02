@@ -2,7 +2,7 @@
 
 ## v0.3.24 — 2026-06-02
 
-狀態：發佈前候選版本。本版修補真實 runtime 揭發的 `upgrade` no-op 假成功問題，並把修補重心提升到源頭寫入標準：新版本之後，交接資料必須使用同一套 Agent Handoff Kit marker standard；舊資料可安全遷移才自動修，不能安全判斷用戶意圖時才交給 AI。
+狀態：正式發佈版本。本版修補真實 runtime 揭發的 `upgrade` no-op 假成功問題，並把修補重心提升到源頭寫入標準：新版本之後，交接資料必須使用同一套 Agent Handoff Kit marker standard；舊資料可安全遷移才自動修，不能安全判斷用戶意圖時才交給 AI。
 
 ### Fixed
 
@@ -20,6 +20,7 @@
 - 發佈級多情境表新增通用 no-op auto-repair 情景，確認解法不綁定任何單一 runtime 目錄、專案名稱或一次性 log。
 - `qa:upgrade` 鏈式升級必須把舊 `SESSION_LOG` 非破壞性遷移到統一 marker standard，並保留既有 log 內容；測試驗收改看最後結構與 `doctor`，不再硬綁單次 `merged: 1`。
 - 真實 runtime 回饋只作證據來源；提煉後的修補以通用狀態類型驗收：健康 no-op 必須通過、可安全自修的 Kit-owned drift 必須自動修、需要判斷用戶意圖的狀態不得假成功。
+- 發佈前全面檢 PASS；發佈後驗證 7/7 PASS：GitHub Release metadata、npm latest / fileCount、fresh published install、published `--help` / `init` / `doctor`、以及 v0.3.23 → v0.3.24 published-package upgrade + sequential doctor 均通過。
 
 ### Migration path（v0.3.23 → v0.3.24，backward-compat preserved）
 
