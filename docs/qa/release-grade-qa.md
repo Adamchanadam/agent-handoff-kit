@@ -266,7 +266,7 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | Adam 已批准 commit / push / tag / GitHub Release / npm publish；v0.3.25 準備進入公開發佈流程。 | 已批准，待外部操作完成 |
+| 發佈授權 | Adam 已批准 commit / push / tag / GitHub Release / npm publish；v0.3.25 已完成公開發佈與發佈後驗證。 | 已完成 |
 | 版本口徑 | `package.json` 目前為 `0.3.25`；v0.3.25 是 task persistence gate root-fix。 | 正式候選口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
@@ -278,7 +278,7 @@ npm package 由 `package.json` 的 `files` 控制：
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.25` 段，`docs/whatsnew/v0.3.25.md` 已補本版用戶說明；GitHub Release 與 npm publish 待本次批准流程執行。 | 通過，待外部發佈 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.25` 段，`docs/whatsnew/v0.3.25.md` 已補本版用戶說明；GitHub Release 與 npm publish 已完成。 | 通過 |
 | 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.25`。 | 通過 |
 
 ## v0.3.25 發佈狀態
@@ -286,13 +286,13 @@ npm package 由 `package.json` 的 `files` 控制：
 - package version：`0.3.25`。
 - release notes：`CHANGELOG.md` 的 `v0.3.25` 段落 + `docs/whatsnew/v0.3.25.md`。
 - 發佈目標：修補任務完成後過度進入完整交接的流程問題。核心 runtime 必須先判斷是否有下一輪必須知道的持久事實：沒有持久事實不寫治理檔；有新檔案、新真源、不可重建驗證結果或用戶要求轉成長期機制時，按文件角色輕量保存；只有明確收工、交接、外部同步、發佈或工具即將停止等情況才完整 closeout。
-- 發佈狀態：候選已通過發佈前全面檢；commit / push / tag / GitHub Release / npm publish 待本次已批准流程執行。
-- 發佈後驗證：待 GitHub Release 與 npm publish 完成後執行七項 artifact smoke test。
+- 發佈狀態：已完成。Public release source commit `81f293f` 已推送並標記 `v0.3.25`；GitHub Release `v0.3.25 - 任務收尾更穩定` 已發佈；npm `@adamchanadam/agent-handoff-kit` latest 為 `0.3.25`，fileCount 25。
+- 發佈後驗證：7/7 PASS。GitHub Release 非 draft / 非 prerelease；npm latest / fileCount 對齊；fresh published install PASS；published `--help` / `init` / `doctor` PASS；v0.3.24 → v0.3.25 published-package upgrade smoke PASS。
 
 ### v0.3.25 發佈前全面檢正式結論
 
 - 正式報告：`docs/qa/full-audit-v0.3.25-candidate.md`。
-- 全面檢結論：PASS；已取得批准，可進入 commit / push / tag / GitHub Release / npm publish。
+- 全面檢結論：PASS；已取得批准並完成 commit / push / tag / GitHub Release / npm publish。
 - 治理健康總判定：緊張；建議方向：繼續。原因是本輪修補 runtime 持久化判斷與 QA gate，觸及治理核心但沒有新增平行規則文件；公開用戶頁只同步版本與操作語句，降低新手負擔。
 - Product Journey Matrix：fresh install、closeout handoff、evidence disposition、existing upgrade、official npx doctor path、non-empty local rules、conflict stop、doctor state split、AI prose tolerance、natural-language task routing、task persistence gate 均標記 automated PASS 或 manual PASS，無 blocked 項。
 - Rules / packs routing 結論：PASS。`qa:packs` 與 `qa:release` 覆蓋最少必要 pack 載入與 durable-home scope；本輪只在 `agent-governance` pack 引用核心分流真源，不複製門檻。
@@ -303,7 +303,7 @@ npm package 由 `package.json` 的 `files` 控制：
 | Trigger | Required? | Result | Evidence / rationale |
 |---|---|---|---|
 | 1. 失敗或 blocker | yes | iterated | 真實工作流揭發每個小任務完成後重複完整 handoff，造成速度、token 與治理噪音問題。 |
-| 2. 高風險 / 安全 / 發佈 | yes | passed | Adam 已明確批准 tag / GitHub Release / npm publish；發佈前仍先跑四條 QA 與完整候選審核。 |
+| 2. 高風險 / 安全 / 發佈 | yes | passed | Adam 已明確批准 tag / GitHub Release / npm publish；公開發佈已完成，發佈後驗證 7/7 PASS。 |
 | 3. 用戶明確挑戰 | yes | iterated | Adam 要求不可從過度治理跌入漏做治理，並要求納入新增 / 刪除文件、新真源、錯誤經驗轉機制等情景。 |
 | 4. 複雜推理 / 多層取捨 | yes | passed | 最終方案採三層分流與文件角色落點，不把每次任務完成等同完整 closeout，也不讓 durable fact 漏記。 |
 | 5. 跨檔 / 跨 surface 改動 | yes | passed | `runtime-core/AGENTS.core.md`、`packs/agent-governance.md`、`scripts/check-release-readiness.mjs`、release QA、CHANGELOG、whatsnew、README 與 onboarding HTML 已同步；用戶頁不暴露內部術語。 |

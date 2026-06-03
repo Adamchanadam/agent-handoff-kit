@@ -2,7 +2,7 @@
 
 ## v0.3.25 — 2026-06-03
 
-狀態：正式發佈候選。本版修補任務完成後過度進入完整交接的流程問題：AI 應先按文件角色判斷是否真的有下一輪必須知道的持久事實；普通任務完成、草稿迭代、例行檢查通過，不應自動重生整套交接文件。
+狀態：正式發佈版本。本版修補任務完成後過度進入完整交接的流程問題：AI 應先按文件角色判斷是否真的有下一輪必須知道的持久事實；普通任務完成、草稿迭代、例行檢查通過，不應自動重生整套交接文件。
 
 ### Fixed
 
@@ -17,6 +17,7 @@
 - 發佈級 QA 新增 Task Persistence Gate Sweep：要求人工終讀草稿未拍板、新 URL / 本機來源、用戶要求把錯誤經驗轉成機制三類場景。
 - 反向檢查確認 README、intro HTML、guide HTML 沒有暴露內部分流術語，亦沒有把每個小任務完成寫成完整收工。
 - `docs/qa/full-audit-task-persistence-gate-2026-06-03.md` 記錄 source-candidate full audit；`docs/qa/full-audit-v0.3.25-candidate.md` 記錄本版發佈前全面檢。
+- 發佈前全面檢 PASS；發佈後驗證 7/7 PASS：GitHub Release metadata、npm latest / fileCount、fresh published install、published `--help` / `init` / `doctor`、以及 v0.3.24 → v0.3.25 published-package upgrade + sequential doctor 均通過。
 
 ### Migration path（v0.3.24 → v0.3.25，backward-compat preserved）
 
