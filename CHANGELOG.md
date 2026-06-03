@@ -1,5 +1,27 @@
 # 變更紀錄
 
+## v0.3.25 — 2026-06-03
+
+狀態：正式發佈候選。本版修補任務完成後過度進入完整交接的流程問題：AI 應先按文件角色判斷是否真的有下一輪必須知道的持久事實；普通任務完成、草稿迭代、例行檢查通過，不應自動重生整套交接文件。
+
+### Fixed
+
+- 核心 runtime 新增任務持久化分流：無持久事實時不寫治理檔；有下一輪必須知道的事實時只做輕量保存；只有明確收工、交接、外部同步、發佈、工具即將停止或同等場景，才完整 closeout。
+- 文件角色集中在核心 runtime 定義：目前狀態進 `SESSION_HANDOFF`，可追溯紀錄進 `SESSION_LOG`，新檔案與真源進 `PROJECT_INDEX` / `DOC_SYNC_REGISTRY`，長期經驗與機制進 `PROJECT_DECISIONS` 或相應 rule pack。
+- `packs/agent-governance.md` 只引用核心分流判斷，不複製三層門檻，避免同一規則在兩處漂移。
+- README、intro HTML、guide HTML 只同步版本與用戶操作語句，不把內部治理分類寫成新手說明。
+
+### QA
+
+- `qa:release` 新增 Task Persistence Gate contract：檢查核心 runtime 的正向條件、反向條件、文件角色落點，以及 agent-governance pack 是否只引用單一真源。
+- 發佈級 QA 新增 Task Persistence Gate Sweep：要求人工終讀草稿未拍板、新 URL / 本機來源、用戶要求把錯誤經驗轉成機制三類場景。
+- 反向檢查確認 README、intro HTML、guide HTML 沒有暴露內部分流術語，亦沒有把每個小任務完成寫成完整收工。
+- `docs/qa/full-audit-task-persistence-gate-2026-06-03.md` 記錄 source-candidate full audit；`docs/qa/full-audit-v0.3.25-candidate.md` 記錄本版發佈前全面檢。
+
+### Migration path（v0.3.24 → v0.3.25，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。本版主要更新 AI runtime 行為與驗收；用戶原有 handoff、log、index、decisions 與 rule pack 內容會按既有非破壞性升級策略保留。升級後照常用「開工」開始；準備結束本輪工作時才說「收工」。
+
 ## v0.3.24 — 2026-06-02
 
 狀態：正式發佈版本。本版修補真實 runtime 揭發的 `upgrade` no-op 假成功問題，並把修補重心提升到源頭寫入標準：新版本之後，交接資料必須使用同一套 Agent Handoff Kit marker standard；舊資料可安全遷移才自動修，不能安全判斷用戶意圖時才交給 AI。
