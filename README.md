@@ -45,7 +45,7 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 ![Agent Handoff Kit 新手流程](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-new-user-flow.png)
 
-這張圖是給第一次使用的人看的流程摘要：先在專案資料夾安裝，然後在能讀寫本機資料夾的 AI 對話輸入 `Start Agent Handoff` 或「開工」；AI 會依 `AGENTS.md` 打開 `START_NEXT_SESSION_PROMPT.txt` 進入新手引導。完成工作時說「收工」，讓 AI 留下下一次能接上的交接。
+這張圖是給第一次使用的人看的流程摘要：先在專案資料夾安裝，然後在能讀寫本機資料夾的 AI 對話輸入 `Start Agent Handoff` 或「開工」；AI 會依 `AGENTS.md` 打開 `START_NEXT_SESSION_PROMPT.txt` 進入新手引導。準備結束本輪工作時說「收工」，讓 AI 留下下一次能接上的交接。
 
 ### 適用工具
 
@@ -129,7 +129,7 @@ Work in <你的專案資料夾>. Read AGENTS.md first, then Start Agent Handoff.
 
 ### 三、收工
 
-工作完成想結束時，只需輸入：
+本輪工作完成、準備結束時，只需輸入：
 
 ```text
 收工

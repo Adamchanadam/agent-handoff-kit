@@ -456,7 +456,7 @@
   <div class="wrap">
     <span class="kicker">v0.3.24 · 三個日常情景 · 由第一句指令到長期接力</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
-    <p class="lede">三個日常情景 —— 整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進 —— 完整示範 Agent Handoff Kit 由安裝到接力的流程。每一步都會看到 AI 主動宣告載入哪個工作模式、寫入哪份交接文件、同步哪份下次接力提示。</p>
+    <p class="lede">三個日常情景 —— 整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進 —— 完整示範 Agent Handoff Kit 由安裝到接力的流程。每一步都會看到 AI 主動宣告載入哪個工作模式、怎樣計劃、怎樣驗收、何時同步下次接力提示。</p>
   </div>
 </header>
 
@@ -580,7 +580,7 @@ create: 20
         <ul>
           <li><strong>三個入口,同一套規矩</strong>:同時建立 <code>AGENTS.md</code>、<code>CLAUDE.md</code>、<code>GEMINI.md</code>,讓常見 AI 工具回到同一套規則。Antigravity CLI 會讀工作資料夾內的 <code>AGENTS.md</code> 與 <code>GEMINI.md</code>；因此 <code>GEMINI.md</code> 只做橋接,不另寫一套規則。</li>
           <li><strong>下一步不是終端機指令</strong>:輸出末段用 <code>⚠️</code> 標明。新手最容易撞上的誤會,是把 <code>Start Agent Handoff</code> 或帶路徑啟動句當成要繼續在終端機輸入 —— 其實是要輸入到 AI 對話。</li>
-          <li><strong>不確定才檢查</strong>:安裝後通常直接開 AI 對話即可。若之後不確定文件是否完整,才在終端機執行 <code>npx --yes @adamchanadam/agent-handoff-kit@latest doctor</code>。如果只是 <code>START_NEXT_SESSION_PROMPT.txt</code> 暫時落後於交接文件,新版只會提醒;完成任務後收工時再同步即可。</li>
+          <li><strong>不確定才檢查</strong>:安裝後通常直接開 AI 對話即可。若之後不確定文件是否完整,才在終端機執行 <code>npx --yes @adamchanadam/agent-handoff-kit@latest doctor</code>。如果只是 <code>START_NEXT_SESSION_PROMPT.txt</code> 暫時落後於交接文件,新版只會提醒;準備結束本輪工作時再同步即可。</li>
         </ul>
       </div>
     </div>
@@ -684,7 +684,7 @@ F. 我已連接外部工具,想規劃如何有系統地使用</p>
               <span class="pill safety">安全</span>因為要移動大量檔案,執行前要先預演列清單由你確認,絕對不會默默移動或者覆寫
             </p>
             <p>我接著要做的工作流程:</p>
-            <p class="loop">計劃(列清楚分類邏輯、目錄結構、預演範圍)<br/>→ 讀取(掃描下載目錄樣本)<br/>→ 改動(寫 script + 預演模式)<br/>→ 檢查(你確認預演清單)<br/>→ 正式執行 + 寫入交接(將今次完成的事寫入交接與工作日誌)</p>
+            <p class="loop">計劃(列清楚分類邏輯、目錄結構、預演範圍)<br/>→ 讀取(掃描下載目錄樣本)<br/>→ 改動(寫 script + 預演模式)<br/>→ 檢查(你確認預演清單)<br/>→ 正式執行(按你確認的清單移動檔案)</p>
             <p><strong>是否以這個小任務開始?</strong></p>
           </div>
         </div>
@@ -759,7 +759,7 @@ F. 我已連接外部工具,想規劃如何有系統地使用</p>
 
       <div class="callout">
         <span class="label">實際運作</span>
-        <h3>計劃 → 讀取 → 改動 → 檢查 → 寫入交接 五個階段</h3>
+        <h3>計劃 → 讀取 → 改動 → 檢查 → 正式執行 五個階段</h3>
         <ul>
           <li><strong>計劃階段</strong>必須列清楚:目標、範圍、驗收標準、哪些情況不處理 —— 不是立即寫 code,而是先寫清楚規則由你確認。</li>
           <li><strong>讀取階段</strong>是收集事實 —— 真實掃描你的目錄看樣本,不會憑「估計」寫 script。</li>
@@ -833,7 +833,7 @@ Renamed (dup):       5 files
 Failed:              0 files
 
 新目錄結構在 ~/Downloads 裡面,可以打開檔案總管查看。</pre>
-            <p>已經完成。下載目錄現在分為 5 個主類加年份子目錄,找東西應該快很多。接著我要進入寫入交接階段,將今次完成的事寫入交接文件與工作日誌,讓下次或者下個 AI 都能接得上。</p>
+            <p>已經完成。下載目錄現在分為 5 個主類加年份子目錄,找東西應該快很多。</p>
           </div>
         </div>
       </div>
@@ -855,7 +855,7 @@ Failed:              0 files
     <div class="wrap">
       <span class="badge">STEP 06 · CASE A</span>
       <h2>收工 —— 一句「收工」,AI 自動更新交接與輸出下次提示</h2>
-      <p class="narrative">工作完成之後,你不需要記住要更新哪份檔案。輸入一句「收工」、「Wrap up Agent Handoff」、「wrap up」或者「handoff」,AI 偵測到收工意圖,即進入完整收工流程:更新交接文件、寫今次紀錄入工作日誌,並把下一次接力內容同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code> 副本。</p>
+      <p class="narrative">準備結束本輪工作時,你不需要記住要更新哪份檔案。輸入一句「收工」、「Wrap up Agent Handoff」、「wrap up」或者「handoff」,AI 偵測到收工意圖,即進入完整收工流程:更新交接文件、寫今次紀錄入工作日誌,並把下一次接力內容同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code> 副本。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -982,7 +982,7 @@ Before changing anything, tell me the current state and your recommended next st
               <li>✅ 回讀核對:已讀回 GitHub 頁面資料,確認提交紀錄、標籤與發佈連結一致</li>
             </ul>
             <p>發佈完成。Repo URL:<code>https://github.com/yourname/downloads-tidy</code>。Release URL:<code>https://github.com/yourname/downloads-tidy/releases/tag/v0.1.0</code>。朋友只要下載或複製下來,立即可以使用。</p>
-            <p>準備好就講「收工」,我會將今次的提交紀錄、版本標籤、倉庫連結、發佈連結寫入交接文件與工作日誌,再同步下次接力提示。</p>
+            <p>準備結束本輪工作時講「收工」,我會將今次的提交紀錄、版本標籤、倉庫連結、發佈連結寫入交接文件與工作日誌,再同步下次接力提示。</p>
           </div>
         </div>
       </div>
@@ -1116,7 +1116,7 @@ Google Drive
           <div class="chat-bubble user">
             <span class="who">你</span>
             <p>我想研究自己社區是否可以開一間咖啡店,要寫一份十頁市場調查報告,結論回答「是否值得做加下一步行動建議」,給自己與太太看,亦想拿去與業界朋友傾談。</p>
-            <p>資料分工:Notion 有一個索引資料庫,登記了 30 條以上參考資料(政府統計、行業報告、競品 menu 截圖、訪談筆記),每行有「本機路徑」指向 <code>~/cafe-research/reference/</code> 裡面對應檔案。本機 <code>reference/</code> 已經放好對應 PDF、截圖、筆記。報告草稿請寫入 <code>~/cafe-research/report/</code>。完成後請幫我上傳 Google Drive、設定分享權限給合伙人、太太、業界朋友張先生(我之後可以給你他們的電郵地址),把分享連結記入交接文件。Notion 與 Google Drive 接口我已連好,你可以直接讀寫。</p>
+            <p>資料分工:Notion 有一個索引資料庫,登記了 30 條以上參考資料(政府統計、行業報告、競品 menu 截圖、訪談筆記),每行有「本機路徑」指向 <code>~/cafe-research/reference/</code> 裡面對應檔案。本機 <code>reference/</code> 已經放好對應 PDF、截圖、筆記。報告草稿請寫入 <code>~/cafe-research/report/</code>。完成後請幫我上傳 Google Drive、設定分享權限給合伙人、太太、業界朋友張先生(我之後可以給你他們的電郵地址),並保存分享連結。Notion 與 Google Drive 接口我已連好,你可以直接讀寫。</p>
           </div>
         </div>
       </div>
@@ -1159,7 +1159,7 @@ Google Drive
               <span class="pill knowledge">知識整理</span>外部來源:可讀取的不等於已讀入。未讀的來源要標待處理,不可以當沒有資料
             </p>
             <p>我接著要做的工作流程(因為涉及多個來源,讀取階段會比 Case A 重):</p>
-            <p class="loop">計劃(列清楚要對齊哪些來源、哪一段要寫)<br/>→ 讀取(逐條讀 Notion 索引對應本機 reference,識別空白)<br/>→ 改動(寫報告草稿入 report/)<br/>→ 檢查(每段論述有沒有引用、有沒有主觀推論未標)<br/>→ 寫入交接(更新交接文件與資料來源登記)</p>
+            <p class="loop">計劃(列清楚要對齊哪些來源、哪一段要寫)<br/>→ 讀取(逐條讀 Notion 索引對應本機 reference,識別空白)<br/>→ 改動(寫報告草稿入 report/)<br/>→ 檢查(每段論述有沒有引用、有沒有主觀推論未標)<br/>→ 輸出報告與檢查結果</p>
             <p>我會先進入計劃階段,做兩件事:</p>
             <ol>
               <li>列出我會如何對齊 Notion 索引與本機 reference;如果發現「Notion 有登記但本機沒有檔案」或者「本機有檔但 Notion 沒有登記」我會如何處理。</li>
@@ -1275,7 +1275,7 @@ Google Drive
     <div class="wrap">
       <span class="badge">STEP 05 · CASE B</span>
       <h2>寫報告(寫作模式自動加碼)+ Google Drive 上傳由 AI 代你執行</h2>
-      <p class="narrative">章節結構確認之後,AI 進入改動階段寫報告草稿。涉及實際寫長文,自動加載<strong>寫作</strong>模式(受眾、用途、語氣紀律)。每段論述都追溯回用了哪條 reference,事實與推論明顯分開。寫完之後輸出你要的格式;由於你已連好 Google Drive 接口,AI 代你上傳檔案、設定分享權限、回讀核對,並把分享連結寫入交接文件。如未連接,AI 改為列詳細上傳步驟由你親手做。若你使用的 AI 工具不能直接輸出 docx,AI 會先寫成 Markdown 或 Google Docs 可用內容,再按該工具能力轉換。</p>
+      <p class="narrative">章節結構確認之後,AI 進入改動階段寫報告草稿。涉及實際寫長文,自動加載<strong>寫作</strong>模式(受眾、用途、語氣紀律)。每段論述都追溯回用了哪條 reference,事實與推論明顯分開。寫完之後輸出你要的格式;由於你已連好 Google Drive 接口,AI 代你上傳檔案、設定分享權限、回讀核對,並保存分享連結。如未連接,AI 改為列詳細上傳步驟由你親手做。若你使用的 AI 工具不能直接輸出 docx,AI 會先寫成 Markdown 或 Google Docs 可用內容,再按該工具能力轉換。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1328,10 +1328,10 @@ Google Drive
               <li>✅ 把 <code>~/cafe-research/report/report-final.docx</code> 上傳至 Google Drive 的「Cafe Research」資料夾</li>
               <li>✅ 設定分享權限:加入合伙人、太太、業界朋友張先生三個電郵,權限「檢視者」(編輯權限只留給你自己,避免意外被改)</li>
               <li>✅ 回讀核對:讀回檔案資訊與權限設定,確認上傳成功 + 三個帳號分享無誤</li>
-              <li>✅ 分享連結 <code>https://drive.google.com/file/d/.../view</code> 已寫入交接文件</li>
+              <li>✅ 分享連結 <code>https://drive.google.com/file/d/.../view</code> 已保存</li>
             </ol>
             <p>💡 機密分離:Google Drive 的存取憑證由 AI 工具的安全儲存管理,完全不會寫入 <code>dev/</code> 任何治理檔。治理檔只記下分享連結這個公開座標。</p>
-            <p>準備好就講「收工」,我會將今次寫的東西、5 條暫缺、報告位置、分享連結寫入交接文件,並輸出下次接力提示。</p>
+            <p>準備結束本輪工作時講「收工」,我會將今次寫的東西、5 條暫缺、報告位置、分享連結寫入交接文件,並輸出下次接力提示。</p>
           </div>
         </div>
       </div>
@@ -1354,7 +1354,7 @@ Google Drive
     <div class="wrap">
       <span class="badge">STEP 06 · CASE B</span>
       <h2>收工 —— 與 Case A 一樣的收工流程,分享連結已由接口直接寫入</h2>
-      <p class="narrative">收工指令與 Case A 一樣 —— 一句「收工」或者「wrap up」。AI 進入完整收工流程。今次因為 Google Drive 接口已連好,分享連結已在前一步由 AI 上傳後回讀核對 + 寫入交接文件,收工階段所有外部來源狀態都實際對齊(沒有「待填」缺口)。</p>
+      <p class="narrative">收工指令與 Case A 一樣 —— 一句「收工」或者「wrap up」。AI 進入完整收工流程。今次因為 Google Drive 接口已連好,分享連結已在前一步由 AI 上傳後回讀核對,收工階段所有外部來源狀態都實際對齊(沒有「待填」缺口)。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1394,7 +1394,7 @@ Before changing anything, tell me the current state and your recommended next st
         <h3>跨案例同一套收工</h3>
         <ul>
           <li><strong>對賬式而非追加</strong>:AI 不會將新狀態追加在舊狀態下面 —— 當前狀態必須逐段對賬覆寫。</li>
-          <li><strong>有接口連好就寫實際狀態,沒有就留待補</strong>:已連好接口的項目,外部狀態(Google Drive 連結 / Notion 寫入)由 AI 直接驗證後寫入交接;沒有「待你補」缺口。如未連接接口,AI 改為留待你親手補上的空位 —— 仍然守「未核實的事實不可寫作已核實」紀律。</li>
+          <li><strong>有接口連好就寫實際狀態,沒有就留待補</strong>:已連好接口的項目,外部狀態(Google Drive 連結 / Notion 寫入)由 AI 直接驗證後保存;沒有「待你補」缺口。如未連接接口,AI 改為留待你親手補上的空位 —— 仍然守「未核實的事實不可寫作已核實」紀律。</li>
           <li><strong>接口最新核實日期更新</strong>:每次收工將今日成功核實的接口最新日期更新 —— 下次開工 AI 知道哪些接口仍信得過、哪些可能需要重連。</li>
           <li><strong>跨案例一致</strong>:Case A 與 Case B 兩個任務性質完全不同,但收工流程同一套 —— 將來你做第三個、第四個案例,流程仍是這套。</li>
         </ul>
@@ -1508,7 +1508,7 @@ Before changing anything, tell me the current state and your recommended next st
       <span class="badge" style="background: var(--red);">CASE C · 結構說明</span>
       <h2>這個案例跨越多個月份,以時間軸標記。</h2>
       <p class="narrative">Case A 與 Case B 展示單一對話內的七步流程。Case C 則展示<strong>跨越多輪對話、多個月份</strong>的長期項目演進。重點不在每日的具體動作,而在 AI 如何<strong>自動維護項目的長期紀錄</strong> —— 任務需求的演進、決策的累積、架構選擇的歷史、累積式的學習觀察。</p>
-      <p class="narrative">這不是一次指令即完成的展示。它需要你在多輪對話中每次照常「收工」,讓 AI 持續寫入交接文件與長期紀錄。你的角色仍然是:提需求、提供參考資料、做驗收。AI 的角色是:讀齊長期紀錄與當前狀態,自動補入長期演進,<strong>不需要你打開檔案,亦不需要你記住分檔結構</strong>。</p>
+      <p class="narrative">這不是一次指令即完成的展示。它需要你在多輪對話中每次準備結束本輪工作時照常「收工」,讓 AI 持續寫入交接文件與長期紀錄。你的角色仍然是:提需求、提供參考資料、做驗收。AI 的角色是:讀齊長期紀錄與當前狀態,自動補入長期演進,<strong>不需要你打開檔案,亦不需要你記住分檔結構</strong>。</p>
     </div>
   </section>
 
@@ -1693,8 +1693,8 @@ Before changing anything, tell me the current state and your recommended next st
 <section class="outro">
   <div class="wrap">
     <h2>走完三個案例之後,你會發現 <span class="accent">同一套流程</span> 適用於不同任務</h2>
-    <p>由終端機一句安裝 —— 開新 AI 對話啟動接力 —— AI 自己讀齊交接文件、說明準備怎樣做 —— 計劃階段停手等你確認 —— 涉及安全、知識整理、寫作時自動加上相應規則 —— 收工一句「收工」自動寫好下次提示 —— 新對話說「開工」就接得回。Case A 與 Case B 各七步,Case C 則跨越多月演進,但骨幹節奏跨案例、跨工具、跨日子都是同一套。</p>
-    <p>你之後做第三個、第四個任務 —— 寫電子報、做股市觀察、整理多個項目的發票 —— 流程仍然是這套。工作模式會根據任務性質自動切換,但你的習慣動作(開工、講任務、確認計劃、收工)始終一樣。</p>
+    <p>由終端機一句安裝 —— 開新 AI 對話啟動接力 —— AI 自己讀齊交接文件、說明準備怎樣做 —— 計劃階段停手等你確認 —— 涉及安全、知識整理、寫作時自動加上相應規則 —— 準備結束本輪工作時一句「收工」自動寫好下次提示 —— 新對話說「開工」就接得回。Case A 與 Case B 各七步,Case C 則跨越多月演進,但骨幹節奏跨案例、跨工具、跨日子都是同一套。</p>
+    <p>你之後做第三個、第四個任務 —— 寫電子報、做股市觀察、整理多個項目的發票 —— 流程仍然是這套。工作模式會根據任務性質自動切換,但你的習慣動作(開工、講任務、確認計劃;準備結束本輪工作時收工)始終一樣。</p>
     <p>另外建議:你希望 AI 在<strong>單一對話內</strong>的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)有持久基準,可以配合 <a href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">Adam-AI-Instructions</a> 使用 —— 到該倉庫的「五、提示詞索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);">prompt.md</code> 全文貼入你 AI 工具設定。Agent Handoff Kit 管「對話之間」的接力,Adam-AI-Instructions 管「單次對話質素」,兩者不重疊。</p>
     <a href="agent-handoff-kit-intro.html">看回新手 60 秒入門 →</a>
     <a class="alt" href="https://github.com/Adamchanadam/agent-handoff-kit#readme">看 README on GitHub →</a>

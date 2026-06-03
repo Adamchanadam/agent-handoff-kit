@@ -157,6 +157,7 @@ function main() {
   ]);
   assertLatestCrossMindTableComplete(version);
   checkRulePackRoutingDurableHomeAudit();
+  checkTaskPersistenceGateContract();
 
   assertIncludes("runtime-core/AGENTS.core.md", [
     "Detect end-of-session or handoff intent",
@@ -175,6 +176,14 @@ function main() {
     "External skill flows, subagents, task plans",
     "do not replace this loop",
     "active project root",
+    "## 2.1 Persistence Gate",
+    "durable fact is information the next agent cannot reliably reconstruct",
+    "No persistence",
+    "Lightweight checkpoint",
+    "Full closeout",
+    "Routine successful checks that can be rerun are not durable facts",
+    "If an involuntary stop is likely",
+    "If uncertain whether a fact is durable",
     "ack:section:*",
     "State Reconciliation Check",
     "handoff lifecycle consistency",
@@ -1885,8 +1894,8 @@ function checkRulePackRoutingDurableHomeAudit() {
 
   assertIncludes("runtime-core/AGENTS.core.md", [
     "Use `dev/RULE_PACKS.md` to decide which pack to read",
-    "persist durable facts into the correct home",
-    "rule packs or registered references for reusable operating procedures",
+    "After the task, apply the Persistence Gate in Section 2.1",
+    "rule pack, registered reference, or QA check",
     "do not treat handoff/log persistence as sufficient for reusable procedure knowledge"
   ]);
 
@@ -1895,10 +1904,73 @@ function checkRulePackRoutingDurableHomeAudit() {
     "first classify the knowledge type",
     "reusable operating procedures belong in the relevant rule pack or registered reference",
     "New runbooks are last resort only",
-    "not stored only in `dev/SESSION_HANDOFF.md`"
+    "not stored only in `dev/SESSION_HANDOFF.md`",
+    "persistence gate decision",
+    "do not duplicate the gate thresholds in this pack"
   ]);
 
   console.log("ok: rule pack routing and durable-home scope audit anchors");
+}
+
+function checkTaskPersistenceGateContract() {
+  assertIncludes("docs/qa/release-grade-qa.md", [
+    "Task Persistence Gate Sweep",
+    "完成任務不等於完整收工",
+    "例行通過檢查不得觸發輕量保存",
+    "未拍板草稿不得觸發完整收工",
+    "新增或刪除文件、新來源",
+    "用戶要求把經驗轉成機制"
+  ]);
+
+  assertIncludes("runtime-core/AGENTS.core.md", [
+    "Use exactly one of these tiers after each task",
+    "No persistence",
+    "active draft / image iterations not approved as final",
+    "routine successful checks that can be rerun",
+    "Lightweight checkpoint is not full closeout",
+    "do not regenerate `START_NEXT_SESSION_PROMPT.txt`",
+    "Full closeout",
+    "explicit end-of-session / handoff intent",
+    "Route durable facts by file role",
+    "source locations",
+    "Sync obligations across repositories",
+    "Long-term decisions",
+    "practice-to-mechanism lessons",
+    "If an involuntary stop is likely",
+    "If uncertain whether a fact is durable"
+  ]);
+
+  assertIncludes("README.md", [
+    "準備結束本輪工作時說「收工」"
+  ]);
+
+  assertIncludes("agent-handoff-kit-intro.html", [
+    "準備結束本輪工作時說一聲「收工」",
+    "準備結束本輪工作時說「收工」"
+  ]);
+
+  assertIncludes("agent-handoff-kit-guide.html", [
+    "準備結束本輪工作時講「收工」",
+    "準備結束本輪工作時一句「收工」"
+  ]);
+
+  const guide = read("agent-handoff-kit-guide.html");
+  assert(!guide.includes("正式執行 + 寫入交接"), "guide must not teach task completion as immediate handoff write");
+  assert(!guide.includes("接著我要進入寫入交接階段"), "guide must not show automatic handoff stage after a normal task");
+  assert(!guide.includes("完成任務後收工時"), "guide must not phrase closeout as every task completion");
+  assert(!guide.includes("必要狀態保存"), "guide must not expose internal persistence-gate terminology");
+  assert(!guide.includes("不需要先完整收工"), "guide must not explain the prior over-closeout failure mode");
+  assert(!guide.includes("不用先收工"), "guide must not explain the prior over-closeout failure mode");
+
+  const intro = read("agent-handoff-kit-intro.html");
+  assert(!intro.includes("完成時說一聲「收工」"), "intro must not phrase closeout as ordinary task completion");
+  assert(!intro.includes("完成時說「收工」"), "intro must not phrase closeout as ordinary task completion");
+
+  const governancePack = read("packs/agent-governance.md");
+  assert(!governancePack.includes("No persistence"), "agent governance pack must reference the core gate instead of duplicating tier thresholds");
+  assert(!governancePack.includes("Lightweight checkpoint"), "agent governance pack must reference the core gate instead of duplicating tier thresholds");
+
+  console.log("ok: task persistence gate contract");
 }
 
 function assertLatestCrossMindTableComplete(version) {

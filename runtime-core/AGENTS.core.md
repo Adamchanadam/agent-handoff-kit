@@ -57,13 +57,32 @@ Use this loop for every task:
 2. READ: inspect relevant files from `PROJECT_INDEX.md` and search for related definitions before editing.
 3. CHANGE: make focused changes only.
 4. QC: run available checks or state why they cannot run.
-5. PERSIST: classify durable facts before writing them. Current state belongs in handoff, chronological evidence in log, file / command / reference maps in project index, sync obligations in doc sync registry, and reusable operating procedure in the relevant rule pack or registered reference. Do not persist one-time delivery instructions, historical validation evidence, old hashes, old version facts, or incident notes as current state, next priorities, durable anchors, or startup instructions. Do not store reusable procedure knowledge only in handoff or log.
+5. PERSISTENCE GATE: decide whether this task produced a durable fact before writing governance files. A durable fact is information the next agent cannot reliably reconstruct and that affects future action.
 
-External skill flows, subagents, task plans, or another tool's "finish" step do not replace this loop. If you use any of them, the PLAN must include a final Agent Handoff Kit persistence step for the active project root, and completion cannot be claimed until that root's `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md`, and `dev/DOC_SYNC_REGISTRY.md` have been inspected and updated or explicitly marked not applicable.
+External skill flows, subagents, task plans, or another tool's "finish" step do not replace this loop. If you use any of them, the PLAN must include a final Agent Handoff Kit persistence-gate check for the active project root, and completion cannot be claimed until that check is answered at the correct tier.
 
 For high-risk work, pause after PLAN. High-risk means destructive operations, ambiguous target, external systems, release/publish, or broad multi-file change.
 
-## 2.1 Upgrade Done Contract
+## 2.1 Persistence Gate
+
+Use exactly one of these tiers after each task:
+
+1. No persistence: choose this when the task produced no durable fact. Examples: one-off answers, active draft / image iterations not approved as final, routine successful checks that can be rerun, transient tool output, and ordinary progress that remains visible in the current chat.
+2. Lightweight checkpoint: choose this when a durable fact exists and the session continues, when the agent may be interrupted before full closeout, or when uncertain whether the fact is durable. Write only the smallest correct home. Lightweight checkpoint is not full closeout: do not regenerate `START_NEXT_SESSION_PROMPT.txt`, do not show a closeout card, do not run full closeout maintenance, and do not reconcile every handoff section unless the fact itself requires it.
+3. Full closeout: choose this only for explicit end-of-session / handoff intent, tool or day boundary, user-requested handoff, agent about to stop, or completed release / external sync / governance change that needs the next agent to continue from persisted state.
+
+Route durable facts by file role:
+
+- Current objective, next action, unresolved risk, blocker, or a fact needed at startup belongs in `dev/SESSION_HANDOFF.md`.
+- Chronological evidence, command output, validation result, and research trace belongs in `dev/SESSION_LOG.md` when it affects future action or cannot be cheaply rerun. Routine successful checks that can be rerun are not durable facts.
+- File maps, command maps, reference maps, source locations, and installed capability maps belong in `dev/PROJECT_INDEX.md`.
+- Sync obligations across repositories, docs, mirrors, or external surfaces belong in `dev/DOC_SYNC_REGISTRY.md`.
+- Long-term decisions, architecture trade-offs, durable rationale, and research-derived decisions belong in `dev/PROJECT_DECISIONS.md`. Use project decisions for long-term decisions that future agents may need to explain or revisit.
+- Reusable operating procedures and practice-to-mechanism lessons belong in the relevant rule pack, registered reference, or QA check. Do not store reusable procedure knowledge only in handoff or log.
+
+Do not persist one-time delivery instructions, old hashes, old version facts, incident notes, routine green validation, or unapproved draft status as current state, next priorities, durable anchors, or startup instructions. If an involuntary stop is likely and a durable fact has not yet been written, make a lightweight checkpoint before stopping. If uncertain whether a fact is durable, choose lightweight checkpoint.
+
+## 2.2 Upgrade Done Contract
 
 `agent-handoff-kit upgrade` is considered complete only when all of the following hold. The CLI enforces this contract; do not declare upgrade success without it.
 
@@ -152,9 +171,9 @@ A pack may add task-specific requirements. A pack cannot weaken core safety. If 
 
 When a task references external tools (Notion / Google Drive / Slack / Linear / GitHub / Dropbox / HubSpot / Atlassian / etc.) or `dev/PROJECT_INDEX.md` `## Installed Integrations` is non-empty, load `dev/rules/integrations.md` together with the relevant domain pack. The integrations pack covers Connector-first defaults, credential separation, multi-layer source-of-truth architecture, and cross-session resilience for declared integrations.
 
-After the task, persist durable facts into the correct home: handoff for current state, log for trace evidence, project index for file / command / reference maps, doc sync registry for sync obligations, project decisions for long-term decisions or research-derived rationale, and rule packs or registered references for reusable operating procedures. Do not assume the next session remembers pack context unless it is recorded, and do not treat handoff/log persistence as sufficient for reusable procedure knowledge.
+After the task, apply the Persistence Gate in Section 2.1. Do not assume the next session remembers pack context unless it is recorded, and do not treat handoff/log persistence as sufficient for reusable procedure knowledge.
 
-If a pack, skill, subagent plan, demo workspace, or external workflow produces its own closeout, treat it as subordinate evidence. The active project root still needs Agent Handoff Kit persistence before the task is complete.
+If a pack, skill, subagent plan, demo workspace, or external workflow produces its own closeout, treat it as subordinate evidence. The active project root still needs the Section 2.1 persistence-gate decision before the task is complete.
 
 ## Core Complexity Rule
 

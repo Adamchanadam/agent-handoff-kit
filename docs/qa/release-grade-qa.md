@@ -20,6 +20,7 @@
 | 交接語言本地化驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `SESSION_HANDOFF` 保留 `ack:section:*` 與 `ack:field:*` 語義標記時，標題與可見欄位名稱可翻成中文或其他語言。 | 是 |
 | 安裝後指示驗收 | 已併入 `npm run qa:prototype` 與 `npm run qa:release` | 檢查安裝成功後的終端機輸出不會令用戶誤把提示文字當成命令，並確認 README 說明安裝後第一步；同時檢查 `npx` 取得 CLI 工具與項目內 Kit 文件安裝不可混淆。 | 是 |
 | 技能／子代理流程仲裁驗收 | 已併入 `npm run qa:packs` 與 `npm run qa:release` | 檢查外部技能、子代理、demo workspace 或其他工具的 closeout 不可取代目前根目錄自己的 Agent Handoff Kit 持久化。 | 是 |
+| 任務持久化分流驗收 | 已併入 `npm run qa:release` 與人工終讀 | 檢查完成任務不等於完整收工；核心 runtime 是唯一分流真源，README / intro / guide 只保留用戶操作語句，不暴露內部治理分類；例行通過檢查、未拍板草稿不得觸發輕量保存或完整收工，新增或刪除文件、新來源、用戶要求把經驗轉成機制時才按角色保存到正確位置。 | 是 |
 | 舊核心升級結構驗收 | 已併入 `npm run qa:upgrade` 與 `npm run qa:release` | 檢查舊版未標記 `AGENTS.md` core 升級後不會留下雙核心、雙收尾合約或 stale 上半段，且保留 core 前後的使用者本地規則；同時確認升級後 core 已帶收工 read-back discipline，沒有殘留「先表面輸出、後重生 prompt」的第三真源舊次序。 | 是 |
 | PROJECT_DECISIONS 結構驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `dev/PROJECT_DECISIONS.md` 含 4 個 H2 section heading（Evolution Timeline / Decisions Archive / Architecture Choices / Insights & Learnings）並保持順序；檔頭含 onboarding 句式（「warm 資料層」、「AI 開工不需要讀」、「AI 在收工時自動 update」）；research-derived decision trace 使用同檔定義的 evidence-chain format，並由 `doctor` 確認 `source:<id>` 已登記於 `dev/PROJECT_INDEX.md`。 | 是 |
 | Prompt mirror 固定檢查器 | 已併入 `doctor`、`npm run qa:prompt-mirror` 與 `npm run qa:release` | 以同一 runtime helper 錨定 `ack:section:next-session-opening-message` / `## Next Session Opening Message`、copy marker 與下一個 fenced `text` block；比對前正規化 CRLF / LF，只把真內容差異列為 mismatch。 | 是 |
@@ -66,6 +67,7 @@
 | Doctor healthy / outdated / lifecycle conflict | `doctor` 是否分清健康、可升級、交接矛盾三類，不混成同一個下一步。 | Scenario 6 automated + scenario 7 manual + lifecycle negative fixture | 阻擋 publish，並補 scenario output contract |
 | AI-generated handoff prose tolerance | `doctor` 不得用任意正文詞語硬猜生命週期；可機器判斷的只限 Kit 控制的結構標記與狀態欄位。 | Scenario 4b automated + lifecycle field fixture | 阻擋 publish，直到誤判 fixture 通過 |
 | Natural-language task → rule pack → durable home | 用戶以自然語言提出寫作、研究、編碼、整合、發佈、治理、回覆格式或新手上手需求時，AI 是否能載入最少必要 pack，並把可重用程序寫入既有 pack / registered reference；不得因一次任務就任意新建 governance docs。 | `qa:packs` + Rule Pack Routing And Durable-home Scope Sweep + 人工抽樣 | 阻擋 publish，直到路由、pack scope、入庫位置與人工樣例對齊 |
+| Task persistence gate | 完成任務不等於完整收工；AI 必須按核心 runtime 的三層分流判斷：無持久事實不寫治理檔、有下一輪必須知道的事實才輕量保存、明確收工或交接才完整 closeout。 | `qa:release` Task Persistence Gate Sweep + README / intro / guide 人工終讀 | 阻擋 publish，直到正向場景與反向場景都對齊 |
 
 ### QC Gap Backflow
 
@@ -106,6 +108,7 @@
 | 執行落差 | 檢查規則是否有 `doctor`、QA 腳本、負面測試或人工審閱承接；不得只增加提醒文字。 |
 | 技能流程覆蓋 | 用核心規則、治理規則包與 QA 錨點確認外部技能流程只能作 subordinate evidence，不能讓 active root 跳過 handoff/log/index/registry 持久化。 |
 | Rules / packs 路由與入庫範圍 | 每次 release 前確認 `runtime-core/RULE_PACKS.md` 有自然語言任務訊號到各 pack 的路由；每個 `packs/*.md` 都有 Scope / Load When / Rules / Checks / Closeout；`runtime-core/AGENTS.core.md` 與 `packs/agent-governance.md` 都要求可重用操作程序進既有 rule pack 或 registered reference，不可只放 handoff / log，也不可未分類就新建治理文件。 |
+| 任務持久化分流 | 每次 release 前確認 `runtime-core/AGENTS.core.md` 是唯一分流真源；`packs/agent-governance.md` 只引用核心 persistence gate、不複製門檻；README / intro / guide 不得把「任務完成」寫成「立即完整收工」，也不得把內部 persistence gate 術語當成新手說明。例行通過檢查、未拍板草稿、普通中途進度屬反向場景；新增或刪除文件、新來源、用戶要求把經驗轉成機制屬正向場景，必須按文件角色保存。 |
 | 舊核心殘留 | 用升級負面測試確認舊版 `AGENTS.md` core 被替換而不是附加；`doctor` 必須擋下同一檔案內兩個 core runtime 標題。 |
 | 升級路徑覆蓋 | `qa:upgrade` 必須含跨版本鏈式升級驗收（`v0.1.4` → `v0.1.5` → `v0.1.6` → 當前 HEAD），每跳用對應版本嘅 CLI 跑 `init`／`upgrade`／`doctor`，最後一跳用當前 HEAD 跑並 self-check 通過；同時必須含 upgrade quality matrix，確認版本 metadata、功能 anchor、post-upgrade `doctor` 穩定性三軸同時通過。 |
 | 補丁前置狀態枚舉 | 每個 `R-XXX` 補丁必須明文列覆蓋與唔覆蓋嘅前置狀態枚舉，唔填唔放行。例：R-024 覆蓋「夾心 managed + stale」「legacy single core」「無 core」三態，唔覆蓋「managed marker 不成對」（屬 conflict，由人工處理）。 |
@@ -182,7 +185,7 @@ Upgrade quality matrix 屬 `qa:upgrade` 的多情境測試：每個可定位的 
 - `runtime-core/RULE_PACKS.md` 有所有已發佈 pack 的自然語言任務訊號路由，並保留 minimum set / safety escalation / cannot weaken core safety 紀律。
 - 標準 `packs/*.md` 有固定結構：Scope、Load When、Rules、Checks、Closeout；特殊 scenario / integration pack 若使用 Discipline / Scenario Library / Cross-reference 等結構，仍必須保留清楚的 Load When、可檢查規則與 Closeout。
 - `packs/agent-governance.md` 明確要求：新增 durable workflow / runbook / instruction files 前，先分類 knowledge type，先找既有 home；可重用 operating procedures 屬於 relevant rule pack 或 registered reference；new runbooks are last resort only。
-- `runtime-core/AGENTS.core.md` Pack Loading 段明確要求：task 後把 durable facts 寫入正確 home；handoff / log 不足以承載 reusable procedure knowledge。
+- `runtime-core/AGENTS.core.md` Persistence Gate 段明確要求：task 後先判斷 no persistence / lightweight checkpoint / full closeout；handoff / log 不足以承載 reusable procedure knowledge。
 - `docs/qa/release-grade-qa.md` 本段與 Product Journey Matrix 都保留「Natural-language task → rule pack → durable home」檢查，令 full audit 報告必須對 rules / packs 路由給出結論。
 
 人工審閱時，至少抽樣以下自然語言類型並標記 automated PASS / manual PASS / blocked：
@@ -198,6 +201,20 @@ Upgrade quality matrix 屬 `qa:upgrade` 的多情境測試：每個可定位的 
 | 「我是新手 / 教我用 / 點開始」 | onboarding，再 transition 至 regular scenario pack | first-task scope 入 handoff；完成 onboarding 後 unload onboarding pack |
 
 若 pack change 或 runtime routing change 未能通過以上機器錨點或人工抽樣，候選版本不得進入 publish。
+
+### Task Persistence Gate Sweep（source-only candidate）
+
+對應治理 QA 缺口矩陣「任務持久化分流」。本掃描的目標不是要求每個任務都寫交接，而是防止 AI 在「過度治理」與「漏做治理」之間擺動。
+
+`npm run qa:release` 必須守住以下錨點：
+
+- `runtime-core/AGENTS.core.md` 是唯一分流真源，明確定義 durable fact、No persistence、Lightweight checkpoint、Full closeout，並列明文件角色：`SESSION_HANDOFF` / `SESSION_LOG` / `PROJECT_INDEX` / `DOC_SYNC_REGISTRY` / `PROJECT_DECISIONS` / rule pack。
+- `packs/agent-governance.md` 只引用核心 persistence gate decision，不複製三層門檻，避免兩處規則漂移。
+- README、intro.html、guide.html 對外只保留用戶操作語句，不把普通任務完成、草稿迭代或例行通過檢查寫成完整收工，也不把內部 persistence gate 術語寫成新手說明。
+- 反向場景必須被守住：例行通過檢查不得觸發輕量保存；未拍板草稿不得觸發完整收工；普通任務完成但仍在同一對話繼續工作，不得重生 `START_NEXT_SESSION_PROMPT.txt`。
+- 正向場景必須被守住：新增或刪除文件、新來源、本機或網址真源、不可重建的驗證結果、用戶要求把經驗轉成機制、代理可能中斷時尚未保存的 durable fact，必須按文件角色作輕量保存或完整收工。
+
+人工終讀要抽樣至少三種場景並標記 automated PASS / manual PASS / blocked：圖片或文稿草稿未拍板、加入一個新的 URL / 本機來源、用戶指出 AI 錯誤並要求轉成長期機制。若任何示例令 AI 以為「每完成一小步都要完整 handoff」，候選版本不得進入 publish。
 
 ### Npx Cold-start UX Sweep（v0.3.7 候選新加）
 
