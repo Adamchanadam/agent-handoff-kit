@@ -1512,6 +1512,14 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
     isReconciledHandoff(lifecycleAffirmativeWithPendingHandoff),
     "affirmative lifecycle field with pending follow-up wording should pass"
   );
+  const lifecycleNarrativeWithPendingHandoff = closedHandoff.replace(
+    "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes",
+    "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: Reclassified after review: completed work moved from pending to recorded; remaining follow-up is not pending in this handoff."
+  );
+  assert(
+    assessHandoffLifecycleConsistency(lifecycleNarrativeWithPendingHandoff).ok,
+    "lifecycle narrative with non-leading pending wording should not be treated as placeholder"
+  );
   const openingMessage = extractOpeningMessage(closedHandoff);
   assert(openingMessage.includes(tempRoot), "simulated opening message missing project root");
   assert(openingMessage.includes("Read in order:"), "simulated opening message missing read order");
@@ -1625,11 +1633,19 @@ function isAffirmativeLifecycleFieldValue(value) {
 }
 
 function isUnresolvedLifecycleFieldValue(value) {
-  return /\b(no|blocked|uncertain)\b|否|阻擋|不確定/i.test(value || "");
+  const trimmed = normalizeLifecycleFieldValue(value);
+  return /^(no|blocked|uncertain)\b|^(否|阻擋|不確定)\b/i.test(trimmed)
+    || /\b(still unresolved|not resolved)\b|仍未解決|尚未解決/i.test(trimmed);
 }
 
 function isPlaceholderLifecycleFieldValue(value) {
-  return !value || /\b(TBD|todo|pending|unverified|unknown|needs-review)\b|待核對|待確認|未核對|未確認/i.test(value);
+  const trimmed = normalizeLifecycleFieldValue(value);
+  return !trimmed
+    || /^(TBD|todo|pending|unverified|unknown|needs-review)\b|^(待核對|待確認|未核對|未確認)\b/i.test(trimmed);
+}
+
+function normalizeLifecycleFieldValue(value) {
+  return (value || "").trim().replace(/^[-*]\s*/, "");
 }
 
 function hasSubstantiveHandoffState(text) {

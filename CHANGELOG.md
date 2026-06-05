@@ -1,5 +1,26 @@
 # 變更紀錄
 
+## v0.3.26 — 2026-06-05
+
+狀態：候選發佈版本。本版修補兩個真實 runtime 回饋揭發的 upgrade / doctor 問題：合法 handoff lifecycle 敘述不應因句中含 `pending` 被誤判為未填欄位；規則包被放到錯誤層級時，工具應給出可定位診斷，而不是只留下模糊缺段。
+
+### Fixed
+
+- `handoff lifecycle consistency` 改為只把欄位開頭的 placeholder / unresolved token 視為未完成狀態，不再掃描整段自由敘述中的 `pending`、`not pending` 或「由 pending 改成 recorded」等合法語句。
+- `upgrade` 從舊版手寫交接資料遷移時，保留使用者既有 lifecycle 敘述；只要語意已完成且不是欄位開頭 placeholder，升級後 `doctor` 應通過。`AGENTS.md` 內容已是最新但缺 managed-core marker 時，upgrade 不再過早 skip，會補回 marker block。
+- 規則包錯層狀態新增診斷與回歸守門：若 rules 檔疑似放錯層，`doctor` / `upgrade` 會指出 wrong-layer hints，正確 `dev/rules/` copy 仍由工具補齊或檢查。
+
+### QA
+
+- `qa:upgrade` 新增 v0.3.11-style lifecycle narrative regression，確認欄位敘述中段含 `pending` 不會令 upgrade 後 self-check 失敗。
+- `qa:upgrade` 新增 misplaced rule layer regression，確認錯層 rules 檔會有清楚診斷，且升級會補回正確路徑而不刪錯層副本。
+- `qa:release` 新增直接 lifecycle consistency regression，鎖定本次 false-positive 根因，而不是只靠完整 closeout 的 `yes` 欄位短路。
+- 發佈前全面檢 PASS：`qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release`、`npm pack --dry-run --json` 均通過；package fileCount 維持 25。
+- `test-fixtures/v0.3.25` 已加入，v0.3.26 的 prior-version packed upgrade smoke 可用正式上一版作前置樣本。
+
+### Migration path（v0.3.25 → v0.3.26，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。本版不改用戶文件結構；主要修補 `doctor` / `upgrade` 對既有 handoff 敘述與錯層規則包的判斷。若你的 lifecycle 欄位已用自然語言說明「曾是 pending、現在已記錄」，升級後不應再被誤判為未解待辦。
 ## v0.3.25 — 2026-06-03
 
 狀態：正式發佈版本。本版修補任務完成後過度進入完整交接的流程問題：AI 應先按文件角色判斷是否真的有下一輪必須知道的持久事實；普通任務完成、草稿迭代、例行檢查通過，不應自動重生整套交接文件。

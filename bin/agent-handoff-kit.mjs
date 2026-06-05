@@ -34,6 +34,9 @@ const mappings = [
 ];
 
 const requiredTargets = mappings.map(([, target]) => target);
+const rulePackTargets = mappings
+  .map(([, target]) => target)
+  .filter((target) => target.startsWith("dev/rules/"));
 const managedCoreStart = "<!-- BEGIN Agent Handoff Kit managed core -->";
 const managedCoreEnd = "<!-- END Agent Handoff Kit managed core -->";
 
@@ -558,7 +561,12 @@ async function runInstall(command, root, options, version) {
   for (const item of plan) {
     if (item.action !== "create") continue;
     await mkdir(path.dirname(item.targetAbs), { recursive: true });
-    await copyFile(item.sourceAbs, item.targetAbs);
+    if (item.targetRel === "AGENTS.md") {
+      const sourceText = await readFile(item.sourceAbs, "utf8");
+      await writeFile(item.targetAbs, mergeManagedBlock("", sourceText), "utf8");
+    } else {
+      await copyFile(item.sourceAbs, item.targetAbs);
+    }
     created.push(item.targetRel);
   }
 
@@ -686,11 +694,15 @@ async function runDoctor(root, version, options = {}) {
   }
 
   if (missing.length > 0) {
+    const misplacedRulePacks = await findMisplacedRulePacks(root, missing);
+    printMisplacedRulePackWarnings(misplacedRulePacks);
     printDoctorSummary(version, root, "needs-fix", {
       checked: rows.length,
       failedKind: "missing files",
       failedCount: missing.length,
-      nextStep: missing.length === rows.length
+      nextStep: misplacedRulePacks.length > 0
+        ? "同名 rules 檔疑似放錯層。先不要刪除或搬移；請執行 upgrade --dry-run，再正式 upgrade 補回 dev/rules/ 內的正確檔案。"
+        : missing.length === rows.length
         ? "這個資料夾未安裝 Kit。若這就是你的項目資料夾，請執行：npx --yes @adamchanadam/agent-handoff-kit@latest init"
         : "這個資料夾只裝了一部分 Kit 檔案。請先確認路徑；如路徑正確，執行：npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run"
     });
@@ -1253,11 +1265,19 @@ function isAffirmativeLifecycleFieldValue(value) {
 }
 
 function isUnresolvedLifecycleFieldValue(value) {
-  return /\b(no|blocked|uncertain)\b|否|阻擋|不確定/i.test(value || "");
+  const trimmed = normalizeLifecycleFieldValue(value);
+  return /^(no|blocked|uncertain)\b|^(否|阻擋|不確定)\b/i.test(trimmed)
+    || /\b(still unresolved|not resolved)\b|仍未解決|尚未解決/i.test(trimmed);
 }
 
 function isPlaceholderLifecycleFieldValue(value) {
-  return !value || /\b(TBD|todo|pending|unverified|unknown|needs-review)\b|待核對|待確認|未核對|未確認/i.test(value);
+  const trimmed = normalizeLifecycleFieldValue(value);
+  return !trimmed
+    || /^(TBD|todo|pending|unverified|unknown|needs-review)\b|^(待核對|待確認|未核對|未確認)\b/i.test(trimmed);
+}
+
+function normalizeLifecycleFieldValue(value) {
+  return (value || "").trim().replace(/^[-*]\s*/, "");
 }
 
 function hasSubstantiveHandoffState(text) {
@@ -1305,6 +1325,30 @@ function extractSectionText(text, markerId, headingTitle) {
   const start = headingMatch.index + headingMatch[0].length;
   const nextHeading = /\n##\s+/.exec(text.slice(start));
   return text.slice(start, nextHeading ? start + nextHeading.index : text.length);
+}
+
+async function findMisplacedRulePacks(root, missingRows) {
+  const missingTargets = new Set(missingRows.map((row) => row.target));
+  const findings = [];
+  for (const target of rulePackTargets) {
+    if (!missingTargets.has(target)) continue;
+    const fileName = path.basename(target);
+    const misplacedRel = path.join("dev", fileName).replaceAll(path.sep, "/");
+    if (await exists(path.join(root, misplacedRel))) {
+      findings.push({ expected: target, misplaced: misplacedRel });
+    }
+  }
+  return findings;
+}
+
+function printMisplacedRulePackWarnings(findings) {
+  if (findings.length === 0) return;
+  console.log("");
+  console.log("misplaced rule pack hints:");
+  for (const finding of findings) {
+    console.log(`warning  ${finding.expected} missing, but ${finding.misplaced} exists`);
+  }
+  console.log("  同名 rules 檔疑似放錯層；upgrade 會補回 dev/rules/ 內的正確檔案，但不會自動刪除或搬移 dev/ 根層副本。");
 }
 
 async function checkRequiredAnchors(root) {
@@ -1412,12 +1456,19 @@ async function buildPlan(root, command, version = null) {
       plan.push(classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText, context));
       continue;
     }
+    const misplacedRel = targetRel.startsWith("dev/rules/")
+      ? path.join("dev", path.basename(targetRel)).replaceAll(path.sep, "/")
+      : null;
+    const reason = misplacedRel && await exists(path.join(root, misplacedRel))
+      ? `same-named rules file appears one level up at ${misplacedRel}; create correct dev/rules/ copy without deleting or moving the misplaced file`
+      : undefined;
     plan.push({
       sourceRel,
       targetRel,
       sourceAbs,
       targetAbs,
-      action: "create"
+      action: "create",
+      ...(reason ? { reason } : {})
     });
   }
   return plan;
@@ -1436,7 +1487,7 @@ async function readRootTemplateVersion(root) {
 
 function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText, context = {}) {
   const base = { sourceRel, targetRel, sourceAbs, targetAbs };
-  if (targetText === sourceText) return { ...base, action: "skip", reason: "already current" };
+  if (targetText === sourceText && targetRel !== "AGENTS.md") return { ...base, action: "skip", reason: "already current" };
   if (command !== "upgrade") return { ...base, action: "skip", reason: "init preserves existing files" };
   if (targetRel === "AGENTS.md") {
     const health = assessAgentsMdHealth(targetText);

@@ -266,6 +266,49 @@ function main() {
   const staleLifecycleHandoff = read(path.join(staleLifecyclePlaceholderRoot, "dev/SESSION_HANDOFF.md"));
   assert(staleLifecycleHandoff.includes("Reclassified at upgrade"), "stale existing lifecycle placeholder should be explicitly reclassified by migration");
 
+  const lifecycleNarrativePendingRoot = path.join(tmpdir(), `ack-upgrade-lifecycle-narrative-pending-${Date.now()}`);
+  mkdirSync(lifecycleNarrativePendingRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", lifecycleNarrativePendingRoot], "init lifecycle narrative pending root");
+  const lifecycleNarrativeIndexPath = path.join(lifecycleNarrativePendingRoot, "dev/PROJECT_INDEX.md");
+  writeFileSync(
+    lifecycleNarrativeIndexPath,
+    read(lifecycleNarrativeIndexPath).replace(
+      /\| Agent Handoff Kit template version \| [\d.]+ \|/,
+      "| Agent Handoff Kit template version | 0.3.11 |"
+    ),
+    "utf8"
+  );
+  seedSubstantiveHandoffStateForLifecycleMigration(lifecycleNarrativePendingRoot);
+  const lifecycleNarrativeHandoffPath = path.join(lifecycleNarrativePendingRoot, "dev/SESSION_HANDOFF.md");
+  writeFileSync(
+    lifecycleNarrativeHandoffPath,
+    read(lifecycleNarrativeHandoffPath).replace(
+      /- Completed \/ pending \/ risk \/ opening-message lifecycle conflicts resolved or explicitly reclassified: .*/,
+      "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: Reclassified after review: completed work moved from pending to recorded; remaining follow-up is not pending in this handoff."
+    ),
+    "utf8"
+  );
+  const lifecycleNarrativeUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", lifecycleNarrativePendingRoot], "upgrade lifecycle narrative pending field root");
+  assert(lifecycleNarrativeUpgrade.stdout.includes("升級後自動檢查"), "lifecycle narrative pending upgrade must run doctor self-check");
+  assert(lifecycleNarrativeUpgrade.stdout.includes("status: passed"), "lifecycle narrative pending upgrade self-check must pass");
+  assert(!lifecycleNarrativeUpgrade.stdout.includes("missing  dev/SESSION_HANDOFF.md (handoff lifecycle consistency)"), "lifecycle narrative pending upgrade must not fail lifecycle consistency");
+
+  const misplacedRuleLayerRoot = path.join(tmpdir(), `ack-upgrade-misplaced-rule-layer-${Date.now()}`);
+  mkdirSync(misplacedRuleLayerRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", misplacedRuleLayerRoot], "init misplaced rule layer root");
+  const correctCodingRule = path.join(misplacedRuleLayerRoot, "dev/rules/coding.md");
+  const misplacedCodingRule = path.join(misplacedRuleLayerRoot, "dev/coding.md");
+  copyFileSync(correctCodingRule, misplacedCodingRule);
+  rmSync(correctCodingRule, { force: true });
+  const misplacedDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", misplacedRuleLayerRoot], "doctor misplaced rule layer root", { allowFailure: true });
+  assert(misplacedDoctor.status !== 0, "misplaced rule layer doctor precondition must fail before repair");
+  assert(misplacedDoctor.stdout.includes("misplaced rule pack hints"), "misplaced rule layer doctor must print wrong-layer hints");
+  assert(misplacedDoctor.stdout.includes("dev/rules/coding.md missing, but dev/coding.md exists"), "misplaced rule layer hint must name expected and misplaced paths");
+  const misplacedRuleLayerUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", misplacedRuleLayerRoot], "upgrade misplaced rule layer root");
+  assert(misplacedRuleLayerUpgrade.stdout.includes("升級後自動檢查"), "misplaced rule layer upgrade must run doctor self-check");
+  assert(misplacedRuleLayerUpgrade.stdout.includes("status: passed"), "misplaced rule layer upgrade self-check must pass after recreating correct rule path");
+  assert(existsSync(correctCodingRule), "misplaced rule layer upgrade must recreate dev/rules/coding.md");
+  assert(existsSync(misplacedCodingRule), "misplaced rule layer upgrade must not delete user-visible misplaced dev/coding.md copy");
   // (B) Real-fixture sandwich: stage 1 upgrade promotes v0.1.4 legacy core
   // into a managed block; then inject v0.1.4 fixture AGENTS.md text as a
   // stale core fragment below the managed block. Current CLI upgrade must
@@ -335,7 +378,8 @@ function main() {
     { ref: "v0.3.22", command: "upgrade" },
     { ref: "v0.3.23", command: "upgrade" },
     { ref: "v0.3.24", command: "upgrade", source: "tag" },
-    { ref: "v0.3.25", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.25", command: "upgrade", source: "tag" },
+    { ref: "v0.3.26", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -536,7 +580,7 @@ function main() {
 
   const handoffContinuityUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", handoffContinuityRoot], "handoff-continuity upgrade self-repair");
   const handoffContinuityOut = outputText(handoffContinuityUpgrade);
-  assert(handoffContinuityOut.includes("merged: 1"), "handoff-continuity upgrade must merge SESSION_HANDOFF.md instead of preserving the drifted file");
+  assertMergedAtLeast(handoffContinuityOut, 1, "handoff-continuity upgrade must merge SESSION_HANDOFF.md instead of preserving the drifted file");
   assert(handoffContinuityOut.includes("insert handoff archive continuity rule"), "handoff-continuity upgrade plan must describe the self-repair");
   assert(handoffContinuityOut.includes("status: passed"), "handoff-continuity upgrade self-check must pass after auto-repair");
   assert(!handoffContinuityOut.includes("anchor checks failed"), "handoff-continuity upgrade must not route the user to manual anchor repair");
