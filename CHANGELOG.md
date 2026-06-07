@@ -1,5 +1,30 @@
 # 變更紀錄
 
+## v0.3.28 — 2026-06-07
+
+狀態：候選發佈版本。本版把「治理打通」的公眾入口改得更直白：新手可以直接說「把文件接入 Agent Handoff Kit」，同時保留「治理打通」與英文觸發語作別名。
+
+### Added
+
+- 新增中文觸發語：「把文件接入 Agent Handoff Kit」、「接入 Agent Handoff Kit」、「掃描未接入 Agent Handoff Kit 的重要文件」。
+- README、intro HTML、guide HTML 改以新版直白用語作主入口，並保留「治理打通」作舊說法。
+
+### Fixed
+
+- intro HTML 正文中的 `治理打通` highlight 原本只有標記、沒有有效樣式；本版補上正式 highlight 樣式。
+- intro HTML 的「兩種常見用法」改為兩組入口：指定文件與掃描候選，避免把中文、英文與掃描三行誤讀成三種不同用法。
+
+### QA
+
+- `qa:packs` 更新治理打通情景矩陣，確認新版中文觸發語與舊觸發語都會路由至 `agent-governance`。
+- `qa:upgrade` 新增舊治理打通路由列遷移情景，確認舊用戶升級時會非破壞性補入新版中文觸發語。
+- `qa:release` 更新 Governance Bridge contract，防止 README / HTML 與 runtime 支援能力漂移。
+- `test-fixtures/v0.3.27` 已加入，v0.3.28 的 prior-version upgrade smoke 可用正式上一版作前置樣本。
+
+### Migration path（v0.3.27 → v0.3.28，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。升級會保留既有治理文件與本地自訂內容；若項目已有舊版治理打通路由，工具會在可安全判斷時補入新版中文觸發語。舊說法「治理打通 <檔案>」仍可用。
+
 ## v0.3.27 — 2026-06-07
 
 狀態：候選發佈版本。本版新增「治理打通」標準能力，讓新建的重要文件、真源、清單、流程與 runbook 不再只停留在局部位置，而是能被下一個 AI 透過項目索引、同步登記、相關流程、交接與紀錄穩定發現和維護。

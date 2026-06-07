@@ -382,6 +382,8 @@ const schemaChecks = [
       // R-030 v0.3.0+: routing table must include integrations pack row.
       includes("dev/rules/integrations.md"),
       includes("Governance bridge / 治理打通"),
+      includes("接入 Agent Handoff Kit"),
+      includes("掃描未接入 Agent Handoff Kit 的重要文件"),
       includes("scan for unbridged governance documents")
     ]
   },
@@ -396,6 +398,8 @@ const schemaChecks = [
       heading("Checks"),
       heading("Closeout"),
       includes("Governance bridge is a triggered review"),
+      includes("接入 Agent Handoff Kit"),
+      includes("掃描未接入 Agent Handoff Kit 的重要文件"),
       includes("Status: bridged / partially bridged / unbridged / blocked"),
       includes("duplicate source-of-truth risk")
     ]
@@ -1576,7 +1580,11 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   }
   // Governance bridge v0.3.27+: route durable document bridging requests to
   // agent-governance without replacing user-added routing rows.
-  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("Governance bridge / 治理打通")) {
+  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && (
+    !targetText.includes("Governance bridge / 治理打通")
+    || !targetText.includes("接入 Agent Handoff Kit")
+    || !targetText.includes("掃描未接入 Agent Handoff Kit 的重要文件")
+  )) {
     const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
     if (!mergedRulePacks) {
       return { ...base, action: "conflict", reason: "RULE_PACKS.md routing table header was changed; manual merge required to preserve custom rows" };
@@ -1590,7 +1598,11 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   }
   // Governance bridge v0.3.27+: add the triggered review workflow to the
   // agent-governance pack only when the pack still has a trusted Checks section.
-  if (targetRel === "dev/rules/agent-governance.md" && command === "upgrade" && !targetText.includes("## Governance Bridge Workflow")) {
+  if (targetRel === "dev/rules/agent-governance.md" && command === "upgrade" && (
+    !targetText.includes("## Governance Bridge Workflow")
+    || !targetText.includes("接入 Agent Handoff Kit")
+    || !targetText.includes("掃描未接入 Agent Handoff Kit 的重要文件")
+  )) {
     const mergedGovernancePack = mergeAgentGovernanceBridgeWorkflow(targetText, sourceText);
     if (!mergedGovernancePack) {
       return { ...base, action: "conflict", reason: "agent-governance pack structure was changed; manual merge required to add governance bridge workflow" };
@@ -1806,9 +1818,19 @@ function mergeOnboardingScenarioALabel(targetText) {
 function mergeAgentGovernanceBridgeWorkflow(targetText, sourceText) {
   const sourceMatch = sourceText.match(/9\. Governance bridge[\s\S]*?(?=\n## Checks)/);
   const workflowMatch = sourceText.match(/\n## Governance Bridge Workflow[\s\S]*?(?=\n## Checks)/);
+  const sourceLoadWhenLine = sourceText.split(/\r?\n/).find((line) => line.startsWith("- User asks to \"治理打通\""));
+  const sourceWorkflowIntroLine = sourceText.split(/\r?\n/).find((line) => line.startsWith("Use this workflow when"));
   if (!sourceMatch || !workflowMatch || !targetText.includes("\n## Checks")) return null;
 
   let merged = targetText;
+  const targetLoadWhenLine = merged.split(/\r?\n/).find((line) => line.startsWith("- User asks to \"治理打通\""));
+  if (sourceLoadWhenLine && (!targetLoadWhenLine || !targetLoadWhenLine.includes("接入 Agent Handoff Kit"))) {
+    merged = merged.replace(/- User asks to "治理打通"[^\n]*\n/, `${sourceLoadWhenLine}\n`);
+  }
+  const targetWorkflowIntroLine = merged.match(/^Use this workflow when[^\n]*$/m)?.[0] ?? "";
+  if (sourceWorkflowIntroLine && !targetWorkflowIntroLine.includes("掃描未接入 Agent Handoff Kit 的重要文件")) {
+    merged = merged.replace(/^Use this workflow when[^\n]*$/m, sourceWorkflowIntroLine);
+  }
   if (!merged.includes("Governance bridge is a triggered review")) {
     const rulePrefix = sourceMatch[0].trimEnd();
     merged = merged.replace(/\n## Checks/, `\n${rulePrefix}\n${workflowMatch[0]}\n## Checks`);
@@ -2453,6 +2475,17 @@ function mergeRulePacksRows(targetText, sourceText) {
   const before = lines.slice(0, tableStart);
   const table = lines.slice(tableStart, tableEnd);
   const after = lines.slice(tableEnd);
+  const governanceBridgeSourceRow = sourceRows.find((row) => row.includes("Governance bridge / 治理打通"));
+  if (
+    governanceBridgeSourceRow
+    && targetText.includes("Governance bridge / 治理打通")
+    && (!targetText.includes("接入 Agent Handoff Kit") || !targetText.includes("掃描未接入 Agent Handoff Kit 的重要文件"))
+  ) {
+    const replaced = lines.map((line) => (
+      line.includes("Governance bridge / 治理打通") ? governanceBridgeSourceRow : line
+    ));
+    return replaced.join("\n");
+  }
   const sourceRowsToApply = sourceRows.filter((row) => {
     if (row.includes("dev/rules/onboarding.md")) return !targetText.includes("First-time user signals");
     if (row.includes("dev/rules/integrations.md")) return !targetText.includes("External tool integrations");

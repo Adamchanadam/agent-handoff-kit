@@ -380,7 +380,8 @@ function main() {
     { ref: "v0.3.24", command: "upgrade", source: "tag" },
     { ref: "v0.3.25", command: "upgrade", source: "tag" },
     { ref: "v0.3.26", command: "upgrade", source: "tag" },
-    { ref: "v0.3.27", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.27", command: "upgrade", source: "tag" },
+    { ref: "v0.3.28", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -468,8 +469,25 @@ function main() {
   assertMergedAtLeast(governanceBridgeRulePacksUpgrade.stdout, 1, "governance bridge RULE_PACKS scenario should merge at least one file");
   const governanceBridgeRulePacksAfter = read(governanceBridgeRulePacksPath);
   assert(governanceBridgeRulePacksAfter.includes("Governance bridge / 治理打通"), "RULE_PACKS governance bridge routing row was not restored");
+  assert(governanceBridgeRulePacksAfter.includes("接入 Agent Handoff Kit"), "RULE_PACKS governance bridge Agent Handoff Kit trigger was not restored");
+  assert(governanceBridgeRulePacksAfter.includes("掃描未接入 Agent Handoff Kit 的重要文件"), "RULE_PACKS governance bridge Chinese scan trigger was not restored");
   assert(governanceBridgeRulePacksAfter.includes("scan for unbridged governance documents"), "RULE_PACKS governance bridge scan trigger was not restored");
   assert(governanceBridgeRulePacksAfter.includes("Custom durable workflow"), "RULE_PACKS local durable workflow row was lost during governance bridge migration");
+
+  const governanceBridgeOldRowRoot = path.join(tmpdir(), `ack-upgrade-governance-bridge-old-row-${Date.now()}`);
+  mkdirSync(governanceBridgeOldRowRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", governanceBridgeOldRowRoot], "governance bridge old-row bootstrap install");
+  const governanceBridgeOldRowPath = path.join(governanceBridgeOldRowRoot, "dev/RULE_PACKS.md");
+  const governanceBridgeOldRowBefore = read(governanceBridgeOldRowPath)
+    .replace(
+      /\| Governance bridge[\s\S]*?dev\/rules\/agent-governance\.md[\s\S]*?\|\r?\n/,
+      "| Governance bridge / 治理打通 / bridge governance / connect this document to governance / scan for unbridged governance documents | `dev/rules/agent-governance.md` | legacy governance bridge row |\n"
+    );
+  writeFileSync(governanceBridgeOldRowPath, governanceBridgeOldRowBefore, "utf8");
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", governanceBridgeOldRowRoot], "governance bridge old-row trigger migration");
+  const governanceBridgeOldRowAfter = read(governanceBridgeOldRowPath);
+  assert(governanceBridgeOldRowAfter.includes("接入 Agent Handoff Kit"), "RULE_PACKS old governance bridge row was not upgraded with Agent Handoff Kit trigger");
+  assert(governanceBridgeOldRowAfter.includes("掃描未接入 Agent Handoff Kit 的重要文件"), "RULE_PACKS old governance bridge row was not upgraded with Chinese scan trigger");
 
   const governanceBridgePackRoot = path.join(tmpdir(), `ack-upgrade-governance-bridge-pack-${Date.now()}`);
   mkdirSync(governanceBridgePackRoot, { recursive: true });
@@ -484,6 +502,8 @@ function main() {
   assertMergedAtLeast(governanceBridgePackUpgrade.stdout, 1, "governance bridge pack scenario should merge at least one file");
   const governanceBridgePackAfter = read(governanceBridgePackPath);
   assert(governanceBridgePackAfter.includes("## Governance Bridge Workflow"), "agent-governance pack missing Governance Bridge Workflow after upgrade");
+  assert(governanceBridgePackAfter.includes("接入 Agent Handoff Kit"), "agent-governance pack missing Agent Handoff Kit trigger after upgrade");
+  assert(governanceBridgePackAfter.includes("掃描未接入 Agent Handoff Kit 的重要文件"), "agent-governance pack missing Chinese scan trigger after upgrade");
   assert(governanceBridgePackAfter.includes("Status: bridged / partially bridged / unbridged / blocked"), "agent-governance pack missing governance bridge output contract after upgrade");
   assert(governanceBridgePackAfter.includes("Local project addendum"), "agent-governance local addendum was lost during governance bridge migration");
 

@@ -8,7 +8,7 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 
 - User asks to change AI behavior, project governance, prompts, handoff, startup, closeout, or tool-use rules.
 - A change affects `AGENTS.md`, `dev/*`, rule packs, installer templates, or durable workflow docs.
-- User asks to "治理打通", "bridge governance", "connect this document to governance", or scan for unbridged governance documents.
+- User asks to "治理打通", "把文件接入 Agent Handoff Kit", "接入 Agent Handoff Kit", "掃描未接入 Agent Handoff Kit 的重要文件", "bridge governance", "connect this document to governance", or scan for unbridged governance documents.
 
 ## Rules
 
@@ -24,7 +24,7 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 
 ## Governance Bridge Workflow
 
-Use this workflow when the user asks for governance bridge / 治理打通 / connect this document to governance, or asks to scan for unbridged governance documents.
+Use this workflow when the user asks for governance bridge / 治理打通 / 把文件接入 Agent Handoff Kit / 接入 Agent Handoff Kit / connect this document to governance, or asks to scan for unbridged governance documents / 掃描未接入 Agent Handoff Kit 的重要文件.
 
 1. Identify the target. If the user named a file, inspect that file and its surrounding directory. If no file is named, run a bounded repo scan for likely durable documents such as source-of-truth files, runbooks, workflows, guides, checklists, stock lists, production guides, and rules.
 2. Check the target file itself: it should state its role, scope, update trigger, owner or responsible workflow when known, and what must not be inferred from it.

@@ -220,6 +220,14 @@
       max-width: 64ch;
       margin-bottom: 48px;
     }
+    #bridge .intro .hl {
+      display: inline-block;
+      padding: 0 4px;
+      background: var(--yellow);
+      color: var(--ink);
+      font-weight: 700;
+      box-shadow: inset 0 -3px 0 var(--red);
+    }
 
     /* ───── 一句講清楚 ───── */
     #what {
@@ -489,6 +497,20 @@
       border: none;
     }
     .step pre .hl { color: var(--yellow); }
+    .command-examples {
+      display: grid;
+      gap: 14px;
+      margin-top: 12px;
+    }
+    .command-label {
+      display: inline-block;
+      border: var(--rule-thin);
+      background: var(--yellow);
+      padding: 4px 8px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .command-examples pre { margin-top: 0; }
 
     /* ───── 安全護欄 ───── */
     .safety-grid {
@@ -684,7 +706,7 @@
   <header class="hero">
     <div class="wrap">
       <div>
-        <span class="kicker">v0.3.27 · 60 秒新手入門</span>
+        <span class="kicker">v0.3.28 · 60 秒新手入門</span>
         <h1><span class="accent">AI Session</span><br/>之間的<br/><span class="accent2">接力棒</span></h1>
         <p class="lede">AI 每次開新對話都是從零開始,不記得你上次和它做過甚麼,也認不出中途新建的文檔和你引入的參考資料。這套工具的作用,是把進度、下一步、要留神之處,連同一份檔案登記,寫進幾份固定文件;下一次在能讀寫本機專案資料夾的 AI agent 開新對話,只要說 Start Agent Handoff 或「開工」,它就會讀取交接檔案並接上上一棒。普通 web chat AI 若不能讀寫本機資料夾,不屬於支援場景。</p>
         <div class="cta-row">
@@ -743,7 +765,7 @@
           <div class="pain-num">02</div>
           <h3>新建檔案、引入資料變孤兒</h3>
           <p>AI 過程中會建立新文檔,你也會引入 PDF、Notion 連結、研究筆記作參考。這些檔案當下 AI 都記得,但新對話一開,它就分不清哪份是正式來源、哪份只是草稿,甚至不知道有這些檔案存在。</p>
-          <div class="kit-line">說「治理打通 這份文件」,AI 會檢查它是否已接入索引、同步責任與相關流程</div>
+          <div class="kit-line">說「把這份文件接入 Agent Handoff Kit」,AI 會檢查它是否已接入索引、同步責任與相關流程</div>
         </div>
         <div class="pain-card c3">
           <div class="pain-num">03</div>
@@ -853,31 +875,44 @@
     </div>
   </section>
 
-  <!-- ───── 治理打通 ───── -->
+  <!-- ───── 文件接入 ───── -->
   <section id="bridge">
     <div class="wrap">
-      <span class="eyebrow">04 / 治理打通</span>
+      <span class="eyebrow">04 / 接入 Handoff Kit</span>
       <h2>重要文件完成後,<br/>讓下一個 AI 找得到、用得對。</h2>
-      <p class="intro">當 AI 新建 stock list、production guide、runbook、workflow、checklist 或研究真源時,不要只把它留在當前對話。你可以直接說「治理打通 docs/production-guide.md」,AI 會檢查這份文件是否已登記、何時要讀、哪條流程會更新它,以及是否存在重複真源。</p>
+      <p class="intro">當 AI 新建 stock list、production guide、runbook、workflow、checklist 或研究真源時,不要只把它留在當前對話。你可以直接說「把 docs/production-guide.md <span class="hl">接入 Agent Handoff Kit</span>」,AI 會檢查這份文件是否已登記、何時要讀、哪條流程會更新它,以及是否存在重複真源。</p>
 
       <div class="steps">
         <div class="step s1">
           <div class="step-num">1</div>
-          <h3>指定一份文件</h3>
-          <pre><span class="hl">治理打通 docs/stock-list.md</span>
-或
+          <h3>兩種常見用法</h3>
+          <div class="command-examples">
+            <div>
+              <span class="command-label">用法一:指定文件</span>
+              <pre><span class="hl">把 docs/stock-list.md 接入 Agent Handoff Kit</span>
+或舊說法:
+<span class="hl">治理打通 docs/stock-list.md</span>
+或英文:
 <span class="hl">bridge governance for docs/stock-list.md</span></pre>
-          <p>適合剛新建清單、流程、guide 或正式真源後使用。</p>
+            </div>
+            <div>
+              <span class="command-label">用法二:掃描候選</span>
+              <pre><span class="hl">掃描未接入 Agent Handoff Kit 的重要文件</span>
+或英文:
+<span class="hl">scan for unbridged governance documents</span></pre>
+            </div>
+          </div>
+          <p>第一種直接審核指定文件;第二種不指定文件,只先掃描 repo 中可能漏接的重要文件。</p>
         </div>
         <div class="step s2">
           <div class="step-num">2</div>
-          <h3>AI 檢查接合鏈路</h3>
-          <p>AI 會看文件本身、PROJECT_INDEX、DOC_SYNC_REGISTRY、相關 workflow、handoff/log 角色分工,並搜索是否有同用途舊文件。</p>
+          <h3>先找候選與缺口</h3>
+          <p>AI 會看文件本身、PROJECT_INDEX、DOC_SYNC_REGISTRY、相關 workflow、handoff/log 角色分工,並搜索是否有同用途舊文件。repo-wide 掃描只列候選,不把普通文件當成錯誤。</p>
         </div>
         <div class="step s3">
           <div class="step-num">3</div>
           <h3>只列缺口,不亂改</h3>
-          <p>若發現漏接,AI 會列出建議補丁與需要你判斷的項目。刪除、重命名、合併真源等動作仍要你明確確認。</p>
+          <p>若發現漏接,AI 會列出建議補丁與需要你判斷的項目。掃描不會自動改檔;刪除、重命名、合併真源等動作仍要你明確確認。</p>
         </div>
       </div>
     </div>
@@ -1087,7 +1122,7 @@
         </p>
       </div>
       <div class="meta">
-        v0.3.27 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a> 為準。
+        v0.3.28 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a> 為準。
       </div>
     </div>
   </footer>

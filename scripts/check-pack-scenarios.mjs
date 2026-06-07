@@ -82,9 +82,9 @@ const scenarios = [
   },
   {
     name: "governance bridge",
-    route: ["Governance bridge / 治理打通", "scan for unbridged governance documents", "dev/rules/agent-governance.md"],
+    route: ["Governance bridge / 治理打通", "接入 Agent Handoff Kit", "掃描未接入 Agent Handoff Kit 的重要文件", "scan for unbridged governance documents", "dev/rules/agent-governance.md"],
     pack: "agent-governance",
-    snippets: ["Governance Bridge Workflow", "connect this document to governance", "scan for unbridged governance documents", "target file itself", "dev/PROJECT_INDEX.md", "dev/DOC_SYNC_REGISTRY.md", "duplicate source-of-truth risk", "Status: bridged / partially bridged / unbridged / blocked"]
+    snippets: ["Governance Bridge Workflow", "接入 Agent Handoff Kit", "掃描未接入 Agent Handoff Kit 的重要文件", "connect this document to governance", "scan for unbridged governance documents", "target file itself", "dev/PROJECT_INDEX.md", "dev/DOC_SYNC_REGISTRY.md", "duplicate source-of-truth risk", "Status: bridged / partially bridged / unbridged / blocked"]
   },
   {
     name: "communication",
@@ -160,21 +160,21 @@ const mixedScenarios = [
 const governanceBridgeUseCases = [
   {
     name: "new stock list source-of-truth",
-    route: ["Governance bridge / 治理打通", "dev/rules/agent-governance.md"],
+    route: ["Governance bridge / 治理打通", "接入 Agent Handoff Kit", "dev/rules/agent-governance.md"],
     pack: ["stock list", "target file itself", "dev/PROJECT_INDEX.md", "dev/DOC_SYNC_REGISTRY.md", "duplicate source-of-truth risk"],
-    publicDocs: ["治理打通 docs/stock-list.md", "bridge governance for docs/stock-list.md"]
+    publicDocs: ["把 docs/stock-list.md 接入 Agent Handoff Kit", "治理打通 docs/stock-list.md", "bridge governance for docs/stock-list.md"]
   },
   {
     name: "production guide / runbook",
-    route: ["connect this document to governance", "dev/rules/agent-governance.md"],
+    route: ["把文件接入 Agent Handoff Kit", "connect this document to governance", "dev/rules/agent-governance.md"],
     pack: ["production guide", "runbook", "related workflows, guides, runbooks, or rule packs", "Acceptance: give one concrete check"],
-    publicDocs: ["治理打通 docs/production-guide.md", "我剛建立了 <code>docs/production-guide.md</code>,治理打通這份文件"]
+    publicDocs: ["把 docs/production-guide.md 接入 Agent Handoff Kit", "我剛建立了 <code>docs/production-guide.md</code>,把這份文件接入 Agent Handoff Kit"]
   },
   {
     name: "repo-wide unbridged document scan",
-    route: ["scan for unbridged governance documents", "dev/rules/agent-governance.md"],
+    route: ["掃描未接入 Agent Handoff Kit 的重要文件", "scan for unbridged governance documents", "dev/rules/agent-governance.md"],
     pack: ["bounded repo scan", "For repo-wide scans, report candidates as candidates", "Do not fail ordinary docs merely because they are not indexed"],
-    publicDocs: ["掃描 repo 有沒有未接合文件", "scan for unbridged governance documents", "這個掃描只列出候選與缺口"]
+    publicDocs: ["掃描未接入 Agent Handoff Kit 的重要文件", "scan for unbridged governance documents", "這個掃描只列出候選與缺口"]
   },
   {
     name: "duplicate source-of-truth risk",

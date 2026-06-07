@@ -62,8 +62,10 @@ function main() {
     "handoff",
     "## 項目決策日誌",
     "dev/PROJECT_DECISIONS.md",
-    "## 治理打通：讓重要文件不要變孤兒",
+    "## 把重要文件接入 Agent Handoff Kit",
+    "把 docs/production-guide.md 接入 Agent Handoff Kit",
     "治理打通 docs/production-guide.md",
+    "掃描未接入 Agent Handoff Kit 的重要文件",
     "scan for unbridged governance documents",
     "## 外部工具治理",
     "機密分離原則"
@@ -131,6 +133,8 @@ function main() {
     "Natural-language task → rule pack → durable home",
     "Governance bridge / 治理打通",
     "治理打通",
+    "接入 Agent Handoff Kit",
+    "掃描未接入 Agent Handoff Kit 的重要文件",
     "scan for unbridged governance documents",
     "Rules / packs 路由與入庫範圍",
     "產品旅程矩陣",
@@ -1911,6 +1915,8 @@ function checkRulePackRoutingDurableHomeAudit() {
     "External notes",
     "External tool integrations",
     "Governance bridge / 治理打通",
+    "接入 Agent Handoff Kit",
+    "掃描未接入 Agent Handoff Kit 的重要文件",
     "connect this document to governance",
     "scan for unbridged governance documents",
     "Reply format, language",
@@ -1944,7 +1950,9 @@ function checkRulePackRoutingDurableHomeAudit() {
 function checkGovernanceBridgeContract() {
   assertIncludes("docs/qa/release-grade-qa.md", [
     "Governance bridge / 治理打通",
-    "指定重要文件治理打通",
+    "接入 Agent Handoff Kit",
+    "掃描未接入 Agent Handoff Kit 的重要文件",
+    "指定重要文件接入 Agent Handoff Kit",
     "repo-wide 未接合文件掃描",
     "不得自動刪除、重命名或合併真源",
     "Governance Bridge Scenario Matrix",
@@ -1957,6 +1965,8 @@ function checkGovernanceBridgeContract() {
 
   assertIncludes("runtime-core/RULE_PACKS.md", [
     "Governance bridge / 治理打通",
+    "接入 Agent Handoff Kit",
+    "掃描未接入 Agent Handoff Kit 的重要文件",
     "bridge governance",
     "connect this document to governance",
     "scan for unbridged governance documents",
@@ -1983,6 +1993,7 @@ function checkGovernanceBridgeContract() {
   ]);
 
   assertIncludes("README.md", [
+    "把 docs/production-guide.md 接入 Agent Handoff Kit",
     "治理打通 docs/production-guide.md",
     "bridge governance for docs/production-guide.md",
     "掃描 repo 有沒有未接合文件",
@@ -1991,6 +2002,7 @@ function checkGovernanceBridgeContract() {
 
   assertIncludes("agent-handoff-kit-intro.html", [
     "id=\"bridge\"",
+    "把 docs/stock-list.md 接入 Agent Handoff Kit",
     "治理打通 docs/stock-list.md",
     "bridge governance for docs/stock-list.md",
     "只列缺口,不亂改"
@@ -1998,8 +2010,8 @@ function checkGovernanceBridgeContract() {
 
   assertIncludes("agent-handoff-kit-guide.html", [
     "id=\"bridge-step\"",
-    "治理打通 docs/example.md",
-    "我剛建立了 <code>docs/production-guide.md</code>,治理打通這份文件",
+    "把 docs/example.md 接入 Agent Handoff Kit",
+    "我剛建立了 <code>docs/production-guide.md</code>,把這份文件接入 Agent Handoff Kit",
     "我不會自動刪除、改名或合併文件"
   ]);
 
