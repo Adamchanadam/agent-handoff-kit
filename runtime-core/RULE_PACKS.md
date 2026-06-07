@@ -10,6 +10,7 @@ Read only the packs needed for the current task.
 | Draft, edit, style, publication content | `dev/rules/writing.md` | writing workflow and tone control |
 | Sources, evidence, comparison, fact finding | `dev/rules/research.md` | source handling and uncertainty |
 | Governance, prompts, agents, handoff, startup/closeout, skills | `dev/rules/agent-governance.md` | governance changes and boundary control |
+| Governance bridge / 治理打通 / bridge governance / connect this document to governance / scan for unbridged governance documents | `dev/rules/agent-governance.md` | connect important files, source-of-truth documents, runbooks, workflows, checklists, and guides to the project index, sync registry, handoff/log roles, and related workflows without creating duplicate sources of truth |
 | Release, publish, deploy, tag, hotfix, GA | `dev/rules/release.md` | release verification and evidence |
 | External notes, knowledge base, Notion, Obsidian, Google Drive | `dev/rules/knowledge.md` | external knowledge source integration |
 | External tool integrations (Connector / MCP / Plugin / Skill) — declared in `## Installed Integrations`; tasks involving Notion / Google Drive / Slack / Linear / Dropbox / HubSpot / GitHub / etc. external read-write | `dev/rules/integrations.md` | Connector-first default + credential separation + multi-layer source-of-truth + cross-session resilience |

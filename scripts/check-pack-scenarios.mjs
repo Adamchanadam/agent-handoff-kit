@@ -81,6 +81,12 @@ const scenarios = [
     snippets: ["source of truth", "append-only", "public runtime", "Before creating durable workflow", "reusable operating procedures belong in the relevant rule pack or registered reference", "New runbooks are last resort only", "not stored only in `dev/SESSION_HANDOFF.md`", "external skills", "subagents", "active root's Agent Handoff Kit governance"]
   },
   {
+    name: "governance bridge",
+    route: ["Governance bridge / 治理打通", "scan for unbridged governance documents", "dev/rules/agent-governance.md"],
+    pack: "agent-governance",
+    snippets: ["Governance Bridge Workflow", "connect this document to governance", "scan for unbridged governance documents", "target file itself", "dev/PROJECT_INDEX.md", "dev/DOC_SYNC_REGISTRY.md", "duplicate source-of-truth risk", "Status: bridged / partially bridged / unbridged / blocked"]
+  },
+  {
     name: "communication",
     route: ["Reply format, language", "dev/rules/communication.md"],
     pack: "communication",
@@ -151,6 +157,33 @@ const mixedScenarios = [
   }
 ];
 
+const governanceBridgeUseCases = [
+  {
+    name: "new stock list source-of-truth",
+    route: ["Governance bridge / 治理打通", "dev/rules/agent-governance.md"],
+    pack: ["stock list", "target file itself", "dev/PROJECT_INDEX.md", "dev/DOC_SYNC_REGISTRY.md", "duplicate source-of-truth risk"],
+    publicDocs: ["治理打通 docs/stock-list.md", "bridge governance for docs/stock-list.md"]
+  },
+  {
+    name: "production guide / runbook",
+    route: ["connect this document to governance", "dev/rules/agent-governance.md"],
+    pack: ["production guide", "runbook", "related workflows, guides, runbooks, or rule packs", "Acceptance: give one concrete check"],
+    publicDocs: ["治理打通 docs/production-guide.md", "我剛建立了 <code>docs/production-guide.md</code>,治理打通這份文件"]
+  },
+  {
+    name: "repo-wide unbridged document scan",
+    route: ["scan for unbridged governance documents", "dev/rules/agent-governance.md"],
+    pack: ["bounded repo scan", "For repo-wide scans, report candidates as candidates", "Do not fail ordinary docs merely because they are not indexed"],
+    publicDocs: ["掃描 repo 有沒有未接合文件", "scan for unbridged governance documents", "這個掃描只列出候選與缺口"]
+  },
+  {
+    name: "duplicate source-of-truth risk",
+    route: ["Governance bridge / 治理打通", "dev/rules/agent-governance.md"],
+    pack: ["duplicate source-of-truth risk", "recommend merge, reference, or retire options", "do not delete, rename, or move files without explicit approval"],
+    publicDocs: ["不會自動刪除、改名或合併文件", "不亂改"]
+  }
+];
+
 main();
 
 function main() {
@@ -176,6 +209,8 @@ function main() {
     console.log(`ok: ${scenario.name} phased loading`);
   }
 
+  assertGovernanceBridgeUseCaseMatrix();
+
   console.log("");
   console.log("Agent Handoff Kit pack scenario QA passed");
 }
@@ -195,10 +230,37 @@ function assertPackStructure() {
     "first classify the knowledge type",
     "reusable operating procedures belong in the relevant rule pack or registered reference",
     "New runbooks are last resort only",
-    "not stored only in `dev/SESSION_HANDOFF.md`"
+    "not stored only in `dev/SESSION_HANDOFF.md`",
+    "Governance Bridge Workflow",
+    "For repo-wide scans, report candidates as candidates"
   ], "agent governance durable-home routing");
 
   console.log("ok: rule pack structure and durable-home routing");
+}
+
+function assertGovernanceBridgeUseCaseMatrix() {
+  const publicDocs = [
+    read("README.md"),
+    read("agent-handoff-kit-intro.html"),
+    read("agent-handoff-kit-guide.html")
+  ].join("\n");
+
+  assertIncludes(packs["agent-governance"], [
+    "Governance bridge is a triggered review, not a default startup scan",
+    "Status: bridged / partially bridged / unbridged / blocked",
+    "Already bridged",
+    "Gaps",
+    "Suggested patches",
+    "Manual decisions",
+    "Acceptance"
+  ], "governance bridge output contract");
+
+  for (const useCase of governanceBridgeUseCases) {
+    assertIncludes(router, useCase.route, `${useCase.name} governance bridge route`);
+    assertIncludes(packs["agent-governance"], useCase.pack, `${useCase.name} governance bridge pack`);
+    assertIncludes(publicDocs, useCase.publicDocs, `${useCase.name} public docs`);
+    console.log(`ok: governance bridge use case - ${useCase.name}`);
+  }
 }
 
 function read(relativePath) {

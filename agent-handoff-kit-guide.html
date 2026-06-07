@@ -454,7 +454,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.3.26 · 三個日常情景 · 由第一句指令到長期接力</span>
+    <span class="kicker">v0.3.27 · 三個日常情景 · 由第一句指令到長期接力</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">三個日常情景 —— 整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進 —— 完整示範 Agent Handoff Kit 由安裝到接力的流程。每一步都會看到 AI 主動宣告載入哪個工作模式、怎樣計劃、怎樣驗收、何時同步下次接力提示。</p>
   </div>
@@ -549,7 +549,7 @@ create: 20
 🔀 merged: 0
 ⏭️  skipped existing: 0
 
-📦 版本:v0.3.26
+📦 版本:v0.3.27
 🛠️  模式:first-install
 🔎 剛完成:init 命令;create 20 / merge 0 / skip 0 / conflict 0。
 🚀 下一步:不用再留在終端機。打開 AI 工具,啟動 Agent Handoff。
@@ -580,6 +580,7 @@ create: 20
         <ul>
           <li><strong>三個入口,同一套規矩</strong>:同時建立 <code>AGENTS.md</code>、<code>CLAUDE.md</code>、<code>GEMINI.md</code>,讓常見 AI 工具回到同一套規則。Antigravity CLI 會讀工作資料夾內的 <code>AGENTS.md</code> 與 <code>GEMINI.md</code>；因此 <code>GEMINI.md</code> 只做橋接,不另寫一套規則。</li>
           <li><strong>下一步不是終端機指令</strong>:輸出末段用 <code>⚠️</code> 標明。新手最容易撞上的誤會,是把 <code>Start Agent Handoff</code> 或帶路徑啟動句當成要繼續在終端機輸入 —— 其實是要輸入到 AI 對話。</li>
+          <li><strong>重要文件可治理打通</strong>:之後如 AI 新建 stock list、production guide、workflow 或 checklist,你可以在 AI 對話說 <code>治理打通 docs/example.md</code>,讓它檢查這份文件是否已接入索引、同步責任與相關流程。</li>
           <li><strong>不確定才檢查</strong>:安裝後通常直接開 AI 對話即可。若之後不確定文件是否完整,才在終端機執行 <code>npx --yes @adamchanadam/agent-handoff-kit@latest doctor</code>。如果只是 <code>START_NEXT_SESSION_PROMPT.txt</code> 暫時落後於交接文件,新版只會提醒;準備結束本輪工作時再同步即可。</li>
         </ul>
       </div>
@@ -850,6 +851,42 @@ Failed:              0 files
     </div>
   </section>
 
+  <!-- Practical · Governance Bridge -->
+  <section class="step-section" id="bridge-step">
+    <div class="wrap">
+      <span class="badge">PRACTICAL · GOVERNANCE BRIDGE</span>
+      <h2>新建重要文件後 —— 說「治理打通」,避免文件變孤兒</h2>
+      <p class="narrative">有些文件不是普通草稿,而是未來 AI 必須知道的工作依據:stock list、production guide、runbook、workflow、checklist、source-of-truth。這類文件完成後,除了保存內容本身,還要讓下一個 AI 知道它的用途、何時要讀、何時要更新,以及是否有同用途舊文件。</p>
+
+      <div class="chat">
+        <div class="chat-row user">
+          <div class="chat-bubble user">
+            我剛建立了 <code>docs/production-guide.md</code>,治理打通這份文件。
+          </div>
+        </div>
+        <div class="chat-row ai">
+          <div class="chat-bubble ai">
+            <p>我會做治理打通審核,先只讀檢查:</p>
+            <ol>
+              <li>文件本身是否寫清用途、範圍與更新時機</li>
+              <li><code>dev/PROJECT_INDEX.md</code> 是否登記它及何時要讀</li>
+              <li><code>dev/DOC_SYNC_REGISTRY.md</code> 是否有同類變更的同步規則</li>
+              <li>相關 workflow 是否提醒更新這份 guide</li>
+              <li>handoff 只放當前狀態,log 只放本次驗收證據</li>
+              <li>是否已有另一份 production guide 或舊版真源</li>
+            </ol>
+            <p>我會輸出「已接合、缺口、建議補丁、需要你判斷的項目」。我不會自動刪除、改名或合併文件。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="label">何時使用</span>
+        <p>只要一份文件會影響下一輪 AI 的判斷,就適合治理打通。若只是一次性草稿、臨時筆記或可重新生成的輸出,通常不用接入治理層。</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Case A · Step 6 -->
   <section class="step-section" id="a-step-6">
     <div class="wrap">
@@ -1059,7 +1096,7 @@ Google Drive
         <div class="block-body">$ <span class="hl">npx --yes @adamchanadam/agent-handoff-kit@latest init</span>
 
 ✅ created: 20
-📦 版本:v0.3.26
+📦 版本:v0.3.27
 🛠️  模式:first-install
 🚀 下一步:開新 AI 對話。若 AI 已在資料夾內,輸入 Start Agent Handoff 或「開工」;若尚未指向資料夾,才使用帶路徑啟動句。</div>
       </div>
@@ -1718,7 +1755,7 @@ Before changing anything, tell me the current state and your recommended next st
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.3.26 · MIT License</p>
+      <p>v0.3.27 · MIT License</p>
     </div>
     <div>
       <strong>作者</strong>

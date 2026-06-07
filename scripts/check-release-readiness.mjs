@@ -62,6 +62,9 @@ function main() {
     "handoff",
     "## 項目決策日誌",
     "dev/PROJECT_DECISIONS.md",
+    "## 治理打通：讓重要文件不要變孤兒",
+    "治理打通 docs/production-guide.md",
+    "scan for unbridged governance documents",
     "## 外部工具治理",
     "機密分離原則"
   ]);
@@ -126,6 +129,9 @@ function main() {
     "收工三面同源驗收",
     "Rule Pack Routing And Durable-home Scope Sweep",
     "Natural-language task → rule pack → durable home",
+    "Governance bridge / 治理打通",
+    "治理打通",
+    "scan for unbridged governance documents",
     "Rules / packs 路由與入庫範圍",
     "產品旅程矩陣",
     "執行落差",
@@ -157,6 +163,7 @@ function main() {
   ]);
   assertLatestCrossMindTableComplete(version);
   checkRulePackRoutingDurableHomeAudit();
+  checkGovernanceBridgeContract();
   checkTaskPersistenceGateContract();
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -1903,6 +1910,9 @@ function checkRulePackRoutingDurableHomeAudit() {
     "Release, publish",
     "External notes",
     "External tool integrations",
+    "Governance bridge / 治理打通",
+    "connect this document to governance",
+    "scan for unbridged governance documents",
     "Reply format, language",
     "minimum set",
     "cannot weaken core safety"
@@ -1922,10 +1932,95 @@ function checkRulePackRoutingDurableHomeAudit() {
     "New runbooks are last resort only",
     "not stored only in `dev/SESSION_HANDOFF.md`",
     "persistence gate decision",
-    "do not duplicate the gate thresholds in this pack"
+    "do not duplicate the gate thresholds in this pack",
+    "Governance Bridge Workflow",
+    "For repo-wide scans, report candidates as candidates",
+    "duplicate source-of-truth risk"
   ]);
 
   console.log("ok: rule pack routing and durable-home scope audit anchors");
+}
+
+function checkGovernanceBridgeContract() {
+  assertIncludes("docs/qa/release-grade-qa.md", [
+    "Governance bridge / 治理打通",
+    "指定重要文件治理打通",
+    "repo-wide 未接合文件掃描",
+    "不得自動刪除、重命名或合併真源",
+    "Governance Bridge Scenario Matrix",
+    "Governance Bridge Scenario Matrix Sweep",
+    "stock list、production guide / runbook、repo-wide scan、duplicate source-of-truth",
+    "不要求 Adam 做人工 diff review",
+    "full audit 報告必須列出 stock list、production guide / runbook、repo-wide scan、duplicate source-of-truth 四個情景的 automated PASS 證據",
+    "Full audit 報告若只寫治理打通 PASS 而沒有列出上述四情景證據"
+  ]);
+
+  assertIncludes("runtime-core/RULE_PACKS.md", [
+    "Governance bridge / 治理打通",
+    "bridge governance",
+    "connect this document to governance",
+    "scan for unbridged governance documents",
+    "dev/rules/agent-governance.md"
+  ]);
+
+  assertIncludes("packs/agent-governance.md", [
+    "Governance Bridge Workflow",
+    "target file itself",
+    "dev/PROJECT_INDEX.md",
+    "dev/DOC_SYNC_REGISTRY.md",
+    "related workflows, guides, runbooks, or rule packs",
+    "dev/SESSION_HANDOFF.md",
+    "dev/SESSION_LOG.md",
+    "duplicate source-of-truth risk",
+    "Status: bridged / partially bridged / unbridged / blocked",
+    "For repo-wide scans, report candidates as candidates"
+  ]);
+
+  assertIncludes("bin/agent-handoff-kit.mjs", [
+    "agent governance pack structure",
+    "merge missing governance bridge routing row",
+    "mergeAgentGovernanceBridgeWorkflow"
+  ]);
+
+  assertIncludes("README.md", [
+    "治理打通 docs/production-guide.md",
+    "bridge governance for docs/production-guide.md",
+    "掃描 repo 有沒有未接合文件",
+    "這個掃描只列出候選與缺口"
+  ]);
+
+  assertIncludes("agent-handoff-kit-intro.html", [
+    "id=\"bridge\"",
+    "治理打通 docs/stock-list.md",
+    "bridge governance for docs/stock-list.md",
+    "只列缺口,不亂改"
+  ]);
+
+  assertIncludes("agent-handoff-kit-guide.html", [
+    "id=\"bridge-step\"",
+    "治理打通 docs/example.md",
+    "我剛建立了 <code>docs/production-guide.md</code>,治理打通這份文件",
+    "我不會自動刪除、改名或合併文件"
+  ]);
+
+  assertIncludes("scripts/check-upgrade-safety.mjs", [
+    "governance bridge RULE_PACKS routing migration",
+    "governance bridge agent-governance pack migration",
+    "RULE_PACKS governance bridge routing row was not restored",
+    "agent-governance pack missing Governance Bridge Workflow after upgrade"
+  ]);
+
+  assertIncludes("scripts/check-pack-scenarios.mjs", [
+    "governanceBridgeUseCases",
+    "new stock list source-of-truth",
+    "production guide / runbook",
+    "repo-wide unbridged document scan",
+    "duplicate source-of-truth risk",
+    "Do not fail ordinary docs merely because they are not indexed",
+    "do not delete, rename, or move files without explicit approval"
+  ]);
+
+  console.log("ok: governance bridge contract");
 }
 
 function checkTaskPersistenceGateContract() {

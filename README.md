@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：目前版本為 `v0.3.26`。這是早期可用版本，仍在持續完善中。
+狀態：目前版本為 `v0.3.27`。這是早期可用版本，仍在持續完善中。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -35,7 +35,7 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 | 問題 | Agent Handoff Kit 怎樣處理 |
 |---|---|
 | 新 AI 不知做到哪 | 用 `dev/SESSION_HANDOFF.md` 保存目前狀態、下一步、風險與驗收。 |
-| 新建檔案、參考資料變孤兒 | 用 `dev/PROJECT_INDEX.md` 與 `dev/DOC_SYNC_REGISTRY.md` 登記檔案角色、真源與同步責任。 |
+| 新建檔案、參考資料變孤兒 | 你可以叫 AI 做「治理打通」，用 `dev/PROJECT_INDEX.md` 與 `dev/DOC_SYNC_REGISTRY.md` 登記檔案角色、真源與同步責任。 |
 | 不同 AI 工具入口不同 | 同時安裝 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，全部指向同一套開工流程；Antigravity CLI 會讀工作資料夾內的 `AGENTS.md` 與 `GEMINI.md`。 |
 | AI 可能亂改、亂刪或誤發佈 | 內置安全規則；高風險操作必須先講計劃，破壞性指令與未批准發佈一律禁止。 |
 
@@ -227,6 +227,34 @@ dev/rules/*.md
 
 新手用戶完全不需要打開本檔，也不需要記任何結構 —— 一切由 AI 自動處理。
 
+## 治理打通：讓重要文件不要變孤兒
+
+長期項目常會產生新文件，例如 stock list、production guide、runbook、workflow、checklist、研究真源或操作清單。文件本身做完，不代表下一個 AI 一定知道它存在，也不代表 AI 知道何時要讀、何時要更新、是否有另一份舊版真源。
+
+這時可以在 AI 對話中直接說：
+
+```text
+治理打通 docs/production-guide.md
+```
+
+英文也可以說：
+
+```text
+bridge governance for docs/production-guide.md
+connect this document to governance
+```
+
+AI 會檢查這份文件是否已接入項目記憶：文件本身是否講清楚用途與更新時機、`dev/PROJECT_INDEX.md` 是否登記它、`dev/DOC_SYNC_REGISTRY.md` 是否記下同類變更要同步哪裡、相關 workflow 是否會提醒更新它，以及 handoff / log 是否各自放在正確角色。
+
+如果你不確定整個 repo 有沒有漏接的文件，可以說：
+
+```text
+掃描 repo 有沒有未接合文件
+scan for unbridged governance documents
+```
+
+這個掃描只列出候選與缺口，不會自動刪除、改名或合併文件。若發現兩份文件像是同一個真源，AI 只會列出合併、引用或退役建議，等你確認。
+
 ## 外部工具治理
 
 如你的項目涉及外部工具（例如 Notion、Google Drive、Slack、Linear、GitHub 等），Agent Handoff Kit 提供跨對話的治理紀律，確保 AI 在不同對話之間能穩定使用這些工具。
@@ -251,6 +279,7 @@ dev/rules/*.md
 | 整理 Notion、Google Drive 或知識庫 | 知識整理規則 |
 | 準備發佈說明 | 發佈規則；真正發佈、上傳或建立版本前必須再讀安全規則 |
 | 改規則、改流程、整理交接 | AI 治理規則；先找既有真源，不盲目新增規則 |
+| 新建重要文件後想避免變孤兒 | AI 治理規則；說「治理打通 <檔案>」，讓 AI 檢查索引、同步責任、相關流程與重複真源風險 |
 
 原則是只讀當前任務需要的規則，不是每次讀全部文件。
 
@@ -285,7 +314,7 @@ Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templa
 
 ## 目前限制
 
-- 目前版本為 `v0.3.26`；正式安裝請以 npm registry `latest` 顯示為準。
+- 目前版本為 `v0.3.27`；正式安裝請以 npm registry `latest` 顯示為準。
 - 這是早期可用版本，仍在持續完善中。
 - 升級合併屬窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

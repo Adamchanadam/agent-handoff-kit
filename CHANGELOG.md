@@ -1,5 +1,27 @@
 # 變更紀錄
 
+## v0.3.27 — 2026-06-07
+
+狀態：候選發佈版本。本版新增「治理打通」標準能力，讓新建的重要文件、真源、清單、流程與 runbook 不再只停留在局部位置，而是能被下一個 AI 透過項目索引、同步登記、相關流程、交接與紀錄穩定發現和維護。
+
+### Added
+
+- `agent-governance` 規則包新增 Governance Bridge Workflow。使用者可說「治理打通」、「bridge governance」、「connect this document to governance」或「scan for unbridged governance documents」，讓 AI 檢查目標文件、`PROJECT_INDEX`、`DOC_SYNC_REGISTRY`、相關 workflow / guide / runbook、`SESSION_HANDOFF`、`SESSION_LOG` 與重複真源風險。
+- `runtime-core/RULE_PACKS.md` 新增治理打通自然語言路由，讓中文與英文觸發語都載入 `agent-governance`，不需要新手記內部規則名稱。
+- README、intro HTML、guide HTML 新增公眾使用說明，解釋用途、何時使用、指定文件與 repo-wide 掃描示例，以及不會自動刪除、改名或合併文件的邊界。
+
+### QA
+
+- `qa:packs` 新增 Governance Bridge Scenario Matrix，覆蓋四個情景：新 stock list 真源、production guide / runbook、repo-wide 未接合文件掃描、重複真源風險。
+- `qa:upgrade` 新增治理打通遷移 fixture，確認舊項目升級時會非破壞性補上 `RULE_PACKS` 路由與 `agent-governance` workflow，同時保留自訂列與既有內容。
+- `qa:release` 新增 Governance Bridge contract，要求發佈前全面檢列出四個情景的 automated PASS 證據；不能只寫「治理打通 PASS」。
+- 發佈前全面檢 PASS：`qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 均通過；package fileCount 維持 25。
+- `test-fixtures/v0.3.26` 已加入，v0.3.27 的 prior-version packed upgrade smoke 可用正式上一版作前置樣本。
+
+### Migration path（v0.3.26 → v0.3.27，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。升級會保留既有 handoff、log、index、decisions 與 rule pack 內容；能安全補上的治理打通路由與 workflow 會以非破壞性方式合併。升級後可在 AI 對話中直接說「治理打通 <檔案>」或「掃描 repo 有沒有未接合文件」。
+
 ## v0.3.26 — 2026-06-05
 
 狀態：候選發佈版本。本版修補兩個真實 runtime 回饋揭發的 upgrade / doctor 問題：合法 handoff lifecycle 敘述不應因句中含 `pending` 被誤判為未填欄位；規則包被放到錯誤層級時，工具應給出可定位診斷，而不是只留下模糊缺段。

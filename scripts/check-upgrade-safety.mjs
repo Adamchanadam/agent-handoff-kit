@@ -379,7 +379,8 @@ function main() {
     { ref: "v0.3.23", command: "upgrade" },
     { ref: "v0.3.24", command: "upgrade", source: "tag" },
     { ref: "v0.3.25", command: "upgrade", source: "tag" },
-    { ref: "v0.3.26", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.26", command: "upgrade", source: "tag" },
+    { ref: "v0.3.27", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -454,6 +455,37 @@ function main() {
   const customSamePathAfter = read(customSamePathPath);
   assert(customSamePathAfter.includes("Custom integrations alias"), "RULE_PACKS same-path custom row was lost during upgrade");
   assert(customSamePathAfter.includes("External tool integrations"), "RULE_PACKS official integrations row was not restored when a custom row reused the same pack path");
+
+  const governanceBridgeRulePacksRoot = path.join(tmpdir(), `ack-upgrade-governance-bridge-rulepacks-${Date.now()}`);
+  mkdirSync(governanceBridgeRulePacksRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", governanceBridgeRulePacksRoot], "governance bridge RULE_PACKS bootstrap install");
+  const governanceBridgeRulePacksPath = path.join(governanceBridgeRulePacksRoot, "dev/RULE_PACKS.md");
+  const governanceBridgeRulePacksBefore = read(governanceBridgeRulePacksPath)
+    .replace(/\| Governance bridge[\s\S]*?dev\/rules\/agent-governance\.md[\s\S]*?\|\r?\n/, "")
+    + "\n| Custom durable workflow | `dev/rules/custom.md` | keep this local workflow row |\n";
+  writeFileSync(governanceBridgeRulePacksPath, governanceBridgeRulePacksBefore, "utf8");
+  const governanceBridgeRulePacksUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", governanceBridgeRulePacksRoot], "governance bridge RULE_PACKS routing migration");
+  assertMergedAtLeast(governanceBridgeRulePacksUpgrade.stdout, 1, "governance bridge RULE_PACKS scenario should merge at least one file");
+  const governanceBridgeRulePacksAfter = read(governanceBridgeRulePacksPath);
+  assert(governanceBridgeRulePacksAfter.includes("Governance bridge / 治理打通"), "RULE_PACKS governance bridge routing row was not restored");
+  assert(governanceBridgeRulePacksAfter.includes("scan for unbridged governance documents"), "RULE_PACKS governance bridge scan trigger was not restored");
+  assert(governanceBridgeRulePacksAfter.includes("Custom durable workflow"), "RULE_PACKS local durable workflow row was lost during governance bridge migration");
+
+  const governanceBridgePackRoot = path.join(tmpdir(), `ack-upgrade-governance-bridge-pack-${Date.now()}`);
+  mkdirSync(governanceBridgePackRoot, { recursive: true });
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", governanceBridgePackRoot], "governance bridge pack bootstrap install");
+  const governanceBridgePackPath = path.join(governanceBridgePackRoot, "dev/rules/agent-governance.md");
+  const governanceBridgePackBefore = read(governanceBridgePackPath)
+    .replace(/\n9\. Governance bridge[\s\S]*?(?=\n## Checks)/, "\n")
+    .replace(/\n## Governance Bridge Workflow[\s\S]*?(?=\n## Checks)/, "\n")
+    + "\n\nLocal project addendum: keep this governance note.\n";
+  writeFileSync(governanceBridgePackPath, governanceBridgePackBefore, "utf8");
+  const governanceBridgePackUpgrade = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", governanceBridgePackRoot], "governance bridge agent-governance pack migration");
+  assertMergedAtLeast(governanceBridgePackUpgrade.stdout, 1, "governance bridge pack scenario should merge at least one file");
+  const governanceBridgePackAfter = read(governanceBridgePackPath);
+  assert(governanceBridgePackAfter.includes("## Governance Bridge Workflow"), "agent-governance pack missing Governance Bridge Workflow after upgrade");
+  assert(governanceBridgePackAfter.includes("Status: bridged / partially bridged / unbridged / blocked"), "agent-governance pack missing governance bridge output contract after upgrade");
+  assert(governanceBridgePackAfter.includes("Local project addendum"), "agent-governance local addendum was lost during governance bridge migration");
 
   const customHeaderRoot = path.join(tmpdir(), `ack-upgrade-rulepacks-header-${Date.now()}`);
   mkdirSync(customHeaderRoot, { recursive: true });

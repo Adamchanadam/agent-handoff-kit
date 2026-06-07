@@ -380,7 +380,24 @@ const schemaChecks = [
       includes("First-time user signals"),
       includes("dev/rules/onboarding.md"),
       // R-030 v0.3.0+: routing table must include integrations pack row.
-      includes("dev/rules/integrations.md")
+      includes("dev/rules/integrations.md"),
+      includes("Governance bridge / 治理打通"),
+      includes("scan for unbridged governance documents")
+    ]
+  },
+  {
+    target: "dev/rules/agent-governance.md",
+    label: "agent governance pack structure",
+    checks: [
+      heading("Scope"),
+      heading("Load When"),
+      heading("Rules"),
+      heading("Governance Bridge Workflow"),
+      heading("Checks"),
+      heading("Closeout"),
+      includes("Governance bridge is a triggered review"),
+      includes("Status: bridged / partially bridged / unbridged / blocked"),
+      includes("duplicate source-of-truth risk")
     ]
   },
   {
@@ -1557,6 +1574,34 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergedRulePacks
     };
   }
+  // Governance bridge v0.3.27+: route durable document bridging requests to
+  // agent-governance without replacing user-added routing rows.
+  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("Governance bridge / 治理打通")) {
+    const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
+    if (!mergedRulePacks) {
+      return { ...base, action: "conflict", reason: "RULE_PACKS.md routing table header was changed; manual merge required to preserve custom rows" };
+    }
+    return {
+      ...base,
+      action: "merge",
+      reason: "merge missing governance bridge routing row while preserving existing custom rows",
+      mergedText: mergedRulePacks
+    };
+  }
+  // Governance bridge v0.3.27+: add the triggered review workflow to the
+  // agent-governance pack only when the pack still has a trusted Checks section.
+  if (targetRel === "dev/rules/agent-governance.md" && command === "upgrade" && !targetText.includes("## Governance Bridge Workflow")) {
+    const mergedGovernancePack = mergeAgentGovernanceBridgeWorkflow(targetText, sourceText);
+    if (!mergedGovernancePack) {
+      return { ...base, action: "conflict", reason: "agent-governance pack structure was changed; manual merge required to add governance bridge workflow" };
+    }
+    return {
+      ...base,
+      action: "merge",
+      reason: "insert governance bridge workflow into agent-governance pack without replacing local additions",
+      mergedText: mergedGovernancePack
+    };
+  }
   // R-030 v0.3.0+: dev/PROJECT_INDEX.md gets ## Installed Integrations section auto-inserted before
   // ## Local QC Commands on upgrade if missing. NON-DESTRUCTIVE: existing ## External Sources content
   // is fully preserved (including any user-filled rows). User can later manually add the `via` column
@@ -1755,6 +1800,25 @@ function mergeOnboardingScenarioALabel(targetText) {
     /### Scenario A\. 寫 \/ 改代碼項目/g,
     "### Scenario A. 建構系統 / 工具 / 平台 / 網站或應用"
   );
+  return merged;
+}
+
+function mergeAgentGovernanceBridgeWorkflow(targetText, sourceText) {
+  const sourceMatch = sourceText.match(/9\. Governance bridge[\s\S]*?(?=\n## Checks)/);
+  const workflowMatch = sourceText.match(/\n## Governance Bridge Workflow[\s\S]*?(?=\n## Checks)/);
+  if (!sourceMatch || !workflowMatch || !targetText.includes("\n## Checks")) return null;
+
+  let merged = targetText;
+  if (!merged.includes("Governance bridge is a triggered review")) {
+    const rulePrefix = sourceMatch[0].trimEnd();
+    merged = merged.replace(/\n## Checks/, `\n${rulePrefix}\n${workflowMatch[0]}\n## Checks`);
+  }
+  if (!merged.includes("For governance bridge work, confirm the target file")) {
+    merged = merged.replace(
+      "- Confirm reusable operating procedure knowledge is not stored only in `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, or a decision narrative when it belongs in a pack or registered reference.",
+      "- Confirm reusable operating procedure knowledge is not stored only in `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, or a decision narrative when it belongs in a pack or registered reference.\n- For governance bridge work, confirm the target file, project index, sync registry, related workflow, handoff/log role split, and duplicate-source risk were all checked or explicitly marked not applicable."
+    );
+  }
   return merged;
 }
 
@@ -2371,7 +2435,8 @@ function mergeHandoffArchiveContinuityRule(targetText, sourceText) {
 function mergeRulePacksRows(targetText, sourceText) {
   const requiredPacks = [
     "dev/rules/onboarding.md",
-    "dev/rules/integrations.md"
+    "dev/rules/integrations.md",
+    "dev/rules/agent-governance.md"
   ];
   const sourceRows = sourceText
     .split(/\r?\n/)
@@ -2391,6 +2456,7 @@ function mergeRulePacksRows(targetText, sourceText) {
   const sourceRowsToApply = sourceRows.filter((row) => {
     if (row.includes("dev/rules/onboarding.md")) return !targetText.includes("First-time user signals");
     if (row.includes("dev/rules/integrations.md")) return !targetText.includes("External tool integrations");
+    if (row.includes("Governance bridge / 治理打通")) return !targetText.includes("Governance bridge / 治理打通");
     return false;
   });
   if (sourceRowsToApply.length === 0) return targetText;

@@ -51,6 +51,7 @@
 3. UX / user journey 結論：CLI、README、runtime handoff、onboarding pack、whatsnew 是否回答用戶在該步最可能問的下一句問題。
 4. QC gap backflow 結論：本次發現的每個新問題，除產品修補外，是否已轉成自動驗收、人工清單、或有理由的暫時人工阻擋。
 5. Rules / packs 路由與入庫範圍結論：`runtime-core/RULE_PACKS.md` 是否能以自然語言任務訊號載入相應 pack；標準 pack 的 Scope / Load When / Rules / Checks / Closeout 是否清楚；onboarding / integrations 等特殊 pack 是否有等效 discipline / closeout / checks 承接；可重用操作程序是否被導向既有 pack 或 registered reference，而不是隨意新建治理文件或只放入 handoff / log。
+6. Governance Bridge Scenario Matrix 結論：若候選版本改動治理打通，full audit 報告必須列出 stock list、production guide / runbook、repo-wide scan、duplicate source-of-truth 四個情景的 automated PASS 證據；不要求 Adam 做人工 diff review。
 
 ### Product Journey Matrix
 
@@ -67,6 +68,7 @@
 | Doctor healthy / outdated / lifecycle conflict | `doctor` 是否分清健康、可升級、交接矛盾三類，不混成同一個下一步。 | Scenario 6 automated + scenario 7 manual + lifecycle negative fixture | 阻擋 publish，並補 scenario output contract |
 | AI-generated handoff prose tolerance | `doctor` 不得用任意正文詞語硬猜生命週期；可機器判斷的只限 Kit 控制的結構標記與狀態欄位。 | Scenario 4b automated + lifecycle field fixture | 阻擋 publish，直到誤判 fixture 通過 |
 | Natural-language task → rule pack → durable home | 用戶以自然語言提出寫作、研究、編碼、整合、發佈、治理、回覆格式或新手上手需求時，AI 是否能載入最少必要 pack，並把可重用程序寫入既有 pack / registered reference；不得因一次任務就任意新建 governance docs。 | `qa:packs` + Rule Pack Routing And Durable-home Scope Sweep + 人工抽樣 | 阻擋 publish，直到路由、pack scope、入庫位置與人工樣例對齊 |
+| Governance bridge / 治理打通 | 指定重要文件治理打通時，AI 是否檢查文件本身、`PROJECT_INDEX`、`DOC_SYNC_REGISTRY`、相關 workflow、handoff / log 角色與重複真源風險；repo-wide 未接合文件掃描是否只列候選與缺口，不把普通文件誤判為必須接入治理層。 | `qa:packs` Governance Bridge Scenario Matrix + `qa:upgrade` migration fixture + `qa:release` Governance Bridge contract；不要求 Adam 做人工 diff review | 阻擋 publish，直到 stock list、production guide / runbook、repo-wide scan、duplicate source-of-truth 四個情景均由機器驗收覆蓋 |
 | Task persistence gate | 完成任務不等於完整收工；AI 必須按核心 runtime 的三層分流判斷：無持久事實不寫治理檔、有下一輪必須知道的事實才輕量保存、明確收工或交接才完整 closeout。 | `qa:release` Task Persistence Gate Sweep + README / intro / guide 人工終讀 | 阻擋 publish，直到正向場景與反向場景都對齊 |
 
 ### QC Gap Backflow
@@ -108,6 +110,7 @@
 | 執行落差 | 檢查規則是否有 `doctor`、QA 腳本、負面測試或人工審閱承接；不得只增加提醒文字。 |
 | 技能流程覆蓋 | 用核心規則、治理規則包與 QA 錨點確認外部技能流程只能作 subordinate evidence，不能讓 active root 跳過 handoff/log/index/registry 持久化。 |
 | Rules / packs 路由與入庫範圍 | 每次 release 前確認 `runtime-core/RULE_PACKS.md` 有自然語言任務訊號到各 pack 的路由；每個 `packs/*.md` 都有 Scope / Load When / Rules / Checks / Closeout；`runtime-core/AGENTS.core.md` 與 `packs/agent-governance.md` 都要求可重用操作程序進既有 rule pack 或 registered reference，不可只放 handoff / log，也不可未分類就新建治理文件。 |
+| 治理打通 | 每次 release 前確認 `runtime-core/RULE_PACKS.md` 可由「治理打通」/ `bridge governance` / `connect this document to governance` / `scan for unbridged governance documents` 路由至 `agent-governance`；`packs/agent-governance.md` 有完整治理打通流程、輸出格式與重複真源風險邊界；README、intro、guide 均解釋用途、使用方法，以及不得自動刪除、重命名或合併真源。`qa:packs` 必須自動覆蓋 stock list、production guide / runbook、repo-wide scan、duplicate source-of-truth 四個情景。 |
 | 任務持久化分流 | 每次 release 前確認 `runtime-core/AGENTS.core.md` 是唯一分流真源；`packs/agent-governance.md` 只引用核心 persistence gate、不複製門檻；README / intro / guide 不得把「任務完成」寫成「立即完整收工」，也不得把內部 persistence gate 術語當成新手說明。例行通過檢查、未拍板草稿、普通中途進度屬反向場景；新增或刪除文件、新來源、用戶要求把經驗轉成機制屬正向場景，必須按文件角色保存。 |
 | 舊核心殘留 | 用升級負面測試確認舊版 `AGENTS.md` core 被替換而不是附加；`doctor` 必須擋下同一檔案內兩個 core runtime 標題。 |
 | 升級路徑覆蓋 | `qa:upgrade` 必須含跨版本鏈式升級驗收（`v0.1.4` → `v0.1.5` → `v0.1.6` → 當前 HEAD），每跳用對應版本嘅 CLI 跑 `init`／`upgrade`／`doctor`，最後一跳用當前 HEAD 跑並 self-check 通過；同時必須含 upgrade quality matrix，確認版本 metadata、功能 anchor、post-upgrade `doctor` 穩定性三軸同時通過。 |
@@ -202,6 +205,21 @@ Upgrade quality matrix 屬 `qa:upgrade` 的多情境測試：每個可定位的 
 
 若 pack change 或 runtime routing change 未能通過以上機器錨點或人工抽樣，候選版本不得進入 publish。
 
+### Governance Bridge Scenario Matrix Sweep（source-only candidate）
+
+對應治理 QA 缺口矩陣「治理打通」。本掃描的目標是把原本可能落在人工 diff review 的判斷，轉成候選版本 full audit 必須引用的機器情景證據。
+
+`npm run qa:packs` 必須自動驗證以下四個情景：
+
+| 情景 | 必須證明 |
+|---|---|
+| new stock list source-of-truth | `治理打通` 能路由至 `agent-governance`；流程會檢查文件本身、`PROJECT_INDEX`、`DOC_SYNC_REGISTRY` 與重複真源風險；README / HTML 有可用示例。 |
+| production guide / runbook | `connect this document to governance` 能路由至 `agent-governance`；流程會檢查相關 workflow / guide / runbook，並要求輸出具體 Acceptance。 |
+| repo-wide unbridged document scan | `scan for unbridged governance documents` 能路由至 `agent-governance`；掃描只列候選與缺口，不把普通文件當成錯誤。 |
+| duplicate source-of-truth risk | 流程要求提出 merge / reference / retire 建議，但不得自動刪除、重命名、移動或合併真源。 |
+
+`npm run qa:release` 必須反查本節、`scripts/check-pack-scenarios.mjs` 的四情景矩陣、`qa:upgrade` governance bridge migration fixture、README / intro / guide 用戶示例，以及「不要求 Adam 做人工 diff review」邊界。Full audit 報告若只寫治理打通 PASS 而沒有列出上述四情景證據，該候選版本不得進入 publish。
+
 ### Task Persistence Gate Sweep（source-only candidate）
 
 對應治理 QA 缺口矩陣「任務持久化分流」。本掃描的目標不是要求每個任務都寫交接，而是防止 AI 在「過度治理」與「漏做治理」之間擺動。
@@ -257,7 +275,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 會檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致；安裝後與 closeout 後必須一致，session 進行中若只有便利副本落後，普通 `doctor` 只可警告，不可 fail。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到能讀寫本機專案資料夾的 AI agent 對話，不是在終端機繼續輸入；普通 web chat AI 若不能讀寫本機資料夾，不屬於支援場景。
-- 套件預演目前維持 25 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.26.md` 保留在 repo 作 GitHub Release / changelog 材料，但不入 npm package；runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 25 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.27.md` 保留在 repo 作 GitHub Release / changelog 材料，但不入 npm package；runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -266,20 +284,52 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | v0.3.26 尚未批准 commit / push / tag / GitHub Release / npm publish；本文件只記錄候選準備狀態。 | 等待明確批准 |
-| 版本口徑 | `package.json` 目前為 `0.3.26`；v0.3.26 是 lifecycle false-positive 與 rules wrong-layer diagnostic 修補。 | 正式候選口徑 |
+| 發佈授權 | v0.3.27 已獲 Adam 要求繼續做全面檢、版本收口與發佈；本文件記錄候選準備狀態，外部發佈完成後仍須跑發佈檢。 | 已批准進入發佈流程 |
+| 版本口徑 | `package.json` 目前為 `0.3.27`；v0.3.27 是治理打通標準功能與 QC 情景矩陣版本。 | 正式候選口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
-| 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；subagent follow-up 補丁後已重跑；release-status docs correction 後 `qa:release` 亦須通過。 | 通過 |
+| 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；治理打通四情景、upgrade migration 與 full audit evidence contract 均已納入。 | 通過 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.26.md` 與 onboarding HTML 轉入 v0.3.26 候選口徑。 | 通過 |
+| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.27.md` 與 onboarding HTML 轉入 v0.3.27 候選口徑。 | 通過 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.26` 段，`docs/whatsnew/v0.3.26.md` 已補本版用戶說明；GitHub Release 與 npm publish 尚未執行。 | 待批准 |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.26`。 | 通過 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.27` 段，`docs/whatsnew/v0.3.27.md` 已補本版用戶說明；GitHub Release 與 npm publish 尚未執行。 | 已準備 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.27`。 | 通過 |
+
+## v0.3.27 發佈狀態
+
+- package version：`0.3.27`。
+- release notes：`CHANGELOG.md` 的 `v0.3.27` 段落 + `docs/whatsnew/v0.3.27.md`。
+- 發佈目標：新增「治理打通」標準能力，讓重要文件、真源、runbook、workflow、checklist 或 repo-wide 未接合候選能接入 `PROJECT_INDEX`、`DOC_SYNC_REGISTRY`、相關 workflow、handoff / log 角色與重複真源風險檢查。
+- 發佈狀態：候選準備完成。尚未 commit、push、tag、建立 GitHub Release 或 npm publish。
+- 發佈後驗證：未執行；須於 GitHub Release 與 npm publish 完成後跑七項發佈檢。
+
+### v0.3.27 發佈前全面檢正式結論
+
+- 正式報告：`docs/qa/full-audit-v0.3.27-candidate.md`。
+- 全面檢結論：PASS；可進入 commit / push / tag / GitHub Release / npm publish。
+- 治理健康總判定：緊張；建議方向：繼續。原因是本輪新增標準治理能力與升級遷移，觸及跨 session continuity 核心，但採按需觸發，不增加日常開工必讀負擔。
+- Product Journey Matrix：fresh install、closeout handoff、existing upgrade、official npx doctor path、non-empty local rules、conflict stop、rule pack routing、governance bridge 均為 automated PASS。
+- Governance Bridge Scenario Matrix：stock list、production guide / runbook、repo-wide scan、duplicate source-of-truth 四個情景均有 automated PASS 證據；不要求 Adam 做人工 diff review。
+- Rules / packs routing 結論：PASS。治理打通落在既有 `agent-governance` pack；`RULE_PACKS` 只做自然語言路由，不新增第二份治理真源。
+- QC gap backflow 結論：PASS。重要文件孤兒風險、舊用戶遷移缺口、人工 diff review 替代方案均已轉成自動驗收或 full audit evidence contract。
+
+### Cross-mind evidence 9-trigger table（v0.3.27）
+
+| Trigger | Required? | Result | Evidence / rationale |
+|---|---|---|---|
+| 1. 失敗或 blocker | yes | iterated | 實際長期 workflow 存在新真源、新 runbook 或清單只在局部保存的文件孤兒風險。 |
+| 2. 高風險 / 安全 / 發佈 | yes | passed | Adam 明確要求繼續做全面檢、版本收口與發佈；發佈前機器驗收已通過，發佈後仍須跑發佈檢。 |
+| 3. 用戶明確挑戰 | yes | passed | Adam 要求不做人工 diff review，改由 QC 機制驗收；四情景矩陣與 full audit evidence contract 已落地。 |
+| 4. 複雜推理 / 多層取捨 | yes | passed | 最終方案採既有 `agent-governance` pack + `RULE_PACKS` 路由 + upgrade migration，不新增平行治理技能或第二真源。 |
+| 5. 跨檔 / 跨 surface 改動 | yes | passed | runtime route、pack workflow、CLI schema / migration、README、HTML、CHANGELOG、whatsnew、QA scripts 與 release-grade QA 已同步。 |
+| 6. 結論基於語意判斷而非單一 grep | yes | passed | `qa:packs` 模擬四個使用情景；`qa:upgrade` 測舊用戶遷移；`qa:release` 反查 full audit 證據要求。 |
+| 7. 外部 AI / cross-mind review | yes | passed | 外部 runtime 建議已被抽象成 public 版通用能力與驗收，不依賴本地私有技能。 |
+| 8. 真實用戶旅程 | yes | passed | 新手只需說「治理打通 <檔案>」或「掃描 repo 有沒有未接合文件」；工具不自動刪除、改名或合併真源。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | passed | 發佈聲明由 route、workflow、upgrade migration、四情景矩陣、public docs 與 full-audit report 共同支撐。 |
 
 ## v0.3.26 發佈狀態
 
