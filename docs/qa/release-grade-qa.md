@@ -288,7 +288,7 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | v0.3.29 已獲 Adam 要求 commit、release notes 與 publish；本文件記錄候選準備狀態，外部發佈完成後仍須跑發佈檢。 | 已批准進入發佈流程 |
+| 發佈授權 | v0.3.29 已獲 Adam 要求 commit、release notes 與 publish；GitHub Release、npm publish 與發佈後驗證已完成。 | 已完成發佈流程 |
 | 版本口徑 | `package.json` 目前為 `0.3.29`；v0.3.29 是 AI 安裝頁與長期治理入庫修正版。 | 正式候選口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
@@ -300,7 +300,7 @@ npm package 由 `package.json` 的 `files` 控制：
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.29` 段，`docs/whatsnew/v0.3.29.md` 已補本版用戶說明；GitHub Release 與 npm publish 尚未執行。 | 已準備 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.29` 段，`docs/whatsnew/v0.3.29.md` 已補本版用戶說明；GitHub Release 與 npm publish 已完成。 | 已完成 |
 | 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.29`。 | 通過 |
 
 ## v0.3.29 發佈狀態
@@ -308,8 +308,8 @@ npm package 由 `package.json` 的 `files` 控制：
 - package version：`0.3.29`。
 - release notes：`CHANGELOG.md` 的 `v0.3.29` 段落 + `docs/whatsnew/v0.3.29.md`。
 - 發佈目標：新增 AI-readable install page，讓非技術用戶可叫 AI 讀頁後在目前資料夾判斷安裝或升級；同時把長期治理入庫與文件接入 Agent Handoff Kit 分開驗收。
-- 發佈狀態：候選準備完成。尚未 commit、push、tag、建立 GitHub Release 或 npm publish。
-- 發佈後驗證：未執行；須於 GitHub Release 與 npm publish 完成後跑七項發佈檢。
+- 發佈狀態：已 commit、push、tag、建立 GitHub Release，並已 npm publish。Release source / tag：`bedbe6f`。
+- 發佈後驗證：PASS 7/7。GitHub Release metadata 正確；npm latest / version 為 `0.3.29`，fileCount 25；published install、`--help`、`init`、`doctor` 通過；published v0.3.28 → v0.3.29 upgrade + sequential doctor 通過。
 
 ### v0.3.29 發佈前全面檢正式結論
 
