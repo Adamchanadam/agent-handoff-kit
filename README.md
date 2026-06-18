@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：目前版本為 `v0.3.28`。這是早期可用版本，仍在持續完善中。
+狀態：目前版本為 `v0.3.29`。這是早期可用版本，仍在持續完善中。
 
 ![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
 
@@ -9,6 +9,14 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 它只處理一件狹窄但重要的事：AI 跨對話失憶。每次開新對話，AI 往往不記得你上次做到哪裡，也認不出中途新建的文件、你引入的參考資料、哪些檔案是真源。這套工具把進度、下一步、風險、檔案登記與下次開工提示寫進固定文件，讓下一個 AI 工具能接得上上一棒。
 
 > 🚀 **第一次用？你不需要先讀本 README 或任何文件。**
+>
+> 最簡單做法：在你要安裝或升級的資料夾打開能讀寫本機資料夾的 AI agent，貼上：
+>
+> ```text
+> 請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html，並在這個資料夾安裝或升級 Agent Handoff Kit。
+> ```
+>
+> AI 會先顯示目前資料夾並請你確認；未確認前不應安裝或升級。
 >
 > 安裝完成後，打開能讀寫本機專案資料夾的 AI agent。若 AI 已經在正確專案資料夾內，只需輸入：
 >
@@ -26,7 +34,7 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 >
 > AI 會依 `AGENTS.md` 打開專案內的 `START_NEXT_SESSION_PROMPT.txt`。第一次安裝後，該檔會帶它載入新手引導；之後每次收工後，該檔會改成下一次接力需要的真實狀態。本 README 與下方介紹頁是參考對照，不是必讀。
 
-想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) —— 新手 60 秒入門。看完想看實際操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) —— 三個日常情境的完整流程示範。本 README 則保留安裝、日常使用與限制。
+想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) —— 新手 60 秒入門。看完想看實際操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) —— 三個日常情境的完整流程示範。若想讓 AI 代你判斷安裝或升級，給 AI 讀 [`agent-handoff-kit-ai-install.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html)。本 README 則保留安裝、日常使用與限制。
 
 ## 它解決甚麼問題
 
@@ -45,7 +53,7 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 ![Agent Handoff Kit 新手流程](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-new-user-flow.png)
 
-這張圖是給第一次使用的人看的流程摘要：先在專案資料夾安裝，然後在能讀寫本機資料夾的 AI 對話輸入 `Start Agent Handoff` 或「開工」；AI 會依 `AGENTS.md` 打開 `START_NEXT_SESSION_PROMPT.txt` 進入新手引導。準備結束本輪工作時說「收工」，讓 AI 留下下一次能接上的交接。
+這張圖是給第一次使用的人看的流程摘要：先在目標資料夾讓 AI 讀安裝指令頁，或手動執行 `npx --yes @adamchanadam/agent-handoff-kit@latest init`；安裝完成後，在能讀寫本機資料夾的 AI 對話輸入 `Start Agent Handoff` 或「開工」。AI 會依 `AGENTS.md` 打開 `START_NEXT_SESSION_PROMPT.txt` 進入新手引導。準備結束本輪工作時說「收工」，讓 AI 留下下一次能接上的交接。
 
 ### 適用工具
 
@@ -54,6 +62,16 @@ Agent Handoff Kit 適合能讀寫本機專案資料夾的 agentic AI 工具，�
 它不適合普通 web chat AI，例如沒有本機檔案讀寫能力的 ChatGPT、Claude、Gemini 網頁版。上載檔案或貼上交接內容不能取代本工具需要的本機讀寫能力；這類工具不能可靠維護專案內的交接文件。
 
 ### 一、安裝
+
+最簡單做法，是在目標資料夾打開能讀寫本機資料夾的 AI agent，貼上：
+
+```text
+請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html，並在這個資料夾安裝或升級 Agent Handoff Kit。
+```
+
+AI 應先顯示目前資料夾的絕對路徑，問你是否就是要安裝或升級的資料夾；確認後才判斷要執行 `init`、`upgrade --dry-run`、`upgrade` 或停在衝突狀態。
+
+如你想手動安裝，才用下面的終端機指令。
 
 在你的專案資料夾打開終端機，執行：
 
@@ -71,9 +89,11 @@ npx --yes @adamchanadam/agent-handoff-kit@latest init
 
 安裝成功後，先做 AI 對話，不必立刻跑 `doctor`。`doctor` 是之後不確定狀態、升級後驗收，或 AI 要排錯時才需要用的檢查工具。
 
-### 常見入口
+### 手動入口
 
-| 你現在的狀態 | 建議指令 |
+如果你不用 AI 代判斷安裝或升級，才直接使用下表指令。
+
+| 你現在的狀態 | 手動指令 |
 |---|---|
 | 第一次在新資料夾使用 | `npx --yes @adamchanadam/agent-handoff-kit@latest init` |
 | 已安裝舊版，或已有 AI 記憶文件 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade` |
@@ -259,6 +279,8 @@ scan for unbridged governance documents
 
 這個掃描只列出候選與缺口，不會一邊掃描一邊自動修改。若你同意其中某個建議，可以再叫 AI 按建議補丁更新索引、同步登記或相關流程。若涉及刪除、改名、合併真源，AI 只會列出合併、引用或退役建議，等你明確確認。
 
+這裡的「接入 Agent Handoff Kit」只指文件接合：避免重要文件變成下一個 AI 不知道要讀、不知道要更新的孤兒文件。若你想保存一條長期有效的做法，例如「以後都用這個 API 調用方式」、「把今次錯誤變成日後機制」、「這條工具使用方法要跨 session 生效」，請直接說「把這件事轉成長期機制」或「寫入長期治理」。AI 應把這類內容分流到規則包、項目索引、同步登記、決策紀錄或驗收檢查；不應只寫入 `dev/SESSION_LOG.md`、`dev/SESSION_HANDOFF.md` 或 `START_NEXT_SESSION_PROMPT.txt`。
+
 ## 外部工具治理
 
 如你的項目涉及外部工具（例如 Notion、Google Drive、Slack、Linear、GitHub 等），Agent Handoff Kit 提供跨對話的治理紀律，確保 AI 在不同對話之間能穩定使用這些工具。
@@ -284,6 +306,7 @@ scan for unbridged governance documents
 | 準備發佈說明 | 發佈規則；真正發佈、上傳或建立版本前必須再讀安全規則 |
 | 改規則、改流程、整理交接 | AI 治理規則；先找既有真源，不盲目新增規則 |
 | 新建重要文件後想避免變孤兒 | AI 治理規則；說「把 <檔案> 接入 Agent Handoff Kit」，讓 AI 檢查索引、同步責任、相關流程與重複真源風險 |
+| 把錯誤經驗、API 用法或工具用法變成日後都有效的機制 | AI 治理規則；說「轉成長期機制」或「寫入長期治理」，讓 AI 找正確持久位置，不只留在 session log 或 handoff |
 
 原則是只讀當前任務需要的規則，不是每次讀全部文件。
 
@@ -314,11 +337,11 @@ Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templa
 - **Adam-AI-Instructions** 負責 AI 在**單一對話**內的做事規矩：語氣、做事優先序、回覆骨架、計算紀律、用語紀律、安全護欄、輸出層分工。屬「AI 應該怎樣答你」的持久基準。
 - **Agent Handoff Kit** 負責 AI 在**對話之間**的接力：當前狀態、下一步、檔案登記、收工同下次開工。屬「AI 在對話之間怎樣記住你的項目」的持久基準。
 
-到該倉庫的「五、提示詞索引」選擇適合你 AI 工具的版本（Claude Cowork、Claude Code、OpenAI Codex、ChatGPT 等），複製對應子目錄的 `prompt.md` 全文，貼入 AI 工具設定。然後再在項目資料夾執行 `npx --yes @adamchanadam/agent-handoff-kit@latest init` 安裝本工具。兩者配合，就能同時照顧單次對話的做事規矩，以及不同對話之間的項目接力。
+到該倉庫的「五、提示詞索引」選擇適合你 AI 工具的版本（Claude Cowork、Claude Code、OpenAI Codex、ChatGPT 等），複製對應子目錄的 `prompt.md` 全文，貼入 AI 工具設定。然後在項目資料夾打開能讀寫本機資料夾的 AI agent，請它讀 `https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html` 並在這個資料夾安裝或升級本工具；如你想手動處理，才執行 `npx --yes @adamchanadam/agent-handoff-kit@latest init`。兩者配合，就能同時照顧單次對話的做事規矩，以及不同對話之間的項目接力。
 
 ## 目前限制
 
-- 目前版本為 `v0.3.28`；正式安裝請以 npm registry `latest` 顯示為準。
+- 目前版本為 `v0.3.29`；正式安裝請以 npm registry `latest` 顯示為準。
 - 這是早期可用版本，仍在持續完善中。
 - 升級合併屬窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

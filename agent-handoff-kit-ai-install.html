@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Handoff Kit — AI 安裝指令頁</title>
+  <meta name="description" content="給 agentic AI 讀取的 Agent Handoff Kit 安裝與升級指令頁。用戶只需請 AI 讀本頁，AI 便可在目前資料夾安全判斷 init、upgrade 或 doctor。" />
+  <style>
+    :root {
+      --ink: #0a0a0a;
+      --paper: #f7f4ee;
+      --paper-2: #efeae0;
+      --blue: #2e5bff;
+      --red: #e63946;
+      --yellow: #ffd60a;
+      --green: #06a77d;
+      --rule: 4px solid var(--ink);
+      --mono: "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+      --sans: "Inter", "Helvetica Neue", Arial, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 17px;
+      line-height: 1.6;
+    }
+    .stripe {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.5fr;
+      height: 14px;
+      border-bottom: var(--rule);
+    }
+    .stripe div:nth-child(1) { background: var(--red); }
+    .stripe div:nth-child(2) { background: var(--yellow); }
+    .stripe div:nth-child(3) { background: var(--blue); }
+    .wrap {
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    header {
+      border-bottom: var(--rule);
+      padding: 64px 0 48px;
+    }
+    .kicker {
+      display: inline-block;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 6px 10px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: clamp(40px, 6.5vw, 76px);
+      line-height: 0.98;
+      margin: 0 0 18px;
+      letter-spacing: -0.02em;
+    }
+    h2 {
+      font-size: clamp(28px, 3.5vw, 44px);
+      line-height: 1.1;
+      margin: 0 0 14px;
+    }
+    h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+    p { max-width: 68ch; margin: 0 0 1em; }
+    .lead {
+      font-size: 20px;
+      max-width: 62ch;
+    }
+    .prompt-box {
+      border: var(--rule);
+      background: var(--yellow);
+      padding: 24px;
+      margin-top: 28px;
+    }
+    .prompt-box pre,
+    .code pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: var(--mono);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+    .prompt-box pre {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 18px;
+    }
+    section {
+      border-bottom: var(--rule);
+      padding: 52px 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 22px;
+      margin-top: 22px;
+    }
+    .card {
+      border: 3px solid var(--ink);
+      background: var(--paper-2);
+      padding: 24px;
+    }
+    .card strong { display: block; margin-bottom: 6px; }
+    .code {
+      border: 3px solid var(--ink);
+      background: #0d1117;
+      color: #e6edf3;
+      padding: 18px;
+      margin: 14px 0 0;
+    }
+    ol, ul {
+      padding-left: 24px;
+      max-width: 76ch;
+    }
+    li { margin-bottom: 10px; }
+    .stop {
+      border-left: 12px solid var(--red);
+      background: var(--paper-2);
+      padding: 20px 24px;
+      margin-top: 20px;
+    }
+    .ok {
+      border-left: 12px solid var(--green);
+      background: var(--paper-2);
+      padding: 20px 24px;
+      margin-top: 20px;
+    }
+    footer {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 34px 0;
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    footer a { color: var(--paper); }
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+      header { padding-top: 44px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stripe"><div></div><div></div><div></div></div>
+
+  <header>
+    <div class="wrap">
+      <span class="kicker">AI-readable install page · v0.3.29</span>
+      <h1>給 AI 讀的<br/>安裝與升級指令</h1>
+      <p class="lead">本頁給能讀寫本機資料夾、可執行終端機命令的 agentic AI 使用。用戶不用先理解 npm 或選擇指令；AI 讀完本頁後，應在目前資料夾安全判斷要安裝、升級或停止。</p>
+
+      <div class="prompt-box">
+        <h2>用戶只需貼這一句</h2>
+        <pre>請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html，並在這個資料夾安裝或升級 Agent Handoff Kit。</pre>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <div class="wrap">
+      <h2>AI 必須先確認目前資料夾</h2>
+      <ol>
+        <li>顯示目前工作資料夾的絕對路徑。</li>
+        <li>問用戶：「這是否就是要安裝或升級 Agent Handoff Kit 的資料夾？」</li>
+        <li>未能確認時停止，不執行 `init`、`upgrade` 或 `doctor`。</li>
+        <li>確認後才檢查本資料夾是否已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`START_NEXT_SESSION_PROMPT.txt` 或 `dev/`。</li>
+      </ol>
+      <div class="stop">
+        <strong>安全邊界：</strong>
+        不刪除、不覆寫衝突、不處理 credential、不執行 git commit、不執行 git push、不執行 git tag、不執行 npm publish、不建立 GitHub Release。
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>判斷安裝方式</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>情況一：完全未安裝</h3>
+          <p>如果沒有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`START_NEXT_SESSION_PROMPT.txt`、`dev/`，使用 fresh install。</p>
+          <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest init --yes --root .</pre></div>
+        </div>
+        <div class="card">
+          <h3>情況二：已有 Kit 或 AI 記憶檔</h3>
+          <p>如果已有任何 Kit 檔案或既有 AI 記憶檔，先預演升級，不直接覆寫。</p>
+          <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run --root .</pre></div>
+        </div>
+      </div>
+
+      <div class="ok">
+        <strong>預演無衝突時：</strong>
+        才執行正式升級。
+        <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes --root .</pre></div>
+      </div>
+
+      <div class="stop">
+        <strong>預演有 conflict 時：</strong>
+        停止。列出衝突檔案與原因，請用戶決定，不自行合併、不重裝覆寫。
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>完成後驗收</h2>
+      <ol>
+        <li>安裝或升級完成後執行健康檢查。</li>
+      </ol>
+      <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .</pre></div>
+      <ol start="2">
+        <li>若 `doctor` 通過，讀 `AGENTS.md`，再按 `Start Agent Handoff` 的開工流程接上本資料夾。</li>
+        <li>若 `doctor` 失敗，停止並向用戶列出失敗項；不要重裝覆寫。</li>
+        <li>若 `doctor` 只提示 `START_NEXT_SESSION_PROMPT.txt` 便利副本落後，說明它會在正式收工時重新產生；不要因此重裝。</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>AI 回覆格式</h2>
+      <p>執行完後，AI 應用簡短中文回覆：</p>
+      <ul>
+        <li>目前資料夾。</li>
+        <li>採用的路徑：fresh install / upgrade dry-run / upgrade / stopped on conflict。</li>
+        <li>`doctor` 結果。</li>
+        <li>下一步：已可輸入 `Start Agent Handoff` /「開工」，或需要先處理哪個衝突。</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      Agent Handoff Kit · AI install page · <a href="https://github.com/Adamchanadam/agent-handoff-kit">GitHub README</a>
+    </div>
+  </footer>
+</body>
+</html>

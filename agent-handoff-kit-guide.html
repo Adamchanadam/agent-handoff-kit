@@ -454,7 +454,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.3.28 · 三個日常情景 · 由第一句指令到長期接力</span>
+    <span class="kicker">v0.3.29 · 三個日常情景 · 由第一句指令到長期接力</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">三個日常情景 —— 整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進 —— 完整示範 Agent Handoff Kit 由安裝到接力的流程。每一步都會看到 AI 主動宣告載入哪個工作模式、怎樣計劃、怎樣驗收、何時同步下次接力提示。</p>
   </div>
@@ -465,7 +465,7 @@
     <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
       <div style="background: var(--yellow); color: var(--ink); padding: 10px 16px; font-family: var(--font-mono); font-weight: 700; font-size: 14px; letter-spacing: 0.05em;">🚀 第一次用?</div>
       <div style="flex: 1; min-width: 280px;">
-        <p style="margin: 0 0 12px; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>安裝完成後,打開能讀寫本機專案資料夾的 AI agent。若 AI 已在正確專案內,輸入:</p>
+        <p style="margin: 0 0 12px; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>未安裝或不確定是否要升級時,在目標資料夾打開能讀寫本機資料夾的 AI agent,請它讀 <code>agent-handoff-kit-ai-install.html</code> 並在這個資料夾安裝或升級。安裝完成後,若 AI 已在正確專案內,輸入:</p>
         <p style="margin: 0 0 12px; font-family: var(--font-mono); font-size: 13px; background: rgba(255,255,255,0.15); padding: 8px 12px;">Start Agent Handoff<br/>或:開工</p>
         <p style="margin: 0 0 8px; font-size: 14px; line-height: 1.55; opacity: 0.9;">若 AI 還未指向資料夾,才用帶路徑啟動句:Work in &lt;你的資料夾&gt;. Read AGENTS.md first, then Start Agent Handoff.</p>
         <p style="margin: 0 0 8px; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會依 AGENTS.md 打開 START_NEXT_SESSION_PROMPT.txt。第一次安裝後,該檔案會開啟新手引導;收工後,該檔案會保存下一次接力狀態。收工可說 Wrap up Agent Handoff。若是「某某開工 / 某某收工」,AI 應先確認是否指本工具交接。</p>
@@ -518,10 +518,15 @@
     <div class="wrap">
       <span class="badge">STEP 01 · CASE A</span>
       <h2>安裝 —— 一句指令,在資料夾建好交接檔案</h2>
-      <p class="narrative">第一步完全與 AI 無關。你只需要在電腦開一個空資料夾(例如 <code>~/Downloads-tidy</code>),打開終端機,執行一句指令。Handoff Kit 會自動為你建好整套交接文件,之後與 AI 對話時 AI 會自己讀取。</p>
+      <p class="narrative">第一步可以交給能讀寫本機資料夾的 AI agent。你只需要在電腦開一個空資料夾(例如 <code>~/Downloads-tidy</code>),在該資料夾打開 AI,請它讀安裝指令頁;AI 會先確認目前資料夾,再判斷要安裝、升級或停手。想手動處理時,才打開終端機執行下方指令。</p>
+
+      <div class="block ai">
+        <div class="block-header"><span class="label">AI 對話</span><span class="meta">~/Downloads-tidy</span></div>
+        <div class="block-body">請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html，並在這個資料夾安裝或升級 Agent Handoff Kit。</div>
+      </div>
 
       <div class="block terminal">
-        <div class="block-header"><span class="label">終端機</span><span class="meta">~/Downloads-tidy</span></div>
+        <div class="block-header"><span class="label">終端機手動路徑</span><span class="meta">~/Downloads-tidy</span></div>
         <div class="block-body">$ <span class="hl">npx --yes @adamchanadam/agent-handoff-kit@latest init</span>
 
 📋 寫入前確認:目前資料夾未見 Kit 檔案;工具會建立交接文件、AI 入口檔與工作規則。沒有既有檔案會被覆寫。
@@ -549,7 +554,7 @@ create: 20
 🔀 merged: 0
 ⏭️  skipped existing: 0
 
-📦 版本:v0.3.28
+📦 版本:v0.3.29
 🛠️  模式:first-install
 🔎 剛完成:init 命令;create 20 / merge 0 / skip 0 / conflict 0。
 🚀 下一步:不用再留在終端機。打開 AI 工具,啟動 Agent Handoff。
@@ -579,6 +584,7 @@ create: 20
         <h3>這一步建立了整套接力文件</h3>
         <ul>
           <li><strong>三個入口,同一套規矩</strong>:同時建立 <code>AGENTS.md</code>、<code>CLAUDE.md</code>、<code>GEMINI.md</code>,讓常見 AI 工具回到同一套規則。Antigravity CLI 會讀工作資料夾內的 <code>AGENTS.md</code> 與 <code>GEMINI.md</code>；因此 <code>GEMINI.md</code> 只做橋接,不另寫一套規則。</li>
+          <li><strong>AI 安裝頁先確認資料夾</strong>:若你用 AI 代跑安裝,它必須先顯示目前資料夾並請你確認。未確認前,不應執行 <code>init</code>、<code>upgrade</code> 或 <code>doctor</code>。</li>
           <li><strong>下一步不是終端機指令</strong>:輸出末段用 <code>⚠️</code> 標明。新手最容易撞上的誤會,是把 <code>Start Agent Handoff</code> 或帶路徑啟動句當成要繼續在終端機輸入 —— 其實是要輸入到 AI 對話。</li>
           <li><strong>重要文件可接入 Agent Handoff Kit</strong>:之後如 AI 新建 stock list、production guide、workflow 或 checklist,你可以在 AI 對話說 <code>把 docs/example.md 接入 Agent Handoff Kit</code>,讓它檢查這份文件是否已接入索引、同步責任與相關流程。</li>
           <li><strong>不確定才檢查</strong>:安裝後通常直接開 AI 對話即可。若之後不確定文件是否完整,才在終端機執行 <code>npx --yes @adamchanadam/agent-handoff-kit@latest doctor</code>。如果只是 <code>START_NEXT_SESSION_PROMPT.txt</code> 暫時落後於交接文件,新版只會提醒;準備結束本輪工作時再同步即可。</li>
@@ -1089,14 +1095,14 @@ Google Drive
 └── 報告寫好之後,由 AI 代你上傳,並設定分享權限給合伙人</div>
       </div>
 
-      <p class="narrative" style="margin-top: 20px;">準備好 Notion 資料庫與本機資料夾結構之後,在 <code>~/cafe-research/</code> 打開終端機,執行同一句安裝指令。</p>
+      <p class="narrative" style="margin-top: 20px;">準備好 Notion 資料庫與本機資料夾結構之後,在 <code>~/cafe-research/</code> 打開能讀寫本機資料夾的 AI agent,請它讀安裝指令頁並在這個資料夾安裝或升級;想手動處理時,才打開終端機執行同一句安裝指令。</p>
 
       <div class="block terminal">
         <div class="block-header"><span class="label">終端機</span><span class="meta">~/cafe-research</span></div>
         <div class="block-body">$ <span class="hl">npx --yes @adamchanadam/agent-handoff-kit@latest init</span>
 
 ✅ created: 20
-📦 版本:v0.3.28
+📦 版本:v0.3.29
 🛠️  模式:first-install
 🚀 下一步:開新 AI 對話。若 AI 已在資料夾內,輸入 Start Agent Handoff 或「開工」;若尚未指向資料夾,才使用帶路徑啟動句。</div>
       </div>
@@ -1730,7 +1736,7 @@ Before changing anything, tell me the current state and your recommended next st
 <section class="outro">
   <div class="wrap">
     <h2>走完三個案例之後,你會發現 <span class="accent">同一套流程</span> 適用於不同任務</h2>
-    <p>由終端機一句安裝 —— 開新 AI 對話啟動接力 —— AI 自己讀齊交接文件、說明準備怎樣做 —— 計劃階段停手等你確認 —— 涉及安全、知識整理、寫作時自動加上相應規則 —— 準備結束本輪工作時一句「收工」自動寫好下次提示 —— 新對話說「開工」就接得回。Case A 與 Case B 各七步,Case C 則跨越多月演進,但骨幹節奏跨案例、跨工具、跨日子都是同一套。</p>
+    <p>由 AI 讀安裝指令頁判斷安裝或升級,或手動用終端機安裝 —— 開新 AI 對話啟動接力 —— AI 自己讀齊交接文件、說明準備怎樣做 —— 計劃階段停手等你確認 —— 涉及安全、知識整理、寫作時自動加上相應規則 —— 準備結束本輪工作時一句「收工」自動寫好下次提示 —— 新對話說「開工」就接得回。Case A 與 Case B 各七步,Case C 則跨越多月演進,但骨幹節奏跨案例、跨工具、跨日子都是同一套。</p>
     <p>你之後做第三個、第四個任務 —— 寫電子報、做股市觀察、整理多個項目的發票 —— 流程仍然是這套。工作模式會根據任務性質自動切換,但你的習慣動作(開工、講任務、確認計劃;準備結束本輪工作時收工)始終一樣。</p>
     <p>另外建議:你希望 AI 在<strong>單一對話內</strong>的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)有持久基準,可以配合 <a href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">Adam-AI-Instructions</a> 使用 —— 到該倉庫的「五、提示詞索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);">prompt.md</code> 全文貼入你 AI 工具設定。Agent Handoff Kit 管「對話之間」的接力,Adam-AI-Instructions 管「單次對話質素」,兩者不重疊。</p>
     <a href="agent-handoff-kit-intro.html">看回新手 60 秒入門 →</a>
@@ -1755,7 +1761,7 @@ Before changing anything, tell me the current state and your recommended next st
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.3.28 · MIT License</p>
+      <p>v0.3.29 · MIT License</p>
     </div>
     <div>
       <strong>作者</strong>

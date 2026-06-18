@@ -87,6 +87,12 @@ const scenarios = [
     snippets: ["Governance Bridge Workflow", "接入 Agent Handoff Kit", "掃描未接入 Agent Handoff Kit 的重要文件", "connect this document to governance", "scan for unbridged governance documents", "target file itself", "dev/PROJECT_INDEX.md", "dev/DOC_SYNC_REGISTRY.md", "duplicate source-of-truth risk", "Status: bridged / partially bridged / unbridged / blocked"]
   },
   {
+    name: "long-term governance routing",
+    route: ["Long-term governance routing", "寫入長期治理", "轉成長期機制", "future sessions should remember", "dev/rules/agent-governance.md"],
+    pack: "agent-governance",
+    snippets: ["Long-term Governance Routing", "Content-based trigger", "future sessions must follow it", "recurring AI mistake", "reusable API / MCP / tool-use pattern", "Do not persist long-term governance knowledge only in", "promote it to the correct durable home"]
+  },
+  {
     name: "communication",
     route: ["Reply format, language", "dev/rules/communication.md"],
     pack: "communication",
@@ -184,6 +190,27 @@ const governanceBridgeUseCases = [
   }
 ];
 
+const longTermGovernanceUseCases = [
+  {
+    name: "recurring AI mistake becomes mechanism",
+    route: ["寫入長期治理", "轉成長期機制", "dev/rules/agent-governance.md"],
+    pack: ["recurring AI mistake", "the relevant rule pack, registered reference, or QA check", "Do not persist long-term governance knowledge only in"],
+    publicDocs: ["把今次錯誤變成日後機制", "寫入長期治理"]
+  },
+  {
+    name: "API MCP tool pattern survives sessions",
+    route: ["always use this API or MCP pattern", "future sessions should remember", "dev/rules/agent-governance.md"],
+    pack: ["API / MCP / tool-use pattern", "project index / registered reference", "promote it to the correct durable home"],
+    publicDocs: ["以後都用這個 API 調用方式", "跨 session 生效"]
+  },
+  {
+    name: "content-based classification without exact trigger",
+    route: ["之後都要遵守", "跨 session 有效", "dev/rules/agent-governance.md"],
+    pack: ["Content-based trigger", "Even if the user does not say", "future sessions must follow it"],
+    publicDocs: ["不應只寫入 `dev/SESSION_LOG.md`", "不只留在 session log 或 handoff"]
+  }
+];
+
 main();
 
 function main() {
@@ -210,6 +237,7 @@ function main() {
   }
 
   assertGovernanceBridgeUseCaseMatrix();
+  assertLongTermGovernanceUseCaseMatrix();
 
   console.log("");
   console.log("Agent Handoff Kit pack scenario QA passed");
@@ -232,10 +260,36 @@ function assertPackStructure() {
     "New runbooks are last resort only",
     "not stored only in `dev/SESSION_HANDOFF.md`",
     "Governance Bridge Workflow",
-    "For repo-wide scans, report candidates as candidates"
+    "For repo-wide scans, report candidates as candidates",
+    "Long-term Governance Routing",
+    "Content-based trigger",
+    "Do not persist long-term governance knowledge only in"
   ], "agent governance durable-home routing");
 
   console.log("ok: rule pack structure and durable-home routing");
+}
+
+function assertLongTermGovernanceUseCaseMatrix() {
+  const publicDocs = [
+    read("README.md"),
+    read("agent-handoff-kit-intro.html"),
+    read("agent-handoff-kit-guide.html")
+  ].join("\n");
+
+  assertIncludes(packs["agent-governance"], [
+    "Long-term Governance Routing",
+    "Content-based trigger",
+    "project index / registered reference / integrations pack",
+    "the relevant rule pack, registered reference, or QA check",
+    "Do not persist long-term governance knowledge only in"
+  ], "long-term governance routing contract");
+
+  for (const useCase of longTermGovernanceUseCases) {
+    assertIncludes(router, useCase.route, `${useCase.name} long-term governance route`);
+    assertIncludes(packs["agent-governance"], useCase.pack, `${useCase.name} long-term governance pack`);
+    assertIncludes(publicDocs, useCase.publicDocs, `${useCase.name} public docs`);
+    console.log(`ok: long-term governance use case - ${useCase.name}`);
+  }
 }
 
 function assertGovernanceBridgeUseCaseMatrix() {

@@ -51,6 +51,7 @@ function main() {
     "適合能讀寫本機專案資料夾的 agentic AI 工具",
     "不適合普通 web chat AI",
     "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
+    "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html",
     "不是終端機指令",
     "START_NEXT_SESSION_PROMPT.txt",
     "## 它解決甚麼問題",
@@ -119,6 +120,9 @@ function main() {
     "發佈後仍需驗證",
     "不得因 `v0.1.0` 已發佈而宣稱",
     "安裝後指示驗收",
+    "AI 代安裝頁驗收",
+    "agent-handoff-kit-ai-install.html",
+    "AI-assisted install page",
     "不是在終端機繼續輸入",
     "治理 QA 缺口矩陣",
     "產品級發佈前全面檢",
@@ -131,6 +135,7 @@ function main() {
     "收工三面同源驗收",
     "Rule Pack Routing And Durable-home Scope Sweep",
     "Natural-language task → rule pack → durable home",
+    "Long-term governance routing / 長期治理入庫",
     "Governance bridge / 治理打通",
     "治理打通",
     "接入 Agent Handoff Kit",
@@ -376,6 +381,7 @@ function main() {
   // history records when the phrase "人話解讀" was added before being later retired).
   const r026Forbidden = [/人話解讀/, /人話補一句/, /人話解釋/];
   checkForbiddenVocabulary("README.md", read("README.md"), r026Forbidden);
+  checkForbiddenVocabulary("agent-handoff-kit-ai-install.html", read("agent-handoff-kit-ai-install.html"), r026Forbidden);
   checkForbiddenVocabulary("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), r026Forbidden);
   checkForbiddenVocabulary("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), r026Forbidden);
   checkForbiddenVocabularyInChangelogLatestSection(read("CHANGELOG.md"), r026Forbidden);
@@ -392,11 +398,13 @@ function main() {
   // from this sweep (R-026 anchor-bounded pattern reused).
   const internalReferenceForbidden = [/R-\d{3}/, /closeout step \d+/, /strict mechanical/i];
   checkForbiddenVocabulary("README.md", read("README.md"), internalReferenceForbidden);
+  checkForbiddenVocabulary("agent-handoff-kit-ai-install.html", read("agent-handoff-kit-ai-install.html"), internalReferenceForbidden);
   checkForbiddenVocabulary("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), internalReferenceForbidden);
   checkForbiddenVocabulary("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), internalReferenceForbidden);
 
   // R-030 v0.3.0+: Internal "v2 / advanced user path" jargon must not appear on user-facing surfaces.
   const v2JargonForbidden = [/v2 (的|嘅) advanced user path/, /v2 advanced user path/];
+  checkForbiddenVocabulary("agent-handoff-kit-ai-install.html", read("agent-handoff-kit-ai-install.html"), v2JargonForbidden);
   checkForbiddenVocabulary("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), v2JargonForbidden);
   checkForbiddenVocabulary("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), v2JargonForbidden);
 
@@ -431,6 +439,7 @@ function main() {
   // in user-facing HTML (Wording style: 繁體中文書面語). Triggers if any of the listed
   // characters appear outside explicitly allowed contexts.
   const cantoneseSpokenChars = /[嘅咁喺揀唔乜啱嚟咗嗰]/g;
+  checkBookLanguage("agent-handoff-kit-ai-install.html", read("agent-handoff-kit-ai-install.html"), cantoneseSpokenChars);
   checkBookLanguage("agent-handoff-kit-intro.html", read("agent-handoff-kit-intro.html"), cantoneseSpokenChars);
   checkBookLanguage("agent-handoff-kit-guide.html", read("agent-handoff-kit-guide.html"), cantoneseSpokenChars);
 
@@ -440,6 +449,7 @@ function main() {
   // `Start Agent Handoff` / `開工` when the local AI is already rooted in the project,
   // and the path-bearing fallback only when the AI is not yet pointed at the folder.
   checkCrossSurfaceWordingConsistency();
+  checkAiInstallPageContract(version);
 
   // v0.3.7 candidate discipline: `npx` cold-start UX must be explicit. A project can
   // already contain old Kit files while npm still needs to fetch the CLI package before
@@ -522,6 +532,7 @@ function checkCrossSurfaceWordingConsistency() {
 
 function checkPublicOnboardingVersion(version) {
   const surfaces = [
+    "agent-handoff-kit-ai-install.html",
     "agent-handoff-kit-intro.html",
     "agent-handoff-kit-guide.html"
   ];
@@ -541,6 +552,7 @@ function checkNpxColdStartUxGuidance() {
   const qaDoc = read("docs/qa/release-grade-qa.md");
   const intro = stripHtml(read("agent-handoff-kit-intro.html"));
   const guide = stripHtml(read("agent-handoff-kit-guide.html"));
+  const aiInstall = stripHtml(read("agent-handoff-kit-ai-install.html"));
   const commonEntryCommands = [
     "npx --yes @adamchanadam/agent-handoff-kit@latest init",
     "npx --yes @adamchanadam/agent-handoff-kit@latest doctor",
@@ -551,13 +563,24 @@ function checkNpxColdStartUxGuidance() {
     assert(cli.includes(command), `CLI help / next-step output missing npx cold-start-safe command: ${command}`);
   }
   assert(readme.includes("| 已安裝舊版，或已有 AI 記憶文件 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade` |"), "README common entries must point old installs to formal upgrade, not dry-run");
+  assert(readme.includes("### 手動入口"), "README must label direct npx commands as manual entry after AI-assisted install became the simplest path");
+  assert(!readme.includes("### 常見入口"), "README must not present the direct npx table as the general common entry after AI-assisted install became the simplest path");
   assert(!readme.includes("| 已裝過舊版，想先看升級會改甚麼 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` |"), "README common entries must not present upgrade --dry-run as the old-install entry");
   assert(readme.includes("`dry-run` 只會預覽，不會完成升級，也不會寫入檔案"), "README must explain dry-run previews only and is not a completed upgrade");
+  assert(readme.includes("最簡單做法：在你要安裝或升級的資料夾打開能讀寫本機資料夾的 AI agent"), "README first screen must present the AI-assisted install page as the simplest path");
+  assert(readme.includes("如你想手動安裝，才用下面的終端機指令"), "README install section must frame terminal commands as the manual path");
   assert(cli.includes("已裝過：執行 upgrade；若想先預覽，才加 --dry-run"), "CLI help must present upgrade as the old-install entry and dry-run as optional preview");
   assert(cli.includes("--dry-run 只預覽、不寫入；它不是正式升級完成"), "CLI help must explain dry-run is not a completed upgrade");
+  assert(qaDoc.includes("README 的手動入口與 CLI help 的 common entries"), "Release-grade QA must distinguish README manual entry from CLI common entries");
   assert(intro.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "intro page missing canonical npx init command");
+  assert(intro.includes("未安裝或不確定是否要升級時") && intro.includes("agent-handoff-kit-ai-install.html"), "intro page must route unsure users to the AI install page before manual terminal commands");
+  assert(aiInstall.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "AI install page missing canonical npx init command");
+  assert(aiInstall.includes("npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run"), "AI install page missing canonical npx upgrade dry-run command");
+  assert(aiInstall.includes("npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes"), "AI install page missing canonical npx upgrade command");
+  assert(aiInstall.includes("npx --yes @adamchanadam/agent-handoff-kit@latest doctor"), "AI install page missing canonical npx doctor command");
   assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "guide page missing canonical npx init command");
   assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest doctor"), "guide page missing canonical npx doctor command");
+  assert(guide.includes("請它讀 agent-handoff-kit-ai-install.html") || guide.includes("請它讀安裝指令頁"), "guide page must route first-time users to the AI install page before manual terminal commands");
   assert(readme.includes("即使目前資料夾已安裝舊版 Kit 文件"), "README must explain old Kit files do not mean the npm CLI is locally available");
   assert(readme.includes("判斷點不是資料夾有沒有 `AGENTS.md` 或 `dev/`"), "README must explicitly distinguish project Kit files from the executable npm tool");
   assert(readme.includes("真正會建立項目文件的是 `init`；`doctor` 只檢查，不會安裝或改動你的項目文件"), "README must explain init writes project files and doctor only checks");
@@ -570,6 +593,7 @@ function checkNpxColdStartUxGuidance() {
   const misleadingExamples = [
     { file: "README.md", text: readme },
     { file: "bin/agent-handoff-kit.mjs", text: cli },
+    { file: "agent-handoff-kit-ai-install.html", text: aiInstall },
     { file: "agent-handoff-kit-intro.html", text: intro },
     { file: "agent-handoff-kit-guide.html", text: guide }
   ];
@@ -577,7 +601,54 @@ function checkNpxColdStartUxGuidance() {
     assert(!surface.text.includes("npx @adamchanadam/agent-handoff-kit doctor"), `${surface.file} still contains misleading bare npx doctor example`);
     assert(!surface.text.includes("npx @adamchanadam/agent-handoff-kit init"), `${surface.file} still contains misleading bare npx init example`);
   }
+
+  const terminalFirstDriftPhrases = [
+    "第一步完全與 AI 無關",
+    "由終端機一句安裝",
+    "然後再在項目資料夾執行 `npx",
+    "準備好 Notion 資料庫與本機資料夾結構之後,在 <code>~/cafe-research/</code> 打開終端機"
+  ];
+  for (const phrase of terminalFirstDriftPhrases) {
+    for (const surface of misleadingExamples) {
+      assert(!surface.text.includes(phrase), `${surface.file} still contains terminal-first install drift phrase: ${phrase}`);
+    }
+  }
   console.log("ok: npx cold-start UX guidance");
+}
+
+function checkAiInstallPageContract(version) {
+  assert(existsSync(path.join(root, "agent-handoff-kit-ai-install.html")), "AI install GitHub Pages HTML is missing");
+
+  const page = read("agent-handoff-kit-ai-install.html");
+  const plain = stripHtml(page);
+  assert(page.includes(`v${version}`), `AI install page missing current visible version v${version}`);
+  assert(read("README.md").includes("agent-handoff-kit-ai-install.html"), "README must link the AI install page");
+  assert(read("agent-handoff-kit-intro.html").includes("agent-handoff-kit-ai-install.html"), "intro page must link the AI install page");
+  assert(read("agent-handoff-kit-guide.html").includes("agent-handoff-kit-ai-install.html"), "guide page must link the AI install page");
+  assert(read("docs/qa/release-grade-qa.md").includes("AI 代安裝頁驗收"), "release-grade QA must include AI install page acceptance");
+  assert(read("docs/qa/release-grade-qa.md").includes("AI-assisted install page"), "Product Journey Matrix must include AI-assisted install page scenario");
+
+  assertIncludes("agent-handoff-kit-ai-install.html", [
+    "請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html，並在這個資料夾安裝或升級 Agent Handoff Kit。",
+    "顯示目前工作資料夾的絕對路徑",
+    "這是否就是要安裝或升級 Agent Handoff Kit 的資料夾？",
+    "未能確認時停止",
+    "npx --yes @adamchanadam/agent-handoff-kit@latest init --yes --root .",
+    "npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run --root .",
+    "npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes --root .",
+    "npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .",
+    "預演有 conflict 時",
+    "停止。列出衝突檔案與原因",
+    "Start Agent Handoff"
+  ]);
+
+  const forbiddenActions = ["git commit", "git push", "git tag", "npm publish", "GitHub Release"];
+  for (const action of forbiddenActions) {
+    assert(plain.includes(action), `AI install page must explicitly forbid or mention safe boundary for: ${action}`);
+  }
+  assert(plain.includes("不刪除") && plain.includes("不覆寫衝突"), "AI install page must forbid deletion and conflict overwrite");
+  assert(!read("package.json").includes("agent-handoff-kit-ai-install.html"), "AI install page must remain outside npm files whitelist");
+  console.log("ok: AI install page contract");
 }
 
 function checkScenarioBranchingDocAlignment() {
@@ -1899,8 +1970,11 @@ function checkRulePackRoutingDurableHomeAudit() {
   assertIncludes("docs/qa/release-grade-qa.md", [
     "Rule Pack Routing And Durable-home Scope Sweep",
     "Natural-language task → rule pack → durable home",
+    "Long-term governance routing",
+    "長期治理入庫",
     "Rules / packs 路由與入庫範圍",
     "可重用操作程序是否被導向既有 pack 或 registered reference",
+    "不得只存放在 SESSION_LOG / SESSION_HANDOFF / START_NEXT_SESSION_PROMPT",
     "不得因一次任務就任意新建 governance docs"
   ]);
 
@@ -1917,6 +1991,10 @@ function checkRulePackRoutingDurableHomeAudit() {
     "Governance bridge / 治理打通",
     "接入 Agent Handoff Kit",
     "掃描未接入 Agent Handoff Kit 的重要文件",
+    "Long-term governance routing",
+    "寫入長期治理",
+    "轉成長期機制",
+    "future sessions should remember",
     "connect this document to governance",
     "scan for unbridged governance documents",
     "Reply format, language",
@@ -1941,6 +2019,10 @@ function checkRulePackRoutingDurableHomeAudit() {
     "do not duplicate the gate thresholds in this pack",
     "Governance Bridge Workflow",
     "For repo-wide scans, report candidates as candidates",
+    "Long-term Governance Routing",
+    "Content-based trigger",
+    "Do not persist long-term governance knowledge only in",
+    "project index / registered reference / integrations pack",
     "duplicate source-of-truth risk"
   ]);
 

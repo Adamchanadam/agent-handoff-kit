@@ -706,7 +706,7 @@
   <header class="hero">
     <div class="wrap">
       <div>
-        <span class="kicker">v0.3.28 · 60 秒新手入門</span>
+        <span class="kicker">v0.3.29 · 60 秒新手入門</span>
         <h1><span class="accent">AI Session</span><br/>之間的<br/><span class="accent2">接力棒</span></h1>
         <p class="lede">AI 每次開新對話都是從零開始,不記得你上次和它做過甚麼,也認不出中途新建的文檔和你引入的參考資料。這套工具的作用,是把進度、下一步、要留神之處,連同一份檔案登記,寫進幾份固定文件;下一次在能讀寫本機專案資料夾的 AI agent 開新對話,只要說 Start Agent Handoff 或「開工」,它就會讀取交接檔案並接上上一棒。普通 web chat AI 若不能讀寫本機資料夾,不屬於支援場景。</p>
         <div class="cta-row">
@@ -929,7 +929,9 @@
         <div class="step s1">
           <div class="step-num">1</div>
           <h3>安裝</h3>
-          <p>在你的項目資料夾打開終端機,執行:</p>
+          <p>最簡單做法:在你的項目資料夾打開能讀寫本機資料夾的 AI agent,貼上:</p>
+          <pre><span class="hl">請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html，並在這個資料夾安裝或升級 Agent Handoff Kit。</span></pre>
+          <p style="margin-top:12px;">AI 應先顯示目前資料夾並請你確認;未確認前不會安裝或升級。想手動處理時,才在終端機執行:</p>
           <pre>npx --yes <span class="hl">@adamchanadam/agent-handoff-kit@latest</span> init</pre>
           <p style="margin-top:12px;">工具會在項目內建立 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">CLAUDE.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">GEMINI.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">dev/</code> 一系列固定文件。</p>
         </div>
@@ -972,7 +974,7 @@
 
       <div style="margin-top: 40px; padding: 28px; background: var(--paper); border: 3px solid var(--ink); border-left: 12px solid var(--blue);">
         <h3 style="margin: 0 0 12px; font-size: 20px; text-transform: uppercase; letter-spacing: 0.04em;">🚀 第一次用?最簡單版本</h3>
-        <p style="margin: 0; font-size: 16px; max-width: none;">安裝後在已打開專案資料夾的 AI agent 輸入 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">Start Agent Handoff</code> 或「開工」。AI 會打開 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">START_NEXT_SESSION_PROMPT.txt</code>,再用 5 步引導你:選情境、問背景、解釋會記住甚麼、建議第一個小任務、等你確認後才動手。本介紹頁不需要先讀完。</p>
+        <p style="margin: 0; font-size: 16px; max-width: none;">未安裝或不確定是否要升級時,先在目標資料夾打開 AI agent,請它讀 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">agent-handoff-kit-ai-install.html</code> 並在這個資料夾安裝或升級。安裝後在同一個 AI agent 輸入 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">Start Agent Handoff</code> 或「開工」。AI 會打開 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">START_NEXT_SESSION_PROMPT.txt</code>,再用 5 步引導你:選情境、問背景、解釋會記住甚麼、建議第一個小任務、等你確認後才動手。本介紹頁不需要先讀完。</p>
       </div>
     </div>
   </section>
@@ -1088,7 +1090,7 @@
         </div>
       </div>
 
-      <p style="margin-top:28px;">到 Adam-AI-Instructions 的「五、提示詞索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">prompt.md</code> 全文貼入你 AI 工具設定,再執行 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">npx --yes @adamchanadam/agent-handoff-kit@latest init</code>。前者管單次對話的做事規矩,本工具管不同對話之間的項目接力。</p>
+      <p style="margin-top:28px;">到 Adam-AI-Instructions 的「五、提示詞索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">prompt.md</code> 全文貼入你 AI 工具設定。然後在項目資料夾打開能讀寫本機資料夾的 AI agent,請它讀 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">agent-handoff-kit-ai-install.html</code> 並在這個資料夾安裝或升級本工具;如要手動處理,才執行 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">npx --yes @adamchanadam/agent-handoff-kit@latest init</code>。前者管單次對話的做事規矩,本工具管不同對話之間的項目接力。</p>
     </div>
   </section>
 
@@ -1122,7 +1124,7 @@
         </p>
       </div>
       <div class="meta">
-        v0.3.28 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a> 為準。
+        v0.3.29 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a> 為準。
       </div>
     </div>
   </footer>

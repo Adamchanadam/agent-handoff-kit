@@ -381,7 +381,8 @@ function main() {
     { ref: "v0.3.25", command: "upgrade", source: "tag" },
     { ref: "v0.3.26", command: "upgrade", source: "tag" },
     { ref: "v0.3.27", command: "upgrade", source: "tag" },
-    { ref: "v0.3.28", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.28", command: "upgrade", source: "tag" },
+    { ref: "v0.3.29", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;

@@ -1,5 +1,31 @@
 # 變更紀錄
 
+## v0.3.29 — 2026-06-18
+
+狀態：候選發佈版本。本版新增一個給 AI 讀的安裝／升級頁，讓非技術用戶只需把一句提示交給能讀寫本機資料夾的 AI agent；同時把「長期治理入庫」與「文件接入 Agent Handoff Kit」分清楚，避免可長期生效的規則、錯誤經驗或 API / MCP / 工具用法只留在 session log 或 handoff。
+
+### Added
+
+- 新增 `agent-handoff-kit-ai-install.html`，作為 GitHub Pages 普通 HTML。用戶可叫 AI 讀該頁，AI 會先顯示並確認目前資料夾，再判斷 fresh install、upgrade dry-run、正式 upgrade、conflict stop 或 doctor。
+- `agent-governance` 規則包新增 Long-term Governance Routing。即使用戶沒有說出「寫入長期治理」或「轉成長期機制」，只要內容本身要求 future sessions should remember、修正 recurring AI mistake，或定義 reusable API / MCP / tool-use pattern，AI 都不可只寫入 `SESSION_LOG`、`SESSION_HANDOFF` 或 prompt 副本。
+
+### Changed
+
+- README、intro HTML、guide HTML 改為 AI 安裝頁優先；直接 `npx` 指令保留為手動入口。
+- 「接入 Agent Handoff Kit」維持原意：只處理重要文件避免變成 orphan。非文件的長期規則、錯誤經驗與工具用法改走長期治理入庫。
+
+### QA
+
+- `qa:packs` 新增三個 long-term governance use cases：recurring AI mistake、API / MCP / tool pattern、未命中 exact trigger 的內容式分類。
+- `qa:release` 新增 AI install page contract，確認頁面要求資料夾確認、conflict 停手、完成後 doctor，並禁止 commit / push / tag / npm publish / GitHub Release。
+- `qa:release` 新增終端機優先舊語句防回歸檢查，防止 README / intro / guide 從 AI 安裝頁優先漂回手動終端機優先。
+- 發佈前全面檢 PASS：`qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 均通過；正式報告在 `docs/qa/full-audit-ai-install-long-term-governance-candidate-2026-06-18.md`。
+- `test-fixtures/v0.3.28` 已加入，v0.3.29 的 prior-version upgrade smoke 可用正式上一版作前置樣本。
+
+### Migration path（v0.3.28 → v0.3.29，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。本版主要新增 GitHub Pages 安裝輔助頁、公眾文案與規則包路由；升級會保留既有治理文件與本地自訂內容。若你是新手，也可以在目標資料夾打開能讀寫本機資料夾的 AI agent，叫它讀 `https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html` 並在這個資料夾安裝或升級。
+
 ## v0.3.28 — 2026-06-07
 
 狀態：候選發佈版本。本版把「治理打通」的公眾入口改得更直白：新手可以直接說「把文件接入 Agent Handoff Kit」，同時保留「治理打通」與英文觸發語作別名。
