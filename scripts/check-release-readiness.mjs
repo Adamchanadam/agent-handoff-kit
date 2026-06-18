@@ -25,6 +25,7 @@ function main() {
   assert(packageJson.scripts["qa:release"], "qa:release script is missing");
   assert(packageJson.scripts["qa:prompt-mirror"], "qa:prompt-mirror script is missing");
   checkWhatsnewSchema(version);
+  checkGithubReleaseBodyContract(version);
   checkPublicOnboardingVersion(version);
   checkUpgradeSuccessOutputSourceContract(version);
 
@@ -133,6 +134,9 @@ function main() {
     "Persistence routing checked field",
     "QC Gap Backflow",
     "收工三面同源驗收",
+    "GitHub Release body 固定結構驗收",
+    "vX.Y.Z - <用戶可理解的價值短句>",
+    "gh release view vX.Y.Z --json name,body",
     "Rule Pack Routing And Durable-home Scope Sweep",
     "Natural-language task → rule pack → durable home",
     "Long-term governance routing / 長期治理入庫",
@@ -1804,6 +1808,34 @@ function checkWhatsnewSchema(version) {
     }
   }
   console.log(`ok: docs/whatsnew schema (${files.length} files, current v${version})`);
+}
+
+function checkGithubReleaseBodyContract(version) {
+  const currentWhatsnew = readAt("docs/whatsnew", `v${version}.md`);
+  const requiredHeadings = [
+    "## 本版新加了甚麼",
+    "## 對你已有檔案的影響",
+    "## 建議下一步"
+  ];
+  assert(currentWhatsnew.startsWith(`# v${version}\n`), `docs/whatsnew/v${version}.md must start with "# v${version}" for GitHub Release body reuse`);
+  let previousIndex = -1;
+  for (const heading of requiredHeadings) {
+    const index = currentWhatsnew.indexOf(heading);
+    assert(index >= 0, `docs/whatsnew/v${version}.md missing GitHub Release body heading: ${heading}`);
+    assert(index > previousIndex, `docs/whatsnew/v${version}.md GitHub Release body heading order drifted: ${heading}`);
+    previousIndex = index;
+  }
+  assertIncludes("docs/qa/release-grade-qa.md", [
+    "GitHub Release body 固定結構驗收",
+    "vX.Y.Z - <用戶可理解的價值短句>",
+    "`# vX.Y.Z`",
+    "`## 本版新加了甚麼`",
+    "`## 對你已有檔案的影響`",
+    "`## 建議下一步`",
+    "不得回退成舊 `## 用戶價值` 格式",
+    "gh release view vX.Y.Z --json name,body"
+  ]);
+  console.log("ok: GitHub Release body contract");
 }
 
 function checkUpgradeSuccessOutputSourceContract(version) {
