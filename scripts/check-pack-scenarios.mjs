@@ -52,7 +52,7 @@ const scenarios = [
     name: "writing",
     route: ["Draft, edit", "dev/rules/writing.md"],
     pack: "writing",
-    snippets: ["audience", "Preserve factual meaning", "terminology consistent", "non-technical readers", "steady written Chinese", "new user journey"]
+    snippets: ["audience", "Preserve factual meaning", "terminology consistent", "non-technical readers", "steady written Chinese", "new user journey", "the user states the goal, the AI handles technical work", "one primary user path", "dedicated AI install page", "main README flow"]
   },
   {
     name: "knowledge",

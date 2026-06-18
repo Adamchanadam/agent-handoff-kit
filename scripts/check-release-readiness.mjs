@@ -53,24 +53,25 @@ function main() {
     "不適合普通 web chat AI",
     "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
     "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html",
-    "不是終端機指令",
+    "不需要研究終端機指令",
+    "你不用判斷安裝、升級、檢查或檔案結構",
     "START_NEXT_SESSION_PROMPT.txt",
-    "## 它解決甚麼問題",
     "## 三步上手",
-    "## 工作模式",
-    "必讀資料",
+    "## 它解決甚麼問題",
+    "## 開工",
     "收工",
     "wrap up",
     "handoff",
-    "## 項目決策日誌",
-    "dev/PROJECT_DECISIONS.md",
-    "## 把重要文件接入 Agent Handoff Kit",
-    "把 docs/production-guide.md 接入 Agent Handoff Kit",
-    "治理打通 docs/production-guide.md",
+    "## AI 會替你維護甚麼",
+    "## 你可以怎樣叫 AI",
+    "讓新文件不變成孤兒",
     "掃描未接入 Agent Handoff Kit 的重要文件",
-    "scan for unbridged governance documents",
-    "## 外部工具治理",
-    "機密分離原則"
+    "這個掃描只列出候選與缺口",
+    "把今次錯誤變成日後機制",
+    "寫入長期治理",
+    "跨 session 生效",
+    "不應只寫入 `dev/SESSION_LOG.md`",
+    "機密不要寫入項目文件"
   ]);
 
   assertIncludes("CHANGELOG.md", [
@@ -563,19 +564,35 @@ function checkNpxColdStartUxGuidance() {
     "npx --yes @adamchanadam/agent-handoff-kit@latest upgrade"
   ];
   for (const command of commonEntryCommands) {
-    assert(readme.includes(command), `README missing npx cold-start-safe command: ${command}`);
     assert(cli.includes(command), `CLI help / next-step output missing npx cold-start-safe command: ${command}`);
+    assert(aiInstall.includes(command.replace(" upgrade", " upgrade")) || command.endsWith("doctor"), `AI install page missing npx cold-start-safe command: ${command}`);
   }
-  assert(readme.includes("| 已安裝舊版，或已有 AI 記憶文件 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade` |"), "README common entries must point old installs to formal upgrade, not dry-run");
-  assert(readme.includes("### 手動入口"), "README must label direct npx commands as manual entry after AI-assisted install became the simplest path");
+  assert(readme.includes("使用時，你只需要說明目的；確認資料夾、判斷安裝或升級、執行指令和檢查結果，交給能讀寫本機資料夾的 AI 處理。"), "README must state the product principle: user states goal, AI handles technical work");
+  assert(readme.includes("第一次用，不需要先讀完整 README，也不需要研究終端機指令。只做三件事："), "README first path must keep installation as a simple user journey");
+  assert(readme.includes("你不用判斷安裝、升級、檢查或檔案結構。"), "README must keep install/upgrade/status decisions on the AI side");
+  const quickStart = sectionBetween(readme, "## 三步上手", "## 它解決甚麼問題");
+  assert(quickStart.includes("1. 在你想使用 Agent Handoff Kit 的資料夾打開 AI，貼上這句話："), "README quick start step 1 must be user-goal wording, not technical procedure");
+  assert(quickStart.includes("https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html"), "README quick start must route installation and upgrade to the AI install page");
+  assert(quickStart.includes("2. 安裝完成後，對 AI 說 `Start Agent Handoff` 或「開工」。"), "README quick start step 2 must be user action only");
+  assert(quickStart.includes("3. 完成本輪工作後，對 AI 說「收工」。"), "README quick start step 3 must be user action only");
+  const quickStartActionLines = quickStart
+    .split(/\r?\n/)
+    .filter((line) => /^[123]\. /.test(line.trim()))
+    .join("\n");
+  for (const forbidden of ["init", "upgrade", "doctor", "dry-run", "確認資料夾", "衝突", "預演"]) {
+    assert(!quickStartActionLines.includes(forbidden), `README quick start action lines must not expose AI technical work to users: ${forbidden}`);
+  }
+  assert(!readme.includes("| 第一次在新資料夾使用 | `npx --yes @adamchanadam/agent-handoff-kit@latest init` |"), "README must not reintroduce a parallel manual init table");
+  assert(!readme.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "README must keep direct init commands out of the user-facing main path");
+  assert(!readme.includes("npx --yes @adamchanadam/agent-handoff-kit@latest upgrade"), "README must keep direct upgrade commands out of the user-facing main path");
+  assert(!readme.includes("npx --yes @adamchanadam/agent-handoff-kit@latest doctor"), "README must keep direct doctor commands out of the user-facing main path");
+  assert(!readme.includes("### 手動入口"), "README must not label direct npx commands as a parallel manual entry");
   assert(!readme.includes("### 常見入口"), "README must not present the direct npx table as the general common entry after AI-assisted install became the simplest path");
   assert(!readme.includes("| 已裝過舊版，想先看升級會改甚麼 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` |"), "README common entries must not present upgrade --dry-run as the old-install entry");
-  assert(readme.includes("`dry-run` 只會預覽，不會完成升級，也不會寫入檔案"), "README must explain dry-run previews only and is not a completed upgrade");
-  assert(readme.includes("最簡單做法：在你要安裝或升級的資料夾打開能讀寫本機資料夾的 AI agent"), "README first screen must present the AI-assisted install page as the simplest path");
-  assert(readme.includes("如你想手動安裝，才用下面的終端機指令"), "README install section must frame terminal commands as the manual path");
+  assert(!readme.includes("`dry-run` 只會預覽"), "README must not teach dry-run as a user-facing parallel path");
   assert(cli.includes("已裝過：執行 upgrade；若想先預覽，才加 --dry-run"), "CLI help must present upgrade as the old-install entry and dry-run as optional preview");
   assert(cli.includes("--dry-run 只預覽、不寫入；它不是正式升級完成"), "CLI help must explain dry-run is not a completed upgrade");
-  assert(qaDoc.includes("README 的手動入口與 CLI help 的 common entries"), "Release-grade QA must distinguish README manual entry from CLI common entries");
+  assert(qaDoc.includes("README 不另開一套平行安裝教學"), "Release-grade QA must preserve AI install page as the single README install entry");
   assert(intro.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "intro page missing canonical npx init command");
   assert(intro.includes("未安裝或不確定是否要升級時") && intro.includes("agent-handoff-kit-ai-install.html"), "intro page must route unsure users to the AI install page before manual terminal commands");
   assert(aiInstall.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "AI install page missing canonical npx init command");
@@ -585,12 +602,10 @@ function checkNpxColdStartUxGuidance() {
   assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "guide page missing canonical npx init command");
   assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest doctor"), "guide page missing canonical npx doctor command");
   assert(guide.includes("請它讀 agent-handoff-kit-ai-install.html") || guide.includes("請它讀安裝指令頁"), "guide page must route first-time users to the AI install page before manual terminal commands");
-  assert(readme.includes("即使目前資料夾已安裝舊版 Kit 文件"), "README must explain old Kit files do not mean the npm CLI is locally available");
-  assert(readme.includes("判斷點不是資料夾有沒有 `AGENTS.md` 或 `dev/`"), "README must explicitly distinguish project Kit files from the executable npm tool");
-  assert(readme.includes("真正會建立項目文件的是 `init`；`doctor` 只檢查，不會安裝或改動你的項目文件"), "README must explain init writes project files and doctor only checks");
+  assert(readme.includes("已裝過舊版，或資料夾裡已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 等 AI 記憶文件，也用同一句交給 AI 判斷。"), "README must keep old Kit files on the same AI-assisted install path");
+  assert(aiInstall.includes("若 `doctor` 通過") && aiInstall.includes("若 `doctor` 失敗"), "AI install page must explain doctor follow-up without moving the technical distinction into README");
   assert(cli.includes("真正會建立項目文件的是 init；doctor 只檢查"), "CLI output must explain init writes project files and doctor only checks");
   assert(cli.includes("即使資料夾已有 AGENTS.md 或 dev/"), "CLI output must explain existing Kit files can still require npx to fetch the executable tool");
-  assert(readme.includes("不是本工具的建議用戶路徑"), "README must discourage bare npx doctor as an official user path");
   assert(cli.includes("不是本工具的建議用戶路徑"), "CLI help must discourage bare npx doctor as an official user path");
   assert(qaDoc.includes("不列為官方建議用戶路徑"), "Release-grade QA must classify bare npx doctor as non-canonical");
 
@@ -2107,11 +2122,12 @@ function checkGovernanceBridgeContract() {
   ]);
 
   assertIncludes("README.md", [
-    "把 docs/production-guide.md 接入 Agent Handoff Kit",
-    "治理打通 docs/production-guide.md",
-    "bridge governance for docs/production-guide.md",
-    "掃描 repo 有沒有未接合文件",
-    "這個掃描只列出候選與缺口"
+    "讓新文件不變成孤兒",
+    "把這份文件接入 Agent Handoff Kit",
+    "掃描未接入 Agent Handoff Kit 的重要文件",
+    "這個掃描只列出候選與缺口",
+    "是否接入、合併或退役由你確認",
+    "如涉及刪除、改名、合併真源、發佈、上傳或權限變更，AI 應先說明影響並等你確認"
   ]);
 
   assertIncludes("agent-handoff-kit-intro.html", [
@@ -2178,7 +2194,7 @@ function checkTaskPersistenceGateContract() {
   ]);
 
   assertIncludes("README.md", [
-    "準備結束本輪工作時說「收工」"
+    "完成本輪工作後，對 AI 說「收工」"
   ]);
 
   assertIncludes("agent-handoff-kit-intro.html", [
@@ -2260,6 +2276,14 @@ function assertSessionLogMarkerContract(text, label) {
   for (let i = 1; i < positions.length; i += 1) {
     assert(positions[i - 1] < positions[i], `${label}: SESSION_LOG markers are out of order`);
   }
+}
+
+function sectionBetween(text, startMarker, endMarker) {
+  const start = text.indexOf(startMarker);
+  assert(start >= 0, `section start not found: ${startMarker}`);
+  const end = text.indexOf(endMarker, start + startMarker.length);
+  assert(end >= 0, `section end not found after ${startMarker}: ${endMarker}`);
+  return text.slice(start, end);
 }
 
 function read(relativePath) {
