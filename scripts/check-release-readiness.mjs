@@ -658,7 +658,14 @@ function checkAiInstallPageContract(version) {
     "npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .",
     "預演有 conflict 時",
     "停止。列出衝突檔案與原因",
-    "Start Agent Handoff"
+    "Start Agent Handoff",
+    "AI 不可只說「完成」或只貼終端機輸出",
+    "✅ 結果：安裝完成、升級完成，或因 conflict 停止",
+    "📁 目前資料夾：顯示已確認的絕對路徑",
+    "🩺 健康檢查：說明 `doctor` 是通過、失敗，還是只提示便利副本落後",
+    "⚠️ 下一步不是終端機指令",
+    "🚀 下一步：若 AI 已在此資料夾內",
+    "完成報告範本"
   ]);
 
   const forbiddenActions = ["git commit", "git push", "git tag", "npm publish", "GitHub Release"];

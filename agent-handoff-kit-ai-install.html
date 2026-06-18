@@ -227,13 +227,18 @@
   <section>
     <div class="wrap">
       <h2>AI 回覆格式</h2>
-      <p>執行完後，AI 應用簡短中文回覆：</p>
+      <p>執行完後，AI 不可只說「完成」或只貼終端機輸出。必須用簡短中文向用戶交代結果和下一步。</p>
       <ul>
-        <li>目前資料夾。</li>
-        <li>採用的路徑：fresh install / upgrade dry-run / upgrade / stopped on conflict。</li>
-        <li>`doctor` 結果。</li>
-        <li>下一步：已可輸入 `Start Agent Handoff` /「開工」，或需要先處理哪個衝突。</li>
+        <li>✅ 結果：安裝完成、升級完成，或因 conflict 停止。</li>
+        <li>📁 目前資料夾：顯示已確認的絕對路徑。</li>
+        <li>🩺 健康檢查：說明 `doctor` 是通過、失敗，還是只提示便利副本落後。</li>
+        <li>⚠️ 下一步不是終端機指令：`Start Agent Handoff` /「開工」要輸入到能讀寫此資料夾的 AI 對話。</li>
+        <li>🚀 下一步：若 AI 已在此資料夾內，請用戶輸入 `Start Agent Handoff` 或「開工」；若 AI 還未指向資料夾，才提供帶路徑啟動句。</li>
       </ul>
+      <div class="ok">
+        <strong>完成報告範本：</strong>
+        <p>✅ 安裝完成。📁 目前資料夾：&lt;絕對路徑&gt;。🩺 `doctor` 已通過。下一步不要留在終端機；請在能讀寫此資料夾的 AI 對話輸入 `Start Agent Handoff` 或「開工」。若 AI 還未指向此資料夾，才使用：`Work in &lt;絕對路徑&gt;. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.`</p>
+      </div>
     </div>
   </section>
 
