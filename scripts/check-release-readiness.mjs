@@ -56,14 +56,14 @@ function main() {
     "不需要研究終端機指令",
     "你不用判斷安裝、升級、檢查或檔案結構",
     "START_NEXT_SESSION_PROMPT.txt",
-    "## 三步上手",
-    "## 它解決甚麼問題",
-    "## 開工",
+    "## 🚀 三步上手",
+    "## 🔎 它解決甚麼問題",
+    "## 🟢 開工",
     "收工",
     "wrap up",
     "handoff",
-    "## AI 會替你維護甚麼",
-    "## 你可以怎樣叫 AI",
+    "## 🗂️ AI 會替你維護甚麼",
+    "## 💬 你可以怎樣叫 AI",
     "讓新文件不變成孤兒",
     "掃描未接入 Agent Handoff Kit 的重要文件",
     "這個掃描只列出候選與缺口",
@@ -570,7 +570,7 @@ function checkNpxColdStartUxGuidance() {
   assert(readme.includes("使用時，你只需要說明目的；確認資料夾、判斷安裝或升級、執行指令和檢查結果，交給能讀寫本機資料夾的 AI 處理。"), "README must state the product principle: user states goal, AI handles technical work");
   assert(readme.includes("第一次用，不需要先讀完整 README，也不需要研究終端機指令。只做三件事："), "README first path must keep installation as a simple user journey");
   assert(readme.includes("你不用判斷安裝、升級、檢查或檔案結構。"), "README must keep install/upgrade/status decisions on the AI side");
-  const quickStart = sectionBetween(readme, "## 三步上手", "## 它解決甚麼問題");
+  const quickStart = sectionBetween(readme, "## 🚀 三步上手", "## 🔎 它解決甚麼問題");
   assert(quickStart.includes("1. 在你想使用 Agent Handoff Kit 的資料夾打開 AI，貼上這句話："), "README quick start step 1 must be user-goal wording, not technical procedure");
   assert(quickStart.includes("https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html"), "README quick start must route installation and upgrade to the AI install page");
   assert(quickStart.includes("2. 安裝完成後，對 AI 說 `Start Agent Handoff` 或「開工」。"), "README quick start step 2 must be user action only");
