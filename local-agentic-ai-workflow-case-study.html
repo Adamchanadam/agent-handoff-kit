@@ -254,6 +254,31 @@
 
     li { margin: .38em 0; }
 
+    .mark {
+      padding: 1px 5px;
+      font-weight: 760;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .mark.blue { color: var(--blue); }
+    .mark.red { color: var(--red); }
+    .mark.yellow {
+      color: var(--ink);
+      background: rgba(255, 214, 10, .42);
+      box-shadow: inset 0 -2px 0 var(--yellow);
+    }
+
+    code.cmd {
+      padding: 2px 6px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--blue);
+      font-family: var(--mono);
+      font-size: .88em;
+      font-weight: 700;
+      white-space: normal;
+    }
     .quiet-note {
       max-width: var(--article);
       margin: 24px 0;
@@ -403,7 +428,7 @@
 
       <figure class="hero-image">
         <img src="images/local-agentic-ai-workflow-blueprint.png" alt="Agentic AI 系統工作藍圖" />
-        <figcaption>圖片只是速讀輔助；正文才是方法說明。第三方工具名稱只作例子，不代表官方背書、合作、支援範圍或同步承諾。</figcaption>
+        <figcaption>這張圖用一頁概括本機 AI Agent、交接、記憶、知識協作與驗收之間的關係。</figcaption>
       </figure>
     </div>
   </header>
@@ -416,7 +441,7 @@
           <h2>README 教你用 Kit；這篇講 Kit 放在哪一層。</h2>
           <p>如果你只是想知道 Agent Handoff Kit 怎樣安裝、怎樣開工、怎樣收工，README、60 秒 intro 和實操 guide 已經足夠。這篇不應重複那些內容。</p>
           <p>這篇真正要補上的，是一個架構層問題：當你開始使用 Claude Code、OpenAI Codex、Google Antigravity CLI、Tencent WorkBuddy 這類本機 AI Agent 時，整套工作方法應該怎樣分層，才不會每次開新對話都重新入職、重新解釋、重新混亂。</p>
-          <p class="focus">所以，Agent Handoff Kit 在這篇不是主角，不是平台，不是記憶資料庫，也不是 Notion 或 Google Drive 同步工具。它只是整套本機 Agentic AI 工作系統中的「跨對話接力中樞」。正因為只佔這一層，它的定位才清楚。</p>
+          <p class="focus">所以，Agent Handoff Kit 在這篇不是主角，不是平台，不是記憶資料庫，也不是 Notion 或 Google Drive 同步工具。它是整套本機 Agentic AI 工作系統中的「項目連續性與交接層」：把開工入口、目前狀態、下一步、風險、真源登記、規則入口、安全邊界和收工提示放進項目文件。正因為只佔這一層，它的定位才清楚。</p>
 
           <ul class="toc">
             <li><a href="#system"><span>02</span>從聊天框轉向工作系統</a></li>
@@ -424,7 +449,8 @@
             <li><a href="#handoff"><span>04</span>Agent Handoff Kit 作為交接層</a></li>
             <li><a href="#memory"><span>05</span>Memory 與真源邊界</a></li>
             <li><a href="#delivery"><span>06</span>穩定交付原則</a></li>
-            <li><a href="#minimum"><span>07</span>新手最小版本</a></li>
+            <li><a href="#tools-loop"><span>07</span>工具接入與工作回路</a></li>
+            <li><a href="#minimum"><span>08</span>新手最小版本</a></li>
           </ul>
         </article>
       </div>
@@ -468,14 +494,16 @@
           <p>你在上一輪花了很多時間解釋目標、檔案、規則和偏好；到下一輪，AI 又像重新入職一樣，重問一次，甚至重做一次。這不只是浪費時間，也會令正式成果變得不穩定。</p>
           <p>所以我把 Agent Handoff Kit 放在整個流程中央。它的作用不是替代 AI，而是讓不同 AI Agent 可以接上同一個項目狀態。</p>
           <ul>
-            <li>開工讀狀態：讀取交接檔，知道上一輪做到哪裡。</li>
-            <li>收工留下一步：保存進度、風險、待辦。</li>
-            <li>登記真源：標明哪些檔案是正式來源，哪些只是參考。</li>
-            <li>多工具規則入口：讓不同本機 AI Agent 讀同一套項目規則。</li>
-            <li>防止失憶：新對話仍能續接，不必從零開始。</li>
+            <li>開工入口：用 AGENTS、CLAUDE、GEMINI 和 START_NEXT_SESSION_PROMPT 讓不同本機 AI 工具找到同一套開始方式。</li>
+            <li>目前狀態：用交接文件保存做到哪裡、下一步、風險和檢查結果。</li>
+            <li>真源與索引：把重要檔案、外部來源、同步責任和文件角色登記清楚，避免新文件變成孤兒。</li>
+            <li>規則入口：按任務載入需要的工作規則，例如寫作、研究、知識整理、發布或安全操作。</li>
+            <li>追溯紀錄與長期決策：近期工作、長期演進、架構取捨和重要學習不只留在聊天紀錄。</li>
+            <li>安全護欄：刪除、覆寫、發佈、權限、費用、外部寫入等高風險操作要先停下來講清楚。</li>
+            <li>收工接力：本輪結束時更新交接文件和下一次開工提示，讓下一個 AI 工具接得上。</li>
           </ul>
           <p>我的習慣很簡單：開始時說「開工」，結束前說「收工」。只要某項成果已經定稿，例如正式圖片、正式文章、規格、工作流程，我就會要求 AI 把它接入 Agent Handoff Kit。</p>
-          <p>這樣下一輪 AI 不需要憑印象，也不用翻舊對話，而是直接讀項目交接狀態。</p>
+          <p>這樣下一輪 AI 不需要憑印象，也不用翻舊對話，而是直接讀項目內的狀態、索引、規則和交接提示。</p>
         </article>
       </div>
     </section>
@@ -519,22 +547,42 @@
         </article>
       </div>
     </section>
+    <section id="tools-loop">
+      <div class="wrap section-inner">
+        <div class="section-label">07 / 工具接入與工作回路</div>
+        <article>
+          <h2>Connector、Plugin、Skill、MCP 是工具接入層，不是產品定位本身。</h2>
+          <p>本機 AI Agent 要真正做事，通常需要連接工具、資料和可重用方法。Connector 可以接外部服務；Plugin 可以帶入一組能力；Skill 可以保存可重用工作方法；MCP 則把工具和資源用較標準的方式交給 AI 使用。這些東西很重要，但它們不是 Agent Handoff Kit 的定位。</p>
+          <p class="focus yellow"><strong>我的分法是：工具負責讓 AI 做得到，治理負責讓 AI 做得穩，Agent Handoff Kit 負責把狀態、真源、規則、安全邊界和下次開工提示落在項目文件。</strong></p>
+          <p>所以 Connector、Plugin、Skill、MCP 應該被放在「工具與權限」這一層：哪些資料可以讀、哪些工具可以用、哪些操作要先問、哪些結果要寫回真源。不能因為 AI 能調用工具，就把外部平台、記憶、同步和交接混成一件事。</p>
+
+          <h3>把一次工作設成回路</h3>
+          <p>我會把一次 AI 工作看成一個 loop：先定義目標，再讀真源，再用工具行動，再觀察結果，再驗收，再把下一步交接出去。這就是我理解的 loop engineering：不是要求 AI 一次答中，而是設計一個可以反覆觀察、修正和驗收的工作回路。</p>
+          <p>近年的 harness engineering 說法也接近這個方向：不要只看模型本身，而要看模型、工具、權限、記憶、觀察、失敗歸因、人工介入和驗收如何合成一個工作環境。對個人使用者來說，不需要先建龐大平台；先把資料夾、真源、工具權限、交接、驗收和高風險確認設好，已經是最實用的治理。</p>
+
+          <h3>驗收要多維度</h3>
+          <p>文字看起來順，不等於完成。正式交付前，我會同時檢查：內容是否符合目標，來源是否已讀，檔案和連結是否存在，圖片或頁面是否視覺可用，高風險操作是否已確認。下一步不屬於交付本身的驗收，而是收工交接時必須留下的接力資訊。</p>
+          <p class="quiet-note">這裡的 governance 不是企業口號，而是日常工作邊界：AI 可以讀甚麼、改甚麼、調用甚麼、何時要停、如何驗收、怎樣把狀態留給下一輪。</p>
+        </article>
+      </div>
+    </section>
 
     <section id="minimum">
       <div class="wrap section-inner">
-        <div class="section-label">07 / 新手最小版本</div>
+        <div class="section-label">08 / 新手最小版本</div>
         <article>
           <h2>剛開始，不需要一開始就建立很複雜的系統。</h2>
           <p>可以先照這個最小版本做：</p>
           <ol>
             <li>建立一個專用工作資料夾。</li>
             <li>把參考資料、圖片、草稿、輸出都放入同一個資料夾。</li>
-            <li>安裝 Agent Handoff Kit。</li>
-            <li>每次開始工作時說「開工」。</li>
-            <li>每次完成一輪重要工作時說「收工」。</li>
-            <li>正式成果要登記為真源。</li>
-            <li>要求 AI 先讀真源，再動手。</li>
-            <li>發布、刪除、外部寫入前必須先確認。</li>
+            <li><span class="mark blue">安裝 Agent Handoff Kit</span>。新手可以先看 <a href="agent-handoff-kit-ai-install.html">安裝 Prompt</a>，再叫 AI 在目前資料夾<span class="mark blue">安裝或升級</span>。</li>
+            <li>每次開始工作時說「<span class="mark blue">開工</span>」。</li>
+            <li>每次完成一輪重要工作時說「<span class="mark blue">收工</span>」。</li>
+            <li>正式成果要登記為真源。可以直接對 AI 說：「<span class="mark yellow">將 <code class="cmd">docs/xxxx.md</code> 接入 Agent Handoff Kit，標明它是正式真源、甚麼任務要先讀、甚麼情況要更新。</span>」</li>
+            <li>如果不確定哪些重要文件還未接入，可以說：「<span class="mark yellow">掃描未接入 Agent Handoff Kit 的重要文件，先列清單和原因，不要直接改檔。</span>」這適合大量新增文件、換 AI 接手前、發布前或整理舊項目時使用。</li>
+            <li>要求 AI 先讀真源，再動手。可以說：「<span class="mark yellow">先讀 README、guide、規格、正式草稿這些真源；讀完再提出計劃，未讀不要猜。</span>」如果你不確定真源在哪裡，就說：「先告訴我你會讀哪些真源，讀完再開始改。」</li>
+            <li><span class="mark blue">發布、刪除、外部寫入前必須先確認</span>；確認內容要包括影響範圍、回復方法和驗收方式。</li>
           </ol>
           <p>做到這一步，AI 已經不再只是聊天工具，而是可以接力工作的助手。</p>
         </article>
@@ -549,15 +597,17 @@
 
     <section>
       <div class="wrap section-inner">
-        <div class="section-label">08 / 使用口訣</div>
+        <div class="section-label">09 / 使用口訣</div>
         <article>
           <h2>我用這幾句話提醒自己。</h2>
           <ul>
-            <li>先建系統，再叫 AI 做事。</li>
+            <li>先建環境並設置工具，再叫 AI 做事。</li>
             <li>先讀真源，不靠印象。</li>
             <li>Memory 只是輔助，不是真相。</li>
-            <li>高風險操作先停。</li>
-            <li>每次收工要留下下一步。</li>
+            <li>Connector、Plugin、Skill、MCP 是工具接入層，不是交接層。</li>
+            <li>每輪都要做多維度驗收：文字、來源、連結、檔案、視覺、安全。</li>
+            <li>高風險操作先停，列出影響、回復方法、需要我確認的動作。</li>
+            <li>每次收工要留下下一步：下一輪要先讀甚麼、接著做甚麼、哪些風險仍未解。</li>
             <li>成果要能被下一個 AI 接手。</li>
           </ul>
         </article>
@@ -566,7 +616,7 @@
 
     <section id="next" class="cta">
       <div class="wrap section-inner">
-        <div class="section-label">09 / 下一步</div>
+        <div class="section-label">10 / 下一步</div>
         <article>
           <h2>先理解方法，再回到工具。</h2>
           <p>這篇文章的作用，是幫你理解：當你開始認真使用本機 AI Agent 時，為甚麼需要工作資料夾、真源、交接、Memory 邊界和驗收。要開始實際使用 Agent Handoff Kit，應回到 intro、guide 和 GitHub README。</p>
@@ -591,7 +641,7 @@
         <p>
           <a href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html">新手入門介紹</a><br/>
           <a href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html">實操指南</a><br/>
-          <a href="case-study-multiworkspace/multiworkspace-case-study.html">多工作區案例</a><br/>
+
           <a href="https://github.com/Adamchanadam/agent-handoff-kit">README on GitHub</a>
         </p>
       </div>
