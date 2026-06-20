@@ -82,24 +82,12 @@
       text-transform: uppercase;
     }
     .logo-mark {
-      width: 36px; height: 36px;
-      position: relative;
-      background: var(--ink);
+      width: 36px;
+      height: 36px;
+      display: inline-block;
+      object-fit: contain;
+      vertical-align: middle;
       flex-shrink: 0;
-    }
-    .logo-mark::before {
-      content: ''; position: absolute;
-      left: 5px; top: 5px;
-      width: 11px; height: 11px;
-      background: var(--red);
-    }
-    .logo-mark::after {
-      content: ''; position: absolute;
-      right: 5px; bottom: 5px;
-      width: 0; height: 0;
-      border-left: 7px solid transparent;
-      border-right: 7px solid transparent;
-      border-bottom: 12px solid var(--blue);
     }
     .hero { border-bottom: var(--rule); padding: 72px 0 64px; }
     .hero .kicker {
@@ -446,7 +434,7 @@
 <nav class="bar">
   <div class="wrap">
     <div class="logo">
-      <span class="logo-mark"></span>
+      <img class="logo-mark" src="images/agent-handoff-kit-logo2-256.png" alt="Agent Handoff Kit logo" width="36" height="36" />
       <span>Agent Handoff Kit · 實操指南</span>
     </div>
   </div>

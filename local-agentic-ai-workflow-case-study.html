@@ -4,6 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Agent Handoff Kit — 我的本機 Agentic AI 工作系統</title>
+  <meta name="description" content="一篇架構層方法案例，說明如何把本機 AI Agent 放進工具、真源、交接、記憶與驗收組成的工作系統。" />
+  <link rel="canonical" href="https://adamchanadam.github.io/agent-handoff-kit/local-agentic-ai-workflow-case-study.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="我的本機 Agentic AI 工作系統" />
+  <meta property="og:description" content="工具、真源、交接、記憶與驗收如何組成可接力的本機 AI Agent 工作流。" />
+  <meta property="og:url" content="https://adamchanadam.github.io/agent-handoff-kit/local-agentic-ai-workflow-case-study.html" />
+  <meta property="og:site_name" content="Agent Handoff Kit" />
+  <meta property="og:image" content="https://adamchanadam.github.io/agent-handoff-kit/images/local-agentic-ai-workflow-social-preview.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Agent Handoff Kit 本機 AI Agent 工作系統：工具、真源、交接與驗收" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="我的本機 Agentic AI 工作系統" />
+  <meta name="twitter:description" content="工具、真源、交接、記憶與驗收如何組成可接力的本機 AI Agent 工作流。" />
+  <meta name="twitter:image" content="https://adamchanadam.github.io/agent-handoff-kit/images/local-agentic-ai-workflow-social-preview.png" />
   <style>
     :root {
       --red: #E63946;
@@ -109,35 +124,13 @@
       letter-spacing: .04em;
       text-transform: uppercase;
     }
-
     .logo-mark {
       width: 36px;
       height: 36px;
-      position: relative;
-      background: var(--ink);
+      display: inline-block;
+      object-fit: contain;
+      vertical-align: middle;
       flex-shrink: 0;
-    }
-
-    .logo-mark::before {
-      content: "";
-      position: absolute;
-      left: 5px;
-      top: 5px;
-      width: 11px;
-      height: 11px;
-      background: var(--red);
-    }
-
-    .logo-mark::after {
-      content: "";
-      position: absolute;
-      right: 5px;
-      bottom: 5px;
-      width: 0;
-      height: 0;
-      border-left: 7px solid transparent;
-      border-right: 7px solid transparent;
-      border-bottom: 12px solid var(--blue);
     }
 
     .nav-links {
@@ -408,7 +401,7 @@
   <nav class="bar">
     <div class="wrap">
       <div class="logo">
-        <span class="logo-mark" aria-hidden="true"></span>
+        <img class="logo-mark" src="images/agent-handoff-kit-logo2-256.png" alt="Agent Handoff Kit logo" width="36" height="36" />
         <span>Agent Handoff Kit · 方法論案例</span>
       </div>
       <div class="nav-links">
