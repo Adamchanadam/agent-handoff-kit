@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>同一個項目，拆成幾個工作區 — Agent Handoff Kit 多工作區運用</title>
+<style>
+  :root { --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#6366f1; --bg:#f7f8fa; --code:#0f172a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:"Segoe UI","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.9;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:920px; margin:0 auto; padding:56px 24px 72px; }
+
+  header { text-align:center; margin-bottom:24px; }
+  .kicker { font-size:14px; letter-spacing:3px; color:var(--accent); font-weight:700; margin-bottom:12px; }
+  h1 { font-size:33px; line-height:1.35; font-weight:800; color:#111827; letter-spacing:0.3px; }
+  .sub { font-size:18px; color:var(--muted); margin-top:14px; font-weight:500; }
+  .audience {
+    max-width:780px; margin:18px auto 0; background:#f1f5f9; border:1px solid #e2e8f0;
+    border-radius:10px; padding:12px 20px; font-size:15px; color:#475569; text-align:left;
+  }
+  .audience b { color:#334155; }
+
+  figure {
+    background:#fff; border:1px solid var(--line); border-radius:18px;
+    padding:18px; margin:28px 0 40px; box-shadow:0 10px 30px rgba(17,24,39,0.06);
+  }
+  figure img { width:100%; height:auto; display:block; border-radius:10px; }
+  figcaption { text-align:center; font-size:13.5px; color:var(--muted); margin-top:14px; }
+
+  section.card {
+    background:#fff; border:1px solid var(--line); border-radius:18px;
+    padding:38px 44px; margin-bottom:26px; box-shadow:0 10px 30px rgba(17,24,39,0.05);
+  }
+  h2 { font-size:23px; font-weight:800; color:#111827; margin-bottom:18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  h2 .tag { font-size:13px; font-weight:700; color:#fff; background:var(--accent); padding:3px 11px; border-radius:20px; letter-spacing:1px; }
+  p { font-size:17.5px; margin-bottom:18px; color:#374151; }
+  p:last-child { margin-bottom:0; }
+  .lead { font-size:18.5px; color:#111827; }
+  strong { color:#111827; font-weight:700; }
+  .def { color:var(--accent); font-weight:700; }
+
+  .whatis { background:#eef2ff; border:1px solid #c7d2fe; border-radius:12px; padding:18px 24px; }
+  .whatis .t { font-weight:800; color:#3730a3; margin-bottom:6px; font-size:16px; }
+  .whatis p { color:#3730a3; margin:0; font-size:16px; }
+
+  table.terms { width:100%; border-collapse:collapse; margin-top:6px; font-size:16px; }
+  table.terms td { border:1px solid var(--line); padding:11px 14px; vertical-align:top; }
+  table.terms td.k { background:#f9fafb; font-weight:700; color:#111827; width:128px; white-space:nowrap; }
+
+  .flowmap { background:#f5f3ff; border:1px solid #ddd6fe; border-radius:12px; padding:18px 24px 18px 22px; margin-bottom:24px; }
+  .flowmap .ft { font-weight:800; color:#4338ca; font-size:15px; letter-spacing:1px; margin-bottom:10px; }
+  .flowmap ol { margin:0; padding-left:22px; }
+  .flowmap li { font-size:16px; color:#312e81; margin-bottom:5px; }
+  .flowmap li:last-child { margin-bottom:0; }
+
+  ol.steps { counter-reset:s; list-style:none; }
+  ol.steps > li {
+    position:relative; padding:0 0 26px 52px; margin-bottom:4px; border-left:2px solid #eceefb; margin-left:14px;
+  }
+  ol.steps > li:last-child { border-left:2px solid transparent; padding-bottom:0; }
+  ol.steps > li::before {
+    counter-increment:s; content:counter(s);
+    position:absolute; left:-15px; top:-2px; width:28px; height:28px; border-radius:50%;
+    background:var(--accent); color:#fff; font-weight:800; font-size:15px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  ol.steps .st { font-size:17.5px; font-weight:700; color:#111827; margin-bottom:6px; }
+  ol.steps .sd { font-size:16.5px; color:#4b5563; }
+  .cmd {
+    display:inline-block; background:var(--code); color:#e2e8f0; font-family:"Cascadia Code",Consolas,monospace;
+    font-size:13.5px; padding:7px 12px; border-radius:7px; margin:8px 0 2px; overflow-x:auto; white-space:nowrap; max-width:100%;
+  }
+  .say { display:inline-block; background:#eef2ff; color:#3730a3; font-weight:700; padding:1px 9px; border-radius:6px; }
+  .example {
+    background:#f8fafc; border:1px dashed #94a3b8; border-radius:10px; padding:16px 18px; margin:12px 0 4px;
+    font-size:15.5px; color:#334155; line-height:1.75; white-space:pre-line;
+  }
+  .example .elabel { display:block; font-weight:800; color:#475569; font-size:13px; letter-spacing:1px; margin-bottom:8px; }
+
+  .note { background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:16px 20px; font-size:16px; color:#92400e; }
+  .note b { color:#92400e; }
+  .principle {
+    margin:6px 0 0; padding:20px 24px; background:#f5f3ff; border-left:4px solid var(--accent);
+    border-radius:10px; font-size:17px; color:#312e81;
+  }
+  .cta { text-align:center; }
+  .cta p { font-size:16.5px; color:#3730a3; margin-bottom:16px; font-weight:600; }
+  .cta a {
+    display:inline-block; background:var(--accent); color:#fff; text-decoration:none;
+    padding:12px 26px; border-radius:10px; font-size:16px; font-weight:700;
+  }
+  footer { text-align:center; margin-top:30px; font-size:14px; color:#9ca3af; }
+  footer b { color:var(--accent); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="kicker">AGENT HANDOFF KIT · 多工作區運用</div>
+      <h1>同一個項目，拆成幾個工作區</h1>
+      <div class="sub">已經會用 Agent Handoff Kit？這篇教你把它用在多個工作區，撐起跨對話的長任務</div>
+      <div class="audience"><b>給誰看：</b>你已經裝好 Agent Handoff Kit、會基本的 <span style="color:#4338ca;font-weight:700;">開工 / 收工</span>，但項目愈做愈大、要拆成幾塊分頭做、而且不是一兩次對話能完成的長任務。這篇不教安裝（那是另一回事），只教<strong>怎麼運用</strong>。完全沒接觸過的話，先看文末「60 秒入門」。</div>
+    </header>
+
+    <figure>
+      <img src="multiworkspace_teaching-diagram-gpt.png" alt="教學圖：把一個大型項目按任務拆成主工作區（掌管真相）與行銷工作區（負責執行），中間用交接包 Handoff Prompt 接力，每個工作區各有自己的 Agent Handoff Kit 交接紀錄，只有定案決定才同步回主工作區。底部列四項好處：責任清楚、上下文乾淨、風險可控、新 AI 容易接手。">
+      <figcaption>圖以「主工作區 + 一個行銷工作區」為例；同一個項目可按任務再分更多工作區，運用方法一樣。</figcaption>
+    </figure>
+
+    <section class="card">
+      <h2><span class="tag">先講個問題</span></h2>
+      <p class="lead">先講這篇用什麼當例子，你才知道關不關自己的事：<strong>你在寫一本書，還要一手包辦它的對外推廣</strong>——一邊顧書稿、封面、事實核查，一邊發 Facebook 貼文、預告、上架公告。目標很實在：把書做出來，也把它推出去。<span style="color:#6b7280;">（不是寫書也沒關係——凡是同時要顧「核心成品」和「對外宣傳」、又得做上好幾天的項目，道理都一樣，把「書稿／行銷」換成你自己的情境即可。）</span></p>
+      <p>這種項目做著做著，就會撞上兩件事。第一，東西多、性質又不同——全堆在同一個資料夾，換個新 AI 對話接手，它分不清哪份是定稿、哪份只是行銷草稿，一改就改錯。第二，<strong>任務長</strong>——不是一兩次對話做得完的，你今天做一半，明天開個新對話接著做，AI 卻忘了昨天的脈絡。</p>
+      <p>單一個工作區、靠基本的開工收工，撐得住一條線的長任務；但當項目要<strong>同時推進好幾條線</strong>（一邊改書稿、一邊跑行銷），全擠在一起就會互相干擾。這篇要解決的，正是這種「複雜、多線、跨多次對話」的長任務該怎麼用 Agent Handoff Kit 來管。</p>
+    </section>
+
+    <section class="card">
+      <h2><span class="tag">快速對齊</span> 你手上的 Agent Handoff Kit 在做什麼</h2>
+      <div class="whatis">
+        <div class="t">一句話：它把「交接」變成資料夾裡一份固定文件。</div>
+        <p>你每次叫 AI <span class="say">開工</span>、<span class="say">收工</span>，它就自動幫這個資料夾更新一份進度筆記——上次做到哪、下一步、要小心什麼。所以同一個資料夾的長任務，換多少次新對話都接得回。這篇要做的，是把這個能力從「一個資料夾」放大到「幾個資料夾分工」。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="tag">先懂概念</span> 真源歸真源，執行歸執行</h2>
+      <p style="margin-bottom:14px;">先釘一個說法：這篇講的「工作區」，就是你電腦上的<strong>一個資料夾</strong>，每個資料夾各自裝著 Agent Handoff Kit。一個項目用幾個資料夾，就是幾個工作區。</p>
+      <p>把核心那一塊——成品、事實核查、披露邊界——放<strong>主工作區</strong>，這裡是<span class="def">真源</span>（唯一正確的正本，以它為準）。對外那一塊——貼文、預告、發布記錄——放一個<strong>行銷工作區</strong>去執行。兩個資料夾各自留各自的進度筆記，各做各的長任務，不會互相干擾。</p>
+      <p>例子裡是兩個，但數字不是上限。同一個項目，你大可以按任務再多開幾個（書稿一個、視覺一個、行銷一個、客服一個……），每多開一個，就多寫一份交接包交給它。主工作區始終守著真源，其他工作區各自執行，只有定了案的決定才回流到主工作區。</p>
+      <p style="margin-bottom:8px;">運用時會用到兩個相近、但不同的詞，先分清楚：</p>
+      <table class="terms">
+        <tr><td class="k">交接檔</td><td>Agent Handoff Kit <strong>自動</strong>幫每個資料夾維護的進度文件（<code>dev/SESSION_HANDOFF.md</code>）。撐的是<strong>同一個工作區、跨多次對話</strong>的長任務接力——你叫「收工」它就更新。</td></tr>
+        <tr><td class="k">交接包</td><td>由<strong>你（或主工作區的 AI）親手寫</strong>的一段文字，撐的是<strong>跨工作區</strong>的交接——把一條任務線交給另一個工作區的 AI，講清楚範圍與邊界。它不是檔案。第 3 步給你範例。</td></tr>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2><span class="tag">怎麼運用</span> 把長任務分頭交出去</h2>
+      <p style="margin-top:-4px;">起點假設你已經裝好 Agent Handoff Kit。下面每開一個新工作區，就在那個資料夾跑一次 <code class="cmd">npx --yes @adamchanadam/agent-handoff-kit@latest init</code> 裝好它（安裝細節不在這篇）。重點在後面五步「怎麼用」。</p>
+      <div class="flowmap">
+        <div class="ft">一眼流程</div>
+        <ol>
+          <li>按任務把項目分成幾個工作區，各自裝好 Kit</li>
+          <li>每個工作區用「開工／收工」撐自己那條長任務</li>
+          <li>主工作區寫一份「交接包」，把一條線交出去</li>
+          <li>接手的工作區照交接包執行</li>
+          <li>只把定了案的決定，回流主工作區</li>
+        </ol>
+      </div>
+      <ol class="steps">
+        <li>
+          <div class="st">按任務分工作區</div>
+          <div class="sd">把核心放主工作區、對外放行銷工作區（需要再多開幾個也一樣）。判斷標準很簡單：<strong>會被別人讀錯、改錯的東西，要跟真源分開。</strong>書稿正本是真源、放主工作區；行銷草稿天天改、放行銷工作區。每個資料夾各跑一次 <code>init</code> 裝好 Kit。</div>
+        </li>
+        <li>
+          <div class="st">每個工作區各自撐長任務</div>
+          <div class="sd">在每個工作區裡，靠 <span class="say">開工</span> / <span class="say">收工</span> 做自己那條跨對話的長任務：開工時 AI 先讀交接檔、告訴你做到哪；收工時它把進度寫回去。所以行銷那條線做到一半，明天換個新對話打「開工」就接得回——主工作區那條書稿線同理，兩條互不打架。</div>
+        </li>
+        <li>
+          <div class="st">主工作區寫一份「交接包」，把一條線交出去</div>
+          <div class="sd">當你要把某塊正式交給另一個工作區做，就在主工作區叫 AI 幫你寫一段交接包（或照下面範例改）。講清楚六件事：哪些是真源、對方負責什麼、可讀哪些檔、哪些不准搬走、什麼情況才回報、未經你批准不准對外發。</div>
+          <div class="example"><span class="elabel">交接包範例（可直接複製、改幾個字就能用）</span>我把這個項目分成幾個資料夾，你負責「行銷」這個。
+主資料夾是真源：放成品、事實核查、披露邊界，只有那裡的版本算數。
+你的工作：寫對外貼文、預告、發布記錄。
+你可以讀主資料夾的成品來理解內容，但不要把書稿原文搬過來改。
+任何成品先給我看，未經我同意不要對外發布。
+有需要更新主資料夾的事，只在它定案之後告訴我，我再回主資料夾更新。</div>
+          <div class="sd" style="margin-top:8px;">不是做出版？六件事不變，把「書稿／行銷」換成你自己的項目情境就行。</div>
+        </li>
+        <li>
+          <div class="st">接手的工作區照交接包執行</div>
+          <div class="sd">到行銷工作區開新對話，先打 <span class="say">開工</span> 讓 AI 讀它自己的交接檔，再把上一步那段交接包貼進去當這條線的指示。順序是：<strong>先打「開工」讓它讀自己的交接檔，再貼上一步那段交接包當這條線的指示</strong>——兩者不衝突，交接檔是它自己的進度、交接包是你給的任務範圍。交接包貼一次即可；之後這條線做到一半斷了，下次「開工」靠它自己的交接檔接回，不用每次重貼。</div>
+        </li>
+        <li>
+          <div class="st">只把定案回流主工作區</div>
+          <div class="sd">行銷工作區做出來的東西，<strong>不要直接倒回主工作區</strong>。只有真正定了案、確定要進正本的決定，才回報主工作區、由主工作區更新真源。這條紀律就是讓真源永遠乾淨、不被半成品污染的關鍵。</div>
+          <div class="sd" style="margin-top:8px;"><strong>怎麼回流</strong>：回到主工作區開新對話、打「開工」，把定案那一兩句貼給它，叫它更新真源，再「收工」記錄起來。動作就跟交接包反過來一次——只是這次只帶「定案」，不帶半成品。</div>
+          <div class="example"><span class="elabel">回流範例（從執行端講回主工作區）</span>行銷這邊定案了：書名副標最終用「&lt;…&gt;」、封面用 B 版。
+請把這兩項更新到主資料夾的正本；其他還在改的行銷草稿不用進來。</div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2><span class="tag">這樣運用之後</span> 你會得到什麼</h2>
+      <p>責任清楚，誰掌真相、誰做執行一看就明；上下文乾淨（每個工作區的 AI 手上只有自己那條線的背景），草稿不會混進正式真源；風險可控，改錯、誤發的機會大減；長任務接得住，每條線換多少次對話都從交接檔接回。項目愈大、線愈多，這樣運用愈划算。</p>
+      <div class="principle">說到底就一句：真源歸主工作區，執行歸各個工作區；交接檔撐同一工作區的長任務接力，交接包撐跨工作區的任務交接。</div>
+    </section>
+
+    <section class="card cta">
+      <p>還沒上手 Agent Handoff Kit 的基本開工收工？先用 60 秒入門：</p>
+      <a href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html">Agent Handoff Kit — 新手 60 秒入門</a>
+      <p style="margin-top:18px;">想了解 Agent Handoff Kit 在本機 Agentic AI 工作系統中的位置，可再看方法論案例：</p>
+      <a href="../local-agentic-ai-workflow-case-study.html">我的本機 Agentic AI 工作系統</a>
+    </section>
+
+    <footer><b>Agent Handoff Kit</b> 🤹　讓同一個項目，多條長任務線都接得上</footer>
+  </div>
+</body>
+</html>

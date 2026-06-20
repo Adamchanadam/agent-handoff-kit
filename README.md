@@ -29,7 +29,7 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 已裝過舊版，或資料夾裡已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 等 AI 記憶文件，也用同一句交給 AI 判斷。AI 會先檢查，不會靜默覆寫。
 
-想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html)。想看完整操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)。
+想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html)。想看完整操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)。想了解它在本機 Agentic AI 工作系統中的位置，可看 [`local-agentic-ai-workflow-case-study.html`](https://adamchanadam.github.io/agent-handoff-kit/local-agentic-ai-workflow-case-study.html)；想看同一項目拆成多個工作區的用法，可看 [`case-study-multiworkspace/multiworkspace-case-study.html`](https://adamchanadam.github.io/agent-handoff-kit/case-study-multiworkspace/multiworkspace-case-study.html)。
 
 ## 🔎 它解決甚麼問題
 
@@ -166,3 +166,4 @@ Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templa
 - 升級合併屬窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。
 - 未取得明確批准前，不應因安裝成功而自動建立新版本、發佈或上傳任何內容。
+
