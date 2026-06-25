@@ -291,7 +291,7 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | v0.3.30 尚未獲 Adam 對 commit / push / tag / GitHub Release / npm publish 的獨立批准；全面檢只判斷候選是否可進入發佈授權。 | publish 前阻擋，需明確批准 |
+| 發佈授權 | Adam 已於 2026-06-25 明確批准 v0.3.30 commit / push / tag / GitHub Release / npm publish；release commit `32983b8` 已推送，tag `v0.3.30` 已推送，GitHub Release 與 npm publish 已完成。 | 已批准並完成 |
 | 版本口徑 | `package.json` 目前為 `0.3.30`；v0.3.30 是任務契約收斂與收工提示降噪修正版。 | 正式候選口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
@@ -303,7 +303,7 @@ npm package 由 `package.json` 的 `files` 控制：
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.30` 段，`docs/whatsnew/v0.3.30.md` 已補本版用戶說明；GitHub Release 與 npm publish 尚未執行。 | 發佈前材料已準備；外部發佈待批准 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.30` 段，`docs/whatsnew/v0.3.30.md` 已作 GitHub Release body；GitHub Release `v0.3.30 - 長任務要求不再散落` 已建立，npm latest 已是 `0.3.30`。 | 已發佈 |
 | 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.30`。 | 通過 |
 
 ## v0.3.30 發佈狀態
@@ -311,17 +311,29 @@ npm package 由 `package.json` 的 `files` 控制：
 - package version：`0.3.30`。
 - release notes：`CHANGELOG.md` 的 `v0.3.30` 段落 + `docs/whatsnew/v0.3.30.md`。
 - 發佈目標：修補長任務中途追加需求時的任務契約漂移；降低健康檢查與 no-op upgrade 成功後把普通任務完成誤導成完整收工的風險；補 README / guide 對 AI 工作規則的用戶向說明。
-- 發佈狀態：候選準備中；尚未 commit、push、tag、建立 GitHub Release 或 npm publish。
-- 發佈後驗證：未執行；須在 GitHub Release 與 npm publish 後另跑 `發佈檢` 七項 artifact smoke。
+- 發佈狀態：已發佈；release source commit `32983b8`，tag `v0.3.30` 已推送，GitHub Release `v0.3.30 - 長任務要求不再散落` 已建立，npm latest 是 `0.3.30`。
+- 發佈後驗證：PASS 7/7；GitHub Release metadata、npm latest / fileCount、published install、published `--help`、published `init`、published `doctor`、published v0.3.29 -> v0.3.30 upgrade smoke + doctor 均已通過。
 
 ### v0.3.30 發佈前全面檢正式結論
 
 - 正式報告：`docs/qa/full-audit-v0.3.30-candidate.md`。
-- 全面檢結論：PASS；可進入 commit / push / tag / GitHub Release / npm publish 授權點，外部發佈仍須 Adam 另行明確批准。
+- 全面檢結論：PASS；已取得 Adam 明確批准並完成 commit / push / tag / GitHub Release / npm publish。
 - 治理健康總判定：緊張；建議方向：繼續。
 - Product Journey Matrix：PASS；fresh install、existing project upgrade、long-task task-contract change、doctor healthy / no-op upgrade、package boundary、new-user README / guide read-through 均已覆蓋。
 - Rules / packs routing 結論：PASS；任務契約變更承接在既有 core runtime + `agent-governance` pack，未新增 public 七類驗收或 quality pack。
 - QC gap backflow 結論：PASS；任務契約漂移、收工提示過密、舊用戶升級傳播、public runtime 七類驗收邊界均已有產品修補或 release QA 承接。
+
+### v0.3.30 發佈後驗證
+
+| 發佈後檢查 | 結果 | 證據 |
+|---|---|---|
+| GitHub Release metadata | PASS | `gh release view v0.3.30` 回報 tag `v0.3.30`，非 draft，非 prerelease。 |
+| npm latest / fileCount | PASS | `npm view @adamchanadam/agent-handoff-kit version dist-tags.latest dist.fileCount --json` 回報 version `0.3.30`、latest `0.3.30`、fileCount `25`。 |
+| Published package temporary-prefix install | PASS | `npm install --prefix <tmp> @adamchanadam/agent-handoff-kit@0.3.30` 成功。 |
+| Published `--help` | PASS | 由 temporary-prefix 安裝出的 package 內 `bin/agent-handoff-kit.mjs --help` 顯示 `v0.3.30`。 |
+| Published `init` | PASS | published package `init --yes --root <tmp>` 成功建立 root 與 `AGENTS.md`。 |
+| Published `doctor` | PASS | published package `doctor --root <tmp>` exit 0 並回報 `status: passed`。 |
+| Previous published version -> new published version upgrade smoke | PASS | published v0.3.29 package 建立 root，published v0.3.30 package 執行 `upgrade --yes`，再執行 v0.3.30 `doctor`；upgrade 與 doctor 均 exit 0，doctor 回報 `status: passed`。 |
 
 ### Cross-mind evidence 9-trigger table（v0.3.30）
 
