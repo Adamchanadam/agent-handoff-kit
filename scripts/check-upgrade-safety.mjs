@@ -382,7 +382,8 @@ function main() {
     { ref: "v0.3.26", command: "upgrade", source: "tag" },
     { ref: "v0.3.27", command: "upgrade", source: "tag" },
     { ref: "v0.3.28", command: "upgrade", source: "tag" },
-    { ref: "v0.3.29", command: "upgrade", source: "current-head" }
+    { ref: "v0.3.29", command: "upgrade", source: "tag" },
+    { ref: "v0.3.30", command: "upgrade", source: "current-head" }
   ];
   assertCurrentReleasePatchChainCovered(chainSteps);
   let chainFinal = null;
@@ -543,6 +544,7 @@ function main() {
   assert(chainFinalAgents.includes("startup availability probe"), "chain final AGENTS.md missing R-030 startup probe anchor (v0.3.0 propagation gap — managed-core merge did not trigger from v0.2.x state)");
   assert(chainFinalAgents.includes("dev/rules/integrations.md"), "chain final AGENTS.md missing R-030 integrations pack reference (v0.3.0 propagation gap)");
   assert(chainFinalAgents.includes("Credential separation"), "chain final AGENTS.md missing R-030 credential separation discipline (v0.3.0 propagation gap)");
+  assert(chainFinalAgents.includes("Task contract changes are durable facts"), "chain final AGENTS.md missing v0.3.30 task contract anchor (managed-core merge did not propagate the task-contract SSOT rule)");
   // Also verify onboarding pack got Scenario F via smart-merge (since v0.2.x onboarding.md exists without F).
   const chainFinalOnboarding = read(path.join(chainRoot, "dev/rules/onboarding.md"));
   assert(chainFinalOnboarding.includes("Scenario F. 審視已裝外部工具"), "chain final onboarding.md missing R-030 Scenario F (smart-merge did not trigger from v0.2.x state)");

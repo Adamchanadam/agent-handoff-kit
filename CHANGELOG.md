@@ -1,5 +1,30 @@
 # 變更紀錄
 
+## v0.3.30 — 2026-06-25
+
+狀態：候選發佈版本。本版修補長任務中途追加要求容易分散成多份文件、聊天片段或交接摘要的問題；同時降低 `doctor` / no-op `upgrade` 成功後把普通任務完成誤導成完整收工的風險。
+
+### Added
+
+- 核心 runtime 新增任務契約變更規則：產品目標、需求、開發清單、驗收規則、非目標、優先序或 scope 在長任務中途改動時，必須先收斂到單一當前任務契約。
+- `agent-governance` 規則包新增同一分流：已有 spec / backlog / issue / README / runbook / project index / handoff section 時，先合併到既有權威位置；沒有專門真源時，才落到 `SESSION_HANDOFF` current-state sections。
+- README 與實操指南新增「AI 工作規則怎樣運作」說明，讓新手知道 AI 會按任務載入最少必要規則，而不是要求用戶記住內部檔名。
+
+### Changed
+
+- `doctor` 健康狀態與 `upgrade` no-op 成功提示改為：準備結束本輪工作、需要保存交接，或有下一輪必須知道的狀態時，才在 AI 對話輸入「收工」。
+- 升級鏈新增 v0.3.29 → v0.3.30 current-head 覆蓋，並把任務契約規則納入 managed core 升級錨點，避免既有用戶升級後仍停留在舊核心規則。
+
+### QA
+
+- `qa:release` 的任務持久化分流驗收新增長任務分批追加產品目標、開發清單與驗收規則的正向場景。
+- `qa:release` 新增 CLI 文案防回歸斷言，禁止把健康檢查或 no-op upgrade 的下一步寫成「剛完成任務就收工」。
+- `qa:upgrade` 鏈式升級覆蓋到 v0.3.29 tag，再由 v0.3.30 current head 完成最後一跳，並確認 managed core 取得任務契約錨點。
+
+### Migration path（v0.3.29 → v0.3.30，backward-compat preserved）
+
+既有項目可直接執行 `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade`。升級會保留既有治理文件與本地自訂內容；核心 managed block 會在安全合併路徑下更新，以取得任務契約收斂規則。若項目已有自己的規格或驗收真源，Agent Handoff Kit 應尊重該真源，不會新增通用驗收制度。
+
 ## v0.3.29 — 2026-06-18
 
 狀態：候選發佈版本。本版新增一個給 AI 讀的安裝／升級頁，讓非技術用戶只需把一句提示交給能讀寫本機資料夾的 AI agent；同時把「長期治理入庫」與「文件接入 Agent Handoff Kit」分清楚，避免可長期生效的規則、錯誤經驗或 API / MCP / 工具用法只留在 session log 或 handoff。

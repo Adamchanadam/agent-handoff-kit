@@ -21,7 +21,7 @@
 | 安裝後指示驗收 | 已併入 `npm run qa:prototype` 與 `npm run qa:release` | 檢查安裝成功後的終端機輸出不會令用戶誤把提示文字當成命令，並確認 README 說明安裝後第一步；同時檢查 `npx` 取得 CLI 工具與項目內 Kit 文件安裝不可混淆。 | 是 |
 | AI 代安裝頁驗收 | 已併入 `npm run qa:release` | 檢查 `agent-handoff-kit-ai-install.html` 是 GitHub Pages 普通 HTML 入口，README / intro / guide 均有連結；頁面要求 AI 先顯示並確認目前資料夾，未確認不執行 `init` / `upgrade` / `doctor`，遇 conflict 停手，完成後跑 `doctor`，並明確禁止 commit / push / tag / npm publish / GitHub Release。完成報告契約必須出現在第一個 `npx` 命令之前，避免 prompt-driven agent 只讀到操作步驟便停止；Prompt 安裝完成後，AI 不可只說「完成」或只貼終端機輸出，必須輸出完成報告，說明結果、目前資料夾、`doctor` 結果、`Start Agent Handoff` /「開工」不是終端機指令，以及下一步要在 AI 對話中開始。此頁不屬於 npm package。 | 是 |
 | 技能／子代理流程仲裁驗收 | 已併入 `npm run qa:packs` 與 `npm run qa:release` | 檢查外部技能、子代理、demo workspace 或其他工具的 closeout 不可取代目前根目錄自己的 Agent Handoff Kit 持久化。 | 是 |
-| 任務持久化分流驗收 | 已併入 `npm run qa:release` 與人工終讀 | 檢查完成任務不等於完整收工；核心 runtime 是唯一分流真源，README / intro / guide 只保留用戶操作語句，不暴露內部治理分類；例行通過檢查、未拍板草稿不得觸發輕量保存或完整收工，新增或刪除文件、新來源、用戶要求把經驗轉成機制時才按角色保存到正確位置。 | 是 |
+| 任務持久化分流驗收 | 已併入 `npm run qa:release` 與人工終讀 | 檢查完成任務不等於完整收工；核心 runtime 是唯一分流真源，README / intro / guide 只保留用戶操作語句，不暴露內部治理分類；例行通過檢查、未拍板草稿不得觸發輕量保存或完整收工，新增或刪除文件、新來源、用戶要求把經驗轉成機制時才按角色保存到正確位置；長任務中途分批新增或改動產品目標、開發清單、驗收規則、非目標或優先序時，必須先合併到單一當前任務契約，不能只留在聊天或分散到多份文件片段。 | 是 |
 | 長期治理入庫驗收 | 已併入 `npm run qa:packs`、`npm run qa:release` 與人工終讀 | 檢查 Long-term governance routing：用戶要求「寫入長期治理」「轉成長期機制」「之後都要遵守」，或內容本身表明 future sessions should remember / recurring AI mistake / API、MCP、tool-use pattern 時，AI 必須按內容分流至 rule pack、registered reference、project index、sync registry、project decisions 或 QA check；不得只存放在 SESSION_LOG / SESSION_HANDOFF / START_NEXT_SESSION_PROMPT。此項不改變「接入 Agent Handoff Kit」的文件接合原意。 | 是 |
 | 舊核心升級結構驗收 | 已併入 `npm run qa:upgrade` 與 `npm run qa:release` | 檢查舊版未標記 `AGENTS.md` core 升級後不會留下雙核心、雙收尾合約或 stale 上半段，且保留 core 前後的使用者本地規則；同時確認升級後 core 已帶收工 read-back discipline，沒有殘留「先表面輸出、後重生 prompt」的第三真源舊次序。 | 是 |
 | PROJECT_DECISIONS 結構驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `dev/PROJECT_DECISIONS.md` 含 4 個 H2 section heading（Evolution Timeline / Decisions Archive / Architecture Choices / Insights & Learnings）並保持順序；檔頭含 onboarding 句式（「warm 資料層」、「AI 開工不需要讀」、「AI 在收工時自動 update」）；research-derived decision trace 使用同檔定義的 evidence-chain format，並由 `doctor` 確認 `source:<id>` 已登記於 `dev/PROJECT_INDEX.md`。 | 是 |
@@ -117,7 +117,7 @@
 | 技能流程覆蓋 | 用核心規則、治理規則包與 QA 錨點確認外部技能流程只能作 subordinate evidence，不能讓 active root 跳過 handoff/log/index/registry 持久化。 |
 | Rules / packs 路由與入庫範圍 | 每次 release 前確認 `runtime-core/RULE_PACKS.md` 有自然語言任務訊號到各 pack 的路由；每個 `packs/*.md` 都有 Scope / Load When / Rules / Checks / Closeout；`runtime-core/AGENTS.core.md` 與 `packs/agent-governance.md` 都要求可重用操作程序進既有 rule pack 或 registered reference，不可只放 handoff / log，也不可未分類就新建治理文件。 |
 | 治理打通 | 每次 release 前確認 `runtime-core/RULE_PACKS.md` 可由「把文件接入 Agent Handoff Kit」/「掃描未接入 Agent Handoff Kit 的重要文件」/「治理打通」/ `bridge governance` / `connect this document to governance` / `scan for unbridged governance documents` 路由至 `agent-governance`；`packs/agent-governance.md` 有完整治理打通流程、輸出格式與重複真源風險邊界；README、intro、guide 均解釋用途、使用方法，以及不得自動刪除、重命名或合併真源。`qa:packs` 必須自動覆蓋 stock list、production guide / runbook、repo-wide scan、duplicate source-of-truth 四個情景。 |
-| 任務持久化分流 | 每次 release 前確認 `runtime-core/AGENTS.core.md` 是唯一分流真源；`packs/agent-governance.md` 只引用核心 persistence gate、不複製門檻；README / intro / guide 不得把「任務完成」寫成「立即完整收工」，也不得把內部 persistence gate 術語當成新手說明。例行通過檢查、未拍板草稿、普通中途進度屬反向場景；新增或刪除文件、新來源、用戶要求把經驗轉成機制屬正向場景，必須按文件角色保存。 |
+| 任務持久化分流 | 每次 release 前確認 `runtime-core/AGENTS.core.md` 是唯一分流真源；`packs/agent-governance.md` 只引用核心 persistence gate、不複製門檻；README / intro / guide 不得把「任務完成」寫成「立即完整收工」，也不得把內部 persistence gate 術語當成新手說明。例行通過檢查、未拍板草稿、普通中途進度屬反向場景；新增或刪除文件、新來源、用戶要求把經驗轉成機制、分批新增產品目標 / 開發清單 / 驗收規則屬正向場景，必須按文件角色保存並收斂到單一當前任務契約。 |
 | 舊核心殘留 | 用升級負面測試確認舊版 `AGENTS.md` core 被替換而不是附加；`doctor` 必須擋下同一檔案內兩個 core runtime 標題。 |
 | 升級路徑覆蓋 | `qa:upgrade` 必須含跨版本鏈式升級驗收（`v0.1.4` → `v0.1.5` → `v0.1.6` → 當前 HEAD），每跳用對應版本嘅 CLI 跑 `init`／`upgrade`／`doctor`，最後一跳用當前 HEAD 跑並 self-check 通過；同時必須含 upgrade quality matrix，確認版本 metadata、功能 anchor、post-upgrade `doctor` 穩定性三軸同時通過。 |
 | 補丁前置狀態枚舉 | 每個 `R-XXX` 補丁必須明文列覆蓋與唔覆蓋嘅前置狀態枚舉，唔填唔放行。例：R-024 覆蓋「夾心 managed + stale」「legacy single core」「無 core」三態，唔覆蓋「managed marker 不成對」（屬 conflict，由人工處理）。 |
@@ -282,7 +282,7 @@ npm package 由 `package.json` 的 `files` 控制：
 - `doctor` 已改以 handoff 語義標記為主要 schema 依據，英文段名只作預設模板與舊版本兼容。
 - `doctor` 會檢查 `START_NEXT_SESSION_PROMPT.txt` 與 `dev/SESSION_HANDOFF.md` 的 fenced opening message 是否一致；安裝後與 closeout 後必須一致，session 進行中若只有便利副本落後，普通 `doctor` 只可警告，不可 fail。
 - 安裝後指示已改為清楚分隔的中文下一步區塊，明確說明後續文字應貼到能讀寫本機專案資料夾的 AI agent 對話，不是在終端機繼續輸入；普通 web chat AI 若不能讀寫本機資料夾，不屬於支援場景。
-- 套件預演目前維持 25 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.29.md` 保留在 repo 作 GitHub Release / changelog 材料，但不入 npm package；runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
+- 套件預演目前維持 25 個 package files；`docs/whatsnew/v0.3.1.md` 至 `docs/whatsnew/v0.3.30.md` 保留在 repo 作 GitHub Release / changelog 材料，但不入 npm package；runtime 共用 prompt mirror helper 位於 `bin/`，`docs/qa/`、`scripts/` 與 `test-fixtures/` 不入包。
 - 完整 section-aware merge 仍待補；非空既有專案 upgrade trial 已通過，正式發佈前仍須重跑或以等效臨時專案重驗。
 
 ## 發佈前人工審閱清單
@@ -291,20 +291,51 @@ npm package 由 `package.json` 的 `files` 控制：
 
 | 審閱面向 | 目前證據 | 候選發佈前判斷 |
 |---|---|---|
-| 發佈授權 | v0.3.29 已獲 Adam 要求 commit、release notes 與 publish；GitHub Release、npm publish 與發佈後驗證已完成。 | 已完成發佈流程 |
-| 版本口徑 | `package.json` 目前為 `0.3.29`；v0.3.29 是 AI 安裝頁與長期治理入庫修正版。 | 正式候選口徑 |
+| 發佈授權 | v0.3.30 尚未獲 Adam 對 commit / push / tag / GitHub Release / npm publish 的獨立批准；全面檢只判斷候選是否可進入發佈授權。 | publish 前阻擋，需明確批准 |
+| 版本口徑 | `package.json` 目前為 `0.3.30`；v0.3.30 是任務契約收斂與收工提示降噪修正版。 | 正式候選口徑 |
 | 公開名稱 | GitHub repo 為 `Adamchanadam/agent-handoff-kit`；npm package 為 `@adamchanadam/agent-handoff-kit`；CLI command 仍為 `agent-handoff-kit`。 | 已準備，publish 前須即時重驗 npm 名稱 |
 | 套件邊界 | `package.json` `files` 包含 `bin/`、`runtime-core/`、`packs/`、`README.md`、`LICENSE`；`docs/whatsnew/` 不入 npm package；`npm pack --dry-run --json` 與 npm registry fileCount 均為 25 files。 | 通過 |
 | 原始碼驗收 | `qa:prototype`、`qa:packs`、`qa:upgrade`、`qa:release` 已建立並通過；治理打通四情景、upgrade migration 與 full audit evidence contract 均已納入。 | 通過 |
 | 非空既有專案升級 | 候選發佈準備重驗已通過：臨時非空專案保留既有 README、docs、src、notes、package 與本地規則；`AGENTS.md` 建立 backup 並合併 managed core；`doctor` 通過。 | 通過，發佈前如有 installer 改動須再重跑 |
 | 完整 merge 能力 | 目前只有 `AGENTS.md` managed-core merge；完整 section-aware merge 尚未完成。 | 阻擋正式穩定版；可作 prototype / candidate 風險項 |
-| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.29.md` 與 onboarding HTML 轉入 v0.3.29 候選口徑。 | 通過 |
+| 公開文件一致性 | README、package metadata、CHANGELOG、`docs/whatsnew/v0.3.30.md` 與 onboarding HTML 轉入 v0.3.30 候選口徑。 | 通過 |
 | 交接可靠性 | R-009、R-010、R-011 已納入 `doctor` / `qa:release`，包含必讀事實、狀態對賬、本地化 handoff 標題與交接生命週期一致性。 | 通過，但需人工確認語意無誤 |
 | 安裝後可理解性 | R-013 已修補終端機成功提示與 README，用戶可分清終端機檢查與 AI 對話下一步。 | 通過，但發佈前需人工終讀 |
 | 安全邊界 | safety pack、release pack 與核心安全底線均禁止未批准的 destructive / release / publish 行為。 | 通過，但需人工確認無放寬措辭 |
 | 污染掃描 | `qa:prototype` 掃描 WORK 路徑、private repo 名稱、舊 opening marker、常見 secret pattern；subagent follow-up 後已重跑通過。 | 通過；若後續再改 source，publish 前須重跑 |
-| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.29` 段，`docs/whatsnew/v0.3.29.md` 已補本版用戶說明；GitHub Release 與 npm publish 已完成。 | 已完成 |
-| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.29`。 | 通過 |
+| GitHub / npm 發佈材料 | `CHANGELOG.md` 已新增 `v0.3.30` 段，`docs/whatsnew/v0.3.30.md` 已補本版用戶說明；GitHub Release 與 npm publish 尚未執行。 | 發佈前材料已準備；外部發佈待批准 |
+| 用戶安裝路徑 | README 保留正式 `npx --yes ...@latest` 安裝與檢查路徑，並標示目前版本為 `v0.3.30`。 | 通過 |
+
+## v0.3.30 發佈狀態
+
+- package version：`0.3.30`。
+- release notes：`CHANGELOG.md` 的 `v0.3.30` 段落 + `docs/whatsnew/v0.3.30.md`。
+- 發佈目標：修補長任務中途追加需求時的任務契約漂移；降低健康檢查與 no-op upgrade 成功後把普通任務完成誤導成完整收工的風險；補 README / guide 對 AI 工作規則的用戶向說明。
+- 發佈狀態：候選準備中；尚未 commit、push、tag、建立 GitHub Release 或 npm publish。
+- 發佈後驗證：未執行；須在 GitHub Release 與 npm publish 後另跑 `發佈檢` 七項 artifact smoke。
+
+### v0.3.30 發佈前全面檢正式結論
+
+- 正式報告：`docs/qa/full-audit-v0.3.30-candidate.md`。
+- 全面檢結論：PASS；可進入 commit / push / tag / GitHub Release / npm publish 授權點，外部發佈仍須 Adam 另行明確批准。
+- 治理健康總判定：緊張；建議方向：繼續。
+- Product Journey Matrix：PASS；fresh install、existing project upgrade、long-task task-contract change、doctor healthy / no-op upgrade、package boundary、new-user README / guide read-through 均已覆蓋。
+- Rules / packs routing 結論：PASS；任務契約變更承接在既有 core runtime + `agent-governance` pack，未新增 public 七類驗收或 quality pack。
+- QC gap backflow 結論：PASS；任務契約漂移、收工提示過密、舊用戶升級傳播、public runtime 七類驗收邊界均已有產品修補或 release QA 承接。
+
+### Cross-mind evidence 9-trigger table（v0.3.30）
+
+| Trigger | Required? | Result | Evidence / rationale |
+|---|---|---|---|
+| 1. 失敗或 blocker | yes | iterated | 用戶指出長任務中分批新增需求會散落到不同文檔，造成唯一真源漂移；同時指出 handoff / log 過度寫入會污染狀態。 |
+| 2. 高風險 / 安全 / 發佈 | yes | iterated | 本輪改 runtime core、CLI 提示、agent-governance pack、README / guide 與 release QA；正式發佈前必跑全面檢，且 commit / tag / publish 需另行批准。 |
+| 3. 用戶明確挑戰 | yes | passed | Adam 明確挑戰七類驗收是否應進 public runtime；最終決策是不新增 public 七類驗收，本候選只保留任務契約與收工提示修補。 |
+| 4. 複雜推理 / 多層取捨 | yes | passed | 將「任務契約收斂」與「七類驗收」分開：前者是 handoff runtime 必要連續性修補，後者只留 WORK / 維護者發佈前治理。 |
+| 5. 跨檔 / 跨 surface 改動 | yes | iterated | README、guide、runtime core、CLI、agent-governance pack、release QA、upgrade safety chain、CHANGELOG、whatsnew 均有對齊；intro / AI install page 只做版本口徑更新。 |
+| 6. 結論基於語意判斷而非單一 grep | yes | iterated | 除 grep anchor 外，全面檢須覆蓋任務契約普通流程、分批追加極端流程、no-op upgrade、doctor healthy、新手理解與既有驗收真源保留。 |
+| 7. 外部 AI / cross-mind review | no | passed | 本輪已用多輪子代理與本地 dry-run 審過 public runtime 邊界；正式候選不把外部 AI review 設為必要阻擋項。 |
+| 8. 真實用戶旅程 | yes | iterated | 新手仍只需用自然語言講目的；AI 遇到長任務追加要求時負責收斂任務契約，不要求用戶學會內部檔案分類或七類驗收。 |
+| 9. 發佈聲明與測試斷言不是一對一映射 | yes | iterated | 發佈聲明須由 runtime anchor、pack routing、CLI scenario、upgrade chain、README / guide 可讀性、package boundary 與 full-audit report 共同支撐。 |
 
 ## v0.3.29 發佈狀態
 
@@ -1373,6 +1404,7 @@ Warn behavior 驗證（人工或 fixture-based）：
 - AI Closeout flow 是否每次記錄維護觸發檢查，並只在 N≥11、主檔過長、決策拆分、語意觸發或 10 次收工兜底時做完整長期維護。
 - Doctor warn 是否唔 block release（exit 0；release-grade QA 唔會因 warn 而 fail）。
 - 接力角色定位是否清晰（HANDOFF carries handoff capability；SESSION_LOG carries trace-back only）。
+- 長任務中途連續加入產品目標、開發清單、驗收規則時，AI 是否先找既有 spec / backlog / issue / runbook；沒有專門真源時，是否把單一當前任務契約合併到 `SESSION_HANDOFF` current-state sections，而不是把約束散落在聊天、`SESSION_LOG` 或多份草稿文件。
 
 ## 發佈阻擋項
 

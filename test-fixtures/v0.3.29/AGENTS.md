@@ -1,3 +1,4 @@
+<!-- BEGIN Agent Handoff Kit managed core -->
 # Agent Handoff Kit Core Runtime
 
 This is the lightweight core. It is the always-read contract for AI sessions.
@@ -70,8 +71,6 @@ Use exactly one of these tiers after each task:
 1. No persistence: choose this when the task produced no durable fact. Examples: one-off answers, active draft / image iterations not approved as final, routine successful checks that can be rerun, transient tool output, and ordinary progress that remains visible in the current chat.
 2. Lightweight checkpoint: choose this when a durable fact exists and the session continues, when the agent may be interrupted before full closeout, or when uncertain whether the fact is durable. Write only the smallest correct home. Lightweight checkpoint is not full closeout: do not regenerate `START_NEXT_SESSION_PROMPT.txt`, do not show a closeout card, do not run full closeout maintenance, and do not reconcile every handoff section unless the fact itself requires it.
 3. Full closeout: choose this only for explicit end-of-session / handoff intent, tool or day boundary, user-requested handoff, agent about to stop, or completed release / external sync / governance change that needs the next agent to continue from persisted state.
-
-Task contract changes are durable facts when they affect future action. If the user adds or changes the product goal, requirements, development checklist, acceptance rules, exclusions, priority, or task scope during a long-running task, first reconcile those changes into one current task contract before continuing. If a dedicated spec, backlog, issue, runbook, or project document is already the authoritative home, update that home and cite it from `dev/SESSION_HANDOFF.md`; otherwise merge the current contract into `dev/SESSION_HANDOFF.md` under `Task Understanding Summary`, `Active Objective`, `Next Priorities`, and `Next Task Required Reading`. Do not scatter the same task contract across chat memory, log entries, draft docs, and startup prompts.
 
 Route durable facts by file role:
 
@@ -180,3 +179,4 @@ If a pack, skill, subagent plan, demo workspace, or external workflow produces i
 ## Core Complexity Rule
 
 New default-core rules are allowed only when they apply to most sessions, protect safety or continuity, cannot live in a pack or registry, and keep the core within budget.
+<!-- END Agent Handoff Kit managed core -->

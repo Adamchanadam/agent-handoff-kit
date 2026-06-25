@@ -442,7 +442,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.3.29 · 三個日常情景 · 由第一句指令到長期接力</span>
+    <span class="kicker">v0.3.30 · 三個日常情景 · 由第一句指令到長期接力</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">三個日常情景 —— 整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進 —— 完整示範 Agent Handoff Kit 由安裝到接力的流程。每一步都會看到 AI 主動宣告載入哪個工作模式、怎樣計劃、怎樣驗收、何時同步下次接力提示。</p>
   </div>
@@ -469,6 +469,51 @@
   </div>
 </div>
 
+<section class="step-section" id="work-rules-overview">
+  <div class="wrap">
+    <span class="badge">AI 工作規則</span>
+    <h2>AI 不是只讀交接，也會按任務換工作模式</h2>
+    <p class="narrative">Agent Handoff Kit 的重點不只是保存上次做到哪裡。它也會讓 AI 在每次開工後，按任務選擇合適的工作規則。新手只需記住一句：你講目的，AI 負責選工作規則；高風險操作要先停下來問你。</p>
+
+    <div class="block file">
+      <div class="block-header"><span class="label">工作流程</span><span class="meta">開工後自動發生</span></div>
+      <div class="block-body">1. 開工：AI 先讀目前狀態、下一步、風險和專案索引。
+2. 判斷任務：它判斷你要寫作、開發、研究、整理知識庫，還是處理外部工具。
+3. 載入規則：它只載入需要的規則，不把所有內部文件一次塞進上下文。
+4. 執行與檢查：先計劃、再讀檔、再修改，最後用可驗收方式檢查。
+5. 收工：有長期價值的狀態會寫回交接；一次性輸出不污染長期規則。</div>
+    </div>
+
+    <div class="chat">
+      <div class="chat-row user">
+        <div class="chat-bubble user"><span class="who">你</span>以後寫公開中文文件時，請用繁體中文書面語，避免半中半英。請把這條規則接入 Agent Handoff Kit。</div>
+      </div>
+      <div class="chat-row ai">
+        <div class="chat-bubble ai"><span class="who">AI</span>我會先判斷這是一次性偏好、下次交接狀態、項目索引，還是長期工作規則。若要改長期規則，我會先找現有真源，不會把所有東西都塞進同一個檔案。</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="label">你可以怎樣加入自己的規則</span>
+      <p>不要一開始手改規則檔。直接用日常話告訴 AI：「把這條經驗接入 Agent Handoff Kit」、「把這份文件接入 Agent Handoff Kit」，或「把今次錯誤變成日後機制」。AI 應先判斷它應該放入交接狀態、項目索引、同步登記、長期決策，還是工作規則。</p>
+    </div>
+
+    <div class="block file">
+      <div class="block-header"><span class="label">進階對照</span><span class="meta">想了解內部結構時才需要</span></div>
+      <div class="block-body">dev/RULE_PACKS.md：規則路由表，判斷每個任務應該載入哪些工作規則。
+dev/rules/onboarding.md：新手引導規則，第一次使用時帶用戶選情境並完成第一個小任務。
+dev/rules/safety.md：安全規則，處理刪檔、Git、發佈、外部 API、機密保護。
+dev/rules/writing.md：寫作規則，處理文案、README、公開內容、社交帖文。
+dev/rules/research.md：研究規則，處理查資料、比較來源、標示不確定性。
+dev/rules/coding.md：開發規則，處理原始檔、程式碼、測試和既有改動。
+dev/rules/agent-governance.md：交接與治理規則，處理 AI 行為、交接流程、技能、規則包與長期治理。
+dev/rules/release.md：發佈規則，處理版本、tag、release、deploy、npm publish 與正式完成聲明。
+dev/rules/knowledge.md：知識庫規則，處理 Notion、Google Drive、Obsidian、外部知識庫與真源分工。
+dev/rules/integrations.md：外部工具規則，處理 Connector、MCP、Plugin、Skill 的分工與憑證邊界。
+dev/rules/communication.md：回覆格式規則，處理語言、輸出格式欄位、報告與面向用戶的說明方式。</div>
+    </div>
+  </div>
+</section>
 <div class="case-tabs" id="case-tabs">
   <div class="wrap">
     <button class="case-tab active" data-case="a">
@@ -542,7 +587,7 @@ create: 20
 🔀 merged: 0
 ⏭️  skipped existing: 0
 
-📦 版本:v0.3.29
+📦 版本:v0.3.30
 🛠️  模式:first-install
 🔎 剛完成:init 命令;create 20 / merge 0 / skip 0 / conflict 0。
 🚀 下一步:不用再留在終端機。打開 AI 工具,啟動 Agent Handoff。
@@ -1090,7 +1135,7 @@ Google Drive
         <div class="block-body">$ <span class="hl">npx --yes @adamchanadam/agent-handoff-kit@latest init</span>
 
 ✅ created: 20
-📦 版本:v0.3.29
+📦 版本:v0.3.30
 🛠️  模式:first-install
 🚀 下一步:開新 AI 對話。若 AI 已在資料夾內,輸入 Start Agent Handoff 或「開工」;若尚未指向資料夾,才使用帶路徑啟動句。</div>
       </div>
@@ -1752,7 +1797,7 @@ Before changing anything, tell me the current state and your recommended next st
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.3.29 · MIT License</p>
+      <p>v0.3.30 · MIT License</p>
     </div>
     <div>
       <strong>作者</strong>

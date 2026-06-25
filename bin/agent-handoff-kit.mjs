@@ -58,6 +58,7 @@ const requiredAnchors = [
       "Ambiguous startup phrases",
       "Reachable is not the same as ingested",
       "Do not treat unread sources as absent",
+      "Task contract changes are durable facts",
       // R-030 v0.3.0+: forces managed-core merge on v0.2.x → v0.3.0 upgrade to propagate
       // startup availability probe + integrations pack reference + credential separation discipline.
       "startup availability probe",
@@ -874,7 +875,7 @@ async function runDoctor(root, version, options = {}) {
     nextStep: !credentialResult.ok
       ? "立即從相關檔案 redact credential value + rotate 已泄露 token；credential 應該由 AI 工具自身 secure storage 管理，永不寫入 dev/* 任何檔。"
       : disciplineResult.ok
-      ? versionNextStep ?? promptMirrorNextStep ?? onboardingNextStep ?? "檢查已通過。繼續使用你原本的 AI 開工方式；如剛完成一個任務，記得在 AI 對話輸入「收工」保存交接。"
+      ? versionNextStep ?? promptMirrorNextStep ?? onboardingNextStep ?? "檢查已通過。繼續使用你原本的 AI 開工方式；準備結束本輪工作、需要保存交接、或有下一輪必須知道的狀態時，在 AI 對話輸入「收工」。"
       : "繼續使用；下次 closeout 時 AI 應自動執行 SESSION_LOG N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
   });
   return overallHealthy ? "passed" : "failed";
@@ -2597,7 +2598,7 @@ async function assessLastCloseout(root) {
 
 function printLastCloseout(result) {
   if (!result.date) {
-    console.log("  📅 上次收工：尚未收工過。第一次完成任務後，可以在 AI 對話輸入「收工」。");
+    console.log("  📅 上次收工：尚未收工過。準備結束本輪工作、需要保存交接、或有下一輪必須知道的狀態時，可以在 AI 對話輸入「收工」。");
     return;
   }
   const today = new Date();
@@ -3225,7 +3226,7 @@ function printUpgradeNoopShortCircuit(version, health = { ok: true }) {
   if (health.ok) {
     console.log("✅ 結果：你已經是最新版本，沒有檔案需要建立或合併；用戶填寫的內容全部保留現狀。");
     console.log("");
-    console.log("🚀 下一步：回到原本的 AI 對話或開工句即可；如果剛完成任務，記得在 AI 對話輸入「收工」保存交接。");
+    console.log("🚀 下一步：回到原本的 AI 對話或開工句即可；準備結束本輪工作、需要保存交接、或有下一輪必須知道的狀態時，在 AI 對話輸入「收工」。");
     console.log("");
     return;
   }

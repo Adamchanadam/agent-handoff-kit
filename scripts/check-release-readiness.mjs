@@ -2202,7 +2202,9 @@ function checkTaskPersistenceGateContract() {
     "例行通過檢查不得觸發輕量保存",
     "未拍板草稿不得觸發完整收工",
     "新增或刪除文件、新來源",
-    "用戶要求把經驗轉成機制"
+    "用戶要求把經驗轉成機制",
+    "分批新增產品目標 / 開發清單 / 驗收規則",
+    "單一當前任務契約"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -2219,8 +2221,19 @@ function checkTaskPersistenceGateContract() {
     "Sync obligations across repositories",
     "Long-term decisions",
     "practice-to-mechanism lessons",
+    "Task contract changes are durable facts",
+    "product goal, requirements, development checklist, acceptance rules",
+    "reconcile those changes into one current task contract",
+    "Do not scatter the same task contract",
     "If an involuntary stop is likely",
     "If uncertain whether a fact is durable"
+  ]);
+
+  assertIncludes("packs/agent-governance.md", [
+    "task contract changes",
+    "product goals, requirements, development checklists, acceptance rules",
+    "spec, backlog, issue list, README, runbook",
+    "Merge into the existing authoritative home"
   ]);
 
   assertIncludes("README.md", [
@@ -2248,6 +2261,12 @@ function checkTaskPersistenceGateContract() {
   const intro = read("agent-handoff-kit-intro.html");
   assert(!intro.includes("完成時說一聲「收工」"), "intro must not phrase closeout as ordinary task completion");
   assert(!intro.includes("完成時說「收工」"), "intro must not phrase closeout as ordinary task completion");
+
+  const cli = read("bin/agent-handoff-kit.mjs");
+  assert(cli.includes("準備結束本輪工作、需要保存交接、或有下一輪必須知道的狀態時"), "doctor healthy next step must explain closeout as end-of-session or durable-state work");
+  assert(!cli.includes("如剛完成一個任務，記得在 AI 對話輸入「收工」保存交接。"), "doctor healthy next step must not phrase closeout as every task completion");
+  assert(!cli.includes("如果剛完成任務，記得在 AI 對話輸入「收工」保存交接。"), "upgrade no-op next step must not phrase closeout as every task completion");
+  assert(!cli.includes("第一次完成任務後，可以在 AI 對話輸入「收工」。"), "doctor status overview must not phrase closeout as every task completion");
 
   const governancePack = read("packs/agent-governance.md");
   assert(!governancePack.includes("No persistence"), "agent governance pack must reference the core gate instead of duplicating tier thresholds");

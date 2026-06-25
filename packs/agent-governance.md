@@ -23,6 +23,7 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 8. For long-running projects, maintain `dev/PROJECT_DECISIONS.md` per R-028 closeout discipline (see `runtime-core/AGENTS.core.md` closeout maintenance trigger check): capture major decisions when they happen, run the short trigger check at every closeout, and do full long-term maintenance only when a hard trigger, semantic trigger, or 10-closeout backstop applies. Short single-task projects keep this as a no-op default; users are not expected to edit this file manually.
 9. Governance bridge is a triggered review, not a default startup scan. Use it when an important file, source-of-truth document, runbook, production guide, workflow, checklist, stock list, or similar durable document may need to be connected to project governance.
 10. Content-based trigger: long-term governance routing is content-based, not trigger-only. Even if the user does not say "轉成長期機制" or "寫入長期治理", treat a statement as durable governance when it says future sessions must follow it, when it corrects a recurring AI mistake, or when it defines a reusable API / MCP / tool-use pattern. Do not persist long-term governance knowledge only in `dev/SESSION_LOG.md`, `dev/SESSION_HANDOFF.md`, or `START_NEXT_SESSION_PROMPT.txt`; those surfaces may be compressed, archived, or regenerated.
+11. Mid-task changes to product goals, requirements, development checklists, acceptance rules, exclusions, priorities, or scope are task contract changes. Before writing them, check whether the same contract already lives in a spec, backlog, issue list, README, runbook, project index entry, or handoff section. Merge into the existing authoritative home, then leave only a pointer or current-state summary elsewhere.
 
 ## Governance Bridge Workflow
 
@@ -44,6 +45,7 @@ For repo-wide scans, report candidates as candidates. Do not fail ordinary docs 
 Use this workflow when the user asks to write something into long-term governance, turn an experience into a mechanism, make a rule apply across sessions, or when the content itself clearly has durable force.
 
 1. Classify the knowledge before writing:
+   - Current task contract changes, including product goals, requirements, development checklists, acceptance rules, exclusions, priorities, or scope -> the existing authoritative spec / backlog / issue / runbook when one exists; otherwise `dev/SESSION_HANDOFF.md` current-state sections.
    - Current task state, next action, unresolved risk, or startup-needed fact -> `dev/SESSION_HANDOFF.md`.
    - Chronological evidence or validation trace -> `dev/SESSION_LOG.md`.
    - File maps, command maps, API reference locations, tool capability maps, and external source coordinates -> `dev/PROJECT_INDEX.md`.
