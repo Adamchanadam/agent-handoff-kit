@@ -3,7 +3,7 @@
 狀態：目前版本為 `v0.3.30`。這是早期可用版本，仍在持續完善中。
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png" alt="Agent Handoff Kit 主視覺" width="720">
+  <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
 </p>
 
 Agent Handoff Kit 是 **AI 對話之間的接力棒**。
@@ -11,12 +11,6 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 它只處理一件狹窄但重要的事：AI 跨對話失憶。每次開新對話，AI 往往不記得你上次做到哪裡，也認不出中途新建的文件、你引入的參考資料、哪些檔案是真源。這套工具把進度、下一步、風險、檔案登記與下次開工提示寫進固定文件，讓下一個 AI 工具能接得上上一棒。
 
 📌 使用時，你只需要說明目的；確認資料夾、判斷安裝或升級、執行指令和檢查結果，交給能讀寫本機資料夾的 AI 處理。
-
-## 🎬 60 秒宣傳動畫
-
-[觀看 Agent Handoff Kit 宣傳動畫](https://youtu.be/RopbfBiSw1I)
-
-這段短片用 60 秒說明本工具的核心用途：讓 AI 在不同對話、不同工具之間接得上專案進度。GitHub README 不能可靠內嵌 YouTube 播放器，所以這裡保留正式影片連結；如要在網頁內直接播放，可看 GitHub Pages 入門頁。
 
 ## 🚀 三步上手
 
