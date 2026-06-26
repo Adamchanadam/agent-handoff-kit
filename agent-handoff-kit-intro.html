@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Agent Handoff Kit — 新手 60 秒入門</title>
   <meta name="description" content="一套讓 AI 在不同對話、不同工具之間記得專案進度的輕量交接工具。給完全 AI 新手的入門介紹。" />
+  <link rel="canonical" href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html" />
+  <meta name="robots" content="index,follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Agent Handoff Kit — 新手 60 秒入門" />
+  <meta property="og:description" content="一套讓 AI 在不同對話、不同工具之間記得專案進度的輕量交接工具。" />
+  <meta property="og:url" content="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html" />
+  <meta property="og:site_name" content="Agent Handoff Kit" />
+  <meta property="og:image" content="https://adamchanadam.github.io/agent-handoff-kit/images/agent-handoff-kit-main-visual2.png" />
+  <meta property="og:image:alt" content="Agent Handoff Kit 主視覺" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Agent Handoff Kit — 新手 60 秒入門" />
+  <meta name="twitter:description" content="一套讓 AI 在不同對話、不同工具之間記得專案進度的輕量交接工具。" />
+  <meta name="twitter:image" content="https://adamchanadam.github.io/agent-handoff-kit/images/agent-handoff-kit-main-visual2.png" />
 
   <!-- 字體:Bauhaus 復興常用的幾何 sans + 等寬 mono,離線時退回系統字體 -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -181,6 +194,23 @@
     .btn:hover, .btn:focus-visible { transform: translate(-2px, -2px); outline: none; }
     .btn.primary { background: var(--blue); color: var(--paper); }
     .btn.secondary { background: var(--yellow); }
+
+    .video-frame {
+      position: relative;
+      width: 100%;
+      max-width: 920px;
+      aspect-ratio: 16 / 9;
+      border: 4px solid var(--ink);
+      background: var(--ink);
+      margin-top: 28px;
+      box-shadow: 10px 10px 0 var(--yellow);
+    }
+    .video-frame iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
 
     /* Hero 右側 main visual */
     .hero-art {
@@ -673,6 +703,32 @@
       nav.links { display: none; }
     }
   </style>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Agent Handoff Kit",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Windows, macOS, Linux",
+    "description": "Agent Handoff Kit 是一套讓 AI 在不同對話、不同工具之間接續專案進度的輕量交接工具。",
+    "url": "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
+    "codeRepository": "https://github.com/Adamchanadam/agent-handoff-kit",
+    "license": "https://github.com/Adamchanadam/agent-handoff-kit/blob/main/LICENSE",
+    "video": {
+      "@type": "VideoObject",
+      "name": "Agent Handoff Kit 宣傳動畫",
+      "description": "60 秒介紹 Agent Handoff Kit 如何讓 AI 跨對話接續專案進度。",
+      "embedUrl": "https://www.youtube.com/embed/RopbfBiSw1I",
+      "contentUrl": "https://youtu.be/RopbfBiSw1I",
+      "uploadDate": "2026-06-26"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
 </head>
 
 <body>
@@ -690,6 +746,7 @@
         <span>Agent Handoff Kit</span>
       </div>
       <div class="links">
+        <a href="#promo-video">宣傳動畫</a>
         <a href="#what">為何需要</a>
         <a href="#pain">四類問題</a>
         <a href="#magic">開工 / 收工</a>
@@ -722,6 +779,22 @@
   </header>
 
   <!-- ───── 一句講清楚 ───── -->
+  <section id="promo-video">
+    <div class="wrap">
+      <span class="eyebrow">00 / 宣傳動畫</span>
+      <h2>先用一分鐘，看它解決甚麼</h2>
+      <p class="intro">這段影片示範 Agent Handoff Kit 怎樣把 AI 對話之間的進度、規則、文件與下一步接起來。若影片無法載入，可直接到 <a href="https://youtu.be/RopbfBiSw1I" target="_blank" rel="noopener">YouTube 觀看宣傳動畫</a>。</p>
+      <div class="video-frame">
+        <iframe
+          src="https://www.youtube.com/embed/RopbfBiSw1I"
+          title="Agent Handoff Kit 宣傳動畫"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen></iframe>
+      </div>
+    </div>
+  </section>
+
   <section id="what">
     <div class="wrap">
       <span class="eyebrow">01 / 一句講清楚</span>

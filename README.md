@@ -2,13 +2,21 @@
 
 狀態：目前版本為 `v0.3.30`。這是早期可用版本，仍在持續完善中。
 
-![Agent Handoff Kit 主視覺](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-main-visual2.png" alt="Agent Handoff Kit 主視覺" width="720">
+</p>
 
 Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 它只處理一件狹窄但重要的事：AI 跨對話失憶。每次開新對話，AI 往往不記得你上次做到哪裡，也認不出中途新建的文件、你引入的參考資料、哪些檔案是真源。這套工具把進度、下一步、風險、檔案登記與下次開工提示寫進固定文件，讓下一個 AI 工具能接得上上一棒。
 
 📌 使用時，你只需要說明目的；確認資料夾、判斷安裝或升級、執行指令和檢查結果，交給能讀寫本機資料夾的 AI 處理。
+
+## 🎬 60 秒宣傳動畫
+
+[觀看 Agent Handoff Kit 宣傳動畫](https://youtu.be/RopbfBiSw1I)
+
+這段短片用 60 秒說明本工具的核心用途：讓 AI 在不同對話、不同工具之間接得上專案進度。GitHub README 不能可靠內嵌 YouTube 播放器，所以這裡保留正式影片連結；如要在網頁內直接播放，可看 GitHub Pages 入門頁。
 
 ## 🚀 三步上手
 
@@ -30,6 +38,19 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 已裝過舊版，或資料夾裡已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 等 AI 記憶文件，也用同一句交給 AI 判斷。AI 會先檢查，不會靜默覆寫。
 
 想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html)。想看完整操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)。想了解它在本機 Agentic AI 工作系統中的位置，可看 [`local-agentic-ai-workflow-case-study.html`](https://adamchanadam.github.io/agent-handoff-kit/local-agentic-ai-workflow-case-study.html)。
+
+## 🧭 這個 repo 怎樣讀
+
+如果你只是想使用 Agent Handoff Kit，只需要看四個入口：
+
+| 入口 | 用途 |
+|---|---|
+| `README.md` | 正式用途、安裝路徑、限制與安全邊界。 |
+| [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) | 非技術版 60 秒入門與宣傳動畫。 |
+| [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) | 三個實操情景，示範開工、工作、收工。 |
+| [`agent-handoff-kit-ai-install.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html) | 給 AI 讀的安裝與升級指令頁。 |
+
+這個公開 repo 是用戶流通版，保留使用、安裝、入門、GitHub Pages 與 npm 執行所需內容；內部 release QA、升級夾具和候選審核材料留在開發真源，不放入公開流通版。
 
 ## 🔎 它解決甚麼問題
 

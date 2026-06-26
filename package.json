@@ -13,16 +13,6 @@
     "README.md",
     "LICENSE"
   ],
-  "scripts": {
-    "doctor": "node bin/agent-handoff-kit.mjs doctor --root .",
-    "dry-run": "node bin/agent-handoff-kit.mjs init --dry-run --root .",
-    "qa:prototype": "node scripts/check-public-prototype.mjs",
-    "qa:packs": "node scripts/check-pack-scenarios.mjs",
-    "qa:upgrade": "node scripts/check-upgrade-safety.mjs",
-    "qa:release": "node scripts/check-release-readiness.mjs",
-    "qa:prompt-mirror": "node scripts/check-prompt-mirror.mjs",
-    "qa:fixtures": "node scripts/generate-upgrade-fixtures.mjs"
-  },
   "engines": {
     "node": ">=18"
   },

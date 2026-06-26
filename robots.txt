@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://adamchanadam.github.io/agent-handoff-kit/sitemap.xml
