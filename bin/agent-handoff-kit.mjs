@@ -59,6 +59,7 @@ const requiredAnchors = [
       "Reachable is not the same as ingested",
       "Do not treat unread sources as absent",
       "Task contract changes are durable facts",
+      "External Impact Note",
       // R-030 v0.3.0+: forces managed-core merge on v0.2.x → v0.3.0 upgrade to propagate
       // startup availability probe + integrations pack reference + credential separation discipline.
       "startup availability probe",
@@ -181,6 +182,7 @@ const requiredAnchors = [
       "cmd /c rmdir",
       "git reset --hard",
       "external APIs, SDKs, CLIs",
+      "parser failure",
       "secret values"
     ]
   },
@@ -2136,7 +2138,16 @@ function mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing) {
   const sourceRuleLines = sourceLines.slice(sourceBounds.start + 1, sourceBounds.end);
 
   let changed = false;
-  for (const snippet of missing) {
+  const remainingMissing = [...missing];
+  if (remainingMissing.includes("parser failure") && !targetText.includes("parser failure")) {
+    const parserFailureRule = sourceRuleLines.find((line) => line.includes("parser failure"));
+    if (!parserFailureRule || !parserFailureRule.startsWith("13. ")) return null;
+    targetLines.splice(targetRuleEnd, 0, parserFailureRule);
+    changed = true;
+    remainingMissing.splice(remainingMissing.indexOf("parser failure"), 1);
+  }
+
+  for (const snippet of remainingMissing) {
     const sourceLine = sourceRuleLines.find((line) => line.includes(snippet));
     if (!sourceLine) return null;
     const ruleNumber = sourceLine.match(/^(\d+)\. /)?.[1];
@@ -2166,7 +2177,6 @@ function mergeIntegrationsCredentialSection(targetText, sourceText, missing) {
 function hasTrustedSafetyPackShape(text) {
   return text.includes("# Safety Pack")
     && text.includes("## Scope")
-    && text.includes("## Load When")
     && Boolean(sectionBounds(text, "## Rules", "## Checks"))
     && text.includes("## Closeout");
 }
@@ -2210,6 +2220,12 @@ function safetyAnchorHasTrustedRuleShape(text, snippet) {
     return line.includes("package managers")
       && line.includes("official documentation")
       && line.includes("project-local runbooks");
+  }
+  if (snippet === "parser failure") {
+    return line.includes("same-pattern retries")
+      && line.includes("minimal reproducible script")
+      && line.includes("syntax-only check")
+      && line.includes("read back the affected files");
   }
   return true;
 }

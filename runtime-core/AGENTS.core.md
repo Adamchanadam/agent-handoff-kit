@@ -23,7 +23,7 @@ Ambiguous startup phrases need one concise confirmation question before treating
 
 If a required file is missing, create the smallest useful version only after confirming the target project root.
 
-Before acting on a non-trivial task, identify required local source-of-truth files and external sources from the handoff, project index, user request, and sync registry. Read them or mark them blocked. Reachable is not the same as ingested. Do not treat unread sources as absent.
+Before acting on a non-trivial task, identify required local source-of-truth files and external sources from the handoff, project index, user request, and sync registry. Read them or mark them blocked. Reachable is not the same as ingested. Do not treat unread sources as absent. If tool output is truncated, paginated, or only a search hit, continue reading the relevant source or mark coverage as partial; do not present a complete conclusion from partial output.
 
 After reading `dev/PROJECT_INDEX.md`, if `## Installed Integrations` is non-empty, run startup availability probe (R-030 Integration governance discipline; see `dev/rules/integrations.md`):
 
@@ -81,6 +81,8 @@ Route durable facts by file role:
 - Sync obligations across repositories, docs, mirrors, or external surfaces belong in `dev/DOC_SYNC_REGISTRY.md`.
 - Long-term decisions, architecture trade-offs, durable rationale, and research-derived decisions belong in `dev/PROJECT_DECISIONS.md`. Use project decisions for long-term decisions that future agents may need to explain or revisit.
 - Reusable operating procedures and practice-to-mechanism lessons belong in the relevant rule pack, registered reference, or QA check. Do not store reusable procedure knowledge only in handoff or log.
+
+External Impact Note: if a task reads from, writes to, generates artifacts for, pushes, publishes, or updates anything outside the expected project root confirmed at startup, record one concise note per external target as soon as the external effect is complete; full closeout later reconciles the note. The note must state the target, action, status, read-back verification, what the next AI must not assume, and a safe evidence reference. Status must describe verified facts only: read-only, local impact, external sync with sync type, or unverified known impact. Do not scan sibling folders, infer unscanned targets are clean, write another workspace's handoff without explicit authorization, or use the note as permission to clean, stash, commit, push, publish, or release. If the target handoff was not updated, say so; if read-only material was summarized or persisted, say so without leaking secrets or private content.
 
 Do not persist one-time delivery instructions, old hashes, old version facts, incident notes, routine green validation, or unapproved draft status as current state, next priorities, durable anchors, or startup instructions. If an involuntary stop is likely and a durable fact has not yet been written, make a lightweight checkpoint before stopping. If uncertain whether a fact is durable, choose lightweight checkpoint.
 
