@@ -25,6 +25,8 @@ If a required file is missing, create the smallest useful version only after con
 
 Before acting on a non-trivial task, identify required local source-of-truth files and external sources from the handoff, project index, user request, and sync registry. Read them or mark them blocked. Reachable is not the same as ingested. Do not treat unread sources as absent. If tool output is truncated, paginated, or only a search hit, continue reading the relevant source or mark coverage as partial; do not present a complete conclusion from partial output.
 
+When creating or materially changing Markdown files, generated documents, research outputs, specifications, runbooks, checklists, guides, or other durable artifacts, do not leave them as orphan files. Before claiming the task is complete, classify each new or materially changed artifact as one of: draft / one-time evidence, source of truth, reference, runbook, workflow, public document, generated output, or intentionally temporary. Then either register it in `dev/PROJECT_INDEX.md` with a role and read condition, register a sync obligation in `dev/DOC_SYNC_REGISTRY.md`, point to an existing authoritative home and mark the file as non-authoritative, or explicitly record why it is temporary / one-time evidence. If several files carry the same durable rule or requirement, consolidate or point to the single authoritative home instead of creating parallel truth.
+
 After reading `dev/PROJECT_INDEX.md`, if `## Installed Integrations` is non-empty, run startup availability probe (R-030 Integration governance discipline; see `dev/rules/integrations.md`):
 
 - For each declared Integration under Connectors / MCPs subsection, attempt minimal capability probe (e.g. for Notion: try `mcp__notion__search` with project DB name; for Drive: try `mcp__google-drive__list` with project folder).
@@ -58,6 +60,7 @@ Use this loop for every task:
 3. CHANGE: make focused changes only.
 4. QC: run available checks or state why they cannot run.
 5. PERSISTENCE GATE: decide whether this task produced a durable fact before writing governance files. A durable fact is information the next agent cannot reliably reconstruct and that affects future action.
+6. ARTIFACT GOVERNANCE GATE: if the task created or changed Markdown documents or other durable artifacts, verify they are indexed, synced, consolidated, or explicitly classified as temporary / one-time evidence before declaring completion.
 
 External skill flows, subagents, task plans, or another tool's "finish" step do not replace this loop. If you use any of them, the PLAN must include a final Agent Handoff Kit persistence-gate check for the active project root, and completion cannot be claimed until that check is answered at the correct tier.
 
@@ -111,6 +114,8 @@ Do not claim completion without evidence from checks, inspection, or a clear exp
 Detect end-of-session or handoff intent in natural language, such as "收工", "Wrap up Agent Handoff", "closeout", "wrap up", or "handoff". If intent is ambiguous, ask one concise confirmation question.
 
 Ambiguous closeout phrases need one concise confirmation question before full closeout. In particular, if the user says "<something> 收工", "<something> close", or similar wording that may refer to a real-world shift, event, project phase, or another context, ask whether they mean to wrap up Agent Handoff Kit and write the project handoff.
+
+If the user sends only a clear closeout phrase such as "收工", "wrap up", "handoff", or "Wrap up Agent Handoff", do not answer with a summary-only message. Enter full closeout immediately: announce that Agent Handoff Kit closeout is starting, read the current handoff/log/index, reconcile state, write the required files, run the available checks, and only then show the closeout card. A final chat summary without updated handoff/log/prompt evidence is not closeout.
 
 At full closeout:
 

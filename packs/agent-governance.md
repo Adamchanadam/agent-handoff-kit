@@ -10,6 +10,7 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 - A change affects `AGENTS.md`, `dev/*`, rule packs, installer templates, or durable workflow docs.
 - User asks to "治理打通", "把文件接入 Agent Handoff Kit", "接入 Agent Handoff Kit", "掃描未接入 Agent Handoff Kit 的重要文件", "bridge governance", "connect this document to governance", or scan for unbridged governance documents.
 - User asks to make something long-term, cross-session, reusable, "寫入長期治理", "轉成長期機制", "之後都要遵守", or says future sessions should remember an API / MCP / tool-use pattern.
+- The task creates or materially changes Markdown documents, generated outputs, specifications, runbooks, checklists, guides, source-of-truth files, or research artifacts that future agents may need to discover.
 
 ## Rules
 
@@ -24,6 +25,8 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 9. Governance bridge is a triggered review, not a default startup scan. Use it when an important file, source-of-truth document, runbook, production guide, workflow, checklist, stock list, or similar durable document may need to be connected to project governance.
 10. Content-based trigger: long-term governance routing is content-based, not trigger-only. Even if the user does not say "轉成長期機制" or "寫入長期治理", treat a statement as durable governance when it says future sessions must follow it, when it corrects a recurring AI mistake, or when it defines a reusable API / MCP / tool-use pattern. Do not persist long-term governance knowledge only in `dev/SESSION_LOG.md`, `dev/SESSION_HANDOFF.md`, or `START_NEXT_SESSION_PROMPT.txt`; those surfaces may be compressed, archived, or regenerated.
 11. Mid-task changes to product goals, requirements, development checklists, acceptance rules, exclusions, priorities, or scope are task contract changes. Before writing them, check whether the same contract already lives in a spec, backlog, issue list, README, runbook, project index entry, or handoff section. Merge into the existing authoritative home, then leave only a pointer or current-state summary elsewhere.
+12. New Markdown or generated documents are not automatically harmless. After creating or materially changing them, classify each artifact before completion: source of truth, reference, runbook, workflow, checklist, public document, generated output, one-time evidence, draft, or temporary. Durable artifacts must be discoverable from `dev/PROJECT_INDEX.md` or intentionally tied to a registered sync / source-of-truth row. Temporary or one-time evidence must be labeled as such in the task record or closeout so future agents do not treat it as hidden current state.
+13. Do not create a new document to hold a rule, requirement, checklist, or process if an existing authoritative document can carry it. Merge into the existing home or make the new document explicitly subordinate. If two files now carry the same durable instruction, resolve the duplicate by choosing one authoritative home and pointing the other to it.
 
 ## Governance Bridge Workflow
 
@@ -39,6 +42,18 @@ Use this workflow when the user asks for governance bridge / 治理打通 / 把�
 8. Search for duplicate source-of-truth risk. If another file has the same durable role, recommend merge, reference, or retire options; do not delete, rename, or move files without explicit approval.
 
 For repo-wide scans, report candidates as candidates. Do not fail ordinary docs merely because they are not indexed; only durable files that future agents need to discover, update, or distinguish from drafts should be bridged.
+
+## Generated Artifact Governance Workflow
+
+Use this workflow whenever the current task creates or materially changes Markdown documents or other durable artifacts, even if the user did not explicitly ask for governance bridge.
+
+1. List the artifacts created or materially changed in this task.
+2. Classify each artifact: source of truth, reference, runbook, workflow, checklist, public document, generated output, one-time evidence, draft, or temporary.
+3. For source-of-truth, reference, runbook, workflow, checklist, public document, and reusable generated output, update `dev/PROJECT_INDEX.md` so the file is discoverable with a role and read condition.
+4. For artifacts that require future mirror, external index, publication, or repeated sync, update `dev/DOC_SYNC_REGISTRY.md` or record why no durable sync rule applies.
+5. For one-time evidence, draft, or temporary files, record that classification in `dev/SESSION_LOG.md` or the task summary, and do not promote it to current handoff unless it affects the next action.
+6. Search for duplicate source-of-truth risk before keeping a new document. If another file already owns the same rule, requirement, checklist, or process, merge into that file or make the new document explicitly subordinate.
+7. Before claiming completion, run the available project governance check or `agent-handoff-kit doctor`; if it reports orphan artifact candidates, register, consolidate, or explicitly classify them.
 
 ## Long-term Governance Routing
 
@@ -73,6 +88,8 @@ Output format:
 - Check `dev/DOC_SYNC_REGISTRY.md` for governance, closeout/startup, and README sync rows.
 - Confirm old overlapping wording was retired or marked legacy.
 - Confirm any new durable file is reachable from `dev/PROJECT_INDEX.md` and does not rely only on a one-session handoff note.
+- Confirm every Markdown document or generated artifact created in this task is indexed, synced, consolidated, or explicitly classified as draft / temporary / one-time evidence.
+- Confirm no new file has become a parallel source for an existing rule, requirement, checklist, or process.
 - Confirm reusable operating procedure knowledge is not stored only in `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, or a decision narrative when it belongs in a pack or registered reference.
 - Confirm long-term governance knowledge is promoted out of `dev/SESSION_LOG.md`, `dev/SESSION_HANDOFF.md`, and `START_NEXT_SESSION_PROMPT.txt` when it should survive log archive or prompt regeneration.
 - For governance bridge work, confirm the target file, project index, sync registry, related workflow, handoff/log role split, and duplicate-source risk were all checked or explicitly marked not applicable.

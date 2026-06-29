@@ -38,6 +38,7 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 | Test suite | TBD | TBD |
 | Runbook | TBD | TBD |
 | Public docs | TBD | TBD |
+| Generated artifact review | `dev/PROJECT_INDEX.md` + `dev/DOC_SYNC_REGISTRY.md` | After creating Markdown docs, generated outputs, specs, runbooks, checklists, or research artifacts, classify each artifact as indexed / synced / temporary / one-time evidence before completion |
 
 ## Fact Base
 
@@ -100,8 +101,8 @@ Reachable means the source can be found. It does not mean the source has been re
 
 | Check | Command | Run before | Last verified |
 |---|---|---|---|
-| Agent Handoff Kit doctor | TBD | closeout / governance changes | TBD |
-| Project governance check | TBD | closeout / durable file changes | TBD |
+| Agent Handoff Kit doctor | `npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .` | closeout / governance changes / generated Markdown artifact checks | package latest |
+| Project governance check | Check newly created Markdown / durable artifacts against `dev/PROJECT_INDEX.md` and `dev/DOC_SYNC_REGISTRY.md`; register, sync, consolidate, or explicitly classify as temporary / one-time evidence | closeout / durable file changes | unverified until project-specific command exists |
 
 ## Workspace Identity
 
@@ -123,6 +124,7 @@ Record this at closeout so the next AI can detect wrong-root or workspace drift.
 | UI behavior | TBD | build + visual/manual check |
 | Data model | TBD | migration/checks |
 | Governance behavior | `AGENTS.md`, `dev/*` | doc sync registry |
+| Generated Markdown or durable artifact | `docs/`, `outputs/`, root Markdown files, project-specific reference folders | classify as indexed / synced / temporary / one-time evidence; update `dev/PROJECT_INDEX.md` or `dev/DOC_SYNC_REGISTRY.md` when durable |
 | Closeout/startup contract | `AGENTS.md`, `START_NEXT_SESSION_PROMPT.txt`, `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md` | opening message present + workspace identity current + prompt file regenerated from handoff at closeout |
 
 ## External Services

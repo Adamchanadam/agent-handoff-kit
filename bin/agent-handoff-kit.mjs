@@ -60,6 +60,7 @@ const requiredAnchors = [
       "Do not treat unread sources as absent",
       "Task contract changes are durable facts",
       "External Impact Note",
+      "ARTIFACT GOVERNANCE GATE",
       // R-030 v0.3.0+: forces managed-core merge on v0.2.x → v0.3.0 upgrade to propagate
       // startup availability probe + integrations pack reference + credential separation discipline.
       "startup availability probe",
@@ -89,6 +90,7 @@ const requiredAnchors = [
       "next-session startup entry",
       "State Reconciliation Check",
       "handoff lifecycle consistency",
+      "A final chat summary without updated handoff/log/prompt evidence is not closeout",
       "Do not append a new state snapshot",
       "START_NEXT_SESSION_PROMPT.txt"
     ]
@@ -811,6 +813,23 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
+  const artifactResult = await checkGeneratedMarkdownGovernance(root);
+  console.log(`\ngenerated markdown governance checks: ${artifactResult.checked}`);
+  console.log(`${artifactResult.ok ? "ok" : "missing"}  dev/PROJECT_INDEX.md (generated Markdown / durable artifact registration)`);
+  if (!artifactResult.ok) {
+    for (const finding of artifactResult.findings) {
+      console.log(`  missing: ${finding}`);
+    }
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked + temperatureResult.checked + artifactResult.checked,
+      failedKind: "generated markdown governance checks",
+      failedCount: artifactResult.findings.length,
+      nextStep: "把新生成或新修改的 Markdown / durable artifact 登記到 dev/PROJECT_INDEX.md，或在 SESSION_LOG / task summary 明確標成 draft、temporary 或 one-time evidence；如內容重複，先合併到單一真源。"
+    });
+    process.exitCode = 1;
+    return "failed";
+  }
+
   const mirrorRows = await checkPromptMirror(root);
   const mirrorBlockingFailures = mirrorRows.filter((row) => !row.ok && row.reason !== "convenience copy differs from dev/SESSION_HANDOFF.md");
   const mirrorWarnings = mirrorRows.filter((row) => !row.ok && row.reason === "convenience copy differs from dev/SESSION_HANDOFF.md");
@@ -869,7 +888,7 @@ async function runDoctor(root, version, options = {}) {
 
   const overallHealthy = credentialResult.ok;
   printDoctorSummary(version, root, overallHealthy ? "healthy" : "needs-attention", {
-    checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked + temperatureResult.checked + mirrorRows.length + 2,
+      checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked + temperatureResult.checked + artifactResult.checked + mirrorRows.length + 2,
     failedKind: !credentialResult.ok ? "credential leak" : null,
     failedCount: !credentialResult.ok ? credentialResult.findings.length : 0,
     warningKind: mirrorWarnings.length > 0 ? "prompt mirror warning" : null,
@@ -917,6 +936,105 @@ async function checkResearchDecisionTrace(root) {
   });
 
   return { ok: findings.length === 0, checked: 1, findings };
+}
+
+async function checkGeneratedMarkdownGovernance(root) {
+  let indexText = "";
+  let logText = "";
+  let handoffText = "";
+  try {
+    indexText = await readFile(path.join(root, "dev/PROJECT_INDEX.md"), "utf8");
+  } catch {
+    return { ok: false, checked: 1, findings: ["dev/PROJECT_INDEX.md unreadable; cannot verify generated Markdown governance"] };
+  }
+  try {
+    logText = await readFile(path.join(root, "dev/SESSION_LOG.md"), "utf8");
+  } catch {
+    logText = "";
+  }
+  try {
+    handoffText = await readFile(path.join(root, "dev/SESSION_HANDOFF.md"), "utf8");
+  } catch {
+    handoffText = "";
+  }
+
+  const markdownFiles = await listMarkdownFiles(root);
+  const findings = [];
+  for (const rel of markdownFiles) {
+    if (!isGeneratedArtifactCandidate(rel)) continue;
+    if (isArtifactGoverned(rel, { indexText, logText, handoffText })) continue;
+    findings.push(`${rel} is not registered in dev/PROJECT_INDEX.md and is not explicitly classified as draft / temporary / one-time evidence`);
+  }
+
+  return { ok: findings.length === 0, checked: 1, findings };
+}
+
+async function listMarkdownFiles(root) {
+  const results = [];
+  async function walk(dir) {
+    let entries = [];
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name === ".git" || entry.name === "node_modules") continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
+      results.push(path.relative(root, full).split(path.sep).join("/"));
+    }
+  }
+  await walk(root);
+  return results.sort();
+}
+
+function isGeneratedArtifactCandidate(rel) {
+  const normalized = rel.replaceAll("\\", "/");
+  const lower = normalized.toLowerCase();
+  const kitManaged = new Set([
+    "agents.md",
+    "claude.md",
+    "gemini.md",
+    "readme.md",
+    "dev/session_handoff.md",
+    "dev/session_log.md",
+    "dev/project_index.md",
+    "dev/doc_sync_registry.md",
+    "dev/rule_packs.md",
+    "dev/project_decisions.md"
+  ]);
+  if (kitManaged.has(lower)) return false;
+  if (lower.startsWith("dev/rules/")) return false;
+  if (lower.startsWith("dev/governance_migrations/")) return false;
+  if (lower.startsWith("dev/session_log_archive/")) return false;
+  if (lower.startsWith("docs/")) return true;
+  if (lower.startsWith("outputs/")) return true;
+  if (lower.startsWith("output/")) return true;
+  if (lower.startsWith("research/")) return true;
+  if (lower.startsWith("references/")) return true;
+  if (lower.startsWith("reference/")) return true;
+  if (lower.startsWith("runbooks/")) return true;
+  if (lower.startsWith("specs/")) return true;
+  if (lower.startsWith("requirements/")) return true;
+  return !normalized.includes("/");
+}
+
+function isArtifactGoverned(rel, { indexText, logText, handoffText }) {
+  const normalized = rel.replaceAll("\\", "/");
+  if (indexText.includes(normalized)) return true;
+  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const labels = "(draft|temporary|one-time evidence|non-authoritative|not source of truth|草稿|臨時|暫存|一次性|非真源|非權威)";
+  const afterPath = new RegExp(`${escaped}[\\s\\S]{0,240}${labels}`, "i");
+  const beforePath = new RegExp(`${labels}[\\s\\S]{0,240}${escaped}`, "i");
+  return afterPath.test(logText)
+    || beforePath.test(logText)
+    || afterPath.test(handoffText)
+    || beforePath.test(handoffText);
 }
 
 function stripFencedCodeBlocks(text) {
@@ -1182,7 +1300,7 @@ function printDoctorSummary(version, root, mode, details) {
     }
   } else {
     console.log(`status: failed (${details.failedCount} ${details.failedKind} failed)`);
-    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : details.failedKind === "research decision trace checks" ? "研究導向決策缺少可追溯來源鏈。" : details.failedKind === "handoff temperature boundary checks" ? "當前交接內容混入一次性或歷史證據。" : "下次開工提示副本與 handoff 真源不同。"}`);
+    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : details.failedKind === "research decision trace checks" ? "研究導向決策缺少可追溯來源鏈。" : details.failedKind === "handoff temperature boundary checks" ? "當前交接內容混入一次性或歷史證據。" : details.failedKind === "generated markdown governance checks" ? "有 Markdown 或 durable artifact 未完成入庫、同步或臨時分類。" : "下次開工提示副本與 handoff 真源不同。"}`);
   }
   console.log("");
   console.log(`📦 版本：v${version}`);
