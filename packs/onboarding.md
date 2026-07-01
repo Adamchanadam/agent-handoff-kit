@@ -291,7 +291,7 @@ Onboarding 第一個可見回覆只能有一張完整啟動卡，然後直接接
 - AI sample wording：
   > 「我會將你已聲明的工具寫入項目登記表：
   >
-  > - `## Installed Integrations` `### Connectors` 表填 Notion / Google Drive 等 entries（每個含 Project Usage / Access Scope / Specific Instance / Credential Location / Declared / Last Verified）
+  > - `## Installed Integrations` `### Connectors` 表填 Notion / Google Drive 等 entries（每個含 Project Usage / Access Scope / Specific Instance / Credential Reference（no value）/ Declared / Last Verified）
   > - `## Installed Integrations` `### Source-of-truth Architecture` sub-table 填多層分工
   > - 既有 `## External Sources` 表的 `via` column 引用對應 Connector entry
   >
@@ -303,9 +303,9 @@ Onboarding 第一個可見回覆只能有一張完整啟動卡，然後直接接
 - AI sample wording：
   > 「聲明已寫好。我會檢查每個外部工具在本次對話是否可用：
   >
-  > - Notion：試 `mcp__notion__search` 確認 DB accessible
-  > - Google Drive：試 `mcp__google-drive__list` 確認 folder accessible
-  > - 其他類似
+  > - Connector / MCP：先讀本次 runtime 暴露的工具名稱、描述與輸入 schema，再做最小 probe
+  > - API / SDK / CLI / URI / plugin API：先查官方文件、官方型別 / sample，或有版本日期的本地 runbook
+  > - 不能核實的工具：標記 blocked / unverified，不憑記憶試錯
   >
   > 檢查結果會寫入每行 `Last Verified` 欄位。如果任何外部工具不可用（例如目前 AI 工具未配對應 MCP），我會直接說明，讓你決定如何處理。
   >

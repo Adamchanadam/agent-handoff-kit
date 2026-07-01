@@ -29,7 +29,7 @@ When creating or materially changing Markdown files, generated documents, resear
 
 After reading `dev/PROJECT_INDEX.md`, if `## Installed Integrations` is non-empty, run startup availability probe (R-030 Integration governance discipline; see `dev/rules/integrations.md`):
 
-- For each declared Integration under Connectors / MCPs subsection, attempt minimal capability probe (e.g. for Notion: try `mcp__notion__search` with project DB name; for Drive: try `mcp__google-drive__list` with project folder).
+- For each declared Integration under Connectors / MCPs subsection, attempt a minimal capability probe using the active runtime's currently exposed tool name, description, and input schema. Do not invent `mcp__*` names or arguments from examples or memory.
 - If probe succeeds: update the corresponding `Last Verified` cell to today's date; proceed normally.
 - If probe fails (current AI tool lacks the Connector / auth expired / network issue): print warning in the startup card (`⚠️ Boundary` line) noting which Integration is declared-but-unavailable + that this session will fallback to paste flow when that external surface is touched. Do not attempt to auto-fix auth or credential issues; surface to the user to handle via the AI tool's own settings interface.
 - Credential separation: AI must never request, log, or persist credential values (API keys / OAuth tokens / app secrets / refresh tokens). Credentials live in OS-level secure storage or AI-tool-specific config, never in `dev/*` files. Recognize common credential prefixes (`sk-`, `sk-ant-`, `ntn_`, `secret_`, `ya29.`, `1//`, `xoxp-`, `xoxb-`, `ghp_`, `gho_`, `ghs_`, `github_pat_`, `sl.`, `AKIA`, `AIza`) and redact + warn the user to rotate the token if accidentally pasted.

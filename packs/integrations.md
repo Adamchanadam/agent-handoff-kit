@@ -20,13 +20,14 @@
 
 ### 1. 機密分離原則（最高優先）
 
-**Credential（API key / OAuth token / app secret / refresh token）由 AI 工具自身 secure storage 管理**，與本 Kit 完全分離：
+**Credential（API key / OAuth token / app secret / refresh token）由 AI 工具自身 secure storage、OS credential store、tool config、或用戶自管 secret store 管理**，與本 Kit 完全分離：
 
-| 儲存層 | 例子 | 加密方式 |
+| 儲存層 | 例子 | Kit 可記錄內容 |
 |--------|------|----------|
-| Claude Desktop Extensions（one-click install） | Notion / Slack / Linear / Google Drive / Atlassian 等 | OS Keychain (macOS) / Credential Manager (Windows) auto-encrypt |
-| Claude Code MCP config | `~/.config/claude-code/mcp.json` 等（manual setup） | 用戶自管（env var / OS secure storage） |
-| 其他 AI tool（Codex / Gemini CLI 等）自身 config | tool-specific 路徑 | tool-specific 加密 |
+| AI tool secure storage / Connector storage | Notion / Slack / Linear / Google Drive / Atlassian 等 | 只記 `AI tool secure storage` 或 connector 名稱，不記 value |
+| OS credential store | macOS Keychain / Windows Credential Manager / Linux secret service 等 | 只記 `OS credential store`，不讀取、不導出 value |
+| Tool config / env indirection | Claude Code MCP config / 其他 AI tool config / env var | 只記 config 位置或 env var name；不可讀取、貼出、保存 env value |
+| User-managed secret store | 由用戶或團隊管理嘅 vault / secret manager | 只記 store 類型或 owner，具體 secret value 由用戶管理 |
 
 Kit 嘅 `dev/` folder **任何檔都不 touch credential value**。三條硬性 enforcement：
 
@@ -34,27 +35,41 @@ Kit 嘅 `dev/` folder **任何檔都不 touch credential value**。三條硬性 
 2. AI 識別到 credential prefix（`sk-` / `sk-ant-` / `ntn_` / `secret_` / `ya29.` / `1//` / `xoxp-` / `xoxb-` / `ghp_` / `gho_` / `ghs_` / `github_pat_` / `sl.` / `AKIA` / `AIza` 等）會即時 redact + warn 用戶 rotate token
 3. 寫入 `dev/PROJECT_INDEX.md` `## Installed Integrations` 前 self-check 確認無 credential leak；doctor `checkInstalledIntegrationsCredentialLeak()` 對 PROJECT_INDEX + SESSION_HANDOFF + SESSION_LOG 三個 surface 強制 grep
 
-### 2. 四類整合嘅紀律差異
+### 2. External Tool Usage Verification Gate
 
-#### 2.1 Connectors（Anthropic 官方 vetted）
+AI must not use model memory, old session experience, copied examples, Connector marketing text, or guessed command shapes as the source for external-tool usage. Before first use of an external tool layer in the current task, and again before any write, destructive action, permission-sensitive action, raw API / SDK / CLI / URI call, plugin API change, or retry after `unknown tool`, `invalid arguments`, HTTP 400 / 404, permission, auth, or schema errors, verify the current usage source for that layer:
 
-Anthropic 官方 directory 嘅 ready-to-use MCP server（譬如 Notion / Slack / Linear / Google Drive / Atlassian / HubSpot / 等）。用戶經 Claude Desktop Settings → Extensions → Browse 一鍵安裝，credential 自動加密儲存喺 OS Keychain / Credential Manager。
+| Layer | Required current source before invocation |
+|---|---|
+| Connector / MCP tool | Current runtime-exposed tool name, description, and input schema. Use the tool list/schema exposed by the active AI runtime or MCP server; do not invent `mcp__*` names or arguments. |
+| Plugin / Skill | Current plugin/skill instructions plus any registered MCP tool schema it exposes. |
+| Raw API / SDK / CLI / URI | Current official documentation or a project-local runbook that states source, version/date, and scope. If the runbook lacks those, verify against official docs. |
+| Local app plugin API | Official API documentation, official type definitions, official sample project, or local installed package types matching the project version. |
+| Project-local runbook | Accept as a task source only when it records the upstream source, version/date, scope, and known limits. |
+
+If the required source cannot be inspected, mark the tool use `blocked` or `unverified`, ask the user for the current docs/schema/runbook, or fall back to a manual packet. Do not continue by trial and error. Connector-first means schema-first for the active runtime, not memory-first.
+
+### 3. 四類整合嘅紀律差異
+
+#### 3.1 Connectors（Anthropic 官方 vetted）
+
+Anthropic 官方 directory 嘅 ready-to-use MCP server（譬如 Notion / Slack / Linear / Google Drive / Atlassian / HubSpot / 等）。用戶經 Claude Desktop Settings → Extensions → Browse 一鍵安裝，credential 由 AI tool secure storage / OS credential store / connector storage 管理。
 
 紀律：
-- AI 可使用 `mcp__<connector_name>__*` tool 直接 read / write
+- AI 可使用 active runtime 已暴露、且已讀取 tool description / input schema 嘅 Connector tool 直接 read / write
 - Write operations 必 read-back verify 後才聲稱成功（沿用 `packs/knowledge.md` Rule 6 紀律）
 - Auth 失敗（token expired / revoked）即 surface「請開 Claude Desktop Settings → Extensions → 重新 authenticate」+ 唔嘗試自動 fix
 
-#### 2.2 MCPs（community / custom）
+#### 3.2 MCPs（community / custom）
 
 非 Anthropic 官方 vetted 嘅 MCP server，譬如 community 開發、用戶自建。需要 manual config（譬如 `~/.config/claude-code/mcp.json`）。
 
 紀律：
-- 用 `mcp__<server_name>__*` tool（同 Connectors 一樣 namespace）
+- 用 active runtime 已暴露、且已讀取 tool description / input schema 嘅 MCP tool（同 Connectors 一樣遵守 schema-first）
 - 因為非官方 vetted，AI 對 write operation 加倍小心：destructive writes 必先 dry-run + 用戶 confirm（沿用 `packs/safety.md` Rule 1）
 - Server 失靈（process crash / config error）即 surface「請檢查 MCP config + 重啟 AI tool」+ 唔嘗試自動 fix
 
-#### 2.3 Plugins（Claude Code plugin bundle）
+#### 3.3 Plugins（Claude Code plugin bundle）
 
 distribution format，bundle = Skills + MCP server config + hooks。用戶經 `/plugin` command 安裝。
 
@@ -63,7 +78,7 @@ distribution format，bundle = Skills + MCP server config + hooks。用戶經 `/
 - 若 plugin 提供 skill，AI 按 skill 觸發條件自動 invoke（同 system skill 紀律一致）
 - 若 plugin 提供 MCP server，當 Connector / MCP 處理（見 2.1 / 2.2）
 
-#### 2.4 Skills（SKILL.md instruction set）
+#### 3.4 Skills（SKILL.md instruction set）
 
 content format，由 Plugin 攜帶或 user-level / project-level 直接安裝。
 
@@ -72,7 +87,7 @@ content format，由 Plugin 攜帶或 user-level / project-level 直接安裝。
 - Skill 內容屬 instruction overlay，與 rule pack 紀律 layer 共存
 - 若 skill 與 rule pack 紀律有 conflict，rule pack（safety / governance 等）優先
 
-### 3. Source-of-truth Architecture（多層持久化組合）
+### 4. Source-of-truth Architecture（多層持久化組合）
 
 當項目用多個整合構成 source-of-truth 架構（譬如 Notion DB Index + 本機真源 + Google Drive 參考檔），AI 必先讀 `dev/PROJECT_INDEX.md` `## Installed Integrations` `### Source-of-truth Architecture` sub-table，識別每層分工：
 
@@ -85,7 +100,7 @@ content format，由 Plugin 攜帶或 user-level / project-level 直接安裝。
 
 每個 Layer 由邊個 Integration 承擔由 PROJECT_INDEX schema 明示。AI 唔可越層（譬如將 Index 當真源、將 Working draft 直接 push 上 mirror）。
 
-### 4. Cross-session Lifecycle（6 階段）
+### 5. Cross-session Lifecycle（6 階段）
 
 #### 階段 0 — First-contact declaration（onboarding 階段）
 
@@ -101,10 +116,10 @@ content format，由 Plugin 攜帶或 user-level / project-level 直接安裝。
 
 #### 階段 3 — Startup availability probe
 
-新 AI session 開工讀 PROJECT_INDEX 後，對每個 declared Integration 跑 minimal capability probe（譬如 Notion 試 `mcp__notion__search`、Drive 試 `mcp__google-drive__list`）。
+新 AI session 開工讀 PROJECT_INDEX 後，對每個 declared Integration 跑 minimal capability probe。Probe 必須使用 active runtime 目前暴露、且已讀取 description / input schema 嘅 tool；不可照抄舊例子或憑記憶猜 tool name / arguments。
 
 - Probe success → update `Last Verified` cell + 進入正常 task loop
-- Probe fail（current AI tool 冇裝 / auth expired / network 問題）→ startup card warn 一句「⚠️ Boundary: Notion Connector declared 但 mcp__notion__* unavailable，will fallback to paste flow」；用戶決定點處理
+- Probe fail（current AI tool 冇裝 / auth expired / network 問題）→ startup card warn 一句「⚠️ Boundary: <tool> declared but unavailable in this runtime; will fallback to paste flow when that surface is touched」；用戶決定點處理
 
 #### 階段 4 — Task execution（knowledge pack Rule 5 配合）
 
@@ -130,19 +145,21 @@ content format，由 Plugin 攜帶或 user-level / project-level 直接安裝。
 ## Rules
 
 1. **Credential 機密分離**：AI 不要求用戶喺對話貼 credential；識別 credential prefix 即 redact + warn rotate；寫 PROJECT_INDEX 前 self-check 無 credential leak。
-2. **Declaration before use**：任務涉及外部工具前，先讀 `dev/PROJECT_INDEX.md` `## Installed Integrations`；無 declaration 即 ask user about Integration status，唔自己假設未裝。
-3. **Connector-first default**：當 declared Integration functional，優先使用直接 `mcp__*` tool call；paste fallback 只當 Integration unavailable 時。
-4. **Write operations read-back verify**：所有外部 write（Notion create-page / Drive upload / Slack post 等）必 read-back 對齊後才聲稱 success。
-5. **No auto-fix credential / auth issues**：Auth 失靈即 surface 俾用戶處理（指向 AI 工具設定界面），AI 唔嘗試自動 fix。
-6. **Cross-tool capability awareness**：新 session 開工 verify availability；若 current AI tool 冇相應整合，startup card warn + fallback。
-7. **Source-of-truth layer 唔越界**：真源層 AI 不直接寫；Index 層 AI 經 Connector 讀寫；Mirror 層用戶手動同步；Working draft 層 AI 直接 read/write 本機。
-8. **Drift event mandatory recording**：任何整合失靈 / unavailable 即更新 PROJECT_INDEX `Last Verified` cell + SESSION_LOG drift narrative + handoff next-session prompt 提示。
-9. **Plugin / Skill 紀律 subordinate**：若 Plugin 攜帶 Skill 觸發，與 rule pack 紀律 layer 共存；conflict 時 rule pack（safety / governance / closeout）優先。
+2. **External Tool Usage Verification Gate**：任務涉及外部工具前，先分類工具層並核對 current runtime schema、官方文件、官方型別 / sample、或有版本日期嘅本地 runbook；不能核實即 blocked / unverified，唔用模型記憶試錯。
+3. **Declaration before use**：任務涉及外部工具前，先讀 `dev/PROJECT_INDEX.md` `## Installed Integrations`；無 declaration 即 ask user about Integration status，唔自己假設未裝。
+4. **Connector-first default**：當 declared Integration functional，優先使用 active runtime 已暴露且已讀 schema 嘅 direct tool call；paste fallback 只當 Integration unavailable 時。
+5. **Write operations read-back verify**：所有外部 write（Notion create-page / Drive upload / Slack post 等）必 read-back 對齊後才聲稱 success。
+6. **No auto-fix credential / auth issues**：Auth 失靈即 surface 俾用戶處理（指向 AI 工具設定界面），AI 唔嘗試自動 fix。
+7. **Cross-tool capability awareness**：新 session 開工 verify availability；若 current AI tool 冇相應整合，startup card warn + fallback。
+8. **Source-of-truth layer 唔越界**：真源層 AI 不直接寫；Index 層 AI 經 Connector 讀寫；Mirror 層用戶手動同步；Working draft 層 AI 直接 read/write 本機。
+9. **Drift event mandatory recording**：任何整合失靈 / unavailable 即更新 PROJECT_INDEX `Last Verified` cell + SESSION_LOG drift narrative + handoff next-session prompt 提示。
+10. **Plugin / Skill 紀律 subordinate**：若 Plugin 攜帶 Skill 觸發，與 rule pack 紀律 layer 共存；conflict 時 rule pack（safety / governance / closeout）優先。
 
 ## Checks
 
 - 開工 verify `dev/PROJECT_INDEX.md` `## Installed Integrations` section 存在 + 4 subsection schema 完整
-- 開工對每 declared Integration 跑 capability probe，update `Last Verified` cell
+- 開工對每 declared Integration 跑 capability probe，probe 前先讀 current runtime tool description / input schema，update `Last Verified` cell
+- 外部工具首次調用、寫入、不可逆操作、API / SDK / CLI / URI / plugin API 使用、或工具錯誤後重試前，確認已核對 current runtime schema / 官方文件 / 官方型別 / 官方 sample / 有版本日期嘅 runbook
 - 任何 mid-session Integration drift 即 surface + 紀錄
 - Closeout 前確認 `Last Verified` cell 已 update 為今次 session 結果
 - Credential leak self-check 對 PROJECT_INDEX + SESSION_HANDOFF + SESSION_LOG 任何 write
@@ -163,7 +180,10 @@ content format，由 Plugin 攜帶或 user-level / project-level 直接安裝。
 | Anti-pattern | 點解唔做 | 正確做法 |
 |---|---|---|
 | 用戶提到 Notion / Google Drive 即假設冇 Connector，直接列 paste packet | 違反 2026-05 reality：Connector ecosystem 已成熟，paste-only fallback 不應係 default | 先 read PROJECT_INDEX Installed Integrations；無 declaration 即 ask user about Integration status |
-| 將 credential value 寫入 PROJECT_INDEX / SESSION_HANDOFF / SESSION_LOG | 違反機密分離原則 + git history 永久保留泄露 | Credential location 只記指向（譬如「Claude Desktop Extensions」），永不記 value |
+| 憑模型記憶猜 Notion / Google Drive / Obsidian / GitHub tool name、endpoint、CLI flag、URI param、plugin API | 會把過時訓練資料當現行指令，造成 unknown tool / invalid args / 400 / 404 / permission error 循環 | 先核對 active runtime tool schema、官方文件、官方型別 / sample、或有版本日期嘅本地 runbook；不能核實即 blocked / unverified |
+| Connector 介紹頁或舊例子當成可執行 schema | 介紹頁通常唔等於 current runtime 實際暴露 tool name / input schema | 以 active runtime tool list / schema 為準；官方文件只作 raw API / SDK / CLI / URI 或故障排查真源 |
+| unknown tool / invalid args 後連續改名或改參數試錯 | 同類盲試會製造新錯誤，掩蓋真正 schema / docs 缺口 | 停止同類重試，回到 External Tool Usage Verification Gate |
+| 將 credential value 寫入 PROJECT_INDEX / SESSION_HANDOFF / SESSION_LOG | 違反機密分離原則 + git history 永久保留泄露 | Credential reference 只記指向（譬如「AI tool secure storage」/「env var name only」），永不記 value |
 | 用戶喺對話貼 credential value，AI 直接 用 / 紀錄 | 違反 enforcement Rule 1 + 用戶可能誤泄露 | 即時 redact + warn 用戶 rotate token + 解釋機密分離原則 |
 | Auth 失靈即嘗試自動 fix / re-auth flow | 越界（屬 AI tool + 用戶範圍）+ 可能引入 credential exposure | Surface 失敗 + 指向 AI 工具設定界面 + 唔自動 fix |
 | Connector 寫入後唔 read-back verify | Write 可能 silently fail（rate limit / partial write）—— 用戶以為 success | 必 read-back verify 後才聲稱 success（沿用 knowledge Rule 6） |

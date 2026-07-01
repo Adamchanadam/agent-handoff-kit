@@ -58,21 +58,21 @@ Reachable means the source can be found. It does not mean the source has been re
 
 ## Installed Integrations
 
-> ⚠️ **機密分離原則**：本 section 只記錄 **項目使用紀錄** + **公開參考座標**（Notion DB 名 / URL / folder path 等），**絕對不記錄 API key / OAuth token / 任何 credential value**。Credential 應由 AI 工具自身 secure storage 管理（譬如 Claude Desktop Extensions 嘅 OS Keychain / Claude Code MCP config）。AI 寫入本 section 前必 self-check 確認無 credential leak；doctor 對本 section + SESSION_HANDOFF + SESSION_LOG 強制 grep credential prefix patterns（`sk-` / `ntn_` / `ya29.` / `xoxp-` / `ghp_` / `sl.` / `AKIA` / `AIza` 等）。
+> ⚠️ **機密分離原則**：本 section 只記錄 **項目使用紀錄** + **公開參考座標**（Notion DB 名 / URL / folder path 等），**絕對不記錄 API key / OAuth token / 任何 credential value**。Credential 應由 AI 工具自身 secure storage / OS credential store / tool config / user-managed secret store 管理；若使用 env，只可記錄 env var name，不可讀取、貼出或保存 value。AI 寫入本 section 前必 self-check 確認無 credential leak；doctor 對本 section + SESSION_HANDOFF + SESSION_LOG 強制 grep credential prefix patterns（`sk-` / `ntn_` / `ya29.` / `xoxp-` / `ghp_` / `sl.` / `AKIA` / `AIza` 等）。
 
 > 用途：新 AI session 開工讀本 section 知道項目可用嘅外部工具能力 + 各自分工。Declare 一次後跨 session AI 都會 leverage；每個 entry 必含 `Declared` + `Last Verified` 防漂移。
 
 ### Connectors（Anthropic 官方 vetted）
 
-| Tool | Project Usage | Access Scope | Specific Instance | Credential Location | Declared | Last Verified |
+| Tool | Project Usage | Access Scope | Specific Instance | Credential Reference（no value） | Declared | Last Verified |
 |------|---------------|--------------|-------------------|---------------------|----------|---------------|
-| TBD | TBD（譬如 DB Index 記真源 path / 持久化參考檔儲存） | read / read+write | TBD（譬如 DB 名 + URL / folder path） | TBD（譬如 `Claude Desktop Extensions`） | TBD | TBD |
+| TBD | TBD（譬如 DB Index 記真源 path / 持久化參考檔儲存） | read / read+write | TBD（譬如 DB 名 + URL / folder path） | TBD（譬如 `AI tool secure storage` / `OS credential store`） | TBD | TBD |
 
 ### MCPs（community / custom）
 
-| Server | Source | Project Usage | Credential Location | Declared | Last Verified |
+| Server | Source | Project Usage | Credential Reference（no value） | Declared | Last Verified |
 |--------|--------|---------------|---------------------|----------|---------------|
-| TBD | TBD（譬如 GitHub repo URL） | TBD | TBD（譬如 `Claude Code MCP config + env var`） | TBD | TBD |
+| TBD | TBD（譬如 GitHub repo URL） | TBD | TBD（譬如 `tool config + env var name only` / `user-managed secret store`） | TBD | TBD |
 
 ### Plugins（Claude Code plugin bundle）
 

@@ -12,7 +12,7 @@ Stable facts that should survive across sessions. Update only when they change, 
 3. Governance model: TBD
 4. Source-of-truth ownership: TBD
 5. Release / publish boundary: TBD
-6. Installed Integrations registry: `dev/PROJECT_INDEX.md` `## Installed Integrations` section is the project's authoritative declaration of installed Connectors / MCPs / Plugins / Skills + Source-of-truth Architecture sub-table. New AI session must read it after governance reads and run availability probe per `runtime-core/AGENTS.core.md` Section 1. Credential values never appear here or in any `dev/*` file — they live in AI tool secure storage only.
+6. Installed Integrations registry: `dev/PROJECT_INDEX.md` `## Installed Integrations` section is the project's authoritative declaration of installed Connectors / MCPs / Plugins / Skills + Source-of-truth Architecture sub-table. New AI session must read it after governance reads and run availability probe per `runtime-core/AGENTS.core.md` Section 1. Credential values never appear here or in any `dev/*` file — only credential references such as AI tool secure storage, OS credential store, tool config, user-managed secret store, or env var name may be recorded.
 
 <!-- ack:section:closeout-reconciled-state -->
 ## Closeout-Reconciled State

@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：目前版本為 `v0.3.32`。這是早期可用版本，仍在持續完善中。
+狀態：目前版本為 `v0.3.33`。這是早期可用版本，仍在持續完善中。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
@@ -145,7 +145,7 @@ AI 會處理檢查，不會把「檢查通過」誤當成已理解你的專案�
 | 寫文章 / README / 社交帖文 | 先確認讀者、目的、語氣和發布位置。 |
 | 查資料 / 比較工具 | 分清已驗證事實、來源摘要和 AI 推論。 |
 | 刪檔 / Git / 發佈 / npm | 高風險操作必須先說明影響，並等你確認。 |
-| Notion / Google Drive 等外部工具 | 先確認是否已連接；機密不寫入項目文件。 |
+| Notion / Google Drive 等外部工具 | 先核對目前工具 schema 或官方文件；機密不寫入項目文件。 |
 
 你只要用日常話說目的，例如「幫我改 README」、「幫我查這個工具是否適合」、「把這份文件接入 Agent Handoff Kit」。AI 會自己判斷要用哪些規則。
 
@@ -183,7 +183,7 @@ AI 應先判斷這條規則應放在哪裡：是一次性備忘、下次交接�
 
 - 禁止破壞性指令：例如 `rm -rf`、`git reset --hard`、強制推送、系統根路徑操作。
 - 機密保護：`.env`、API key、token 不可印出、不可提交、不可上傳。
-- 查證不猜：使用第三方服務或工具前先查官方文件；查不到就標示未核實。
+- 查證不猜：使用第三方服務、Connector、MCP、CLI、API 或 plugin API 前，先核對目前工具 schema、官方文件或有版本日期的本地 runbook；查不到就標示未核實。
 - 權限不足就停手：檔案被鎖或沒有權限時，輸出手動操作清單，不嘗試繞過。
 - 發佈需明確批准：建立版本標籤、GitHub Release、npm publish、部署或上傳，都不能因「準備好了」而自動執行。
 
@@ -198,7 +198,7 @@ Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templa
 
 ## ⚠️ 目前限制
 
-- 目前版本為 `v0.3.32`；正式安裝請以 npm registry `latest` 顯示為準。
+- 目前版本為 `v0.3.33`；正式安裝請以 npm registry `latest` 顯示為準。
 - 這是早期可用版本，仍在持續完善中。
 - 升級合併屬窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。

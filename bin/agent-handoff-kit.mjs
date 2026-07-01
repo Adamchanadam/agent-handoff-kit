@@ -236,6 +236,10 @@ const requiredAnchors = [
       "Plugins",
       "Skills",
       "機密分離原則",
+      "External Tool Usage Verification Gate",
+      "do not invent",
+      "input schema",
+      "official documentation",
       "Source-of-truth Architecture",
       "Cross-session Lifecycle",
       "Connector-first default",
@@ -348,8 +352,8 @@ const schemaChecks = [
       tableHeader("Check", "Command", "Run before", "Last verified"),
       tableHeader("Change type", "Likely files", "Required checks"),
       // R-030 v0.3.0+: Installed Integrations subsection table headers
-      tableHeader("Tool", "Project Usage", "Access Scope", "Specific Instance", "Credential Location", "Declared", "Last Verified"),
-      tableHeader("Server", "Source", "Project Usage", "Credential Location", "Declared", "Last Verified"),
+      tableHeader("Tool", "Project Usage", "Access Scope", "Specific Instance", "Credential Reference（no value）", "Declared", "Last Verified"),
+      tableHeader("Server", "Source", "Project Usage", "Credential Reference（no value）", "Declared", "Last Verified"),
       tableHeader("Name", "Bundle Content（Skills + MCP + hooks）", "When Triggered", "Last Verified"),
       tableHeader("Name", "Source", "When Triggered", "Last Verified"),
       tableHeader("Layer", "Surface（具體 instance）", "Role", "Write Direction")
@@ -1752,6 +1756,21 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
   }
+  if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade" && (
+    targetText.includes("Credential Location")
+    || targetText.includes("Claude Code MCP config + env var")
+    || targetText.includes("Credential 應由 AI 工具自身 secure storage 管理（譬如 Claude Desktop Extensions")
+  )) {
+    const mergedProjectIndex = mergeProjectIndexCredentialReferences(targetText);
+    if (mergedProjectIndex !== targetText) {
+      return {
+        ...base,
+        action: "merge",
+        reason: "update PROJECT_INDEX credential reference wording without changing user integration rows",
+        mergedText: mergedProjectIndex
+      };
+    }
+  }
   // R-030 v0.3.0+: dev/rules/onboarding.md gets ### Scenario F block auto-inserted before
   // ## Cross-reference to guide.html on upgrade if missing. NON-DESTRUCTIVE: existing Scenarios A-E
   // content and any user customization preserved. Step 1 micro-question additions to Scenarios A-E
@@ -2101,7 +2120,7 @@ function onboardingAnchorPlacement(snippet, text) {
 }
 
 function integrationsAnchorPlacement(snippet, text) {
-  if (snippet === "機密分離原則" || snippet === "Source-of-truth Architecture" || snippet === "Cross-session Lifecycle") {
+  if (snippet === "機密分離原則" || snippet === "External Tool Usage Verification Gate" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation" || snippet === "Source-of-truth Architecture" || snippet === "Cross-session Lifecycle") {
     return snippetAppearsBetweenHeadings(text, snippet, "## Discipline", "## Rules");
   }
   if (snippet === "Connector-first default") {
@@ -2175,10 +2194,10 @@ const semanticAnchorRepairStrategies = {
     } : null;
   },
   "dev/rules/integrations.md": (targetText, sourceText, missing) => {
-    const mergedIntegrations = mergeIntegrationsCredentialSection(targetText, sourceText, missing);
+    const mergedIntegrations = mergeIntegrationsSectionsByMissingAnchors(targetText, sourceText, missing);
     return mergedIntegrations ? {
       action: "merge",
-      reason: "restore integrations credential-separation section in semantic position",
+      reason: "restore integrations verification and credential sections in semantic position",
       mergedText: mergedIntegrations
     } : null;
   }
@@ -2244,6 +2263,26 @@ function mergeProjectIndexTemplateVersionRow(targetText, sourceText) {
   return lines.join("\n");
 }
 
+function mergeProjectIndexCredentialReferences(targetText) {
+  return targetText
+    .replace(
+      "Credential 應由 AI 工具自身 secure storage 管理（譬如 Claude Desktop Extensions 嘅 OS Keychain / Claude Code MCP config）。",
+      "Credential 應由 AI 工具自身 secure storage / OS credential store / tool config / user-managed secret store 管理；若使用 env，只可記錄 env var name，不可讀取、貼出或保存 value。"
+    )
+    .replaceAll(
+      "Credential Location",
+      "Credential Reference（no value）"
+    )
+    .replace(
+      "`Claude Desktop Extensions`",
+      "`AI tool secure storage` / `OS credential store`"
+    )
+    .replace(
+      "`Claude Code MCP config + env var`",
+      "`tool config + env var name only` / `user-managed secret store`"
+    );
+}
+
 function mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing) {
   if (!hasTrustedSafetyPackShape(targetText)) return null;
   const targetBounds = sectionBounds(targetText, "## Rules", "## Checks");
@@ -2280,16 +2319,61 @@ function mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing) {
   return changed ? targetLines.join("\n") : targetText;
 }
 
-function mergeIntegrationsCredentialSection(targetText, sourceText, missing) {
-  if (!missing.some((snippet) => snippet === "機密分離原則")) return null;
-  return replaceSectionByHeadingWithinBounds(
-    targetText,
-    sourceText,
-    /^### 1\. 機密分離原則/m,
-    /^### 2\. 四類整合嘅紀律差異/m,
-    "## Discipline",
-    "## Rules"
-  );
+function mergeIntegrationsSectionsByMissingAnchors(targetText, sourceText, missing) {
+  let merged = targetText;
+  let changed = false;
+
+  if (missing.some((snippet) => snippet === "機密分離原則")) {
+    const withCredential = replaceSectionByHeadingWithinBounds(
+      merged,
+      sourceText,
+      /^### 1\. (機密分離原則|credential-separation anchor removed from this stale local copy)/m,
+      /^### 2\. /m,
+      "## Discipline",
+      "## Rules"
+    );
+    if (!withCredential) return null;
+    merged = withCredential;
+    changed = true;
+  }
+
+  if (missing.some((snippet) => snippet === "External Tool Usage Verification Gate" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation")) {
+    const withVerificationGate = mergeIntegrationsVerificationGateSection(merged, sourceText);
+    if (!withVerificationGate) return null;
+    merged = withVerificationGate;
+    changed = true;
+  }
+
+  return changed ? merged : null;
+}
+
+function mergeIntegrationsVerificationGateSection(targetText, sourceText) {
+  if (countText(targetText, "## Discipline") !== 1 || countText(targetText, "## Rules") !== 1) return null;
+  const targetBounds = textSectionBounds(targetText, "## Discipline", "## Rules");
+  const sourceBounds = textSectionBounds(sourceText, "## Discipline", "## Rules");
+  if (!targetBounds || !sourceBounds) return null;
+
+  const boundedTarget = targetText.slice(targetBounds.start, targetBounds.end);
+  const boundedSource = sourceText.slice(sourceBounds.start, sourceBounds.end);
+  const sourceSection = extractSection(boundedSource, /^### 2\. External Tool Usage Verification Gate/m, /^### 3\. /m);
+  if (!sourceSection) return null;
+
+  const existingTargetSection = extractSection(boundedTarget, /^### 2\. External Tool Usage Verification Gate/m, /^### 3\. /m);
+  if (existingTargetSection) {
+    return `${targetText.slice(0, targetBounds.start + existingTargetSection.start)}${sourceSection.text}${targetText.slice(targetBounds.start + existingTargetSection.end)}`;
+  }
+
+  const oldFourTypesHeading = /^### 2\. 四類整合嘅紀律差異/m.exec(boundedTarget);
+  if (oldFourTypesHeading) {
+    return `${targetText.slice(0, targetBounds.start + oldFourTypesHeading.index)}${sourceSection.text}${targetText.slice(targetBounds.start + oldFourTypesHeading.index)}`;
+  }
+
+  const currentFourTypesHeading = /^### 3\. 四類整合嘅紀律差異/m.exec(boundedTarget);
+  if (currentFourTypesHeading) {
+    return `${targetText.slice(0, targetBounds.start + currentFourTypesHeading.index)}${sourceSection.text}${targetText.slice(targetBounds.start + currentFourTypesHeading.index)}`;
+  }
+
+  return null;
 }
 
 function hasTrustedSafetyPackShape(text) {
