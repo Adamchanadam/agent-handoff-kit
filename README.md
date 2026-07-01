@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：目前版本為 `v0.3.33`。這是早期可用版本，仍在持續完善中。
+狀態：目前版本為 `v0.3.34`。這是早期可用版本，仍在持續完善中。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
@@ -19,7 +19,7 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 1. 在你想使用 Agent Handoff Kit 的資料夾打開 AI，貼上這句話：
 
    ```text
-   請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html，並在這個資料夾安裝或升級 Agent Handoff Kit。
+   請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html ，並在這個資料夾安裝或升級 Agent Handoff Kit。
    ```
 
    你也可以先打開 [`agent-handoff-kit-ai-install.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html) 看看 AI 會照甚麼步驟處理。
@@ -198,7 +198,7 @@ Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templa
 
 ## ⚠️ 目前限制
 
-- 目前版本為 `v0.3.33`；正式安裝請以 npm registry `latest` 顯示為準。
+- 目前版本為 `v0.3.34`；正式安裝請以 npm registry `latest` 顯示為準。
 - 這是早期可用版本，仍在持續完善中。
 - 升級合併屬窄範圍策略，不是完整的複雜合併工具。
 - `doctor` 能檢查結構，不能代替 AI 對專案內容的理解。
