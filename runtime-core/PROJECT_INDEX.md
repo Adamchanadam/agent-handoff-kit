@@ -54,48 +54,48 @@ Reachable means the source can be found. It does not mean the source has been re
 |---|---|---|---|---|---|---|
 | TBD | source of truth / mirror / index / attachment store | TBD | URL, connector, or manual packet | `Notion Connector` / `Google Drive Connector` / `manual paste` / etc — must match an entry under `## Installed Integrations` | read-back required / manual only / no write | TBD |
 
-> `via` column 紀律：每行 External Sources 必引用 `## Installed Integrations` 嘅 entry 名稱（譬如 `Notion Connector`、`Google Drive Connector`），確認該 source 經邊個 integration 訪問；無 declared Integration 嘅 source 用 `manual paste`。Cross-section consistency 由 doctor + qa:release 強制 enforce。
+> `via` column discipline: every External Sources row must reference an entry name under `## Installed Integrations`, such as `Notion Connector` or `Google Drive Connector`, so the access path is explicit. Sources without a declared integration use `manual paste`. Doctor and release QA enforce cross-section consistency.
 
 ## Installed Integrations
 
-> ⚠️ **機密分離原則**：本 section 只記錄 **項目使用紀錄** + **公開參考座標**（Notion DB 名 / URL / folder path 等），**絕對不記錄 API key / OAuth token / 任何 credential value**。Credential 應由 AI 工具自身 secure storage / OS credential store / tool config / user-managed secret store 管理；若使用 env，只可記錄 env var name，不可讀取、貼出或保存 value。AI 寫入本 section 前必 self-check 確認無 credential leak；doctor 對本 section + SESSION_HANDOFF + SESSION_LOG 強制 grep credential prefix patterns（`sk-` / `ntn_` / `ya29.` / `xoxp-` / `ghp_` / `sl.` / `AKIA` / `AIza` 等）。
+> **Credential Separation Principle**: this section records only project usage and public reference coordinates such as Notion database names, URLs, or folder paths. It must never record API keys, OAuth tokens, or credential values. Credentials belong in AI runtime secure storage, OS credential stores, tool configuration, or user-managed secret stores. If an environment variable is used, record only the variable name, never the value. Before writing this section, self-check that no credential value is being persisted. Doctor scans this section, `SESSION_HANDOFF`, and `SESSION_LOG` for common credential prefixes such as `sk-`, `ntn_`, `ya29.`, `xoxp-`, `ghp_`, `sl.`, `AKIA`, and `AIza`.
 
-> 用途：新 AI session 開工讀本 section 知道項目可用嘅外部工具能力 + 各自分工。Declare 一次後跨 session AI 都會 leverage；每個 entry 必含 `Declared` + `Last Verified` 防漂移。
+> Purpose: a new AI session reads this section to understand declared external-tool capabilities and their project roles. Declarations persist across sessions. Every entry must include `Declared` and `Last Verified` fields so stale capability assumptions can be detected.
 
-### Connectors（Anthropic 官方 vetted）
+### Connectors
 
-| Tool | Project Usage | Access Scope | Specific Instance | Credential Reference（no value） | Declared | Last Verified |
+| Tool | Project Usage | Access Scope | Specific Instance | Credential Reference (no value) | Declared | Last Verified |
 |------|---------------|--------------|-------------------|---------------------|----------|---------------|
-| TBD | TBD（譬如 DB Index 記真源 path / 持久化參考檔儲存） | read / read+write | TBD（譬如 DB 名 + URL / folder path） | TBD（譬如 `AI tool secure storage` / `OS credential store`） | TBD | TBD |
+| TBD | TBD, for example an index of source paths or persistent reference storage | read / read+write | TBD, for example database name + URL or folder path | TBD, for example `AI tool secure storage` / `OS credential store` | TBD | TBD |
 
-### MCPs（community / custom）
+### MCPs
 
-| Server | Source | Project Usage | Credential Reference（no value） | Declared | Last Verified |
+| Server | Source | Project Usage | Credential Reference (no value) | Declared | Last Verified |
 |--------|--------|---------------|---------------------|----------|---------------|
-| TBD | TBD（譬如 GitHub repo URL） | TBD | TBD（譬如 `tool config + env var name only` / `user-managed secret store`） | TBD | TBD |
+| TBD | TBD, for example GitHub repository URL | TBD | TBD, for example `tool config + env var name only` / `user-managed secret store` | TBD | TBD |
 
-### Plugins（Claude Code plugin bundle）
+### Plugins
 
-| Name | Bundle Content（Skills + MCP + hooks） | When Triggered | Last Verified |
+| Name | Bundle Content (Skills + MCP + hooks) | When Triggered | Last Verified |
 |------|----------------------------------------|----------------|---------------|
 | TBD | TBD | TBD | TBD |
 
-### Skills（SKILL.md instruction set）
+### Skills
 
 | Name | Source | When Triggered | Last Verified |
 |------|--------|----------------|---------------|
-| TBD | TBD（譬如 plugin bundle / user-level install） | TBD | TBD |
+| TBD | TBD, for example plugin bundle or user-level install | TBD | TBD |
 
-### Source-of-truth Architecture（多層持久化組合）
+### Source-of-truth Architecture
 
-> 當項目用多個整合構成 source-of-truth 架構（譬如 Notion DB Index + 本機真源 + Google Drive 參考檔），本表描述每層分工，避免 AI 跨層越界。
+> When a project uses several integrations as a source-of-truth system, for example Notion index + local primary sources + Google Drive reference mirror, this table records each layer's role so agents do not cross write boundaries.
 
-| Layer | Surface（具體 instance） | Role | Write Direction |
+| Layer | Surface (specific instance) | Role | Write Direction |
 |-------|--------------------------|------|-----------------|
-| 真源（source of truth） | TBD（譬如 本機 `~/project/reference/`） | 原始可審計 reference 內容 | 用戶手動置入；AI 不直接寫入 |
-| Index | TBD（譬如 Notion DB「Project Index」） | 登記每份真源檔 metadata + 摘要 + tag | AI 經 Connector 直接讀寫 |
-| 持久化參考檔（mirror） | TBD（譬如 Drive folder「Project Reference/」） | 防本機 disk failure / 跨裝置 access | 用戶手動同步；AI 唔自動 push |
-| Working draft | TBD（譬如 本機 `~/project/output/`） | AI 寫 task output | AI 直接 read + write 本機 |
+| Source of truth | TBD, for example local `~/project/reference/` | Original auditable reference content | User-controlled placement; agent does not write directly unless explicitly authorized |
+| Index | TBD, for example Notion database `Project Index` | Metadata, summaries, and tags for each source file | Agent may read/write through a verified Connector |
+| Persistent mirror | TBD, for example Drive folder `Project Reference/` | Backup or cross-device reference mirror | User-controlled sync by default; agent does not push automatically |
+| Working draft | TBD, for example local `~/project/output/` | Agent task output | Agent may read and write local files under normal safety rules |
 
 ## Local QC Commands
 

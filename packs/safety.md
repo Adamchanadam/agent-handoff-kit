@@ -32,12 +32,14 @@ Use for file operations, shell commands, Git changes, package managers, installe
    (c) Before writing to `dev/PROJECT_INDEX.md` `## Installed Integrations`, `dev/SESSION_HANDOFF.md`, or `dev/SESSION_LOG.md`, self-check that no credential value is present; doctor `checkInstalledIntegrationsCredentialLeak()` enforces this at QC.
    (d) Auth failure (token expired / revoked / rate-limit) surfaces to the user with a pointer to the AI tool's own settings interface; do not attempt to auto-fix auth or re-auth flow (out of scope for Kit governance).
 13. Shell / script parser failure discipline: after a shell, quoting, here-string, wrapper, temporary script, or parser failure, stop same-pattern retries and classify the failing layer before trying again: active shell, wrapper shell, runtime parser, package manager, or target CLI. Do not embed large JavaScript, JSON, Markdown, regex, patch, or path-heavy content inside shell strings when a direct tool, patch file, or real script file is safer. For temporary scripts, first make a minimal reproducible script, run a syntax-only check such as `node --check`, `python -m py_compile`, or an equivalent parser check where available, then execute. After any write script, read back the affected files or affected ranges before claiming success. If the same parser failure repeats, stop and return to root-cause classification instead of changing quoting again.
+14. Process termination and cache cleanup boundary: agents may automatically close or clean up resources that are clearly task-owned or agent-managed, including task-created browser contexts, MCP child processes, helper servers, temp directories, or bounded caches. Agents must not terminate shared, ambiguous, user-owned, system-level, or other-agent-owned processes; delete broad caches; disable tools; uninstall packages; or change configuration without explicit user confirmation listing exact process IDs or paths, tool names, evidence, expected impact, and restart / rollback path. Generic process names such as `node`, `python`, or `chrome` are never enough ownership evidence by themselves. If a process, browser context, MCP service, or helper server may belong to another AI agent running on the same machine, treat it as shared unless current-task ownership is proven.
 
 ## Checks
 
 - Report which safety-relevant command, path, API, install, deploy, release, or Git check was performed and the result.
 - If checks cannot run, state the reason and mark the result unverified.
 - For durable governance changes, update the project index, sync registry, and any human review map if they exist.
+- For external-tool resource cleanup, report the ownership class used: task-owned, agent-managed, shared / user-owned / other-agent-owned / system-level, or unknown.
 
 ## Closeout
 

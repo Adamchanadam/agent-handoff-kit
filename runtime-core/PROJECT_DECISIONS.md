@@ -1,11 +1,10 @@
 # Project Decisions Log
 
-這個檔保存項目的長期演進、決策、架構取捨與學習觀察 narrative。屬 warm 資料層 —— AI 開工**不需要讀**本檔。
+This file stores long-term project evolution, decisions, architecture trade-offs, and accumulated learning observations. It is a warm narrative layer. AI agents do not need to read this file at startup unless the current task asks for historical rationale or the closeout maintenance trigger says to update it.
 
-🔹 短期 single-task project：本檔保持近空，你不需要 maintain
-🔹 長期持續演進項目：AI 會在收工時先做維護觸發檢查；命中觸發或到定期兜底時才完整整理。當你問「我們之前為何這樣做」時，AI 會在這裡找答案
+Short single-task projects can leave this file nearly empty. Long-running projects use it when a closeout trigger, semantic trigger, or periodic backstop applies. When the user asks why earlier choices were made, this file is the first long-term narrative reference.
 
-不需要你手動寫 —— AI 在收工時自動 update；重大決策可在發生時即時記錄，不必等到最後才回想。
+The user is not expected to maintain this file manually. The AI updates it during closeout when required, and may record major decisions when they happen.
 
 Research-derived decisions use this compact evidence-chain format inside the relevant section, without creating a new section:
 
@@ -21,24 +20,24 @@ This file does not store raw build / upload / QC evidence, current next actions,
 
 ## Evolution Timeline
 
-任務需求演進的長期 narrative。Newest first。AI 觀察到 substantive task evolution 時 append。
+Long-term narrative of task or product evolution. Newest first. Append when the AI observes substantive task evolution.
 
 (empty)
 
 ## Decisions Archive
 
-由 SESSION_HANDOFF.md 的「Confirmed Decisions」或同類 decisions section 累積至 30+ 時，AI 自動 split 落這裡的舊條目。Newest first。
+Older decision entries split from `SESSION_HANDOFF.md` when its confirmed-decisions style section grows past the maintenance threshold. Newest first.
 
 (empty)
 
 ## Architecture Choices
 
-主要架構取捨與 rationale。AI 在 plan 涉及 multi-option trade-off 時 append，並等用戶 confirm。
+Major architecture choices and rationale. Append when planning involves a multi-option trade-off and the selected path has been confirmed.
 
 (empty)
 
 ## Insights & Learnings
 
-累積式學習、反思、觀察。AI 觀察到多 session 累積 pattern 時 append。
+Accumulated lessons, reflections, and cross-session patterns. Append when the AI observes a recurring pattern across sessions.
 
 (empty)

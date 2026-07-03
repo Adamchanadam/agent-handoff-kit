@@ -8,8 +8,8 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 
 - User asks to change AI behavior, project governance, prompts, handoff, startup, closeout, or tool-use rules.
 - A change affects `AGENTS.md`, `dev/*`, rule packs, installer templates, or durable workflow docs.
-- User asks to "治理打通", "把文件接入 Agent Handoff Kit", "接入 Agent Handoff Kit", "掃描未接入 Agent Handoff Kit 的重要文件", "bridge governance", "connect this document to governance", or scan for unbridged governance documents.
-- User asks to make something long-term, cross-session, reusable, "寫入長期治理", "轉成長期機制", "之後都要遵守", or says future sessions should remember an API / MCP / tool-use pattern.
+- User asks to bridge governance, connect a document to governance, scan for unbridged governance documents, or uses equivalent Chinese phrases such as "治理打通", "把文件接入 Agent Handoff Kit", "接入 Agent Handoff Kit", or "掃描未接入 Agent Handoff Kit 的重要文件".
+- User asks to make something long-term, cross-session, reusable, future sessions should remember an API / MCP / tool-use pattern, or uses equivalent Chinese phrases such as "寫入長期治理", "轉成長期機制", or "之後都要遵守".
 - The task creates or materially changes Markdown documents, generated outputs, specifications, runbooks, checklists, guides, source-of-truth files, or research artifacts that future agents may need to discover.
 
 ## Rules
@@ -23,14 +23,14 @@ Use for governance rules, prompts, agent instructions, handoff systems, startup/
 7. When a task uses external skills, subagents, demo workspaces, or another tool's closeout, treat those flows as subordinate to the active root's Agent Handoff Kit governance. The active root still needs the `runtime-core/AGENTS.core.md` persistence gate decision; do not duplicate the gate thresholds in this pack.
 8. For long-running projects, maintain `dev/PROJECT_DECISIONS.md` per R-028 closeout discipline (see `runtime-core/AGENTS.core.md` closeout maintenance trigger check): capture major decisions when they happen, run the short trigger check at every closeout, and do full long-term maintenance only when a hard trigger, semantic trigger, or 10-closeout backstop applies. Short single-task projects keep this as a no-op default; users are not expected to edit this file manually.
 9. Governance bridge is a triggered review, not a default startup scan. Use it when an important file, source-of-truth document, runbook, production guide, workflow, checklist, stock list, or similar durable document may need to be connected to project governance.
-10. Content-based trigger: long-term governance routing is content-based, not trigger-only. Even if the user does not say "轉成長期機制" or "寫入長期治理", treat a statement as durable governance when it says future sessions must follow it, when it corrects a recurring AI mistake, or when it defines a reusable API / MCP / tool-use pattern. Do not persist long-term governance knowledge only in `dev/SESSION_LOG.md`, `dev/SESSION_HANDOFF.md`, or `START_NEXT_SESSION_PROMPT.txt`; those surfaces may be compressed, archived, or regenerated.
+10. Content-based trigger: long-term governance routing is content-based, not trigger-only. Even if the user does not use explicit governance-routing phrases, treat a statement as durable governance when it says future sessions must follow it, when it corrects a recurring AI mistake, or when it defines a reusable API / MCP / tool-use pattern. Do not persist long-term governance knowledge only in `dev/SESSION_LOG.md`, `dev/SESSION_HANDOFF.md`, or `START_NEXT_SESSION_PROMPT.txt`; those surfaces may be compressed, archived, or regenerated.
 11. Mid-task changes to product goals, requirements, development checklists, acceptance rules, exclusions, priorities, or scope are task contract changes. Before writing them, check whether the same contract already lives in a spec, backlog, issue list, README, runbook, project index entry, or handoff section. Merge into the existing authoritative home, then leave only a pointer or current-state summary elsewhere.
 12. New Markdown or generated documents are not automatically harmless. After creating or materially changing them, classify each artifact before completion: source of truth, reference, runbook, workflow, checklist, public document, generated output, one-time evidence, draft, or temporary. Durable artifacts must be discoverable from `dev/PROJECT_INDEX.md` or intentionally tied to a registered sync / source-of-truth row. Temporary or one-time evidence must be labeled as such in the task record or closeout so future agents do not treat it as hidden current state.
 13. Do not create a new document to hold a rule, requirement, checklist, or process if an existing authoritative document can carry it. Merge into the existing home or make the new document explicitly subordinate. If two files now carry the same durable instruction, resolve the duplicate by choosing one authoritative home and pointing the other to it.
 
 ## Governance Bridge Workflow
 
-Use this workflow when the user asks for governance bridge / 治理打通 / 把文件接入 Agent Handoff Kit / 接入 Agent Handoff Kit / connect this document to governance, or asks to scan for unbridged governance documents / 掃描未接入 Agent Handoff Kit 的重要文件.
+Use this workflow when the user asks for governance bridge, connect this document to governance, asks to scan for unbridged governance documents, or uses equivalent Chinese phrases such as "治理打通", "把文件接入 Agent Handoff Kit", "接入 Agent Handoff Kit", or "掃描未接入 Agent Handoff Kit 的重要文件".
 
 1. Identify the target. If the user named a file, inspect that file and its surrounding directory. If no file is named, run a bounded repo scan for likely durable documents such as source-of-truth files, runbooks, workflows, guides, checklists, stock lists, production guides, and rules.
 2. Check the target file itself: it should state its role, scope, update trigger, owner or responsible workflow when known, and what must not be inferred from it.
@@ -42,6 +42,15 @@ Use this workflow when the user asks for governance bridge / 治理打通 / 把�
 8. Search for duplicate source-of-truth risk. If another file has the same durable role, recommend merge, reference, or retire options; do not delete, rename, or move files without explicit approval.
 
 For repo-wide scans, report candidates as candidates. Do not fail ordinary docs merely because they are not indexed; only durable files that future agents need to discover, update, or distinguish from drafts should be bridged.
+
+Output format:
+
+- Status: bridged / partially bridged / unbridged / blocked.
+- Already bridged: list the governance links that are present.
+- Gaps: list missing links and why they matter for the next agent.
+- Suggested patches: list exact files and sections to update.
+- Manual decisions: list duplicates, naming choices, deletion, renaming, external sync, or ownership questions requiring user confirmation.
+- Acceptance: give one concrete check that proves the bridge is complete.
 
 ## Generated Artifact Governance Workflow
 
@@ -72,15 +81,6 @@ Use this workflow when the user asks to write something into long-term governanc
 3. If the knowledge was first captured in `SESSION_LOG` or handoff for short-term continuity, promote it to the correct durable home before claiming it is long-term.
 4. Add or update a QA check when the same failure class could recur and can be tested.
 5. Keep governance bridge wording reserved for document orphan prevention. Do not relabel non-file governance as "file connected to Agent Handoff Kit".
-
-Output format:
-
-- Status: bridged / partially bridged / unbridged / blocked.
-- Already bridged: list the governance links that are present.
-- Gaps: list missing links and why they matter for the next agent.
-- Suggested patches: list exact files and sections to update.
-- Manual decisions: list duplicates, naming choices, deletion, renaming, external sync, or ownership questions requiring user confirmation.
-- Acceptance: give one concrete check that proves the bridge is complete.
 
 ## Checks
 

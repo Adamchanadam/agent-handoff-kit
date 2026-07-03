@@ -185,7 +185,9 @@ const requiredAnchors = [
       "git reset --hard",
       "external APIs, SDKs, CLIs",
       "parser failure",
-      "secret values"
+      "secret values",
+      "task-owned or agent-managed",
+      "other-agent-owned"
     ]
   },
   {
@@ -194,10 +196,9 @@ const requiredAnchors = [
     placement: projectDecisionsAnchorPlacement,
     snippets: [
       "Project Decisions Log",
-      "warm 資料層",
-      "AI 開工",
-      "不需要讀",
-      "AI 在收工時自動 update",
+      "warm narrative layer",
+      "do not need to read this file at startup",
+      "The AI updates it during closeout",
       "Evidence chain: Source=source:<id>; Summary=<source finding>; Inference=<reasoning>; Decision impact=<what changed>; Uncertainty=<limits or none>.",
       "This file does not store raw build / upload / QC evidence",
       "Evolution Timeline",
@@ -213,15 +214,15 @@ const requiredAnchors = [
     snippets: [
       "Onboarding Pack",
       "transient pack",
-      "明確 onboarding signal keywords",
+      "Explicit onboarding signal keywords",
       "5-step walk-through pattern",
       "Application Scenario Library",
-      "Scenario A. 建構系統 / 工具 / 平台 / 網站或應用",
-      "Scenario B. 整理研究資料",
-      "Scenario C. 整理電腦檔案",
-      "Scenario D. 學寫代碼",
-      "Scenario E. 其他",
-      "Scenario F. 審視已裝外部工具",
+      "Scenario A. Build systems, tools, platforms, websites, or apps",
+      "Scenario B. Organize research or write a report",
+      "Scenario C. Organize local files, Notion, Google Drive, or a knowledge base",
+      "Scenario D. Learn to code",
+      "Scenario E. Custom scenario",
+      "Scenario F. External-tool governance",
       "Tone Discipline"
     ]
   },
@@ -235,8 +236,10 @@ const requiredAnchors = [
       "MCPs",
       "Plugins",
       "Skills",
-      "機密分離原則",
+      "Credential Separation Principle",
       "External Tool Usage Verification Gate",
+      "External Tool Resource Lifecycle",
+      "other-agent-owned",
       "do not invent",
       "input schema",
       "official documentation",
@@ -352,11 +355,11 @@ const schemaChecks = [
       tableHeader("Check", "Command", "Run before", "Last verified"),
       tableHeader("Change type", "Likely files", "Required checks"),
       // R-030 v0.3.0+: Installed Integrations subsection table headers
-      tableHeader("Tool", "Project Usage", "Access Scope", "Specific Instance", "Credential Reference（no value）", "Declared", "Last Verified"),
-      tableHeader("Server", "Source", "Project Usage", "Credential Reference（no value）", "Declared", "Last Verified"),
-      tableHeader("Name", "Bundle Content（Skills + MCP + hooks）", "When Triggered", "Last Verified"),
+      tableHeader("Tool", "Project Usage", "Access Scope", "Specific Instance", "Credential Reference (no value)", "Declared", "Last Verified"),
+      tableHeader("Server", "Source", "Project Usage", "Credential Reference (no value)", "Declared", "Last Verified"),
+      tableHeader("Name", "Bundle Content (Skills + MCP + hooks)", "When Triggered", "Last Verified"),
       tableHeader("Name", "Source", "When Triggered", "Last Verified"),
-      tableHeader("Layer", "Surface（具體 instance）", "Role", "Write Direction")
+      tableHeader("Layer", "Surface (specific instance)", "Role", "Write Direction")
     ]
   },
   {
@@ -390,9 +393,11 @@ const schemaChecks = [
       includes("dev/rules/onboarding.md"),
       // R-030 v0.3.0+: routing table must include integrations pack row.
       includes("dev/rules/integrations.md"),
-      includes("Governance bridge / 治理打通"),
-      includes("接入 Agent Handoff Kit"),
-      includes("掃描未接入 Agent Handoff Kit 的重要文件"),
+      includes("External tool resource pressure"),
+      includes("ownership-based external-tool resource closeout"),
+      includes("Governance bridge / bridge governance"),
+      includes("equivalent Chinese user phrases"),
+      includes("scan for unbridged governance documents"),
       includes("scan for unbridged governance documents")
     ]
   },
@@ -407,8 +412,8 @@ const schemaChecks = [
       heading("Checks"),
       heading("Closeout"),
       includes("Governance bridge is a triggered review"),
-      includes("接入 Agent Handoff Kit"),
-      includes("掃描未接入 Agent Handoff Kit 的重要文件"),
+      includes("equivalent Chinese phrases"),
+      includes("scan for unbridged governance documents"),
       includes("Status: bridged / partially bridged / unbridged / blocked"),
       includes("duplicate source-of-truth risk")
     ]
@@ -427,7 +432,7 @@ const schemaChecks = [
   },
   {
     target: "dev/rules/onboarding.md",
-    label: "onboarding pack structure (新手引導包)",
+    label: "onboarding pack structure",
     checks: [
       heading("Scope"),
       heading("Load When"),
@@ -440,15 +445,17 @@ const schemaChecks = [
   },
   {
     target: "dev/rules/integrations.md",
-    label: "integrations pack structure (外部工具治理)",
+    label: "integrations pack structure",
     checks: [
       heading("Scope"),
       heading("Load When"),
       heading("Discipline"),
+      includes("External Tool Resource Lifecycle"),
+      includes("other-agent-owned"),
       heading("Rules"),
       heading("Checks"),
       heading("Closeout"),
-      heading("Anti-pattern（不要做的事）"),
+      heading("Anti-patterns"),
       heading("Cross-reference")
     ]
   }
@@ -866,7 +873,7 @@ async function runDoctor(root, version, options = {}) {
 
   // R-030 v0.3.0+: credential leak prevention sweep over governance files.
   const credentialResult = await checkInstalledIntegrationsCredentialLeak(root);
-  console.log(`Credential 機密分離 sweep: ${credentialResult.ok ? "ok" : "FAILED"}`);
+  console.log(`Credential separation sweep: ${credentialResult.ok ? "ok" : "FAILED"}`);
   if (!credentialResult.ok) {
     for (const finding of credentialResult.findings) {
       console.log(`  CRITICAL: ${finding}`);
@@ -1703,12 +1710,26 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergedRulePacks
     };
   }
+  // External-tool resource lifecycle extension: old v0.3.x installs may already
+  // have the integrations row, but still lack the resource-pressure routing row.
+  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("External tool resource pressure")) {
+    const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
+    if (!mergedRulePacks) {
+      return { ...base, action: "conflict", reason: "RULE_PACKS.md routing table header was changed; manual merge required to preserve custom rows" };
+    }
+    return {
+      ...base,
+      action: "merge",
+      reason: "merge missing external-tool resource lifecycle routing row while preserving existing custom rows",
+      mergedText: mergedRulePacks
+    };
+  }
   // Governance bridge v0.3.27+: route durable document bridging requests to
   // agent-governance without replacing user-added routing rows.
   if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && (
-    !targetText.includes("Governance bridge / 治理打通")
-    || !targetText.includes("接入 Agent Handoff Kit")
-    || !targetText.includes("掃描未接入 Agent Handoff Kit 的重要文件")
+    !targetText.includes("Governance bridge / bridge governance")
+    || !targetText.includes("equivalent Chinese user phrases")
+    || !targetText.includes("scan for unbridged governance documents")
   )) {
     const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
     if (!mergedRulePacks) {
@@ -1721,12 +1742,25 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergedRulePacks
     };
   }
+  // Language migration: older integrations packs were AI-facing rules written
+  // partly in Chinese/Cantonese. If the file still has the trusted legacy Kit
+  // shape, replace it with the current English maintainer pack. If the shape is
+  // ambiguous or locally restructured, stop as a conflict instead of doing a
+  // partial merge that could create a half-English, half-legacy pack.
+  if (targetRel === "dev/rules/integrations.md" && command === "upgrade" && isLegacyChineseIntegrationsPack(targetText)) {
+    return {
+      ...base,
+      action: "merge",
+      reason: "replace legacy Chinese integrations pack with current English maintainer pack",
+      mergedText: sourceText
+    };
+  }
   // Governance bridge v0.3.27+: add the triggered review workflow to the
   // agent-governance pack only when the pack still has a trusted Checks section.
   if (targetRel === "dev/rules/agent-governance.md" && command === "upgrade" && (
     !targetText.includes("## Governance Bridge Workflow")
-    || !targetText.includes("接入 Agent Handoff Kit")
-    || !targetText.includes("掃描未接入 Agent Handoff Kit 的重要文件")
+    || !targetText.includes("equivalent Chinese phrases")
+    || !targetText.includes("scan for unbridged governance documents")
   )) {
     const mergedGovernancePack = mergeAgentGovernanceBridgeWorkflow(targetText, sourceText);
     if (!mergedGovernancePack) {
@@ -1758,8 +1792,10 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   }
   if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade" && (
     targetText.includes("Credential Location")
+    || targetText.includes("Credential Reference（no value）")
     || targetText.includes("Claude Code MCP config + env var")
     || targetText.includes("Credential 應由 AI 工具自身 secure storage 管理（譬如 Claude Desktop Extensions")
+    || targetText.includes("機密分離原則")
   )) {
     const mergedProjectIndex = mergeProjectIndexCredentialReferences(targetText);
     if (mergedProjectIndex !== targetText) {
@@ -1771,13 +1807,24 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
   }
-  // R-030 v0.3.0+: dev/rules/onboarding.md gets ### Scenario F block auto-inserted before
-  // ## Cross-reference to guide.html on upgrade if missing. NON-DESTRUCTIVE: existing Scenarios A-E
-  // content and any user customization preserved. Step 1 micro-question additions to Scenarios A-E
-  // are NOT auto-migrated (user-customizable inline sample wording, not anchor-enforced); users get
-  // those on fresh install only or can manually patch following CHANGELOG migration guidance.
-  if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && !targetText.includes("Scenario F. 審視已裝外部工具")) {
-    const sourceScenarioFMatch = sourceText.match(/(### Scenario F\. 審視已裝外部工具[\s\S]*?)(?=## Cross-reference to guide\.html)/);
+  // Language migration: older onboarding packs were AI-facing rules written
+  // mostly in Chinese. If the file still has the trusted legacy Kit shape,
+  // replace it with the current concise English maintainer pack. If the shape
+  // is ambiguous or locally restructured, stop as a conflict instead of
+  // producing a half-English, half-legacy pack.
+  if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && isLegacyChineseOnboardingPack(targetText)) {
+    return {
+      ...base,
+      action: "merge",
+      reason: "replace legacy Chinese onboarding pack with current English maintainer pack",
+      mergedText: sourceText
+    };
+  }
+  // R-030 v0.3.0+: dev/rules/onboarding.md gets Scenario F auto-inserted before
+  // ## Cross-reference to guide.html on upgrade if missing and the pack is not
+  // a legacy Chinese pack that should be replaced wholesale.
+  if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && !targetText.includes("Scenario F. External-tool governance")) {
+    const sourceScenarioFMatch = sourceText.match(/(### Scenario F\. External-tool governance[\s\S]*?)(?=## Cross-reference to guide\.html)/);
     if (sourceScenarioFMatch && hasTrustedOnboardingScenarioLibrary(targetText)) {
       const scenarioFBlock = sourceScenarioFMatch[1];
       return {
@@ -1788,7 +1835,7 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
   }
-  if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && !targetText.includes("Scenario A. 建構系統 / 工具 / 平台 / 網站或應用")) {
+  if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && !targetText.includes("Scenario A. Build systems, tools, platforms, websites, or apps")) {
     const mergedOnboarding = mergeOnboardingScenarioALabel(targetText);
     if (mergedOnboarding !== targetText) {
       return {
@@ -1946,34 +1993,45 @@ function mergeOnboardingScenarioALabel(targetText) {
   let merged = targetText;
   merged = merged.replace(
     /\*\*A\. 寫 \/ 改代碼項目\*\* —— 你有一個(?: project 的 codebase|程式項目)想長期維護/g,
-    "**A. 建構系統 / 工具 / 平台 / 網站或應用** —— 你想由 AI 協助建立或長期維護一個可運作的項目"
+    "**A. Build systems, tools, platforms, websites, or apps**: the user wants AI help to create or maintain a working project."
   );
   merged = merged.replace(
     /### Scenario A\. 寫 \/ 改代碼項目/g,
-    "### Scenario A. 建構系統 / 工具 / 平台 / 網站或應用"
+    "### Scenario A. Build systems, tools, platforms, websites, or apps"
+  );
+  merged = merged.replace(
+    /### Scenario A\. 建構系統 \/ 工具 \/ 平台 \/ 網站或應用/g,
+    "### Scenario A. Build systems, tools, platforms, websites, or apps"
   );
   return merged;
 }
 
 function mergeAgentGovernanceBridgeWorkflow(targetText, sourceText) {
-  const sourceMatch = sourceText.match(/9\. Governance bridge[\s\S]*?(?=\n## Checks)/);
-  const workflowMatch = sourceText.match(/\n## Governance Bridge Workflow[\s\S]*?(?=\n## Checks)/);
-  const sourceLoadWhenLine = sourceText.split(/\r?\n/).find((line) => line.startsWith("- User asks to \"治理打通\""));
-  const sourceWorkflowIntroLine = sourceText.split(/\r?\n/).find((line) => line.startsWith("Use this workflow when"));
-  if (!sourceMatch || !workflowMatch || !targetText.includes("\n## Checks")) return null;
+  const sourceRuleLine = sourceText.split(/\r?\n/).find((line) => line.startsWith("9. Governance bridge"));
+  const workflowMatch = sourceText.match(/\n## Governance Bridge Workflow[\s\S]*?(?=\n## Generated Artifact Governance Workflow|\n## Checks)/);
+  const sourceLoadWhenLine = sourceText.split(/\r?\n/).find((line) => line.startsWith("- User asks to bridge governance"));
+  if (!sourceRuleLine || !workflowMatch || !targetText.includes("\n## Checks")) return null;
 
   let merged = targetText;
-  const targetLoadWhenLine = merged.split(/\r?\n/).find((line) => line.startsWith("- User asks to \"治理打通\""));
-  if (sourceLoadWhenLine && (!targetLoadWhenLine || !targetLoadWhenLine.includes("接入 Agent Handoff Kit"))) {
-    merged = merged.replace(/- User asks to "治理打通"[^\n]*\n/, `${sourceLoadWhenLine}\n`);
+  const targetLoadWhenLine = merged.split(/\r?\n/).find((line) => line.startsWith("- User asks to bridge governance") || line.startsWith("- User asks to \"治理打通\""));
+  if (sourceLoadWhenLine && targetLoadWhenLine && !targetLoadWhenLine.includes("scan for unbridged governance documents")) {
+    merged = merged.replace(/- User asks to (?:bridge governance|"治理打通")[^\n]*\n/, `${sourceLoadWhenLine}\n`);
   }
-  const targetWorkflowIntroLine = merged.match(/^Use this workflow when[^\n]*$/m)?.[0] ?? "";
-  if (sourceWorkflowIntroLine && !targetWorkflowIntroLine.includes("掃描未接入 Agent Handoff Kit 的重要文件")) {
-    merged = merged.replace(/^Use this workflow when[^\n]*$/m, sourceWorkflowIntroLine);
+  if (sourceLoadWhenLine && !targetLoadWhenLine && !merged.includes("equivalent Chinese phrases")) {
+    const loadWhenMarker = "- A change affects `AGENTS.md`, `dev/*`, rule packs, installer templates, or durable workflow docs.";
+    if (merged.includes(loadWhenMarker)) {
+      merged = merged.replace(loadWhenMarker, `${loadWhenMarker}\n${sourceLoadWhenLine}`);
+    }
   }
+  if (/^9\. Governance bridge/m.test(merged)) {
+    merged = merged.replace(/^9\. Governance bridge[^\n]*$/m, sourceRuleLine);
+  } else if (!merged.includes(sourceRuleLine)) {
+    merged = merged.replace(/\n## Governance Bridge Workflow|\n## Checks/, `\n${sourceRuleLine}$&`);
+  }
+  merged = removeAllSectionsByHeading(merged, "## Governance Bridge Workflow");
+  merged = merged.replace(/\n## Checks/, `${workflowMatch[0]}\n## Checks`);
   if (!merged.includes("Governance bridge is a triggered review")) {
-    const rulePrefix = sourceMatch[0].trimEnd();
-    merged = merged.replace(/\n## Checks/, `\n${rulePrefix}\n${workflowMatch[0]}\n## Checks`);
+    return null;
   }
   if (!merged.includes("For governance bridge work, confirm the target file")) {
     merged = merged.replace(
@@ -1982,6 +2040,17 @@ function mergeAgentGovernanceBridgeWorkflow(targetText, sourceText) {
     );
   }
   return merged;
+}
+
+function removeAllSectionsByHeading(text, heading) {
+  let result = text;
+  while (true) {
+    const start = result.indexOf(`\n${heading}`);
+    if (start < 0) return result;
+    const next = result.indexOf("\n## ", start + heading.length + 1);
+    if (next < 0) return result.slice(0, start).trimEnd() + "\n";
+    result = result.slice(0, start) + result.slice(next);
+  }
 }
 
 function hasTrustedOnboardingScenarioLibrary(text) {
@@ -2098,10 +2167,9 @@ function safetyAnchorPlacement(snippet, text) {
 function projectDecisionsAnchorPlacement(snippet, text) {
   const preamble = [
     "Project Decisions Log",
-    "warm 資料層",
-    "AI 開工",
-    "不需要讀",
-    "AI 在收工時自動 update",
+    "warm narrative layer",
+    "do not need to read this file at startup",
+    "The AI updates it during closeout",
     "Evidence chain: Source=source:<id>; Summary=<source finding>; Inference=<reasoning>; Decision impact=<what changed>; Uncertainty=<limits or none>.",
     "This file does not store raw build / upload / QC evidence"
   ];
@@ -2120,13 +2188,13 @@ function onboardingAnchorPlacement(snippet, text) {
 }
 
 function integrationsAnchorPlacement(snippet, text) {
-  if (snippet === "機密分離原則" || snippet === "External Tool Usage Verification Gate" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation" || snippet === "Source-of-truth Architecture" || snippet === "Cross-session Lifecycle") {
+  if (snippet === "Credential Separation Principle" || snippet === "External Tool Usage Verification Gate" || snippet === "External Tool Resource Lifecycle" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation" || snippet === "Source-of-truth Architecture" || snippet === "Cross-session Lifecycle") {
     return snippetAppearsBetweenHeadings(text, snippet, "## Discipline", "## Rules");
   }
   if (snippet === "Connector-first default") {
     return snippetAppearsBetweenHeadings(text, snippet, "## Rules", "## Checks");
   }
-  if (snippet === "Anti-pattern") return text.includes("## Anti-pattern（不要做的事）");
+  if (snippet === "Anti-pattern") return text.includes("## Anti-patterns") || text.includes("## Anti-pattern（不要做的事）");
   return true;
 }
 
@@ -2266,12 +2334,73 @@ function mergeProjectIndexTemplateVersionRow(targetText, sourceText) {
 function mergeProjectIndexCredentialReferences(targetText) {
   return targetText
     .replace(
+      /`via` column 紀律：每行 External Sources 必引用 `## Installed Integrations`[^\r\n]*/,
+      "`via` column discipline: every External Sources row must reference an entry name under `## Installed Integrations`, such as `Notion Connector` or `Google Drive Connector`, so the access path is explicit. Sources without a declared integration use `manual paste`. Doctor and release QA enforce cross-section consistency."
+    )
+    .replace(
+      /⚠️ \*\*機密分離原則\*\*：本 section 只記錄[^\r\n]*/,
+      "**Credential Separation Principle**: this section records only project usage and public reference coordinates such as Notion database names, URLs, or folder paths. It must never record API keys, OAuth tokens, or credential values. Credentials belong in AI runtime secure storage, OS credential stores, tool configuration, or user-managed secret stores. If an environment variable is used, record only the variable name, never the value. Before writing this section, self-check that no credential value is being persisted. Doctor scans this section, `SESSION_HANDOFF`, and `SESSION_LOG` for common credential prefixes such as `sk-`, `ntn_`, `ya29.`, `xoxp-`, `ghp_`, `sl.`, `AKIA`, and `AIza`."
+    )
+    .replace(
+      /用途：新 AI session 開工讀本 section 知道[^\r\n]*/,
+      "Purpose: a new AI session reads this section to understand declared external-tool capabilities and their project roles. Declarations persist across sessions. Every entry must include `Declared` and `Last Verified` fields so stale capability assumptions can be detected."
+    )
+    .replace("### Connectors（Anthropic 官方 vetted）", "### Connectors")
+    .replace("### MCPs（community / custom）", "### MCPs")
+    .replace("### Plugins（Claude Code plugin bundle）", "### Plugins")
+    .replace("### Skills（SKILL.md instruction set）", "### Skills")
+    .replace("### Source-of-truth Architecture（多層持久化組合）", "### Source-of-truth Architecture")
+    .replace(
+      /當項目用多個整合構成 source-of-truth 架構[^\r\n]*/,
+      "When a project uses several integrations as a source-of-truth system, for example Notion index + local primary sources + Google Drive reference mirror, this table records each layer's role so agents do not cross write boundaries."
+    )
+    .replace(
+      "| TBD | TBD（譬如 DB Index 記真源 path / 持久化參考檔儲存） | read / read+write | TBD（譬如 DB 名 + URL / folder path） | TBD（譬如 `AI tool secure storage` / `OS credential store`） | TBD | TBD |",
+      "| TBD | TBD, for example an index of source paths or persistent reference storage | read / read+write | TBD, for example database name + URL or folder path | TBD, for example `AI tool secure storage` / `OS credential store` | TBD | TBD |"
+    )
+    .replace(
+      "| TBD | TBD（譬如 GitHub repo URL） | TBD | TBD（譬如 `tool config + env var name only` / `user-managed secret store`） | TBD | TBD |",
+      "| TBD | TBD, for example GitHub repository URL | TBD | TBD, for example `tool config + env var name only` / `user-managed secret store` | TBD | TBD |"
+    )
+    .replace(
+      "| TBD | TBD（譬如 plugin bundle / user-level install） | TBD | TBD |",
+      "| TBD | TBD, for example plugin bundle or user-level install | TBD | TBD |"
+    )
+    .replace(
+      "| 真源（source of truth） | TBD（譬如 本機 `~/project/reference/`） | 原始可審計 reference 內容 | 用戶手動置入；AI 不直接寫入 |",
+      "| Source of truth | TBD, for example local `~/project/reference/` | Original auditable reference content | User-controlled placement; agent does not write directly unless explicitly authorized |"
+    )
+    .replace(
+      "| Index | TBD（譬如 Notion DB「Project Index」） | 登記每份真源檔 metadata + 摘要 + tag | AI 經 Connector 直接讀寫 |",
+      "| Index | TBD, for example Notion database `Project Index` | Metadata, summaries, and tags for each source file | Agent may read/write through a verified Connector |"
+    )
+    .replace(
+      "| 持久化參考檔（mirror） | TBD（譬如 Drive folder「Project Reference/」） | 防本機 disk failure / 跨裝置 access | 用戶手動同步；AI 唔自動 push |",
+      "| Persistent mirror | TBD, for example Drive folder `Project Reference/` | Backup or cross-device reference mirror | User-controlled sync by default; agent does not push automatically |"
+    )
+    .replace(
+      "| Working draft | TBD（譬如 本機 `~/project/output/`） | AI 寫 task output | AI 直接 read + write 本機 |",
+      "| Working draft | TBD, for example local `~/project/output/` | Agent task output | Agent may read and write local files under normal safety rules |"
+    )
+    .replace(
       "Credential 應由 AI 工具自身 secure storage 管理（譬如 Claude Desktop Extensions 嘅 OS Keychain / Claude Code MCP config）。",
       "Credential 應由 AI 工具自身 secure storage / OS credential store / tool config / user-managed secret store 管理；若使用 env，只可記錄 env var name，不可讀取、貼出或保存 value。"
     )
     .replaceAll(
       "Credential Location",
       "Credential Reference（no value）"
+    )
+    .replaceAll(
+      "Credential Reference（no value）",
+      "Credential Reference (no value)"
+    )
+    .replaceAll(
+      "Bundle Content（Skills + MCP + hooks）",
+      "Bundle Content (Skills + MCP + hooks)"
+    )
+    .replaceAll(
+      "Surface（具體 instance）",
+      "Surface (specific instance)"
     )
     .replace(
       "`Claude Desktop Extensions`",
@@ -2296,6 +2425,25 @@ function mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing) {
 
   let changed = false;
   const remainingMissing = [...missing];
+  const appendableRules = [
+    { snippet: "parser failure", number: "13" },
+    { snippet: "Process termination and cache cleanup boundary", number: "14" },
+    { snippet: "task-owned or agent-managed", number: "14" },
+    { snippet: "other-agent-owned", number: "14" }
+  ];
+  for (const { snippet, number } of appendableRules) {
+    if (!remainingMissing.includes(snippet) || targetText.includes(snippet)) continue;
+    const sourceRule = sourceRuleLines.find((line) => line.includes(snippet));
+    if (!sourceRule || !sourceRule.startsWith(`${number}. `)) return null;
+    if (!targetLines.some((line, index) => index >= targetRuleStart && index < targetRuleEnd && line.startsWith(`${number}. `))) {
+      targetLines.splice(targetRuleEnd, 0, sourceRule);
+      changed = true;
+      remainingMissing.splice(remainingMissing.indexOf(snippet), 1);
+      continue;
+    }
+    // If the numbered rule already exists, leave it for the same-shape replacement path below.
+  }
+
   if (remainingMissing.includes("parser failure") && !targetText.includes("parser failure")) {
     const parserFailureRule = sourceRuleLines.find((line) => line.includes("parser failure"));
     if (!parserFailureRule || !parserFailureRule.startsWith("13. ")) return null;
@@ -2323,11 +2471,11 @@ function mergeIntegrationsSectionsByMissingAnchors(targetText, sourceText, missi
   let merged = targetText;
   let changed = false;
 
-  if (missing.some((snippet) => snippet === "機密分離原則")) {
+  if (missing.some((snippet) => snippet === "Credential Separation Principle" || snippet === "機密分離原則")) {
     const withCredential = replaceSectionByHeadingWithinBounds(
       merged,
       sourceText,
-      /^### 1\. (機密分離原則|credential-separation anchor removed from this stale local copy)/m,
+      /^### 1\. (Credential Separation Principle|機密分離原則|credential-separation anchor removed from this stale local copy)/m,
       /^### 2\. /m,
       "## Discipline",
       "## Rules"
@@ -2337,7 +2485,7 @@ function mergeIntegrationsSectionsByMissingAnchors(targetText, sourceText, missi
     changed = true;
   }
 
-  if (missing.some((snippet) => snippet === "External Tool Usage Verification Gate" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation")) {
+  if (missing.some((snippet) => snippet === "External Tool Usage Verification Gate" || snippet === "External Tool Resource Lifecycle" || snippet === "other-agent-owned" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation")) {
     const withVerificationGate = mergeIntegrationsVerificationGateSection(merged, sourceText);
     if (!withVerificationGate) return null;
     merged = withVerificationGate;
@@ -2373,7 +2521,44 @@ function mergeIntegrationsVerificationGateSection(targetText, sourceText) {
     return `${targetText.slice(0, targetBounds.start + currentFourTypesHeading.index)}${sourceSection.text}${targetText.slice(targetBounds.start + currentFourTypesHeading.index)}`;
   }
 
+  const englishTypeHeading = /^### 3\. Integration Type Discipline/m.exec(boundedTarget);
+  if (englishTypeHeading) {
+    return `${targetText.slice(0, targetBounds.start + englishTypeHeading.index)}${sourceSection.text}${targetText.slice(targetBounds.start + englishTypeHeading.index)}`;
+  }
+
   return null;
+}
+
+function isLegacyChineseIntegrationsPack(text) {
+  return text.includes("# Integrations Pack")
+    && countText(text, "## Scope") === 1
+    && countText(text, "## Load When") === 1
+    && countText(text, "## Discipline") === 1
+    && countText(text, "## Rules") === 1
+    && countText(text, "## Checks") === 1
+    && countText(text, "## Closeout") === 1
+    && countText(text, "## Cross-reference") === 1
+    && (text.includes("機密分離原則") || text.includes("四類整合"))
+    && !text.includes("## Local Discipline")
+    && !text.includes("Duplicate ambiguous local heading")
+    && countText(text, "四類整合") <= 2;
+}
+
+function isLegacyChineseOnboardingPack(text) {
+  return text.includes("# Onboarding Pack")
+    && countText(text, "## Scope") === 1
+    && countText(text, "## Load When") === 1
+    && countText(text, "## Discipline") === 1
+    && countText(text, "## Application Scenario Library") === 1
+    && countText(text, "## Cross-reference to guide.html") === 1
+    && countText(text, "## Tone Discipline") === 1
+    && countText(text, "## Closeout") === 1
+    && text.includes("### Scenario A.")
+    && text.includes("### Scenario E.")
+    && (text.includes("明確 onboarding signal keywords") || text.includes("Scenario F. 審視已裝外部工具") || text.includes("Anti-pattern（不要做的事）"))
+    && !text.includes("### Local Scenario A")
+    && !text.includes("structurally ambiguous onboarding")
+    && !text.includes("## Local Discipline");
 }
 
 function hasTrustedSafetyPackShape(text) {
@@ -2692,26 +2877,22 @@ function mergeRulePacksRows(targetText, sourceText) {
   while (tableEnd < lines.length && lines[tableEnd].startsWith("|")) tableEnd++;
 
   const before = lines.slice(0, tableStart);
-  const table = lines.slice(tableStart, tableEnd);
+  const governanceBridgeSourceRow = sourceRows.find((row) => row.includes("Governance bridge / bridge governance"));
+  const hasAnyGovernanceRow = targetText.includes("Governance bridge / 治理打通") || targetText.includes("Governance bridge / bridge governance");
+  const table = lines.slice(tableStart, tableEnd).map((line) => (
+    governanceBridgeSourceRow && (line.includes("Governance bridge / 治理打通") || line.includes("Governance bridge / bridge governance"))
+      ? governanceBridgeSourceRow
+      : line
+  ));
   const after = lines.slice(tableEnd);
-  const governanceBridgeSourceRow = sourceRows.find((row) => row.includes("Governance bridge / 治理打通"));
-  if (
-    governanceBridgeSourceRow
-    && targetText.includes("Governance bridge / 治理打通")
-    && (!targetText.includes("接入 Agent Handoff Kit") || !targetText.includes("掃描未接入 Agent Handoff Kit 的重要文件"))
-  ) {
-    const replaced = lines.map((line) => (
-      line.includes("Governance bridge / 治理打通") ? governanceBridgeSourceRow : line
-    ));
-    return replaced.join("\n");
-  }
   const sourceRowsToApply = sourceRows.filter((row) => {
     if (row.includes("dev/rules/onboarding.md")) return !targetText.includes("First-time user signals");
+    if (row.includes("External tool resource pressure")) return !targetText.includes("External tool resource pressure");
     if (row.includes("dev/rules/integrations.md")) return !targetText.includes("External tool integrations");
-    if (row.includes("Governance bridge / 治理打通")) return !targetText.includes("Governance bridge / 治理打通");
+    if (row.includes("Governance bridge / bridge governance")) return !hasAnyGovernanceRow;
     return false;
   });
-  if (sourceRowsToApply.length === 0) return targetText;
+  if (sourceRowsToApply.length === 0 && table.join("\n") === lines.slice(tableStart, tableEnd).join("\n")) return targetText;
 
   const merged = [
     ...before,

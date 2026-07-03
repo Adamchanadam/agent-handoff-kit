@@ -2,42 +2,43 @@
 
 ## Scope
 
-外部工具治理 pack —— 處理用戶已安裝嘅四類整合：**Connectors**（Anthropic 官方 vetted MCP server）、**MCPs**（community / custom MCP server）、**Plugins**（Claude Code plugin bundle）、**Skills**（SKILL.md instruction set）。
+Use this pack for governance of already-installed external tool integrations: **Connectors** (official or platform-vetted MCP servers), **MCPs** (community or custom MCP servers), **Plugins** (bundles that may register skills, MCP servers, hooks, or apps), and **Skills** (`SKILL.md` instruction sets).
 
-當任務涉及外部來源讀寫（Notion / Google Drive / Dropbox / Slack / Linear / GitHub / HubSpot 等），本 pack 引導 AI 先檢查項目已 declare 嘅整合，優先使用直接 access（Connector / MCP tool calls），fallback 至 paste packet 只當整合 unavailable 時。
+When a task touches external sources or external write surfaces such as Notion, Google Drive, Dropbox, Slack, Linear, GitHub, HubSpot, browsers, crawlers, notebooks, or local helper services, this pack makes the agent check declared integrations first, prefer direct runtime access when available, and fall back to manual packets only when the integration is unavailable.
 
-本 pack **不教用戶 install** —— 安裝行為屬 intermediate 用戶責任，由 Anthropic 官方 / 各工具自身文檔負責。本 pack 只專注「**用戶已裝好之後，點樣治理跨 session 穩定可用**」。
+This pack does not teach users how to install tools. Installation is handled by the user's AI runtime, tool vendor, or official documentation. This pack governs what happens after a tool is already installed: declaration, verification, safe use, resource lifecycle, drift handling, and cross-session continuity.
 
 ## Load When
 
-- 任務描述提到 Notion / Google Drive / Slack / Linear / Dropbox / HubSpot / GitHub / 其他外部工具
-- 用戶問「我可以叫 AI 直接讀 / 寫 Notion / Google Drive / 等嗎？」
-- 項目 `dev/PROJECT_INDEX.md` `## Installed Integrations` section 非空
-- 第一次安裝後 onboarding 階段（與 `dev/rules/onboarding.md` 配合，新手 declare 已裝工具）
-- 後續任務涉及多源 governance（譬如 Notion DB Index + 本機真源 + Google Drive 參考檔三層持久化組合）
+- The task mentions Notion, Google Drive, Slack, Linear, Dropbox, HubSpot, GitHub, browser automation, crawlers, notebooks, local helper services, or other external tools.
+- The user asks whether the agent can directly read or write an external system.
+- `dev/PROJECT_INDEX.md` has a non-empty `## Installed Integrations` section.
+- First-time onboarding asks the user to declare installed external tools.
+- The project uses a multi-layer source-of-truth setup, for example Notion index + local source files + Google Drive reference mirrors.
+- The user reports resource pressure, stale MCP or plugin services, browser automation left running, cache growth, or slowdown after external-tool use.
 
 ## Discipline
 
-### 1. 機密分離原則（最高優先）
+### 1. Credential Separation Principle
 
-**Credential（API key / OAuth token / app secret / refresh token）由 AI 工具自身 secure storage、OS credential store、tool config、或用戶自管 secret store 管理**，與本 Kit 完全分離：
+Credential values such as API keys, OAuth tokens, app secrets, and refresh tokens belong only in AI runtime secure storage, OS credential stores, tool configuration, environment indirection, or user-managed secret stores. Agent Handoff Kit files may record credential references, never credential values.
 
-| 儲存層 | 例子 | Kit 可記錄內容 |
-|--------|------|----------|
-| AI tool secure storage / Connector storage | Notion / Slack / Linear / Google Drive / Atlassian 等 | 只記 `AI tool secure storage` 或 connector 名稱，不記 value |
-| OS credential store | macOS Keychain / Windows Credential Manager / Linux secret service 等 | 只記 `OS credential store`，不讀取、不導出 value |
-| Tool config / env indirection | Claude Code MCP config / 其他 AI tool config / env var | 只記 config 位置或 env var name；不可讀取、貼出、保存 env value |
-| User-managed secret store | 由用戶或團隊管理嘅 vault / secret manager | 只記 store 類型或 owner，具體 secret value 由用戶管理 |
+| Storage layer | Examples | What Kit files may record |
+|---|---|---|
+| AI runtime secure storage / Connector storage | Notion, Slack, Linear, Google Drive, Atlassian, HubSpot, or similar connectors | Storage type or connector name only |
+| OS credential store | macOS Keychain, Windows Credential Manager, Linux secret service | `OS credential store` only |
+| Tool config / env indirection | AI tool MCP config, plugin config, environment variable name | Config location or env var name only; never the value |
+| User-managed secret store | Team vault or secret manager | Store type or owner only |
 
-Kit 嘅 `dev/` folder **任何檔都不 touch credential value**。三條硬性 enforcement：
+No file under `dev/` should contain a credential value. Enforce three rules:
 
-1. AI 不要求用戶喺對話貼 credential value
-2. AI 識別到 credential prefix（`sk-` / `sk-ant-` / `ntn_` / `secret_` / `ya29.` / `1//` / `xoxp-` / `xoxb-` / `ghp_` / `gho_` / `ghs_` / `github_pat_` / `sl.` / `AKIA` / `AIza` 等）會即時 redact + warn 用戶 rotate token
-3. 寫入 `dev/PROJECT_INDEX.md` `## Installed Integrations` 前 self-check 確認無 credential leak；doctor `checkInstalledIntegrationsCredentialLeak()` 對 PROJECT_INDEX + SESSION_HANDOFF + SESSION_LOG 三個 surface 強制 grep
+1. Do not ask the user to paste credential values into chat.
+2. If a credential-like prefix appears, redact it and warn the user to rotate the token when appropriate. Examples include `sk-`, `sk-ant-`, `ntn_`, `secret_`, `ya29.`, `1//`, `xoxp-`, `xoxb-`, `ghp_`, `gho_`, `ghs_`, `github_pat_`, `sl.`, `AKIA`, and `AIza`.
+3. Before writing to `dev/PROJECT_INDEX.md` `## Installed Integrations`, self-check that no credential value is being persisted. Doctor also checks `PROJECT_INDEX`, `SESSION_HANDOFF`, and `SESSION_LOG` for common credential prefixes.
 
 ### 2. External Tool Usage Verification Gate
 
-AI must not use model memory, old session experience, copied examples, Connector marketing text, or guessed command shapes as the source for external-tool usage. Before first use of an external tool layer in the current task, and again before any write, destructive action, permission-sensitive action, raw API / SDK / CLI / URI call, plugin API change, or retry after `unknown tool`, `invalid arguments`, HTTP 400 / 404, permission, auth, or schema errors, verify the current usage source for that layer:
+Agents must not use model memory, old session experience, copied examples, Connector marketing text, or guessed command shapes as the source for external-tool usage. Before first use of an external tool layer in the current task, and again before any write, destructive action, permission-sensitive action, raw API / SDK / CLI / URI call, plugin API change, or retry after `unknown tool`, `invalid arguments`, HTTP 400 / 404, permission, auth, or schema errors, verify the current usage source for that layer:
 
 | Layer | Required current source before invocation |
 |---|---|
@@ -49,151 +50,172 @@ AI must not use model memory, old session experience, copied examples, Connector
 
 If the required source cannot be inspected, mark the tool use `blocked` or `unverified`, ask the user for the current docs/schema/runbook, or fall back to a manual packet. Do not continue by trial and error. Connector-first means schema-first for the active runtime, not memory-first.
 
-### 3. 四類整合嘅紀律差異
+### 2.1 External Tool Resource Lifecycle
 
-#### 3.1 Connectors（Anthropic 官方 vetted）
+External tools must be treated as resources with ownership, not just capabilities. After using Connector, MCP, plugin, browser automation, local server, crawler, notebook, or similar external tool services, classify any opened session, process, browser context, temporary directory, cache, or helper service into one of these ownership classes:
 
-Anthropic 官方 directory 嘅 ready-to-use MCP server（譬如 Notion / Slack / Linear / Google Drive / Atlassian / HubSpot / 等）。用戶經 Claude Desktop Settings → Extensions → Browse 一鍵安裝，credential 由 AI tool secure storage / OS credential store / connector storage 管理。
+| Ownership class | Examples | Agent action |
+|---|---|---|
+| Task-owned | Process, browser context, temp directory, or helper service clearly started by this task and no longer needed. Evidence may include parent-child process chain, start time, tool family, task-created path, or runtime session handle. | Close or clean up automatically through the runtime or tool's graceful shutdown API when available; OS-level termination is allowed only when ownership is clear and graceful close is unavailable or failed. |
+| Agent-managed | Kit-managed or agent-created temp/cache under a known task workspace, with bounded path and age/size rules. | Clean automatically inside the declared boundary. Never scan or clean broad user, system, browser, package-manager, or marketplace caches through this class. |
+| Shared / user-owned / other-agent-owned / system-level | User's normal browser, another AI agent's active browser or MCP service, global MCP service, global npm/cache directory, shared credential store, project files, OS temp root, or any process whose owner is uncertain. | Do not terminate, delete, disable, or reconfigure automatically. Report evidence and propose exact remediation for user confirmation. |
+| Unknown | Generic `node`, `python`, `chrome`, or helper process without reliable owner evidence. | Treat as shared until proven otherwise. |
 
-紀律：
-- AI 可使用 active runtime 已暴露、且已讀取 tool description / input schema 嘅 Connector tool 直接 read / write
-- Write operations 必 read-back verify 後才聲稱成功（沿用 `packs/knowledge.md` Rule 6 紀律）
-- Auth 失敗（token expired / revoked）即 surface「請開 Claude Desktop Settings → Extensions → 重新 authenticate」+ 唔嘗試自動 fix
+For ordinary external-tool tasks, perform a lightweight closeout check: close task-owned handles, note any known retained session, and report only meaningful residual risk. For long-running, multi-tool, MCP-heavy, browser-automation, repeated-error, or user-reported slowdown tasks, perform a fuller resource review when the runtime exposes enough data: group by tool family, count, approximate memory where available, age / start time where available, and ownership class. If process command lines or environment details may contain secrets, redact arguments and secret-like values before reporting.
 
-#### 3.2 MCPs（community / custom）
+The preferred cleanup order is: graceful tool/session close, then task-owned process termination, then task-owned temp cleanup. Shared or ambiguous resources require explicit user confirmation with exact process IDs or paths, tool names, expected impact, and restart path before any termination, cache deletion, tool disablement, or configuration change. Never terminate or clean up a tool resource that may belong to another AI agent running on the same machine unless ownership has been proven for the current task.
 
-非 Anthropic 官方 vetted 嘅 MCP server，譬如 community 開發、用戶自建。需要 manual config（譬如 `~/.config/claude-code/mcp.json`）。
+### 3. Integration Type Discipline
 
-紀律：
-- 用 active runtime 已暴露、且已讀取 tool description / input schema 嘅 MCP tool（同 Connectors 一樣遵守 schema-first）
-- 因為非官方 vetted，AI 對 write operation 加倍小心：destructive writes 必先 dry-run + 用戶 confirm（沿用 `packs/safety.md` Rule 1）
-- Server 失靈（process crash / config error）即 surface「請檢查 MCP config + 重啟 AI tool」+ 唔嘗試自動 fix
+#### 3.1 Connectors
 
-#### 3.3 Plugins（Claude Code plugin bundle）
+Connectors are ready-to-use external tool surfaces exposed by the active AI runtime. Their credentials are normally managed by runtime secure storage, OS credential storage, or connector storage.
 
-distribution format，bundle = Skills + MCP server config + hooks。用戶經 `/plugin` command 安裝。
+Discipline:
 
-紀律：
-- AI 唔需要 separately invoke plugin —— plugin 自身會 register 它嘅 skills + MCP servers
-- 若 plugin 提供 skill，AI 按 skill 觸發條件自動 invoke（同 system skill 紀律一致）
-- 若 plugin 提供 MCP server，當 Connector / MCP 處理（見 2.1 / 2.2）
+- Use only runtime-exposed tools whose current name, description, and input schema have been inspected.
+- Read back every external write before claiming success.
+- If auth fails, surface the failure and point the user to the runtime or connector settings. Do not attempt automatic re-auth.
 
-#### 3.4 Skills（SKILL.md instruction set）
+#### 3.2 MCPs
 
-content format，由 Plugin 攜帶或 user-level / project-level 直接安裝。
+MCP servers may be official, community, custom, or project-local. Custom MCPs often depend on manual configuration.
 
-紀律：
-- AI 喺對話過程 detect skill 觸發條件（明示 keyword 或 implicit signal）即自動 invoke
-- Skill 內容屬 instruction overlay，與 rule pack 紀律 layer 共存
-- 若 skill 與 rule pack 紀律有 conflict，rule pack（safety / governance 等）優先
+Discipline:
 
-### 4. Source-of-truth Architecture（多層持久化組合）
+- Use only the active runtime's exposed tool name, description, and input schema.
+- Treat non-vetted or custom MCP write operations with extra caution. Destructive writes require dry-run and user confirmation under `packs/safety.md`.
+- If the server fails because of process crash, config error, or unavailable runtime state, surface the failure, recommend checking MCP config and restarting the host tool, and do not blindly retry.
 
-當項目用多個整合構成 source-of-truth 架構（譬如 Notion DB Index + 本機真源 + Google Drive 參考檔），AI 必先讀 `dev/PROJECT_INDEX.md` `## Installed Integrations` `### Source-of-truth Architecture` sub-table，識別每層分工：
+#### 3.3 Plugins
 
-| Layer | 角色 | Write Direction |
-|-------|------|-----------------|
-| 真源（source of truth） | 原始可審計嘅 reference 內容 | 由用戶手動置入；AI 不直接寫入 |
-| Index | 登記每份真源檔嘅 metadata + 摘要 + tag | AI 經 Connector 直接讀寫 |
-| 持久化參考檔（mirror） | 防本機 disk failure / 跨裝置 access | 用戶手動同步；AI 唔自動 push |
-| Working draft | AI 寫 task output | AI 直接 read + write 本機檔 |
+Plugins are distribution bundles. A plugin may register skills, MCP servers, hooks, apps, or other runtime capabilities.
 
-每個 Layer 由邊個 Integration 承擔由 PROJECT_INDEX schema 明示。AI 唔可越層（譬如將 Index 當真源、將 Working draft 直接 push 上 mirror）。
+Discipline:
 
-### 5. Cross-session Lifecycle（6 階段）
+- Do not invoke a plugin as a separate abstraction unless the runtime exposes such an action.
+- If a plugin provides a skill, follow the skill trigger rules.
+- If a plugin provides an MCP server or app tool, treat it under the Connector / MCP rules above and the resource lifecycle rules in this pack.
 
-#### 階段 0 — First-contact declaration（onboarding 階段）
+#### 3.4 Skills
 
-新手用戶第一次 trigger phrase 後，onboarding pack（`dev/rules/onboarding.md`）Scenario A-E Step 1 加 micro-question 或 Scenario F dedicated path 引導用戶 declare 已裝整合。
+Skills are instruction overlays, usually stored as `SKILL.md`, and may be installed directly or shipped by a plugin.
 
-#### 階段 1 — Initial recording
+Discipline:
 
-用戶答完，AI 寫入 PROJECT_INDEX `## Installed Integrations` 4 個 subsection（Connectors / MCPs / Plugins / Skills）+ 必要時填 Source-of-truth Architecture sub-table 描述多層分工。
+- Invoke a skill when the user explicitly names it or when the skill's trigger conditions are clearly met.
+- Skill instructions coexist with rule-pack discipline.
+- If a skill conflicts with safety, governance, or closeout rules, the rule pack and core safety boundary take precedence.
 
-#### 階段 2 — Cross-session handoff
+### 4. Source-of-truth Architecture
 
-`dev/SESSION_HANDOFF.md` `## Durable Anchors` section 必含「項目登記表 Installed Integrations section 必讀」reference；next-session opening message 嘅 read order 已 cover PROJECT_INDEX（既有第 6 項）。
+When a project uses multiple integrations as a source-of-truth system, read `dev/PROJECT_INDEX.md` `## Installed Integrations` `### Source-of-truth Architecture` before acting.
 
-#### 階段 3 — Startup availability probe
+| Layer | Role | Write direction |
+|---|---|---|
+| Source of truth | Original auditable reference content | User places or controls it; agent does not directly write it unless the project explicitly declares that integration as writable truth. |
+| Index | Metadata, summary, tags, and references for source files | Agent may read/write through declared Connector or MCP when verified. |
+| Persistent mirror | Backup or cross-device reference mirror | User-controlled sync by default; agent does not push automatically. |
+| Working draft | Task output and local work product | Agent may read/write local files under normal safety rules. |
 
-新 AI session 開工讀 PROJECT_INDEX 後，對每個 declared Integration 跑 minimal capability probe。Probe 必須使用 active runtime 目前暴露、且已讀取 description / input schema 嘅 tool；不可照抄舊例子或憑記憶猜 tool name / arguments。
+Each layer's responsible integration must be explicit in `PROJECT_INDEX`. Do not cross layers, for example by treating an index as primary truth or pushing a working draft to a mirror without authorization.
 
-- Probe success → update `Last Verified` cell + 進入正常 task loop
-- Probe fail（current AI tool 冇裝 / auth expired / network 問題）→ startup card warn 一句「⚠️ Boundary: <tool> declared but unavailable in this runtime; will fallback to paste flow when that surface is touched」；用戶決定點處理
+### 5. Cross-session Lifecycle
 
-#### 階段 4 — Task execution（knowledge pack Rule 5 配合）
+#### Phase 0 — First-contact declaration
 
-`packs/knowledge.md` Rule 5（v0.3.0 重寫）紀律由本 pack 接力 enforce：先 check declaration → functional 用直接 MCP → unavailable fallback paste + drift flag → undeclared but referenced ask user。
+During first-time onboarding, ask the user whether relevant external tools are already installed or available. This may be handled by the onboarding pack's external-tool scenario.
 
-#### 階段 5 — Mid-session drift handling
+#### Phase 1 — Initial recording
 
-任務做到一半 Integration 失靈（Notion auth 過期 / rate limit / network timeout）：
+Record declared integrations in `PROJECT_INDEX` `## Installed Integrations`, using the Connectors / MCPs / Plugins / Skills subsections and the Source-of-truth Architecture table when needed.
 
-- AI 即時 surface 失敗 + 建議用戶 re-auth（讓用戶自己處理 credential issue）
-- AI 唔嘗試自動 fix auth
-- 更新 PROJECT_INDEX `Last Verified` cell + 加 note 紀錄 drift event
-- Closeout 時 SESSION_LOG 紀錄 drift narrative，handoff 提示下次開工 verify
+#### Phase 2 — Cross-session handoff
 
-#### 階段 6 — Multi-tool 環境 cross-tool 一致性
+`SESSION_HANDOFF` durable anchors should point future agents to `PROJECT_INDEX` `## Installed Integrations`. The next-session opening message already includes `PROJECT_INDEX` in the read order.
 
-用戶可能 Claude Code session 用 Notion MCP → 收工 → 下 session 用 Codex（可能未裝 Notion MCP）：
+#### Phase 3 — Startup availability probe
 
-- PROJECT_INDEX declaration 屬 project-level，唔 lock 一個 AI tool
-- 新 AI session 開工自動 verify availability（階段 3）
-- 若新 AI tool 冇相應 MCP：startup card warn + fallback paste；用戶決定 (i) 跨 tool 統一裝 / (ii) 接受 capability difference / (iii) 切返有裝嘅 tool
+After reading `PROJECT_INDEX`, run a minimal availability probe for each declared integration when the runtime exposes the needed tool schema.
+
+- Probe success: update `Last Verified` and proceed.
+- Probe fail: warn that the integration is declared but unavailable in the current runtime, then use fallback flow only for the affected surface.
+
+#### Phase 4 — Task execution
+
+Apply the knowledge pack's Connector-first discipline: check declaration, use the verified direct tool when available, fall back to manual packet only when unavailable, and ask the user when the referenced integration is undeclared.
+
+#### Phase 5 — Mid-session drift handling
+
+If an integration fails mid-task because of expired auth, rate limit, network timeout, tool crash, or missing runtime capability:
+
+- Surface the failure and impact.
+- Do not auto-fix credentials or auth.
+- Update `PROJECT_INDEX` `Last Verified` / note fields where appropriate.
+- Record the drift in `SESSION_LOG` and unresolved risk in `SESSION_HANDOFF` when it affects future work.
+
+#### Phase 6 — Cross-tool consistency
+
+Integration declarations are project-level; they do not guarantee every AI runtime has the same tools installed. A new runtime must verify availability, warn on capability differences, and use fallback flow unless the user chooses to install or switch tools.
 
 ## Rules
 
-1. **Credential 機密分離**：AI 不要求用戶喺對話貼 credential；識別 credential prefix 即 redact + warn rotate；寫 PROJECT_INDEX 前 self-check 無 credential leak。
-2. **External Tool Usage Verification Gate**：任務涉及外部工具前，先分類工具層並核對 current runtime schema、官方文件、官方型別 / sample、或有版本日期嘅本地 runbook；不能核實即 blocked / unverified，唔用模型記憶試錯。
-3. **Declaration before use**：任務涉及外部工具前，先讀 `dev/PROJECT_INDEX.md` `## Installed Integrations`；無 declaration 即 ask user about Integration status，唔自己假設未裝。
-4. **Connector-first default**：當 declared Integration functional，優先使用 active runtime 已暴露且已讀 schema 嘅 direct tool call；paste fallback 只當 Integration unavailable 時。
-5. **Write operations read-back verify**：所有外部 write（Notion create-page / Drive upload / Slack post 等）必 read-back 對齊後才聲稱 success。
-6. **No auto-fix credential / auth issues**：Auth 失靈即 surface 俾用戶處理（指向 AI 工具設定界面），AI 唔嘗試自動 fix。
-7. **Cross-tool capability awareness**：新 session 開工 verify availability；若 current AI tool 冇相應整合，startup card warn + fallback。
-8. **Source-of-truth layer 唔越界**：真源層 AI 不直接寫；Index 層 AI 經 Connector 讀寫；Mirror 層用戶手動同步；Working draft 層 AI 直接 read/write 本機。
-9. **Drift event mandatory recording**：任何整合失靈 / unavailable 即更新 PROJECT_INDEX `Last Verified` cell + SESSION_LOG drift narrative + handoff next-session prompt 提示。
-10. **Plugin / Skill 紀律 subordinate**：若 Plugin 攜帶 Skill 觸發，與 rule pack 紀律 layer 共存；conflict 時 rule pack（safety / governance / closeout）優先。
+1. **Credential separation**: never ask for, log, or persist credential values. Redact credential-like values and warn about rotation when appropriate.
+2. **External Tool Usage Verification Gate**: verify current runtime schema, official docs, official types/samples, or versioned local runbooks before invoking or retrying external tools.
+3. **Declaration before use**: read `dev/PROJECT_INDEX.md` `## Installed Integrations` before external-tool work. If absent, ask about integration status rather than assuming none exists.
+4. **Connector-first default**: when a declared integration is functional, prefer the verified direct tool call. Manual paste is fallback, not default.
+5. **Write operations require read-back verification**: read back every external write before claiming success.
+6. **No auto-fix credential / auth issues**: surface auth failures to the user and point to the runtime settings or tool owner.
+7. **Cross-tool capability awareness**: verify availability at startup and warn when the current runtime lacks a declared integration.
+8. **Do not cross source-of-truth layers**: follow the role and write direction declared in `PROJECT_INDEX`.
+9. **Drift event mandatory recording**: record integration drift in `PROJECT_INDEX`, `SESSION_LOG`, and `SESSION_HANDOFF` when it affects future work.
+10. **Plugin / Skill subordination**: plugin and skill instructions coexist with rule packs; safety, governance, and closeout rules take precedence on conflict.
+11. **External tool resource lifecycle**: after external-tool use, classify resources by ownership. Task-owned / agent-managed resources may be closed or cleaned automatically; shared, user-owned, system-level, other-agent-owned, or unknown resources require evidence reporting and user confirmation before remediation.
 
 ## Checks
 
-- 開工 verify `dev/PROJECT_INDEX.md` `## Installed Integrations` section 存在 + 4 subsection schema 完整
-- 開工對每 declared Integration 跑 capability probe，probe 前先讀 current runtime tool description / input schema，update `Last Verified` cell
-- 外部工具首次調用、寫入、不可逆操作、API / SDK / CLI / URI / plugin API 使用、或工具錯誤後重試前，確認已核對 current runtime schema / 官方文件 / 官方型別 / 官方 sample / 有版本日期嘅 runbook
-- 任何 mid-session Integration drift 即 surface + 紀錄
-- Closeout 前確認 `Last Verified` cell 已 update 為今次 session 結果
-- Credential leak self-check 對 PROJECT_INDEX + SESSION_HANDOFF + SESSION_LOG 任何 write
-- Cross-reference verify：PROJECT_INDEX External Sources `via` column 引用 entry 必喺 Installed Integrations subsection 命中
+- Verify `dev/PROJECT_INDEX.md` `## Installed Integrations` exists and has the expected subsections when the project declares integrations.
+- Before probing or invoking a declared integration, inspect current runtime tool description and input schema.
+- Before external-tool first use, write, destructive operation, raw API / SDK / CLI / URI / plugin API call, or retry after tool error, confirm the current usage source.
+- Surface and record mid-session integration drift.
+- After external-tool use, perform ownership-based resource closeout. For long-running, multi-tool, MCP, browser automation, repeated-error, or slowdown scenarios, report grouped residual processes or services when observable.
+- Before closeout, update `Last Verified` for integrations touched this session.
+- Self-check credential leakage before writing `PROJECT_INDEX`, `SESSION_HANDOFF`, or `SESSION_LOG`.
+- Verify that `PROJECT_INDEX` External Sources `via` references match declared Installed Integrations entries.
 
 ## Closeout
 
-收工時：
+1. Update `PROJECT_INDEX` `## Installed Integrations` `Last Verified` cells for integrations touched this session.
+2. If drift happened, record the drift narrative, impact, and suggested next handling in `SESSION_LOG`.
+3. Add unresolved integration failures to `SESSION_HANDOFF` `## Risks / Blockers`.
+4. If unresolved drift affects startup, mention the next-session verification need in the opening message.
+5. If the user declared a new integration during the session, ensure it is registered in `PROJECT_INDEX` and cross-referenced from External Sources when applicable.
+6. If shared or ambiguous external-tool processes, caches, browser contexts, or helper services remain, record only a redacted evidence summary and recommended remediation. Do not write raw secret-bearing command lines into handoff or log files.
 
-1. 更新 PROJECT_INDEX `## Installed Integrations` 嘅 `Last Verified` cell 為今次 session 嘅 verify 結果
-2. 若 session 中發生 drift event，SESSION_LOG entry 必含 drift narrative + 影響 + 建議下次處理
-3. SESSION_HANDOFF `## Risks / Blockers` 列任何未解決嘅 Integration 失靈
-4. Next-session opening message 提示「下次開工先 verify <integration> auth」若上 session drift 未解
-5. 若 session 中新加 Integration（用戶 mid-session declare），確認已寫入 PROJECT_INDEX + cross-reference External Sources `via` column
+## Anti-patterns
 
-## Anti-pattern（不要做的事）
-
-| Anti-pattern | 點解唔做 | 正確做法 |
+| Anti-pattern | Why it is wrong | Correct approach |
 |---|---|---|
-| 用戶提到 Notion / Google Drive 即假設冇 Connector，直接列 paste packet | 違反 2026-05 reality：Connector ecosystem 已成熟，paste-only fallback 不應係 default | 先 read PROJECT_INDEX Installed Integrations；無 declaration 即 ask user about Integration status |
-| 憑模型記憶猜 Notion / Google Drive / Obsidian / GitHub tool name、endpoint、CLI flag、URI param、plugin API | 會把過時訓練資料當現行指令，造成 unknown tool / invalid args / 400 / 404 / permission error 循環 | 先核對 active runtime tool schema、官方文件、官方型別 / sample、或有版本日期嘅本地 runbook；不能核實即 blocked / unverified |
-| Connector 介紹頁或舊例子當成可執行 schema | 介紹頁通常唔等於 current runtime 實際暴露 tool name / input schema | 以 active runtime tool list / schema 為準；官方文件只作 raw API / SDK / CLI / URI 或故障排查真源 |
-| unknown tool / invalid args 後連續改名或改參數試錯 | 同類盲試會製造新錯誤，掩蓋真正 schema / docs 缺口 | 停止同類重試，回到 External Tool Usage Verification Gate |
-| 將 credential value 寫入 PROJECT_INDEX / SESSION_HANDOFF / SESSION_LOG | 違反機密分離原則 + git history 永久保留泄露 | Credential reference 只記指向（譬如「AI tool secure storage」/「env var name only」），永不記 value |
-| 用戶喺對話貼 credential value，AI 直接 用 / 紀錄 | 違反 enforcement Rule 1 + 用戶可能誤泄露 | 即時 redact + warn 用戶 rotate token + 解釋機密分離原則 |
-| Auth 失靈即嘗試自動 fix / re-auth flow | 越界（屬 AI tool + 用戶範圍）+ 可能引入 credential exposure | Surface 失敗 + 指向 AI 工具設定界面 + 唔自動 fix |
-| Connector 寫入後唔 read-back verify | Write 可能 silently fail（rate limit / partial write）—— 用戶以為 success | 必 read-back verify 後才聲稱 success（沿用 knowledge Rule 6） |
-| 跨 layer 越界（譬如 AI 將 Working draft push 上 Drive mirror） | 違反 Source-of-truth architecture 分工 + 可能 corrupt 真源 | 嚴守 PROJECT_INDEX 嘅 Layer 分工 |
-| 新 AI session 開工唔 verify availability，直接按舊紀錄假設可用 | Stale state risk —— token 可能過期、AI tool 可能切換 | 開工必 probe + update `Last Verified` |
+| Assuming no Connector or MCP exists whenever the user mentions Notion, Google Drive, or another external source | Mature connector ecosystems make paste-only fallback an unreliable default. | Read `PROJECT_INDEX` Installed Integrations first; ask about integration status if undeclared. |
+| Guessing tool names, endpoints, CLI flags, URI parameters, or plugin APIs from memory | Stale examples cause unknown tool, invalid args, 400 / 404, permission, or auth loops. | Verify active runtime schema, official docs, official types/samples, or versioned local runbooks. |
+| Treating a Connector marketing page or old example as executable schema | Marketing pages do not prove the active runtime's current tool name or input schema. | Use active runtime tool list/schema as the invocation source. |
+| Retrying unknown tool / invalid args by changing names or parameters repeatedly | Trial-and-error hides the real schema or docs gap. | Stop same-pattern retries and return to the External Tool Usage Verification Gate. |
+| Writing credential values into `PROJECT_INDEX`, `SESSION_HANDOFF`, or `SESSION_LOG` | Project files and git history are persistent; leaked credentials remain exposed. | Record credential references only, never values. |
+| Using a credential value pasted in chat and then recording it | Chat history and logs may persist the secret. | Redact, warn, and ask the user to rotate if needed. |
+| Auto-fixing auth or re-auth flows | Auth belongs to the user and the runtime/tool boundary. | Surface the failure and point to the runtime or tool settings. |
+| Claiming an external write succeeded without read-back | External writes may fail silently or partially. | Read back and compare before claiming success. |
+| Crossing source-of-truth layers | It can corrupt truth, mirrors, or working drafts. | Follow the declared layer role and write direction in `PROJECT_INDEX`. |
+| Skipping startup availability verification because an old handoff said the tool worked | Tokens expire, runtimes change, and tools can be removed. | Probe availability in the current runtime before using the integration. |
+| Leaving task-owned MCP / browser / helper processes running after the task | Turns one-off tool use into a long-lived resource leak and can slow the host. | Use graceful close or task-owned process cleanup automatically; switch to user confirmation only when ownership is unclear. |
+| Broadly killing by process name such as `node.exe`, `python`, or `chrome` | A generic process name does not prove ownership and may terminate user work, another project, or another AI agent's active tools. | Classify by tool family, process ID, start time, parent chain, and task-created path; treat unknown ownership as shared. |
+| Automatically cleaning global caches, marketplace caches, OS temp roots, or browser profiles | May remove shared state, login state, or data other tools still need. | Automatically clean only task-owned / agent-managed bounded paths; report evidence and wait for confirmation otherwise. |
 
 ## Cross-reference
 
-- `packs/knowledge.md` Rule 5：Connector-first 紀律 enforcement，本 pack 接力
-- `packs/safety.md` Rule 12：Credential leak prevention，本 pack 機密分離原則 implementation
-- `packs/onboarding.md` Scenario F：first-contact declaration 入口
-- `runtime-core/AGENTS.core.md` Section 1：startup probe 紀律
-- `runtime-core/PROJECT_INDEX.md` `## Installed Integrations` + `## External Sources` `via` column：declaration registry
+- `packs/knowledge.md` Rule 5: Connector-first source access discipline.
+- `packs/safety.md` Rule 10: external API / SDK / CLI / tool verification boundary.
+- `packs/safety.md` Rule 12: credential leak prevention.
+- `packs/safety.md` Rule 14: process termination and cache cleanup boundary for external-tool resources.
+- `packs/onboarding.md` Scenario F: first-contact declaration entry point.
+- `runtime-core/AGENTS.core.md` Section 1: startup availability probe discipline.
+- `runtime-core/PROJECT_INDEX.md` `## Installed Integrations` and `## External Sources` `via` column: declaration registry.
