@@ -56,6 +56,8 @@ Record only work actually completed in the current session.
 <!-- ack:section:next-priorities -->
 ## Next Priorities
 
+Recommended next step: TBD — reason: TBD
+
 1. TBD
 
 <!-- ack:section:next-task-required-reading -->
@@ -113,6 +115,8 @@ At full closeout, complete this check after updating the state sections above.
 - Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: TBD
 <!-- ack:field:persistence-routing-checked -->
 - Persistence routing checked: TBD
+<!-- ack:field:recommended-next-step-explicit -->
+- Recommended next step is explicit and reasoned: TBD
 <!-- ack:field:opening-message-matches-current-state -->
 - Opening message matches current state: TBD
 <!-- ack:field:next-ai-can-continue -->
@@ -120,7 +124,7 @@ At full closeout, complete this check after updating the state sections above.
 
 If any answer is no, blocked, or uncertain, fix this handoff before declaring handoff ready.
 
-Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated. Persistence routing rule: one-time delivery instructions, historical validation evidence, old hashes, old version facts, and incident notes must stay in trace evidence unless they still affect the next action.
+Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated. Recommended next-step rule: `Next Priorities` must name the single recommended next action and a short reason before listing additional options, unless the next action is blocked or genuinely requires a user decision. Persistence routing rule: one-time delivery instructions, historical validation evidence, old hashes, old version facts, and incident notes must stay in trace evidence unless they still affect the next action.
 
 <!-- ack:section:handoff-sufficiency-check -->
 ## Handoff Sufficiency Check

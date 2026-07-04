@@ -37,7 +37,7 @@ Use this workflow when the user asks for governance bridge, connect this documen
 3. Check `dev/PROJECT_INDEX.md`: the file should be discoverable with its role and "read when" condition. Source-of-truth or reference files should appear in Fact Base, External Sources, Directory Map, Entry Points, or another existing indexed home that fits the project.
 4. Check `dev/DOC_SYNC_REGISTRY.md`: future same-type changes should have a matching change type or an explicit reason no durable sync rule is needed.
 5. Check related workflows, guides, runbooks, or rule packs: if a process creates or updates the file, that process should say when to update the file or its index row.
-6. Check `dev/SESSION_HANDOFF.md`: only current state, next action, unresolved risk, blocker, or a startup-needed fact should be in handoff. Do not copy whole documents or old evidence into handoff.
+6. Check `dev/SESSION_HANDOFF.md`: only current state, recommended next action with reason, unresolved risk, blocker, or a startup-needed fact should be in handoff. Do not copy whole documents or old evidence into handoff.
 7. Check `dev/SESSION_LOG.md`: this session's bridge review, validation, and evidence can be logged when it affects future action, but log entries must not become current state.
 8. Search for duplicate source-of-truth risk. If another file has the same durable role, recommend merge, reference, or retire options; do not delete, rename, or move files without explicit approval.
 
@@ -46,8 +46,10 @@ For repo-wide scans, report candidates as candidates. Do not fail ordinary docs 
 Output format:
 
 - Status: bridged / partially bridged / unbridged / blocked.
+- Use bridged only when every applicable governance link is present. If only `dev/PROJECT_INDEX.md` or `dev/SESSION_LOG.md` was updated, report partially bridged.
 - Already bridged: list the governance links that are present.
 - Gaps: list missing links and why they matter for the next agent.
+- Not applicable: list skipped layers with a reason.
 - Suggested patches: list exact files and sections to update.
 - Manual decisions: list duplicates, naming choices, deletion, renaming, external sync, or ownership questions requiring user confirmation.
 - Acceptance: give one concrete check that proves the bridge is complete.
@@ -70,7 +72,7 @@ Use this workflow when the user asks to write something into long-term governanc
 
 1. Classify the knowledge before writing:
    - Current task contract changes, including product goals, requirements, development checklists, acceptance rules, exclusions, priorities, or scope -> the existing authoritative spec / backlog / issue / runbook when one exists; otherwise `dev/SESSION_HANDOFF.md` current-state sections.
-   - Current task state, next action, unresolved risk, or startup-needed fact -> `dev/SESSION_HANDOFF.md`.
+   - Current task state, recommended next action with reason, unresolved risk, or startup-needed fact -> `dev/SESSION_HANDOFF.md`.
    - Chronological evidence or validation trace -> `dev/SESSION_LOG.md`.
    - File maps, command maps, API reference locations, tool capability maps, and external source coordinates -> `dev/PROJECT_INDEX.md`.
    - Sync obligations or external mirror duties -> `dev/DOC_SYNC_REGISTRY.md`.

@@ -54,6 +54,8 @@ const requiredAnchors = [
       "Display version rule",
       "Agent Handoff Kit template version",
       "continuity ready",
+      "推薦下一步",
+      "recommended action",
       "Start Agent Handoff",
       "Ambiguous startup phrases",
       "Reachable is not the same as ingested",
@@ -112,12 +114,24 @@ const requiredAnchors = [
       "ack:section:next-task-required-reading",
       "ack:section:state-reconciliation-check",
       "ack:section:next-session-opening-message",
+      "ack:field:recommended-next-step-explicit",
       "ack:field:lifecycle-conflicts-resolved",
       "ack:field:persistence-routing-checked",
       "📋 Next session:",
       "```text",
       "Read in order:",
       "dev/DOC_SYNC_REGISTRY.md"
+    ]
+  },
+  {
+    target: "dev/rules/communication.md",
+    label: "communication recommended next-step discipline",
+    snippets: [
+      "Communication Pack",
+      "recommended next step",
+      "state it directly with a short reason",
+      "Offer two or three choices only when the user truly must decide",
+      "do not turn an already-made technical judgment into an open question"
     ]
   },
   {
@@ -175,6 +189,16 @@ const requiredAnchors = [
     ]
   },
   {
+    target: "dev/PROJECT_INDEX.md",
+    label: "tool operation references",
+    snippets: [
+      "Tool Operation References",
+      "runtime-controlled tools",
+      "Source and version/date",
+      "Scope and known limits"
+    ]
+  },
+  {
     target: "dev/rules/safety.md",
     label: "safety pack high-risk anchors",
     placement: safetyAnchorPlacement,
@@ -187,7 +211,11 @@ const requiredAnchors = [
       "parser failure",
       "secret values",
       "task-owned or agent-managed",
-      "other-agent-owned"
+      "other-agent-owned",
+      "browser profiles",
+      "desktop app sessions",
+      "shared tool servers",
+      "notebook kernels"
     ]
   },
   {
@@ -246,6 +274,9 @@ const requiredAnchors = [
       "Source-of-truth Architecture",
       "Cross-session Lifecycle",
       "Connector-first default",
+      "Runtime-Controlled Tool Operation Variants",
+      "Tool Operation References",
+      "Do not guess Chrome, Playwright, or DevTools commands",
       "Anti-pattern"
     ]
   }
@@ -283,6 +314,7 @@ const schemaChecks = [
       marker("field", "stale-snapshots-left", "Stale snapshots left in this handoff"),
       marker("field", "lifecycle-conflicts-resolved", "Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified"),
       marker("field", "persistence-routing-checked", "Persistence routing checked"),
+      marker("field", "recommended-next-step-explicit", "Recommended next step is explicit and reasoned"),
       marker("field", "opening-message-matches-current-state", "Opening message matches current state"),
       marker("field", "state-sections-rewritten-or-confirmed", "State sections rewritten or confirmed current"),
       marker("field", "user-intent", "User intent:"),
@@ -342,6 +374,7 @@ const schemaChecks = [
       heading("Fact Base"),
       heading("External Sources"),
       heading("Installed Integrations"),
+      heading("Tool Operation References"),
       heading("Local QC Commands"),
       heading("Workspace Identity"),
       heading("Change Hotspots"),
@@ -359,7 +392,8 @@ const schemaChecks = [
       tableHeader("Server", "Source", "Project Usage", "Credential Reference (no value)", "Declared", "Last Verified"),
       tableHeader("Name", "Bundle Content (Skills + MCP + hooks)", "When Triggered", "Last Verified"),
       tableHeader("Name", "Source", "When Triggered", "Last Verified"),
-      tableHeader("Layer", "Surface (specific instance)", "Role", "Write Direction")
+      tableHeader("Layer", "Surface (specific instance)", "Role", "Write Direction"),
+      tableHeader("Tool / operation", "Reference path or URL", "Required before", "Source and version/date", "Scope and known limits", "Last verified")
     ]
   },
   {
@@ -1790,6 +1824,19 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
   }
+  if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade" && !targetText.includes("## Tool Operation References")) {
+    const sourceToolRefsMatch = sourceText.match(/(## Tool Operation References[\s\S]*?)(?=## Local QC Commands)/);
+    if (sourceToolRefsMatch && targetText.includes("## Local QC Commands")) {
+      const toolRefsBlock = sourceToolRefsMatch[1];
+      const normalizedTarget = mergeProjectIndexCredentialReferences(targetText);
+      return {
+        ...base,
+        action: "merge",
+        reason: "insert ## Tool Operation References section template before ## Local QC Commands and normalize integration reference wording (runtime-controlled tool operation governance)",
+        mergedText: normalizedTarget.replace("## Local QC Commands", toolRefsBlock + "## Local QC Commands")
+      };
+    }
+  }
   if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade" && (
     targetText.includes("Credential Location")
     || targetText.includes("Credential Reference（no value）")
@@ -1870,6 +1917,18 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       ...base,
       action: "merge",
       reason: "insert persistence routing field into State Reconciliation Check (one-time evidence must not drive next-session state)",
+      mergedText: mergedHandoff
+    };
+  }
+  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && !targetText.includes("ack:field:recommended-next-step-explicit")) {
+    const mergedHandoff = mergeHandoffRecommendedNextStepDiscipline(targetText);
+    if (!mergedHandoff) {
+      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md state reconciliation markers were changed; manual merge required to add recommended next-step field" };
+    }
+    return {
+      ...base,
+      action: "merge",
+      reason: "insert recommended next-step field and preserve existing next-priority items",
       mergedText: mergedHandoff
     };
   }
@@ -2188,7 +2247,7 @@ function onboardingAnchorPlacement(snippet, text) {
 }
 
 function integrationsAnchorPlacement(snippet, text) {
-  if (snippet === "Credential Separation Principle" || snippet === "External Tool Usage Verification Gate" || snippet === "External Tool Resource Lifecycle" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation" || snippet === "Source-of-truth Architecture" || snippet === "Cross-session Lifecycle") {
+  if (snippet === "Credential Separation Principle" || snippet === "External Tool Usage Verification Gate" || snippet === "External Tool Resource Lifecycle" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation" || snippet === "Source-of-truth Architecture" || snippet === "Cross-session Lifecycle" || snippet === "Runtime-Controlled Tool Operation Variants" || snippet === "Tool Operation References" || snippet === "Do not guess Chrome, Playwright, or DevTools commands") {
     return snippetAppearsBetweenHeadings(text, snippet, "## Discipline", "## Rules");
   }
   if (snippet === "Connector-first default") {
@@ -2261,6 +2320,14 @@ const semanticAnchorRepairStrategies = {
       mergedText: mergedSafety
     } : null;
   },
+  "dev/rules/communication.md": (targetText, sourceText, missing) => {
+    const mergedCommunication = mergeCommunicationNextStepDiscipline(targetText, sourceText, missing);
+    return mergedCommunication ? {
+      action: "merge",
+      reason: "insert communication pack recommended next-step discipline without replacing local prose",
+      mergedText: mergedCommunication
+    } : null;
+  },
   "dev/rules/integrations.md": (targetText, sourceText, missing) => {
     const mergedIntegrations = mergeIntegrationsSectionsByMissingAnchors(targetText, sourceText, missing);
     return mergedIntegrations ? {
@@ -2329,6 +2396,33 @@ function mergeProjectIndexTemplateVersionRow(targetText, sourceText) {
   if (!lines[separatorIndex]?.startsWith("|---")) return null;
   lines.splice(separatorIndex + 1, 0, sourceRow);
   return lines.join("\n");
+}
+
+function mergeCommunicationNextStepDiscipline(targetText, sourceText, missing) {
+  if (!missing.some((snippet) => snippet === "recommended next step" || snippet === "state it directly with a short reason" || snippet === "do not turn an already-made technical judgment into an open question")) return null;
+  if (!targetText.includes("# Communication Pack")) return null;
+  if (countText(targetText, "## Rules") !== 1 || countText(targetText, "## Checks") !== 1 || countText(targetText, "## Closeout") !== 1) return null;
+
+  const sourceRule = sourceText.split(/\r?\n/).find((line) => line.includes("Give a clear recommended next step"));
+  const sourceCheck = sourceText.split(/\r?\n/).find((line) => line.includes("Confirm user-facing next-step wording names the recommended action"));
+  if (!sourceRule || !sourceCheck) return null;
+
+  let merged = targetText;
+  if (!merged.includes("Give a clear recommended next step")) {
+    const rulesBounds = textSectionBounds(merged, "## Rules", "## Checks");
+    if (!rulesBounds) return null;
+    const rulesBlock = merged.slice(rulesBounds.start, rulesBounds.end);
+    if (/^6\. /m.test(rulesBlock)) return null;
+    merged = `${merged.slice(0, rulesBounds.end).trimEnd()}\n${sourceRule}\n\n${merged.slice(rulesBounds.end).trimStart()}`;
+  }
+
+  if (!merged.includes("Confirm user-facing next-step wording names the recommended action")) {
+    const checksBounds = textSectionBounds(merged, "## Checks", "## Closeout");
+    if (!checksBounds) return null;
+    merged = `${merged.slice(0, checksBounds.end).trimEnd()}\n${sourceCheck}\n\n${merged.slice(checksBounds.end).trimStart()}`;
+  }
+
+  return merged === targetText ? null : merged;
 }
 
 function mergeProjectIndexCredentialReferences(targetText) {
@@ -2435,7 +2529,7 @@ function mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing) {
     if (!remainingMissing.includes(snippet) || targetText.includes(snippet)) continue;
     const sourceRule = sourceRuleLines.find((line) => line.includes(snippet));
     if (!sourceRule || !sourceRule.startsWith(`${number}. `)) return null;
-    if (!targetLines.some((line, index) => index >= targetRuleStart && index < targetRuleEnd && line.startsWith(`${number}. `))) {
+    if (!targetLines.some((line, index) => index >= targetRuleStart && line.startsWith(`${number}. `))) {
       targetLines.splice(targetRuleEnd, 0, sourceRule);
       changed = true;
       remainingMissing.splice(remainingMissing.indexOf(snippet), 1);
@@ -2452,12 +2546,25 @@ function mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing) {
     remainingMissing.splice(remainingMissing.indexOf("parser failure"), 1);
   }
 
+  const rule14Snippets = ["browser profiles", "desktop app sessions", "shared tool servers", "notebook kernels"];
+  if (remainingMissing.some((snippet) => rule14Snippets.includes(snippet))) {
+    const sourceRule14 = sourceRuleLines.find((line) => line.startsWith("14. ") && line.includes("Process termination and cache cleanup boundary"));
+    const targetRule14Index = targetLines.findIndex((line, index) => index >= targetRuleStart && line.startsWith("14. "));
+    if (!sourceRule14 || targetRule14Index < 0) return null;
+    targetLines[targetRule14Index] = sourceRule14;
+    changed = true;
+    for (const snippet of rule14Snippets) {
+      const index = remainingMissing.indexOf(snippet);
+      if (index >= 0) remainingMissing.splice(index, 1);
+    }
+  }
+
   for (const snippet of remainingMissing) {
     const sourceLine = sourceRuleLines.find((line) => line.includes(snippet));
     if (!sourceLine) return null;
     const ruleNumber = sourceLine.match(/^(\d+)\. /)?.[1];
     if (!ruleNumber) return null;
-    const targetIndex = targetLines.findIndex((line, index) => index >= targetRuleStart && index < targetRuleEnd && line.startsWith(`${ruleNumber}. `));
+    const targetIndex = targetLines.findIndex((line, index) => index >= targetRuleStart && line.startsWith(`${ruleNumber}. `));
     if (targetIndex < 0) return null;
     if (!sameRuleShape(targetLines[targetIndex], sourceLine, snippet)) return null;
     targetLines[targetIndex] = sourceLine;
@@ -2485,7 +2592,7 @@ function mergeIntegrationsSectionsByMissingAnchors(targetText, sourceText, missi
     changed = true;
   }
 
-  if (missing.some((snippet) => snippet === "External Tool Usage Verification Gate" || snippet === "External Tool Resource Lifecycle" || snippet === "other-agent-owned" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation")) {
+  if (missing.some((snippet) => snippet === "External Tool Usage Verification Gate" || snippet === "External Tool Resource Lifecycle" || snippet === "other-agent-owned" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation" || snippet === "Runtime-Controlled Tool Operation Variants" || snippet === "Tool Operation References" || snippet === "Do not guess Chrome, Playwright, or DevTools commands")) {
     const withVerificationGate = mergeIntegrationsVerificationGateSection(merged, sourceText);
     if (!withVerificationGate) return null;
     merged = withVerificationGate;
@@ -2689,7 +2796,7 @@ function mergeHandoffLifecycleField(targetText) {
 
   const fieldBlock = "<!-- ack:field:lifecycle-conflicts-resolved -->\n- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: Reclassified at upgrade: field added by v0.3.6+ migration; pre-existing handoff state predates it; reconcile at next closeout.\n";
   let merged = targetText.replace(openingMarker, `${fieldBlock}${openingMarker}`);
-  return ensureHandoffStateReconciliationRules(ensureHandoffPersistenceRoutingField(merged));
+  return ensureCurrentHandoffMigrationFields(merged);
 }
 
 function reclassifyExistingHandoffLifecyclePlaceholder(targetText) {
@@ -2711,8 +2818,24 @@ function reclassifyExistingHandoffLifecyclePlaceholder(targetText) {
 }
 
 function mergeHandoffPersistenceRoutingField(targetText) {
-  const merged = ensureHandoffPersistenceRoutingField(targetText);
+  const merged = ensureCurrentHandoffMigrationFields(targetText);
   if (!merged || merged === targetText) return null;
+  return merged;
+}
+
+function mergeHandoffRecommendedNextStepDiscipline(targetText) {
+  const merged = ensureCurrentHandoffMigrationFields(targetText);
+  if (!merged || merged === targetText) return null;
+  return merged;
+}
+
+function ensureCurrentHandoffMigrationFields(targetText) {
+  let merged = ensureHandoffPersistenceRoutingField(targetText);
+  if (!merged) return null;
+  merged = ensureHandoffRecommendedNextStepField(merged);
+  if (!merged) return null;
+  merged = ensureHandoffRecommendedNextPriorityLine(merged);
+  if (!merged) return null;
   return ensureHandoffStateReconciliationRules(merged);
 }
 
@@ -2724,6 +2847,28 @@ function ensureHandoffPersistenceRoutingField(targetText) {
   return targetText.replace(openingMarker, `${fieldBlock}${openingMarker}`);
 }
 
+function ensureHandoffRecommendedNextStepField(targetText) {
+  if (targetText.includes("ack:field:recommended-next-step-explicit")) return targetText;
+  const openingMarker = "<!-- ack:field:opening-message-matches-current-state -->";
+  if (!targetText.includes(openingMarker)) return null;
+  const fieldBlock = "<!-- ack:field:recommended-next-step-explicit -->\n- Recommended next step is explicit and reasoned: Reclassified at upgrade: field added by template migration; confirm at next closeout.\n";
+  return targetText.replace(openingMarker, `${fieldBlock}${openingMarker}`);
+}
+
+function ensureHandoffRecommendedNextPriorityLine(targetText) {
+  if (/^Recommended next step:/m.test(targetText)) return targetText;
+  const marker = "<!-- ack:section:next-priorities -->";
+  const markerIndex = targetText.indexOf(marker);
+  if (markerIndex < 0) return null;
+  const afterMarker = targetText.slice(markerIndex);
+  const headingMatch = /^##\s+.+$/m.exec(afterMarker);
+  if (!headingMatch) return null;
+  const headingIndex = markerIndex + headingMatch.index;
+  const headingEnd = targetText.indexOf("\n", headingIndex);
+  if (headingEnd < 0) return null;
+  return `${targetText.slice(0, headingEnd + 1)}\nRecommended next step: Reclassified at upgrade — reason: confirm at next closeout.\n${targetText.slice(headingEnd + 1)}`;
+}
+
 function ensureHandoffStateReconciliationRules(targetText) {
   if (!targetText) return null;
   const rules = [];
@@ -2732,6 +2877,9 @@ function ensureHandoffStateReconciliationRules(targetText) {
   }
   if (!targetText.includes("Persistence routing rule: one-time delivery instructions")) {
     rules.push("Persistence routing rule: one-time delivery instructions, historical validation evidence, old hashes, old version facts, and incident notes must stay in trace evidence unless they still affect the next action.");
+  }
+  if (!targetText.includes("Recommended next-step rule:")) {
+    rules.push("Recommended next-step rule: `Next Priorities` must name the single recommended next action and a short reason before listing additional options, unless the next action is blocked or genuinely requires a user decision.");
   }
   if (rules.length === 0) return targetText;
   const ruleBlock = `${rules.join("\n")}\n\n`;

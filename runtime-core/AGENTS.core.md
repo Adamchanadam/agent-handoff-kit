@@ -46,10 +46,10 @@ Display version rule: after reading `dev/PROJECT_INDEX.md`, take the card versio
 🔎 交接狀態：<loaded / new install / resumed>
 📌 目前目標：<current objective>
 ⚠️ 注意事項：<important boundary or none>
-🚀 下一步：<next action>
+🚀 推薦下一步：<one recommended next action + short reason>
 ```
 
-Keep the card short. Use plain Traditional Chinese labels in user-facing output. Use the full product name, not an abbreviation.
+Keep the card short. Use plain Traditional Chinese labels in user-facing output. Use the full product name, not an abbreviation. The next-step line must name the recommended action, not only list possible work. If there are several valid paths, state the best first action and the reason; offer choices only when the user must decide.
 
 ## 2. Work Loop
 
@@ -78,7 +78,7 @@ Task contract changes are durable facts when they affect future action. If the u
 
 Route durable facts by file role:
 
-- Current objective, next action, unresolved risk, blocker, or a fact needed at startup belongs in `dev/SESSION_HANDOFF.md`.
+- Current objective, recommended next action with reason, unresolved risk, blocker, or a fact needed at startup belongs in `dev/SESSION_HANDOFF.md`.
 - Chronological evidence, command output, validation result, and research trace belongs in `dev/SESSION_LOG.md` when it affects future action or cannot be cheaply rerun. Routine successful checks that can be rerun are not durable facts.
 - File maps, command maps, reference maps, source locations, and installed capability maps belong in `dev/PROJECT_INDEX.md`.
 - Sync obligations across repositories, docs, mirrors, or external surfaces belong in `dev/DOC_SYNC_REGISTRY.md`.
@@ -126,7 +126,7 @@ Closeout Write Contract: before writing `dev/SESSION_HANDOFF.md`, `dev/SESSION_L
 3. Update `dev/PROJECT_INDEX.md` if files, stack, commands, entry points, workspace identity, or durable document map changed.
 4. Check `dev/DOC_SYNC_REGISTRY.md` and record required sync status.
 5. Record unresolved drift risk, active worktree, parallel workspace, uncommitted changes, or blocked verification.
-6. Complete the `State Reconciliation Check`: it must state when reconciliation happened, which state sections were rewritten or confirmed current, whether stale snapshots remain, whether the `Persistence routing checked` field is complete, whether completed / pending / risk / opening-message lifecycle conflicts were resolved, and whether the opening message matches current state. In the same step, run the handoff lifecycle consistency check before declaring handoff ready: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.
+6. Complete the `State Reconciliation Check`: it must state when reconciliation happened, which state sections were rewritten or confirmed current, whether stale snapshots remain, whether the `Persistence routing checked` field is complete, whether completed / pending / risk / opening-message lifecycle conflicts were resolved, whether the recommended next step is explicit and reasoned, and whether the opening message matches current state. In the same step, run the handoff lifecycle consistency check before declaring handoff ready: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated.
 7. Run the handoff sufficiency check: the next AI should be able to continue from `AGENTS.md`, `dev/SESSION_HANDOFF.md`, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history.
 8. If either check fails, fix `dev/SESSION_HANDOFF.md` first; do not push current-state responsibility into `dev/SESSION_LOG.md`.
 9. Regenerate `START_NEXT_SESSION_PROMPT.txt` from the fenced opening message in `dev/SESSION_HANDOFF.md`, then read it back or run the project's prompt mirror check before declaring closeout ready. `dev/SESSION_HANDOFF.md` is authoritative; `START_NEXT_SESSION_PROMPT.txt` is the stateful startup prompt that the next local agent must read. During an active session, do not regenerate it just to silence `doctor`; normal `doctor` may warn about drift, but closeout must make the copy match before handoff is declared ready.

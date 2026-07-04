@@ -4,13 +4,13 @@
 
 Use this pack for governance of already-installed external tool integrations: **Connectors** (official or platform-vetted MCP servers), **MCPs** (community or custom MCP servers), **Plugins** (bundles that may register skills, MCP servers, hooks, or apps), and **Skills** (`SKILL.md` instruction sets).
 
-When a task touches external sources or external write surfaces such as Notion, Google Drive, Dropbox, Slack, Linear, GitHub, HubSpot, browsers, crawlers, notebooks, or local helper services, this pack makes the agent check declared integrations first, prefer direct runtime access when available, and fall back to manual packets only when the integration is unavailable.
+When a task touches external sources or external write surfaces such as Notion, Google Drive, Dropbox, Slack, Linear, GitHub, HubSpot, browsers, screenshots, DevTools, Playwright, desktop app automation, crawlers, notebooks, or local helper services, this pack makes the agent check declared integrations and tool operation references first, prefer direct runtime access when available, and fall back to manual packets only when the integration is unavailable.
 
 This pack does not teach users how to install tools. Installation is handled by the user's AI runtime, tool vendor, or official documentation. This pack governs what happens after a tool is already installed: declaration, verification, safe use, resource lifecycle, drift handling, and cross-session continuity.
 
 ## Load When
 
-- The task mentions Notion, Google Drive, Slack, Linear, Dropbox, HubSpot, GitHub, browser automation, crawlers, notebooks, local helper services, or other external tools.
+- The task mentions Notion, Google Drive, Slack, Linear, Dropbox, HubSpot, GitHub, browser automation, UI validation, screenshot capture, Chrome, Playwright, DevTools, desktop app automation, crawlers, notebooks, local helper services, or other external tools.
 - The user asks whether the agent can directly read or write an external system.
 - `dev/PROJECT_INDEX.md` has a non-empty `## Installed Integrations` section.
 - First-time onboarding asks the user to declare installed external tools.
@@ -49,6 +49,18 @@ Agents must not use model memory, old session experience, copied examples, Conne
 | Project-local runbook | Accept as a task source only when it records the upstream source, version/date, scope, and known limits. |
 
 If the required source cannot be inspected, mark the tool use `blocked` or `unverified`, ask the user for the current docs/schema/runbook, or fall back to a manual packet. Do not continue by trial and error. Connector-first means schema-first for the active runtime, not memory-first.
+
+#### Runtime-Controlled Tool Operation Variants
+
+For browser and tool-operation work, first check `dev/PROJECT_INDEX.md` `## Tool Operation References` when present. A successful method from a previous session is reusable only when it is registered there with source, version/date, scope, known limits, and last verification.
+
+| Variant | Examples | Required source before use |
+|---|---|---|
+| Browser / UI validation | Browser tool, screenshot, Chrome, DevTools, Playwright smoke test, visual QA | Active runtime browser/tool schema; registered tool operation reference; or current official docs for raw CLI/SDK use. Do not guess Chrome, Playwright, or DevTools commands. |
+| Desktop or local app automation | Desktop app session, app plugin, local browser profile, extension-dependent workflow | Active app/plugin/tool schema or official automation API docs. Do not mutate user sessions, profiles, or extension state without confirmation. |
+| Crawler / scraper / local helper | Firecrawl-like tools, crawler services, local helper server | Active tool schema, registered operation reference, or official docs. Respect source permissions, rate limits, and cleanup boundaries. |
+| Notebook / data runtime | Notebook kernel, data runtime, long-lived analysis server | Active runtime/kernel schema or registered operation reference. Classify kernels and servers by ownership before cleanup. |
+| Raw CLI / SDK / tool server | Direct command invocation, SDK script, MCP/tool server operation | Current official docs, installed package types, or registered operation reference. Mark blocked or unverified if unavailable. |
 
 ### 2.1 External Tool Resource Lifecycle
 
@@ -161,8 +173,8 @@ Integration declarations are project-level; they do not guarantee every AI runti
 ## Rules
 
 1. **Credential separation**: never ask for, log, or persist credential values. Redact credential-like values and warn about rotation when appropriate.
-2. **External Tool Usage Verification Gate**: verify current runtime schema, official docs, official types/samples, or versioned local runbooks before invoking or retrying external tools.
-3. **Declaration before use**: read `dev/PROJECT_INDEX.md` `## Installed Integrations` before external-tool work. If absent, ask about integration status rather than assuming none exists.
+2. **External Tool Usage Verification Gate**: verify current runtime schema, official docs, official types/samples, or registered tool operation references before invoking or retrying external tools.
+3. **Declaration before use**: read `dev/PROJECT_INDEX.md` `## Installed Integrations` and `## Tool Operation References` before external-tool or runtime-controlled tool-operation work. If absent, ask about integration status rather than assuming none exists.
 4. **Connector-first default**: when a declared integration is functional, prefer the verified direct tool call. Manual paste is fallback, not default.
 5. **Write operations require read-back verification**: read back every external write before claiming success.
 6. **No auto-fix credential / auth issues**: surface auth failures to the user and point to the runtime settings or tool owner.
@@ -176,6 +188,7 @@ Integration declarations are project-level; they do not guarantee every AI runti
 
 - Verify `dev/PROJECT_INDEX.md` `## Installed Integrations` exists and has the expected subsections when the project declares integrations.
 - Before probing or invoking a declared integration, inspect current runtime tool description and input schema.
+- Before browser validation, screenshots, Chrome, Playwright, DevTools, desktop automation, crawler, notebook, or raw CLI/SDK/tool-server work, verify the current source from runtime schema, official docs, or `PROJECT_INDEX` `## Tool Operation References`.
 - Before external-tool first use, write, destructive operation, raw API / SDK / CLI / URI / plugin API call, or retry after tool error, confirm the current usage source.
 - Surface and record mid-session integration drift.
 - After external-tool use, perform ownership-based resource closeout. For long-running, multi-tool, MCP, browser automation, repeated-error, or slowdown scenarios, report grouped residual processes or services when observable.
@@ -198,6 +211,7 @@ Integration declarations are project-level; they do not guarantee every AI runti
 |---|---|---|
 | Assuming no Connector or MCP exists whenever the user mentions Notion, Google Drive, or another external source | Mature connector ecosystems make paste-only fallback an unreliable default. | Read `PROJECT_INDEX` Installed Integrations first; ask about integration status if undeclared. |
 | Guessing tool names, endpoints, CLI flags, URI parameters, or plugin APIs from memory | Stale examples cause unknown tool, invalid args, 400 / 404, permission, or auth loops. | Verify active runtime schema, official docs, official types/samples, or versioned local runbooks. |
+| Treating browser validation as ordinary coding and guessing Chrome, Playwright, or DevTools commands | Browser and tool-control surfaces differ across runtimes, profiles, plugins, and installed packages. | Verify the active runtime schema, official docs, or a registered tool operation reference; mark blocked or use a manual packet when unavailable. |
 | Treating a Connector marketing page or old example as executable schema | Marketing pages do not prove the active runtime's current tool name or input schema. | Use active runtime tool list/schema as the invocation source. |
 | Retrying unknown tool / invalid args by changing names or parameters repeatedly | Trial-and-error hides the real schema or docs gap. | Stop same-pattern retries and return to the External Tool Usage Verification Gate. |
 | Writing credential values into `PROJECT_INDEX`, `SESSION_HANDOFF`, or `SESSION_LOG` | Project files and git history are persistent; leaked credentials remain exposed. | Record credential references only, never values. |

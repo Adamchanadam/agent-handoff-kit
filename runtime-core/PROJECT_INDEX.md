@@ -97,6 +97,16 @@ Reachable means the source can be found. It does not mean the source has been re
 | Persistent mirror | TBD, for example Drive folder `Project Reference/` | Backup or cross-device reference mirror | User-controlled sync by default; agent does not push automatically |
 | Working draft | TBD, for example local `~/project/output/` | Agent task output | Agent may read and write local files under normal safety rules |
 
+## Tool Operation References
+
+Use this section for project-local runbooks or verified procedures for runtime-controlled tools such as browser validation, screenshots, DevTools, Playwright, crawlers, notebooks, desktop app automation, MCP/plugin helpers, or raw CLI/SDK operations.
+
+Do not store credential values or machine-private paths here. Local machine-only references may be listed only when the project explicitly depends on them, and the scope / limits must say they are not portable.
+
+| Tool / operation | Reference path or URL | Required before | Source and version/date | Scope and known limits | Last verified |
+|---|---|---|---|---|---|
+| TBD | TBD | TBD | TBD | TBD | TBD |
+
 ## Local QC Commands
 
 | Check | Command | Run before | Last verified |
@@ -135,4 +145,4 @@ Record this at closeout so the next AI can detect wrong-root or workspace drift.
 
 ## Maintenance Rule
 
-Update this file when stack, commands, directory roles, entry points, external services, workspace identity, durable runbooks, or governance file map changes.
+Update this file when stack, commands, directory roles, entry points, external services, runtime-controlled tool operation references, workspace identity, durable runbooks, or governance file map changes.
