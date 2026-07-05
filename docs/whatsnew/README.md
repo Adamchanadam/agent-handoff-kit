@@ -1,13 +1,18 @@
-# 版本與圖解索引
+# 功能圖解與版本頁索引
 
-這裡集中放 Agent Handoff Kit 的版本說明與功能圖解。README 只保留入口；操作指南只保留流程教學，不把每張資訊圖都嵌入頁面。
+README 首頁會直接展示最新功能圖解；這裡保存全部圖解與對應版本頁。正式版本紀錄以 [GitHub Releases](https://github.com/Adamchanadam/agent-handoff-kit/releases) 為準。
 
 ## 功能圖解
 
-| 圖解 | 對應版本 / 主題 | 說明 |
+| 圖解 | 對應版本 / 主題 | 入口 |
 |---|---|---|
-| [外部工具資源收口](v0.3.35.md) | v0.3.35 / 外部工具資源生命週期 | 長任務使用 MCP、browser、自動化工具、notebook 或 helper server 後，AI 只收自己能證明屬於本任務的資源；不明或共享資源先列證據並等確認。 |
+| 外部工具資源收口 | v0.3.35 / 外部工具資源生命週期 | [看圖解頁](v0.3.35.md) · [看正式 Release](https://github.com/Adamchanadam/agent-handoff-kit/releases/tag/v0.3.35) |
 
-## 版本說明
+## 版本頁
 
-最新公開版本請先看 [v0.3.36](v0.3.36.md)。歷史版本保留在同一資料夾中，檔名格式為 `vX.Y.Z.md`。
+版本頁保存每版重點、升級影響與補充圖解；公開發布狀態、發布日期與正式版本紀錄以 GitHub Releases 為準。
+
+最新公開版本：
+
+- [v0.3.36 版本頁](v0.3.36.md)
+- [GitHub Releases](https://github.com/Adamchanadam/agent-handoff-kit/releases)
