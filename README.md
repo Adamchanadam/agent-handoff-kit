@@ -58,6 +58,8 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 | AI 可能亂改、亂刪或誤發佈 | 內置安全規則；高風險操作必須先講計劃，破壞性指令與未批准發佈一律禁止。 |
 | 外部工具用完後殘留或亂清理 | 使用 MCP、browser、自動化工具、notebook 或 helper server 後，AI 會按 ownership 判斷：本任務資源可收口，不明或共享資源先回報證據並等你確認。 |
 
+功能圖解集中放在 [版本與圖解索引](https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/whatsnew/README.md)。README 只放入口，不把每張圖直接堆在首頁；目前可先看 [v0.3.35 外部工具資源收口說明](https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/whatsnew/v0.3.35.md)。
+
 它不是聊天機器人，也不是開發框架。它比較像一本固定放在專案內的交接簿。
 
 ## 🧰 適用工具
