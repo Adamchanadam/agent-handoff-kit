@@ -335,7 +335,8 @@
     .pain-card.c1 { background: var(--paper); }
     .pain-card.c2 { background: var(--paper-2); }
     .pain-card.c3 { background: var(--paper-2); }
-    .pain-card.c4 { background: var(--paper); }
+    .pain-card.c4 { background: var(--paper); border-bottom: var(--rule); }
+    .pain-card.c5 { background: var(--paper-2); grid-column: 1 / -1; border-right: none; border-bottom: none; min-height: 240px; }
     .pain-num {
       font-family: var(--font-mono);
       font-size: 56px;
@@ -347,6 +348,7 @@
     .pain-card.c2 .pain-num { color: var(--blue); }
     .pain-card.c3 .pain-num { color: var(--ink); }
     .pain-card.c4 .pain-num { color: var(--green); }
+    .pain-card.c5 .pain-num { color: var(--red); }
     .pain-card h3 {
       font-size: 22px;
       margin: 0 0 12px;
@@ -748,7 +750,7 @@
       <div class="links">
         <a href="#promo-video">宣傳動畫</a>
         <a href="#what">為何需要</a>
-        <a href="#pain">四類問題</a>
+        <a href="#pain">五類問題</a>
         <a href="#magic">開工 / 收工</a>
         <a href="#modes">工作模式</a>
         <a href="#howto">三步上手</a>
@@ -823,8 +825,8 @@
   <!-- ───── 三大痛點 ───── -->
   <section id="pain">
     <div class="wrap">
-      <span class="eyebrow">02 / 解決四類常見問題</span>
-      <h2>用 AI 做長期項目,<br/>常見的四件事。</h2>
+      <span class="eyebrow">02 / 解決五類常見問題</span>
+      <h2>用 AI 做長期項目,<br/>常見的五件事。</h2>
       <p class="intro">如果你曾經和 AI 講了一個小時,隔日回來它甚麼都不記得;又或者你建過好幾份新文檔、貼過幾份 PDF 給它做參考,下次它卻分不清哪份是真源——你已經遇上以下其中一個情況。</p>
 
       <div class="pain-grid">
@@ -851,6 +853,12 @@
           <h3>AI 會亂改、亂刪</h3>
           <p>AI 一旦放手做事,可能執行 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">rm -rf</code> 或 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">git reset --hard</code> 一類指令;你當下不在電腦前,根本察覺不到。</p>
           <div class="kit-line">這套工具內置安全規則,危險指令一律禁止;改檔之前必須先報告計劃</div>
+        </div>
+        <div class="pain-card c5">
+          <div class="pain-num">05</div>
+          <h3>外部工具用完後不收口</h3>
+          <p>長任務常會調用 MCP、browser、自動化工具、notebook 或 helper server。若 AI 用完不收口,程序與 cache 會累積;若它只憑 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper);padding:1px 4px;">node.exe</code> 或 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper);padding:1px 4px;">chrome.exe</code> 亂清理,又可能中斷你或另一個 AI agent 正在做的事。</p>
+          <div class="kit-line">用後按 ownership 安全收口:本任務資源可關閉,不明或共享資源先列證據並等你確認</div>
         </div>
       </div>
     </div>
@@ -1065,6 +1073,7 @@
             <li><strong>禁破壞性指令</strong>:<code style="font-family:var(--font-mono);font-size:14px;background:var(--paper-2);padding:2px 6px;">rm -rf</code> / <code style="font-family:var(--font-mono);font-size:14px;background:var(--paper-2);padding:2px 6px;">git reset --hard</code> / 強制推送 / 系統根路徑操作,一律拒絕。</li>
             <li><strong>機密保護</strong>:`.env`、API key、token 一類敏感值,不會被印出、不會被提交,也不會被上傳。</li>
             <li><strong>查證不猜</strong>:使用第三方服務或工具之前要先查官方文件;查不到就標「未核實」,不憑印象亂寫。</li>
+            <li><strong>外部工具安全收口</strong>:MCP、browser、自動化工具或 helper server 用完後,AI 只可自動關閉能證明屬於本任務的資源;不明或共享資源要先列證據,等你確認。</li>
             <li><strong>權限不足就停手</strong>:檔案被鎖或沒有權限時,AI 會列出「手動操作清單」交給你,不會嘗試強行繞過。</li>
           </ul>
         </div>
