@@ -12,6 +12,24 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 📌 使用時，你只需要說明目的；確認資料夾、判斷安裝或升級、執行指令和檢查結果，交給能讀寫本機資料夾的 AI 處理。
 
+## 🖼️ 最新功能圖解
+
+最新圖解會直接顯示在這裡；最多保留 3 張，舊圖解放到完整索引。
+
+<p align="center">
+  <a href="https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/whatsnew/v0.3.35.md">
+    <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-resource-lifecycle-v035.png" alt="Agent Handoff Kit v0.3.35 外部工具資源收口圖解：AI 用完 MCP、browser、自動化工具或 helper server 後，只能自動收口能證明屬於本任務的資源；不明或共享資源要先回報證據並等確認。" width="720">
+  </a>
+</p>
+
+<p align="center"><strong>v0.3.35 外部工具資源收口</strong><br>AI 用完 MCP、browser、自動化工具或 helper server 後，哪些資源可以安全關閉，哪些要先回報並等你確認。</p>
+
+<p align="center">
+  <a href="https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/whatsnew/v0.3.35.md">看完整圖解</a> ·
+  <a href="https://github.com/Adamchanadam/agent-handoff-kit/releases/tag/v0.3.35">看正式 Release</a> ·
+  <a href="https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/whatsnew/README.md">全部圖解</a>
+</p>
+
 ## 🚀 三步上手
 
 第一次用，不需要先讀完整 README，也不需要研究終端機指令。只做三件事：
@@ -58,7 +76,6 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 | AI 可能亂改、亂刪或誤發佈 | 內置安全規則；高風險操作必須先講計劃，破壞性指令與未批准發佈一律禁止。 |
 | 外部工具用完後殘留或亂清理 | 使用 MCP、browser、自動化工具、notebook 或 helper server 後，AI 會按 ownership 判斷：本任務資源可收口，不明或共享資源先回報證據並等你確認。 |
 
-想快速看新功能，可打開 [版本與圖解索引](https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/whatsnew/README.md)。例如 [v0.3.35 外部工具資源收口說明](https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/whatsnew/v0.3.35.md) 會用圖解說明：AI 用完外部工具後，哪些資源可以安全關閉，哪些要先回報並等你確認。
 
 它不是聊天機器人，也不是開發框架。它比較像一本固定放在專案內的交接簿。
 
@@ -200,4 +217,3 @@ Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templa
 - **Agent Handoff Kit** 負責 AI 在**對話之間**的接力：當前狀態、下一步、檔案登記、收工同下次開工。屬「AI 在對話之間怎樣記住你的項目」的持久基準。
 
 這是可選配合，不影響 Agent Handoff Kit 的安裝和日常使用。想使用時，到該倉庫選擇適合你 AI 工具的版本，貼入 AI 工具設定即可。
-
