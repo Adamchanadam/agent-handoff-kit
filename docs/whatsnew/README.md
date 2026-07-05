@@ -1,6 +1,6 @@
 # 功能圖解與版本頁索引
 
-README 首頁會直接展示最新功能圖解；這裡保存全部圖解與對應版本頁。正式版本紀錄以 [GitHub Releases](https://github.com/Adamchanadam/agent-handoff-kit/releases) 為準。
+這裡保存補充圖解與對應版本頁。正式版本紀錄以 [GitHub Releases](https://github.com/Adamchanadam/agent-handoff-kit/releases) 為準。
 
 ## 功能圖解
 
