@@ -14,5 +14,6 @@
 
 最新公開版本：
 
+- [v0.3.37 版本頁](v0.3.37.md)
 - [v0.3.36 版本頁](v0.3.36.md)
 - [GitHub Releases](https://github.com/Adamchanadam/agent-handoff-kit/releases)
