@@ -94,6 +94,8 @@ const requiredAnchors = [
       "handoff lifecycle consistency",
       "A final chat summary without updated handoff/log/prompt evidence is not closeout",
       "Do not append a new state snapshot",
+      "If this session used external tools",
+      "ownership-based external-tool resource closeout check",
       "START_NEXT_SESSION_PROMPT.txt"
     ]
   },
