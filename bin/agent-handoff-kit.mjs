@@ -57,6 +57,15 @@ const credentialLeakPatterns = [
   { pattern: /\bAIza[A-Za-z0-9_-]{35}/, label: "Google API key" }
 ];
 
+// Exact v0.3.38 continuity quick-fix packs observed in real projects before the
+// product migration shipped. They contain no project-specific state. Matching
+// is whole-file and newline-normalized so an extra local edit still takes the
+// conservative three-way merge/conflict path instead of being overwritten.
+const knownV038ContinuityQuickFixHashes = new Map([
+  ["packs/onboarding.md", "5dc32d9e164604379eb60f7ea0a731a2accb3da945ac5f28654ac253add187cf"],
+  ["packs/integrations.md", "8110bfb1e09fb503463072909c06027de0b39850c22a4f4c208c5752cf380826"]
+]);
+
 const requiredAnchors = [
   {
     target: "AGENTS.md",
@@ -367,6 +376,10 @@ const schemaChecks = [
     label: "session log entry fields",
     checks: [
       heading("Entry Template"),
+      {
+        label: "SESSION_LOG has one trusted current entry-template boundary",
+        test: (text) => Boolean(sessionLogEntryTemplateContract(text))
+      },
       marker("section", "session-log-preamble", "Handoff role"),
       marker("section", "session-log-entry-template", "Entry Template"),
       includes("ack:log-entry:start"),
@@ -1914,34 +1927,90 @@ function assessHandoffLifecycleConsistency(text) {
 }
 
 function handoffStateLines(text, markerId, headingTitle) {
-  return extractSectionText(text, markerId, headingTitle)
+  const sectionText = markerId === "next-session-opening-message"
+    ? (extractOpeningMessage(text) ?? "")
+    : extractSectionText(text, markerId, headingTitle);
+  return sectionText
     .replace(/```[\s\S]*?```/g, "")
     .split(/\r?\n/)
     .map((line) => line.replace(/^[-*\d.)\s]+/, "").trim())
-    .filter((line) => line.length > 3 && !line.startsWith("##") && !line.startsWith("<!--") && !/^(TBD|none|n\/a|未適用|無)$/i.test(line));
+    .filter((line) => line.length > 3 && !line.startsWith("##") && !line.startsWith("<!--") && !/^(TBD|none|n\/a|未適用|無)$/i.test(line))
+    .filter((line) => markerId !== "next-session-opening-message" || !isOwnedOpeningLifecycleBoilerplate(line));
 }
 
-function lifecycleTopicTokens(line) {
-  const latin = (line.toLowerCase().match(/[a-z0-9][a-z0-9_-]{3,}/g) ?? [])
-    .filter((token) => !new Set(["completed", "complete", "passed", "verified", "pending", "blocked", "follow-up", "monitor-only", "reopened", "session", "current", "next", "work", "task", "with", "from", "that", "this", "handoff", "lifecycle", "migration", "regression", "agent"]).has(token));
-  const chineseRuns = line.match(/[\u3400-\u9fff]{2,}/g) ?? [];
-  const chinese = chineseRuns.flatMap((run) => Array.from({ length: Math.max(0, run.length - 1) }, (_, index) => run.slice(index, index + 2)));
-  return new Set([...latin, ...chinese]);
+function isOwnedOpeningLifecycleBoilerplate(line) {
+  return /^Resume the current objective\. If my message or the handoff already gives an executable task, begin its first safe action in this response\./i.test(line)
+    || /^A fresh install only makes guidance available; it does not force onboarding\./i.test(line)
+    || /^Load onboarding only when I explicitly ask for guidance or no executable objective remains after state reading\./i.test(line);
+}
+
+function stripResolvedNegatedActionClauses(line) {
+  return line.split(/(?<=[.;；。])\s*/).filter((clause) => {
+    const negated = /\b(?:no|not|never|without|did not|has not|have not)\b/i.test(clause);
+    const action = /\b(?:commit|push|tag|release|publish|deploy|deployment|sync|write|upgrade)\b/i.test(clause);
+    return !(negated && action);
+  }).join(" ");
+}
+
+const ignoredLifecycleEnglish = new Set([
+    "completed", "complete", "finish", "finished", "continue", "incomplete", "passed", "verified", "pending", "blocked", "follow", "scope",
+    "monitor", "only", "reopened", "recommended", "next", "step", "session", "current", "work", "task", "with",
+    "from", "that", "this", "handoff", "lifecycle", "migration", "regression", "agent", "reason", "condition",
+    "the", "and", "for", "into", "still", "remains"
+]);
+
+function lifecycleEnglishTokens(line, stripNegated = false) {
+  const source = stripNegated ? stripResolvedNegatedActionClauses(line) : line;
+  return (source.toLowerCase().match(/[a-z0-9][a-z0-9_-]{2,}/g) ?? [])
+    .filter((token) => !ignoredLifecycleEnglish.has(token));
+}
+
+function lifecycleTopicWindows(line, stripNegated = false) {
+  const source = stripNegated ? stripResolvedNegatedActionClauses(line) : line;
+  const englishTokens = lifecycleEnglishTokens(source);
+  const english = Array.from({ length: Math.max(0, englishTokens.length - 2) }, (_, index) => englishTokens.slice(index, index + 3).join(" "));
+  const chineseRuns = source.match(/[\u3400-\u9fff]{6,}/g) ?? [];
+  const chinese = chineseRuns.flatMap((run) => Array.from({ length: Math.max(0, run.length - 5) }, (_, index) => run.slice(index, index + 6)));
+  return new Set([...english, ...chinese]);
+}
+
+function lifecycleShortChineseCore(line, stripNegated = false) {
+  const source = stripNegated ? stripResolvedNegatedActionClauses(line) : line;
+  const ignored = /(後續追蹤|只監察|尚未完成|已經完成|重新開啟|完成|已驗證|繼續|下一步|待辦|原因|條件|尚未|未完成|通過|風險|受阻|重開|監察|追蹤)/g;
+  const core = (source.match(/[\u3400-\u9fff]+/g) ?? []).join("").replace(ignored, "");
+  return core.length >= 2 && core.length <= 5 ? core : null;
 }
 
 function lifecycleTopicsOverlap(left, right) {
-  const leftCompact = left.toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]+/g, "");
-  const rightCompact = right.toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]+/g, "");
-  if (leftCompact.length >= 8 && rightCompact.length >= 8 && (leftCompact.includes(rightCompact) || rightCompact.includes(leftCompact))) return true;
-  const leftTokens = lifecycleTopicTokens(left);
-  const common = [...lifecycleTopicTokens(right)].filter((token) => leftTokens.has(token));
-  return common.length >= 2;
+  const leftWindows = lifecycleTopicWindows(left, true);
+  if ([...lifecycleTopicWindows(right)].some((window) => leftWindows.has(window))) return true;
+  const leftEnglish = lifecycleEnglishTokens(left, true);
+  const rightEnglish = lifecycleEnglishTokens(right);
+  if (leftEnglish.length === 2 && rightEnglish.length === 2 && leftEnglish.join(" ") === rightEnglish.join(" ")) return true;
+  const leftChinese = lifecycleShortChineseCore(left, true);
+  return Boolean(leftChinese && leftChinese === lifecycleShortChineseCore(right));
 }
 
 function isExplicitLifecycleReclassification(line) {
-  const category = /(monitor-only|follow-up scope|blocked|reopened|只監察|後續追蹤|受阻|重開)/i.test(line);
-  const condition = /(trigger|until|when|missing evidence|reason|條件|證據|原因|待.+(?:時|後))/i.test(line);
-  return category && condition;
+  const normalized = line
+    .replace(/^recommended next step\s*:\s*/i, "")
+    .replace(/^[\s—–:-]+/, "")
+    .trim();
+  if (!/^(?:(?:monitor-only|follow-up scope|blocked|reopened)\b|只監察|後續追蹤|受阻|重開)/i.test(normalized)) return false;
+  if (/\b(no condition|without condition|unconditional)\b|無條件|沒有條件/i.test(normalized)) return false;
+
+  const labelled = normalized.match(/(?:\bcondition|\btrigger|\bmissing evidence|條件|觸發條件|缺少證據|證據|原因|\breason)\s*[:：-]\s*([^;；\n]+)/i);
+  if (labelled) return isSubstantiveLifecycleCondition(labelled[1]);
+  const temporal = normalized.match(/(?:\bwhen|\buntil|待)(?:\s+|：|:)([^;；\n]+)/i);
+  return temporal ? isSubstantiveLifecycleCondition(temporal[1]) : false;
+}
+
+function isSubstantiveLifecycleCondition(value) {
+  const normalized = (value ?? "").trim().replace(/[.。]+$/, "");
+  if (normalized.length < 4) return false;
+  if (/^(TBD|todo|pending|unknown|unverified|none|n\/a|待定|待確認|未知|無)$/i.test(normalized)) return false;
+  if (/\b(no condition|without condition|unconditional)\b|無條件|沒有條件/i.test(normalized)) return false;
+  return true;
 }
 
 function findHandoffLifecycleContradictions(text) {
@@ -2300,6 +2369,14 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   if (command === "upgrade" && ["dev/rules/integrations.md", "dev/rules/onboarding.md", "dev/rules/safety.md"].includes(targetRel)) {
     const baseline = context.migrationBaselines?.get(sourceRel);
     if (baseline != null) {
+      if (isKnownV038ContinuityQuickFix(sourceRel, targetText)) {
+        return {
+          ...base,
+          action: "merge",
+          reason: `replace the exact known v0.3.38 continuity quick-fix ${path.basename(targetRel)} with the current official pack`,
+          mergedText: sourceText
+        };
+      }
       const mergedPack = threeWayPreserveLocalChanges(baseline, targetText, sourceText);
       if (!mergedPack) {
         return { ...base, action: "conflict", reason: `${targetRel} has local edits that overlap changed Kit rules; upgrade stopped without replacing custom content` };
@@ -2639,9 +2716,8 @@ function isRequiredAnchorSemanticallyPlaced(rule, snippet, text) {
 }
 
 function sessionLogAnchorPlacement(snippet, text) {
-  if (snippet === "ack:section:session-log-preamble") return text.includes("ack:section:session-log-preamble");
-  if (snippet === "ack:section:session-log-entry-template") return text.includes("ack:section:session-log-entry-template");
-  if (snippet === "## Entry Template") return /^## Entry Template\s*$/m.test(text);
+  if (snippet === "ack:section:session-log-preamble") return countText(text, "ack:section:session-log-preamble") === 1;
+  if (snippet === "ack:section:session-log-entry-template" || snippet === "## Entry Template") return Boolean(sessionLogEntryTemplateContract(text));
   if (snippet === "ack:log-entry:start" || snippet === "ack:log-entry:end") {
     return sessionLogEntryTemplateContains(text, snippet);
   }
@@ -2664,9 +2740,8 @@ function sessionLogPreambleContains(text, snippet) {
 }
 
 function sessionLogEntryTemplateContains(text, snippet) {
-  const markerIndex = text.indexOf("<!-- ack:section:session-log-entry-template -->");
-  if (markerIndex >= 0) return text.slice(markerIndex).includes(snippet);
-  return snippetAppearsAfterHeading(text, snippet, "## Entry Template");
+  const contract = sessionLogEntryTemplateContract(text);
+  return Boolean(contract && contract.templateText.includes(snippet));
 }
 
 function handoffContinuityAnchorPlacement(snippet, text) {
@@ -2946,6 +3021,53 @@ function parseMarkdownH2Sections(text) {
   return sections;
 }
 
+function uniqueSessionLogEntryTemplateSection(text) {
+  const matches = parseMarkdownH2Sections(text).filter((section) => section.title === "Entry Template");
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function sessionLogTemplateFence(text, section) {
+  if (!section) return null;
+  const sectionText = text.slice(section.start, section.end);
+  const matches = [...sectionText.matchAll(/^````markdown\s*\r?\n([\s\S]*?)\r?\n````\s*$/gm)];
+  if (matches.length !== 1) return null;
+  const match = matches[0];
+  const templateOffset = match.index + match[0].indexOf(match[1]);
+  return {
+    start: section.start + match.index,
+    end: section.start + match.index + match[0].length,
+    templateStart: section.start + templateOffset,
+    templateEnd: section.start + templateOffset + match[1].length,
+    templateText: match[1]
+  };
+}
+
+function sessionLogEntryTemplateContract(text) {
+  const section = uniqueSessionLogEntryTemplateSection(text);
+  if (!section) return null;
+  const sectionMarker = "<!-- ack:section:session-log-entry-template -->";
+  if (countText(text, sectionMarker) !== 1) return null;
+  const markerIndex = text.indexOf(sectionMarker);
+  if (markerIndex >= section.start || text.slice(markerIndex + sectionMarker.length, section.start).trim() !== "") return null;
+
+  const fence = sessionLogTemplateFence(text, section);
+  if (!fence) return null;
+  const sectionText = text.slice(section.start, section.end);
+  const startMarker = "<!-- ack:log-entry:start -->";
+  const endMarker = "<!-- ack:log-entry:end -->";
+  if (countText(sectionText, startMarker) !== 1 || countText(sectionText, endMarker) !== 1) return null;
+  if (countText(fence.templateText, startMarker) !== 1 || countText(fence.templateText, endMarker) !== 1) return null;
+  const relativeStart = fence.templateText.indexOf(startMarker);
+  const relativeEnd = fence.templateText.indexOf(endMarker);
+  if (relativeStart >= relativeEnd) return null;
+  return {
+    ...section,
+    ...fence,
+    entryStart: fence.templateStart + relativeStart,
+    entryEnd: fence.templateStart + relativeEnd + endMarker.length
+  };
+}
+
 function lcsLinePairs(left, right) {
   const rows = left.length + 1;
   const cols = right.length + 1;
@@ -3027,6 +3149,12 @@ function threeWayPreserveLocalChanges(baseText, localText, currentText) {
   for (const hunk of mapped.sort((a, b) => b.start - a.start)) merged.splice(hunk.start, hunk.end - hunk.start, ...hunk.added);
   const newline = localText.includes("\r\n") ? "\r\n" : "\n";
   return `${merged.join(newline)}${localHadFinalNewline || baseHadFinalNewline ? newline : ""}`;
+}
+
+function isKnownV038ContinuityQuickFix(sourceRel, text) {
+  const expected = knownV038ContinuityQuickFixHashes.get(sourceRel);
+  if (!expected) return false;
+  return sha256(Buffer.from(text.replace(/\r\n/g, "\n"), "utf8")) === expected;
 }
 
 function uniqueH2Section(text, title) {
@@ -3451,17 +3579,13 @@ function migrateSessionHandoff(targetText, sourceText, context = {}) {
 function migrateSessionLog(targetText, sourceText) {
   let merged = mergeSessionLogTemplateContract(targetText, sourceText);
   if (!merged) return null;
-  merged = mergeSessionLogEvidenceDispositionField(merged) ?? merged;
+  merged = mergeSessionLogEvidenceDispositionField(merged);
+  if (!merged) return null;
 
-  const startMarker = "<!-- ack:log-entry:start -->";
-  const endMarker = "<!-- ack:log-entry:end -->";
-  if (countText(merged, startMarker) !== 1 || countText(merged, endMarker) !== 1
-    || countText(sourceText, startMarker) !== 1 || countText(sourceText, endMarker) !== 1) return null;
-  const targetStart = merged.indexOf(startMarker);
-  const targetEnd = merged.indexOf(endMarker, targetStart) + endMarker.length;
-  const sourceStart = sourceText.indexOf(startMarker);
-  const sourceEnd = sourceText.indexOf(endMarker, sourceStart) + endMarker.length;
-  merged = `${merged.slice(0, targetStart)}${sourceText.slice(sourceStart, sourceEnd)}${merged.slice(targetEnd)}`;
+  const targetContract = sessionLogEntryTemplateContract(merged);
+  const sourceContract = sessionLogEntryTemplateContract(sourceText);
+  if (!targetContract || !sourceContract) return null;
+  merged = `${merged.slice(0, targetContract.entryStart)}${sourceText.slice(sourceContract.entryStart, sourceContract.entryEnd)}${merged.slice(targetContract.entryEnd)}`;
 
   merged = merged.replace(/```(?:text)?\s*\r?\n([\s\S]*?)\r?\n```/g, (block, content) => {
     const signatures = ["Work in ", "Read AGENTS.md", "SESSION_HANDOFF.md", "PROJECT_INDEX.md"];
@@ -3573,16 +3697,21 @@ function ensureHandoffStateReconciliationRules(targetText) {
 }
 
 function mergeSessionLogEvidenceDispositionField(targetText) {
-  if (targetText.includes("- **Evidence disposition:**")) return mergeSessionLogTemplateContract(targetText, null) ?? targetText;
+  const contract = sessionLogEntryTemplateContract(targetText);
+  if (!contract) return null;
+  if (contract.templateText.includes("- **Evidence disposition:**")) return targetText;
   const qcField = "- **QC:**";
-  if (!targetText.includes(qcField)) return null;
-  const withEvidence = targetText.replace(qcField, `${qcField}\n- **Evidence disposition:** <one-time only / kept as recent trace evidence / absorbed into handoff / indexed in PROJECT_INDEX / promoted to PROJECT_DECISIONS / promoted to rule pack>`);
-  return mergeSessionLogTemplateContract(withEvidence, null) ?? withEvidence;
+  if (countText(contract.templateText, qcField) !== 1) return null;
+  const withEvidenceTemplate = contract.templateText.replace(qcField, `${qcField}\n- **Evidence disposition:** <one-time only / kept as recent trace evidence / absorbed into handoff / indexed in PROJECT_INDEX / promoted to PROJECT_DECISIONS / promoted to rule pack>`);
+  return `${targetText.slice(0, contract.templateStart)}${withEvidenceTemplate}${targetText.slice(contract.templateEnd)}`;
 }
 
 function mergeSessionLogTemplateContract(targetText, sourceText = null) {
   let merged = targetText;
   let changed = false;
+
+  const initialSection = uniqueSessionLogEntryTemplateSection(merged);
+  if (!initialSection) return null;
 
   if (!merged.includes("ack:section:session-log-preamble")) {
     const titleMatch = /^# Session Log\s*$/m.exec(merged);
@@ -3597,12 +3726,18 @@ function mergeSessionLogTemplateContract(targetText, sourceText = null) {
     }
   }
 
-  if (!merged.includes("ack:section:session-log-entry-template")) {
-    const headingMatch = /^## Entry Template\s*$/m.exec(merged);
-    if (headingMatch) {
-      merged = `${merged.slice(0, headingMatch.index)}<!-- ack:section:session-log-entry-template -->\n\n${merged.slice(headingMatch.index)}`;
-      changed = true;
-    }
+  const sectionMarker = "<!-- ack:section:session-log-entry-template -->";
+  const sectionMarkerCount = countText(merged, sectionMarker);
+  if (sectionMarkerCount > 1) return null;
+  if (sectionMarkerCount === 0) {
+    const currentSection = uniqueSessionLogEntryTemplateSection(merged);
+    if (!currentSection) return null;
+    merged = `${merged.slice(0, currentSection.start)}${sectionMarker}\n\n${merged.slice(currentSection.start)}`;
+    changed = true;
+  } else {
+    const currentSection = uniqueSessionLogEntryTemplateSection(merged);
+    const markerIndex = merged.indexOf(sectionMarker);
+    if (!currentSection || markerIndex >= currentSection.start || merged.slice(markerIndex + sectionMarker.length, currentSection.start).trim() !== "") return null;
   }
 
   if (sourceText) {
@@ -3613,29 +3748,27 @@ function mergeSessionLogTemplateContract(targetText, sourceText = null) {
     }
   }
 
-  const entryTemplateIndex = merged.search(/^## Entry Template\s*$/m);
-  if (entryTemplateIndex >= 0) {
-    const beforeTemplate = merged.slice(0, entryTemplateIndex);
-    let templateAndAfter = merged.slice(entryTemplateIndex);
-    if (!templateAndAfter.includes("ack:log-entry:start")) {
-      const replaced = templateAndAfter.replace(/````markdown(\r?\n)/, "````markdown$1<!-- ack:log-entry:start -->$1");
-      if (replaced !== templateAndAfter) {
-        templateAndAfter = replaced;
-        changed = true;
-      }
-    }
-    if (!templateAndAfter.includes("ack:log-entry:end")) {
-      const openingIndex = templateAndAfter.indexOf("````markdown");
-      const closingIndex = openingIndex >= 0
-        ? templateAndAfter.indexOf("\n````", openingIndex + "````markdown".length)
-        : -1;
-      if (closingIndex >= 0) {
-        templateAndAfter = `${templateAndAfter.slice(0, closingIndex)}\n<!-- ack:log-entry:end -->${templateAndAfter.slice(closingIndex)}`;
-        changed = true;
-      }
-    }
-    merged = `${beforeTemplate}${templateAndAfter}`;
+  const section = uniqueSessionLogEntryTemplateSection(merged);
+  const fence = sessionLogTemplateFence(merged, section);
+  if (!section || !fence) return null;
+  const startMarker = "<!-- ack:log-entry:start -->";
+  const endMarker = "<!-- ack:log-entry:end -->";
+  const sectionText = merged.slice(section.start, section.end);
+  if (countText(sectionText, startMarker) > 1 || countText(sectionText, endMarker) > 1) return null;
+  let templateText = fence.templateText;
+  if (!templateText.includes(startMarker)) {
+    templateText = `${startMarker}\n${templateText}`;
+    changed = true;
   }
+  if (!templateText.includes(endMarker)) {
+    templateText = `${templateText.trimEnd()}\n${endMarker}`;
+    changed = true;
+  }
+  if (templateText !== fence.templateText) {
+    merged = `${merged.slice(0, fence.templateStart)}${templateText}${merged.slice(fence.templateEnd)}`;
+  }
+
+  if (!sessionLogEntryTemplateContract(merged)) return null;
 
   return changed ? merged : targetText;
 }
