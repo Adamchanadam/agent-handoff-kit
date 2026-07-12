@@ -612,7 +612,8 @@ async function needsProjectIndexVersionInject(root, command, version) {
 }
 
 async function runInstall(command, root, options, version) {
-  await recoverInterruptedTransaction(root);
+  if (options.dryRun) await assertDryRunHasNoPendingTransaction(root);
+  else await recoverInterruptedTransaction(root);
   const installedVersion = await readInstalledTemplateVersion(root);
   if (command === "upgrade" && installedVersion && compareSemver(installedVersion, version) > 0) {
     printCard(version, "upgrade blocked", "x.x");
@@ -628,7 +629,7 @@ async function runInstall(command, root, options, version) {
   // Validate the operator-selected path before every exit path, including
   // dry-run, conflicts, and already-current no-op upgrades. Otherwise a
   // junction can be silently accepted whenever there is nothing to write.
-  await validateTransactionRoot(root, plan);
+  await validateTransactionRoot(root, plan, { createMissingRoot: !options.dryRun });
 
   // R-031 v0.3.1+: plan-time upgrade no-op detection. When upgrade has zero
   // create/merge/conflict actions (skip-only), skip the full plan listing +
@@ -729,7 +730,7 @@ async function executeInstallTransaction(command, root, mode, plan, version) {
     return;
   }
 
-  const transaction = await prepareTransaction(root, command, version, outputs);
+  const transaction = await prepareTransaction(root, command, version, outputs, mode, plan);
   try {
     await validateTransactionOverlay(root, outputs);
     transaction.journal.state = "committing";
@@ -748,10 +749,16 @@ async function executeInstallTransaction(command, root, mode, plan, version) {
       }
     }
 
+    transaction.journal.committedVersion = version;
     transaction.journal.state = "committed";
     transaction.journal.committedAt = new Date().toISOString();
     await writeSecureJson(transaction.journalPath, transaction.journal);
-    const reportPath = await writeTransactionReport(transaction, mode, plan);
+    if (process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_JOURNAL_COMMIT === "1") {
+      const interruption = new Error("QA interruption after committed journal before migration report");
+      interruption.code = "ACK_QA_INTERRUPT_AFTER_JOURNAL_COMMIT";
+      throw interruption;
+    }
+    const reportPath = await writeTransactionReport(transaction);
     await unlinkIfExists(transaction.lockPath);
 
     const created = outputs.filter((item) => !item.before).map((item) => item.targetRel);
@@ -769,20 +776,21 @@ async function executeInstallTransaction(command, root, mode, plan, version) {
 
     if (command === "upgrade") {
       console.log("");
-      console.log("✅ migration committed：離線遷移提交閏已通過，版本代表本次成功提交。");
+      console.log("✅ migration committed：離線遷移驗收已通過，版本代表本次成功提交。");
       console.log("🩺 project health：現在執行完整 doctor；它的結果與 migration committed 分開。");
       const doctorStatus = await runDoctor(root, version, { silentCard: true, context: "post-transaction-project-health" });
       if (doctorStatus === "passed") console.log("✅ project health: passed");
       else console.log("⚠️ project health: needs attention; migration remains committed because the deterministic migration gate passed");
     }
   } catch (error) {
+    if (error?.code === "ACK_QA_INTERRUPT_AFTER_JOURNAL_COMMIT") throw error;
     transaction.journal.state = "rollback-needed";
     transaction.journal.error = safeErrorLabel(error);
     await writeSecureJson(transaction.journalPath, transaction.journal).catch(() => {});
     const rollback = await rollbackTransaction(root, transaction.journal, transaction.journalPath);
     if (rollback.ok) {
       await unlinkIfExists(transaction.lockPath);
-      console.log("⚠️ migration rolled back：提交閏或寫入失敗，已復原本次交易所改動的目標。");
+      console.log("⚠️ migration rolled back：遷移驗收或寫入失敗，已復原本次交易所改動的目標。");
     } else {
       console.log("⛔ migration incomplete：現存檔案已出現第三種內容，工具沒有強制回滾以免覆寫後續修改。");
       for (const conflict of rollback.conflicts) console.log(`blocked  ${conflict}`);
@@ -855,7 +863,7 @@ async function buildTransactionOutputs(command, root, plan, version) {
   return outputs;
 }
 
-async function prepareTransaction(root, command, version, outputs) {
+async function prepareTransaction(root, command, version, outputs, mode, plan) {
   const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   const migrationDir = path.join(migrationsRoot, id);
@@ -888,22 +896,43 @@ async function prepareTransaction(root, command, version, outputs) {
     }
     entries.push({ targetRel: output.targetRel, existed: Boolean(output.before), beforeHash: output.beforeHash, afterHash: output.afterHash, backupRel, committed: false });
   }
-  const journal = { id, command, attemptedVersion: version, committedVersion: null, host: hostname(), pid: process.pid, state: "prepared", createdAt: new Date().toISOString(), entries };
+  const journal = {
+    id,
+    command,
+    mode,
+    attemptedVersion: version,
+    committedVersion: null,
+    plannedSkips: plan.filter((item) => item.action === "skip").length,
+    host: hostname(),
+    pid: process.pid,
+    state: "prepared",
+    createdAt: new Date().toISOString(),
+    entries
+  };
   await writeSecureJson(journalPath, journal);
   return { id, migrationDir, backupDir, stageDir, journalPath, lockPath, journal };
 }
 
-async function validateTransactionRoot(root, plan) {
+async function validateTransactionRoot(root, plan, { createMissingRoot = true } = {}) {
   let rootStats;
   try {
     rootStats = await lstat(root);
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
-    const parent = await nearestExistingRealParent(path.dirname(root));
     if (path.parse(path.resolve(root)).root === path.resolve(root)) throw new Error("selected root cannot be a filesystem root");
+    const parent = await nearestExistingParent(path.dirname(root));
+    if (!samePath(parent.lexical, parent.real)) throw new Error("selected root resolves through a symbolic link or junction; use the resolved project root");
+    if (!createMissingRoot) {
+      for (const item of plan) {
+        if (item.action !== "create" && item.action !== "merge") continue;
+        const relative = path.relative(path.resolve(root), path.resolve(item.targetAbs));
+        if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) throw new Error(`target escapes selected root: ${item.targetRel}`);
+      }
+      return;
+    }
     await mkdir(root, { recursive: true });
     rootStats = await lstat(root);
-    if (!isInside(parent, await realpath(root))) throw new Error("created root escaped its verified parent");
+    if (!isInside(parent.real, await realpath(root))) throw new Error("created root escaped its verified parent");
   }
   if (rootStats.isSymbolicLink()) throw new Error("selected root is a symbolic link or junction; use the resolved project root");
   const realRoot = await realpath(root);
@@ -1009,6 +1038,7 @@ async function rollbackTransaction(root, journal, journalPath) {
     }
   }
   journal.state = conflicts.length === 0 ? "rolled-back" : "manual-recovery-required";
+  journal.committedVersion = null;
   journal.rollbackAt = new Date().toISOString();
   journal.recoveryConflicts = conflicts;
   await writeSecureJson(journalPath, journal).catch(() => {});
@@ -1034,7 +1064,16 @@ async function recoverInterruptedTransaction(root) {
   } catch {
     throw new Error("incomplete upgrade lock has no readable journal; no automatic recovery attempted");
   }
-  if (journal.state === "committed" || journal.state === "rolled-back") {
+  if (journal.state === "committed") {
+    if (!journal.committedVersion) journal.committedVersion = journal.attemptedVersion;
+    const migrationDir = path.dirname(journalPath);
+    await writeSecureJson(journalPath, journal);
+    await writeTransactionReport({ id: journal.id, migrationDir, journal });
+    await unlinkIfExists(lockPath);
+    console.log("⚠️ recovered committed upgrade: migration report was verified or rebuilt before planning this run");
+    return;
+  }
+  if (journal.state === "rolled-back") {
     await unlinkIfExists(lockPath);
     return;
   }
@@ -1044,15 +1083,15 @@ async function recoverInterruptedTransaction(root) {
   console.log("⚠️ recovered interrupted upgrade: transaction-owned changes were safely rolled back before planning this run");
 }
 
-async function writeTransactionReport(transaction, mode, plan) {
+async function writeTransactionReport(transaction) {
   const reportPath = path.join(transaction.migrationDir, "migration-report.md");
   const lines = [
     "# Agent Handoff Kit Migration Report",
     "",
     `- Transaction: ${transaction.id}`,
-    `- Mode: ${mode}`,
+    `- Mode: ${transaction.journal.mode ?? "unknown"}`,
     `- Attempted version: ${transaction.journal.attemptedVersion}`,
-    `- Committed version: ${transaction.journal.attemptedVersion}`,
+    `- Committed version: ${transaction.journal.committedVersion ?? "none"}`,
     `- Transaction state: ${transaction.journal.state}`,
     `- Created at: ${transaction.journal.createdAt}`,
     `- Committed at: ${transaction.journal.committedAt}`,
@@ -1062,7 +1101,7 @@ async function writeTransactionReport(transaction, mode, plan) {
     "",
     ...transaction.journal.entries.map((entry) => `- ${entry.existed ? "merge" : "create"}: ${entry.targetRel}; backup=${entry.backupRel ?? "none"}; committed=${entry.committed}`),
     "",
-    `- Planned skips: ${plan.filter((item) => item.action === "skip").length}`,
+    `- Planned skips: ${transaction.journal.plannedSkips ?? "unknown"}`,
     "- Conflicts: 0"
   ];
   await writeFile(reportPath, `${lines.join("\n")}\n`, { mode: 0o600 });
@@ -1119,6 +1158,23 @@ async function nearestExistingRealParent(start) {
   }
 }
 
+async function nearestExistingParent(start) {
+  let current = path.resolve(start);
+  while (true) {
+    try { return { lexical: current, real: await realpath(current) }; } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+      const parent = path.dirname(current);
+      if (parent === current) throw error;
+      current = parent;
+    }
+  }
+}
+
+function samePath(left, right) {
+  const normalize = (value) => process.platform === "win32" ? path.resolve(value).toLowerCase() : path.resolve(value);
+  return normalize(left) === normalize(right);
+}
+
 function isInside(root, candidate) {
   const relative = path.relative(path.resolve(root), path.resolve(candidate));
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
@@ -1153,6 +1209,17 @@ async function unlinkIfExists(filePath) {
 function processIsAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try { process.kill(pid, 0); return true; } catch { return false; }
+}
+
+async function assertDryRunHasNoPendingTransaction(root) {
+  const lockPath = path.join(root, "dev", "governance_migrations", ".upgrade.lock");
+  try {
+    await lstat(lockPath);
+  } catch (error) {
+    if (error?.code === "ENOENT") return;
+    throw error;
+  }
+  throw new Error("dry-run blocked: an unresolved transaction requires a non-dry-run recovery; no files written");
 }
 
 function stripMarkdownCommentsAndFences(text) {
@@ -3793,17 +3860,18 @@ async function assessProjectAge(root) {
   const migrationsDir = path.join(root, "dev/governance_migrations");
   try {
     const entries = await readdir(migrationsDir);
-    const timestamps = entries.filter((name) => /^\d{8}T\d{6}Z$/.test(name)).sort();
-    if (timestamps.length === 0) return { firstInstall: null };
-    const oldest = timestamps[0];
-    // Format: 20260423T112233Z → 2026-04-23
-    const year = oldest.slice(0, 4);
-    const month = oldest.slice(4, 6);
-    const day = oldest.slice(6, 8);
-    return { firstInstall: `${year}-${month}-${day}` };
+    const dates = entries.map(parseMigrationDirectoryDate).filter(Boolean).sort();
+    return { firstInstall: dates[0] ?? null };
   } catch {
     return { firstInstall: null };
   }
+}
+
+function parseMigrationDirectoryDate(name) {
+  const legacy = /^(\d{4})(\d{2})(\d{2})T\d{6}Z$/.exec(name);
+  if (legacy) return `${legacy[1]}-${legacy[2]}-${legacy[3]}`;
+  const transaction = /^(\d{4})-(\d{2})-(\d{2})T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.exec(name);
+  return transaction ? `${transaction[1]}-${transaction[2]}-${transaction[3]}` : null;
 }
 
 function printProjectAge(result) {
@@ -4093,7 +4161,7 @@ function printInstallSummary(version, command, mode, root, counts) {
   if (counts.conflicts > 0) {
     console.log("🚀 下一步：把 migration report 或這段輸出貼給 AI，請它判斷衝突檔案怎樣處理；工具已停手，沒有覆寫 conflict 檔案。");
   } else if (command === "upgrade") {
-    console.log("🚀 下一步：留意下方升級後自動檢查；若全綠即升級完成。");
+    console.log("🚀 下一步：留意下方 migration committed 與 project health 的分開結果。");
   } else if (counts.skipped > 0) {
     console.log("🚀 下一步：先看下方提示。若你原本已有 AGENTS.md 或其他 AI 規則，請先執行 upgrade --dry-run 補入口連接，再執行 doctor。");
   } else {
@@ -4341,14 +4409,14 @@ function printUpgradeNextSteps(root, conflictCount) {
     console.log("============================================================");
     return;
   }
-  console.log("🛠️  Kit migration 已通過離線提交閏；下方 doctor 另行回報整體項目健康");
+  console.log("🛠️  Kit migration 已通過離線遷移驗收；下方 doctor 另行回報整體項目健康");
   console.log("============================================================");
   console.log("📋 如你正在進行中的工作對話已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
   console.log("");
   console.log("💡 版本詳情不在升級流程內展開；如需要，可稍後查看 GitHub Release：");
   console.log("   https://github.com/Adamchanadam/agent-handoff-kit/releases/latest");
   console.log("");
-  console.log("🩺 升級驗收會在下方自動執行 doctor；若全綠即升級完成。");
+  console.log("🩺 下方會分開顯示 migration committed 與 project health；doctor 需要處理時，不會改寫已提交的遷移結果。");
   console.log("============================================================");
 }
 
