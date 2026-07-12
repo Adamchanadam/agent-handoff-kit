@@ -12,7 +12,7 @@ This pack does not teach users how to install tools. Installation is handled by 
 
 - The task mentions Notion, Google Drive, Slack, Linear, Dropbox, HubSpot, GitHub, browser automation, UI validation, screenshot capture, Chrome, Playwright, DevTools, desktop app automation, crawlers, notebooks, local helper services, or other external tools.
 - The user asks whether the agent can directly read or write an external system.
-- The current task or handoff names a declared integration as a dependency, or the user requests an integration health check.
+- `dev/PROJECT_INDEX.md` has a non-empty `## Installed Integrations` section.
 - First-time onboarding asks the user to declare installed external tools.
 - The project uses a multi-layer source-of-truth setup, for example Notion index + local source files + Google Drive reference mirrors.
 - The user reports resource pressure, stale MCP or plugin services, browser automation left running, cache growth, or slowdown after external-tool use.
@@ -61,20 +61,6 @@ For browser and tool-operation work, first check `dev/PROJECT_INDEX.md` `## Tool
 | Crawler / scraper / local helper | Firecrawl-like tools, crawler services, local helper server | Active tool schema, registered operation reference, or official docs. Respect source permissions, rate limits, and cleanup boundaries. |
 | Notebook / data runtime | Notebook kernel, data runtime, long-lived analysis server | Active runtime/kernel schema or registered operation reference. Classify kernels and servers by ownership before cleanup. |
 | Raw CLI / SDK / tool server | Direct command invocation, SDK script, MCP/tool server operation | Current official docs, installed package types, or registered operation reference. Mark blocked or unverified if unavailable. |
-
-#### Local HTML / app validation fallback
-
-A blocked browser surface is not the same as a blocked validation task. If a browser tool rejects a local `file://` page because of URL policy, sandbox policy, or browser-use safety policy, do not try to bypass that policy through raw CDP, alternate browser surfaces, extension state, or hidden browser commands. Treat the rejected `file://` attempt as one failed surface and switch to a materially safer project-local validation path when available.
-
-For local HTML, static app, generated guide, or local UI validation, the preferred fallback is a short-lived localhost service:
-
-1. Check `PROJECT_INDEX` `## Tool Operation References` for a registered browser, Chrome DevTools, Playwright, or local validation procedure.
-2. If no registered procedure is available and the file can be safely served, start a task-owned local static server bound to loopback such as `127.0.0.1`.
-3. Open the served `http://127.0.0.1:<port>/...` URL with the verified browser, DevTools, or Playwright surface.
-4. Verify real behavior through visible page state, text hits, click/state changes, console evidence, screenshot, or another task-relevant readback.
-5. Close the task-owned browser tab/context and stop the localhost service before completion; record any cleanup limit under the resource lifecycle rules.
-
-Only mark local HTML / app validation as `blocked` after the registered operation reference, the localhost fallback, and the available verified browser / DevTools / Playwright surface are each unavailable or fail for a stated reason. A `file://` rejection alone is not enough evidence to stop.
 
 ### 2.1 External Tool Resource Lifecycle
 
@@ -160,9 +146,9 @@ Record declared integrations in `PROJECT_INDEX` `## Installed Integrations`, usi
 
 `SESSION_HANDOFF` durable anchors should point future agents to `PROJECT_INDEX` `## Installed Integrations`. The next-session opening message already includes `PROJECT_INDEX` in the read order.
 
-#### Phase 3 — Before-use availability probe
+#### Phase 3 — Startup availability probe
 
-Immediately before the current task uses a declared integration, run the smallest relevant availability probe when the runtime exposes the needed tool schema. Do not probe unrelated integrations at startup. `TBD`, examples, blank rows, and placeholder-only tables are not declarations.
+After reading `PROJECT_INDEX`, run a minimal availability probe for each declared integration when the runtime exposes the needed tool schema.
 
 - Probe success: update `Last Verified` and proceed.
 - Probe fail: warn that the integration is declared but unavailable in the current runtime, then use fallback flow only for the affected surface.
@@ -192,12 +178,11 @@ Integration declarations are project-level; they do not guarantee every AI runti
 4. **Connector-first default**: when a declared integration is functional, prefer the verified direct tool call. Manual paste is fallback, not default.
 5. **Write operations require read-back verification**: read back every external write before claiming success.
 6. **No auto-fix credential / auth issues**: surface auth failures to the user and point to the runtime settings or tool owner.
-7. **Cross-tool capability awareness**: verify availability immediately before use, when the current objective declares the integration as a dependency, or when the user requests a health check.
+7. **Cross-tool capability awareness**: verify availability at startup and warn when the current runtime lacks a declared integration.
 8. **Do not cross source-of-truth layers**: follow the role and write direction declared in `PROJECT_INDEX`.
 9. **Drift event mandatory recording**: record integration drift in `PROJECT_INDEX`, `SESSION_LOG`, and `SESSION_HANDOFF` when it affects future work.
 10. **Plugin / Skill subordination**: plugin and skill instructions coexist with rule packs; safety, governance, and closeout rules take precedence on conflict.
 11. **External tool resource lifecycle**: after external-tool use, classify resources by ownership. Task-owned / agent-managed resources may be closed or cleaned automatically; shared, user-owned, system-level, other-agent-owned, or unknown resources require evidence reporting and user confirmation before remediation.
-12. **Local HTML / app validation fallback**: if `file://` browser access is blocked, do not bypass the policy and do not stop on that single surface failure. Use a registered operation reference or a short-lived loopback localhost service for actual browser / DevTools / Playwright validation, then close the task-owned service and record the evidence.
 
 ## Checks
 
@@ -210,7 +195,6 @@ Integration declarations are project-level; they do not guarantee every AI runti
 - Before closeout, update `Last Verified` for integrations touched this session.
 - Self-check credential leakage before writing `PROJECT_INDEX`, `SESSION_HANDOFF`, or `SESSION_LOG`.
 - Verify that `PROJECT_INDEX` External Sources `via` references match declared Installed Integrations entries.
-- For local HTML / app validation, verify that a rejected `file://` attempt is followed by a registered operation reference or short-lived localhost fallback before declaring `blocked`.
 
 ## Closeout
 
@@ -247,5 +231,5 @@ Integration declarations are project-level; they do not guarantee every AI runti
 - `packs/safety.md` Rule 12: credential leak prevention.
 - `packs/safety.md` Rule 14: process termination and cache cleanup boundary for external-tool resources.
 - `packs/onboarding.md` Scenario F: first-contact declaration entry point.
-- `runtime-core/AGENTS.core.md` Section 1: task-triggered availability probe discipline.
+- `runtime-core/AGENTS.core.md` Section 1: startup availability probe discipline.
 - `runtime-core/PROJECT_INDEX.md` `## Installed Integrations` and `## External Sources` `via` column: declaration registry.

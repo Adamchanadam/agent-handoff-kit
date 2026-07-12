@@ -10,7 +10,7 @@ This log carries recent evidence, not current state. Put the current objective, 
 
 Keep recent entries concise. If older entries no longer affect the next action and the maintenance trigger check says cleanup is due, reduce them to short dated indexes that point to the durable source of truth. Archive long error output, validation detail, or research trails only when triggered; do not create an archive directory by default.
 
-Before closeout, record whether older log detail was kept, summarized, or archived, and whether the maintenance trigger check was no-op, triggered, or backstop-driven. Do not remove validation evidence, unresolved risks, or the latest opening message.
+Before closeout, record whether older log detail was kept, summarized, or archived, and whether the maintenance trigger check was no-op, triggered, or backstop-driven. Do not remove validation evidence or unresolved risks. The full opening message never belongs in this log.
 
 <!-- ack:section:session-log-entry-template -->
 
@@ -30,28 +30,6 @@ Before closeout, record whether older log detail was kept, summarized, or archiv
 - **Pending:** <next work>
 - **Risks:** <known risks or none>
 - **Log maintenance:** <trigger check result; full maintenance action if triggered, otherwise no-op reason>
-
-### Next Session Opening Message
-
-📋 Next session: agent-managed startup content below
-
-```text
-Work in <absolute project root>.
-
-Read in order:
-1. AGENTS.md
-2. dev/SESSION_HANDOFF.md
-3. dev/SESSION_LOG.md
-4. dev/PROJECT_INDEX.md
-5. dev/RULE_PACKS.md
-
-Read dev/DOC_SYNC_REGISTRY.md before file changes or closeout.
-
-If this root does not match the expected project root, stop and ask for confirmation.
-
-This is the first startup after installing Agent Handoff Kit. Load the onboarding guidance from dev/RULE_PACKS.md when appropriate. Help me choose the right working scenario, then guide me through the first task step by step.
-
-Before changing anything, tell me the current state and your recommended next step.
-```
+- **Opening-message mirror:** <regenerated and verified / blocked; full text omitted by design>
 <!-- ack:log-entry:end -->
 ````

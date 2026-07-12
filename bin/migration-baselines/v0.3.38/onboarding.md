@@ -2,7 +2,7 @@
 
 ## Scope
 
-Use this transient pack for first-time Agent Handoff Kit users who request guidance, or when the user's first-task intent remains genuinely unresolved after reading the available project state.
+Use this transient pack for first-time Agent Handoff Kit users, vague first messages, or fresh-install sessions where the user has not yet chosen a working scenario.
 
 The goal is to help the user complete a small first task without requiring them to read README, guide pages, `AGENTS.md`, or internal Kit rules first. After the onboarding walk-through finishes, unload this pack and continue with the regular scenario pack such as coding, research, writing, knowledge, or integrations.
 
@@ -14,22 +14,16 @@ Load this pack when the user message contains an onboarding signal such as:
 
 - "I'm new" / "new user"
 - "teach me" / "help me start" / "help me get started"
-- "first time" / "first-time" when the user also asks for guidance
+- "first time" / "first-time" / "I just installed"
 - "how do I start" / "show me how" / "getting started"
 - "what can agent handoff kit do"
 - vague project intent such as "I want to do a project"
-- equivalent Chinese user phrases such as "新手", "教我用", "點開始", "能力", or "能做甚麼"
-
-`I just installed` / "我剛安裝" alone records first-use eligibility; it does not load this pack when the same message or handoff already contains an executable objective.
-
-### Continuity startup boundary
-
-`Start Agent Handoff` / "開工" starts continuity and reads the current handoff state; it is not an onboarding signal. If the same message or loaded state contains a concrete objective, infer the working scenario and begin the first safe action. Only when no executable objective remains after state reading should the AI ask one concise question or offer the guided onboarding path. Explicit requests such as "新手，教我用" enter onboarding directly.
+- equivalent Chinese user phrases such as "新手", "教我用", "我剛安裝", "點開始", "開工", "能力", or "能做甚麼"
 
 ### Implicit signals
 
-- The first user message is short and still genuinely vague after available project state is read.
-- `SESSION_HANDOFF` first-use guidance state is `eligible`, Active Objective is empty, and the user has not supplied a concrete objective with enough material facts.
+- The first user message is short and vague.
+- `SESSION_HANDOFF` Active Objective is empty and Session count is 1.
 - The user asks a generic capability question instead of giving a concrete task.
 - The user appears unfamiliar with the workflow, for example asking what the AI should do rather than giving an objective.
 
@@ -39,17 +33,11 @@ Load this pack when the user message contains an onboarding signal such as:
 
 The user may start directly from an AI conversation. Explain only the minimum needed for the current step. Do not teach internal file structure, pack names, release identifiers, maintenance rules, or implementation details unless the user asks.
 
-### 2. Infer first; offer scenario choice only when needed
+### 2. Offer scenario choice before task execution
 
-Infer when sufficient; ask only when unresolved. Read the user's message together with the available handoff and project state before deciding whether a chooser is needed.
+When onboarding applies, the first visible response must combine the startup card and scenario chooser into one complete response. Do not print a partial startup card first. Do not repeat the status card, current objective, warnings, or next step.
 
-When the user has already supplied a concrete, actionable objective and enough material facts, infer the closest working scenario, state the assumption briefly, load the regular task pack(s), and begin the first safe action. Do not require an A-F reply, repeat questions whose answers are already available, or reduce a concrete request to a generic minimum task.
-
-Only show the scenario chooser when the user's intent remains genuinely unresolved or the user asks for guided onboarding. In that case, combine the startup card and chooser into one complete response. Do not print a partial startup card first or repeat the card.
-
-This routing decision never removes a safety gate. High-risk, external, permission, cost, publishing, and irreversible actions still require the normal plan and explicit confirmation before execution.
-
-The library contains six scenarios. Treat them as an internal inference library. When choices are genuinely required, show only the two or three most relevant options; use a short open question when no responsible shortlist can be inferred. Do not display all six merely because the library contains them.
+Offer six scenarios:
 
 - **A. Build systems, tools, platforms, websites, or apps**: the user wants AI help to create or maintain a working project.
 - **B. Organize research or write a report**: the user has sources, notes, articles, presentations, or a report goal.
@@ -58,19 +46,19 @@ The library contains six scenarios. Treat them as an internal inference library.
 - **E. Custom scenario**: the user has another goal.
 - **F. Review installed external tools and design governance**: the user already has Connectors, MCPs, Plugins, Skills, or browser / notebook / crawler tools and wants a safe operating model.
 
-### 3. Guided 5-step walk-through pattern
+### 3. 5-step walk-through pattern
 
-Use this five-step path only after the user selects guided onboarding or when clarification is genuinely needed:
+After the user picks a scenario, guide one small first task through five steps:
 
 1. Confirm project context: folder, existing material, current tools, source locations, and whether external tools are already connected.
 2. Explain in three plain points how Agent Handoff Kit helps this scenario.
-3. Ask for the first concrete task scope, offering at most two or three genuinely relevant options.
+3. Ask for the first concrete task scope, offering four to six practical options.
 4. Suggest one minimum viable task that can usually be completed in 10-15 minutes.
 5. Wait for user confirmation, then transition to the regular work loop.
 
-### 4. Ask only for missing information
+### 4. Advance one step at a time
 
-Skip any guided step already answered by the user or available project state. When a step is still needed, advance one step at a time and:
+Do not run all five steps in one message. At each step:
 
 - state what the AI will do,
 - state what the user needs to answer or confirm,
@@ -92,7 +80,7 @@ After the walk-through:
 
 ## Application Scenario Library
 
-Each scenario is a fallback guidance template, not a mandatory questionnaire. The model may skip answered steps, infer the route when evidence is sufficient, and adapt wording while preserving intent, tone, and safety boundaries.
+Each scenario keeps the same five-step rhythm. The model may adapt wording, but must preserve the intent, tone, and safety boundaries.
 
 ### Scenario A. Build systems, tools, platforms, websites, or apps
 
@@ -144,7 +132,7 @@ Step D.5: after confirmation, load coding / safety packs and begin the normal wo
 
 ### Scenario E. Custom scenario
 
-Step E.1: use any facts already provided, then ask only for missing information that materially affects the first safe action. Do not ask about technical comfort unless it changes the delivery approach.
+Step E.1: ask for four facts: objective, existing material or tools, technical comfort level, and the first small result the user wants.
 
 Step E.2: explain how Kit helps the chosen scenario using continuity, safety, and source / artifact governance.
 
@@ -197,7 +185,6 @@ After onboarding finishes:
 3. Record next priorities only when they affect a later session.
 4. Do not paste a separate stateful opening message in chat. The persisted `SESSION_HANDOFF` opening-message block remains authoritative.
 5. Unload this pack and continue with the relevant regular pack(s).
-6. Mark `ack:field:first-use-guidance-state` as `consumed` after the first guided task begins or the first full closeout completes. Never reset `consumed` or `not_applicable` to `eligible` during upgrade.
 
 In a later session, reload onboarding only when the user gives a fresh onboarding signal or asks to restart the walk-through. Otherwise enter the normal work loop.
 
@@ -205,10 +192,10 @@ In a later session, reload onboarding only when the user gives a fresh onboardin
 
 | Anti-pattern | Why it is wrong | Correct approach |
 |---|---|---|
-| Treating a genuinely vague first message as a specific task | The user may be trying to learn the workflow or choose a scenario. | Ask one concise question or show the two or three most relevant scenarios only when intent remains unresolved. |
+| Treating a vague first message as a specific task | The user may be trying to learn the workflow or choose a scenario. | Offer the A-F scenario chooser first. |
 | Making the first task broad | A first-time user needs rhythm and confidence before large changes. | Suggest one 10-15 minute minimum viable task. |
 | Explaining Kit internals before the user needs them | Internal labels increase cognitive load. | Explain the visible effect in plain language. |
 | Assuming the user read README or guide pages | Many users start directly in an AI chat. | Surface only the concepts needed for the next step. |
 | Keeping onboarding loaded after the first task starts | Onboarding is transient and will distract from normal task work. | Unload onboarding and load the regular pack(s). |
-| Forcing the chooser or all five guided steps after the objective is already concrete | The user must repeat known information and the AI shifts technical work back to the user. | Infer the scenario, state the assumption, and begin the first safe action; ask only for missing facts or required risk approval. |
+| Running all five steps without waiting | The user loses control of the walk-through. | Pause for confirmation at each step. |
 | Assuming no Connector, MCP, Plugin, or Skill exists | Paste-only fallback creates the wrong operating model for users who already connected tools. | Ask a lightweight external-tool question in step 1, or use Scenario F. |

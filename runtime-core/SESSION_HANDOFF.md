@@ -12,7 +12,7 @@ Stable facts that should survive across sessions. Update only when they change, 
 3. Governance model: TBD
 4. Source-of-truth ownership: TBD
 5. Release / publish boundary: TBD
-6. Installed Integrations registry: `dev/PROJECT_INDEX.md` `## Installed Integrations` section is the project's authoritative declaration of installed Connectors / MCPs / Plugins / Skills + Source-of-truth Architecture sub-table. New AI session must read it after governance reads and run availability probe per `runtime-core/AGENTS.core.md` Section 1. Credential values never appear here or in any `dev/*` file — only credential references such as AI tool secure storage, OS credential store, tool config, user-managed secret store, or env var name may be recorded.
+6. Installed Integrations registry: `dev/PROJECT_INDEX.md` `## Installed Integrations` is the declaration source. Probe only immediately before actual use, when the current objective names an integration dependency, or when the user asks for a health check. Credential values never appear in `dev/*`; record references only.
 
 <!-- ack:section:closeout-reconciled-state -->
 ## Closeout-Reconciled State
@@ -26,6 +26,8 @@ This is the current-state area. At every full closeout, rewrite or explicitly co
 2. Product/system state: TBD
 3. Governance state: TBD
 4. Source-of-truth notes: TBD
+<!-- ack:field:first-use-guidance-state -->
+5. First-use guidance state: eligible
 
 <!-- ack:section:task-understanding-summary -->
 ## Task Understanding Summary
@@ -124,12 +126,12 @@ At full closeout, complete this check after updating the state sections above.
 
 If any answer is no, blocked, or uncertain, fix this handoff before declaring handoff ready.
 
-Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated. Recommended next-step rule: `Next Priorities` must name the single recommended next action and a short reason before listing additional options, unless the next action is blocked or genuinely requires a user decision. Persistence routing rule: one-time delivery instructions, historical validation evidence, old hashes, old version facts, and incident notes must stay in trace evidence unless they still affect the next action.
+Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message` as full content, including renamed or paraphrased work. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated. Doctor catches only mechanical contradictions and unresolved fields; its green result is not semantic proof. Recommended next-step rule: `Next Priorities` must name the single recommended next action and a short reason before listing additional options, unless the next action is blocked or genuinely requires a user decision. Persistence routing rule: one-time delivery instructions, historical validation evidence, old hashes, old version facts, and incident notes must stay in trace evidence unless they still affect the next action.
 
 <!-- ack:section:handoff-sufficiency-check -->
 ## Handoff Sufficiency Check
 
-Can the next AI continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history?
+Can the next AI continue from `AGENTS.md`, this handoff, and only the project index / rule packs required by the next task, without searching old log history?
 
 Answer: TBD
 If no, update this handoff before closeout.
@@ -144,20 +146,9 @@ This fenced block is the authoritative agent-managed startup content. At closeou
 📋 Next session: agent-managed startup content below
 
 ```text
-Work in <absolute project root>.
+Work in <absolute project root>. Read AGENTS.md, then dev/SESSION_HANDOFF.md. Trust the handoff over this generated mirror.
 
-Read in order:
-1. AGENTS.md
-2. dev/SESSION_HANDOFF.md
-3. dev/SESSION_LOG.md
-4. dev/PROJECT_INDEX.md
-5. dev/RULE_PACKS.md
+If the root does not match the handoff, stop and ask for confirmation. Do not read dev/SESSION_LOG.md during ordinary startup. Read dev/PROJECT_INDEX.md, dev/RULE_PACKS.md, dev/DOC_SYNC_REGISTRY.md, and task packs only when the current task requires them.
 
-Read dev/DOC_SYNC_REGISTRY.md before file changes or closeout.
-
-If this root does not match the expected project root, stop and ask for confirmation.
-
-This is the first startup after installing Agent Handoff Kit. Load the onboarding guidance from dev/RULE_PACKS.md when appropriate. Help me choose the right working scenario, then guide me through the first task step by step.
-
-Before changing anything, tell me the current state and your recommended next step.
+Resume the current objective. If my message or the handoff already gives an executable task, begin its first safe action in this response. A fresh install only makes guidance available; it does not force onboarding. Load onboarding only when I explicitly ask for guidance or no executable objective remains after state reading.
 ```

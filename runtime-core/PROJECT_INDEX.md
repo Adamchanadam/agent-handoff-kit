@@ -6,7 +6,7 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 
 | Field | Value | Last verified |
 |---|---|---|
-| Agent Handoff Kit template version | 0.1.7 | package prototype |
+| Agent Handoff Kit template version | 0.3.39 | implementation candidate; not yet published |
 | Runtime | TBD | TBD |
 | Framework | TBD | TBD |
 | Package manager | TBD | TBD |
@@ -21,11 +21,12 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 | `AGENTS.md` | primary Agent Handoff Kit entry and startup contract | session startup |
 | `CLAUDE.md` | Claude Code bridge to the same startup path | Claude Code startup |
 | `GEMINI.md` | Google Antigravity CLI / Gemini CLI migration bridge to the same startup path | Antigravity / Gemini startup |
-| `START_NEXT_SESSION_PROMPT.txt` | auto-generated stateful startup prompt for the next local-agent session; `dev/SESSION_HANDOFF.md` remains authoritative | next session startup |
+| `START_NEXT_SESSION_PROMPT.txt` | portable generated mirror of the handoff opening-message block; `dev/SESSION_HANDOFF.md` remains authoritative | fallback when the next agent is not yet operating in this root; not an additional local startup read |
 | `src/` | application source | coding task |
 | `tests/` | tests | coding/QC |
 | `docs/` | user or product docs | doc/public behavior change |
-| `dev/` | governance state | startup/closeout |
+| `dev/` | governance state | read the handoff at startup; other files are task-routed or closeout-routed |
+| `dev/rules/closeout.md` | full closeout contract | clear end-of-session or handoff intent only |
 | `TBD` | local source-of-truth files | before tasks that depend on project facts |
 | `TBD` | external-source indexes or mirrors | before research, writing, or knowledge-sync tasks |
 
@@ -38,7 +39,7 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 | Test suite | TBD | TBD |
 | Runbook | TBD | TBD |
 | Public docs | TBD | TBD |
-| Generated artifact review | `dev/PROJECT_INDEX.md` + `dev/DOC_SYNC_REGISTRY.md` | After creating Markdown docs, generated outputs, specs, runbooks, checklists, or research artifacts, classify each artifact as indexed / synced / temporary / one-time evidence before completion |
+| Generated Markdown review | `dev/PROJECT_INDEX.md` + `dev/DOC_SYNC_REGISTRY.md` | After creating Markdown docs, generated Markdown outputs, specs, runbooks, checklists, or research notes, classify each file as indexed / synced / temporary / one-time evidence before completion; other durable formats require human review because doctor scans Markdown only |
 
 ## Fact Base
 
@@ -60,7 +61,7 @@ Reachable means the source can be found. It does not mean the source has been re
 
 > **Credential Separation Principle**: this section records only project usage and public reference coordinates such as Notion database names, URLs, or folder paths. It must never record API keys, OAuth tokens, or credential values. Credentials belong in AI runtime secure storage, OS credential stores, tool configuration, or user-managed secret stores. If an environment variable is used, record only the variable name, never the value. Before writing this section, self-check that no credential value is being persisted. Doctor scans this section, `SESSION_HANDOFF`, and `SESSION_LOG` for common credential prefixes such as `sk-`, `ntn_`, `ya29.`, `xoxp-`, `ghp_`, `sl.`, `AKIA`, and `AIza`.
 
-> Purpose: a new AI session reads this section to understand declared external-tool capabilities and their project roles. Declarations persist across sessions. Every entry must include `Declared` and `Last Verified` fields so stale capability assumptions can be detected.
+> Purpose: tasks that use external tools read this section to understand declared capabilities and project roles. Declarations persist across sessions. A new session does not probe this table merely because it exists. `TBD`, examples, blanks, and placeholder-only rows are not installed integrations. Every real entry includes `Declared` and `Last Verified` so capability assumptions can be checked immediately before use.
 
 ### Connectors
 
@@ -106,13 +107,14 @@ Do not store credential values or machine-private paths here. Local machine-only
 | Tool / operation | Reference path or URL | Required before | Source and version/date | Scope and known limits | Last verified |
 |---|---|---|---|---|---|
 | TBD | TBD | TBD | TBD | TBD | TBD |
+| Local HTML / app browser validation | TBD, for example project runbook or official browser-tool docs | Before validating local HTML, static app, generated guide, screenshot, click flow, or visual QA | TBD, include source and date | Prefer short-lived loopback localhost service when `file://` is blocked; record click/text/screenshot evidence and cleanup result; do not mutate user browser profiles or extension state | TBD |
 
 ## Local QC Commands
 
 | Check | Command | Run before | Last verified |
 |---|---|---|---|
 | Agent Handoff Kit doctor | `npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .` | closeout / governance changes / generated Markdown artifact checks | package latest |
-| Project governance check | Check newly created Markdown / durable artifacts against `dev/PROJECT_INDEX.md` and `dev/DOC_SYNC_REGISTRY.md`; register, sync, consolidate, or explicitly classify as temporary / one-time evidence | closeout / durable file changes | unverified until project-specific command exists |
+| Project governance check | Check newly created Markdown against `dev/PROJECT_INDEX.md` and `dev/DOC_SYNC_REGISTRY.md`; register, sync, consolidate, or explicitly classify as temporary / one-time evidence. Review non-Markdown durable outputs manually. | closeout / durable file changes | unverified until project-specific command exists |
 
 ## Workspace Identity
 
@@ -134,8 +136,8 @@ Record this at closeout so the next AI can detect wrong-root or workspace drift.
 | UI behavior | TBD | build + visual/manual check |
 | Data model | TBD | migration/checks |
 | Governance behavior | `AGENTS.md`, `dev/*` | doc sync registry |
-| Generated Markdown or durable artifact | `docs/`, `outputs/`, root Markdown files, project-specific reference folders | classify as indexed / synced / temporary / one-time evidence; update `dev/PROJECT_INDEX.md` or `dev/DOC_SYNC_REGISTRY.md` when durable |
-| Closeout/startup contract | `AGENTS.md`, `START_NEXT_SESSION_PROMPT.txt`, `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md` | opening message present + workspace identity current + prompt file regenerated from handoff at closeout |
+| Generated Markdown | `docs/`, `outputs/`, root Markdown files, project-specific reference folders | classify as indexed / synced / temporary / one-time evidence; update `dev/PROJECT_INDEX.md` or `dev/DOC_SYNC_REGISTRY.md` when durable; review other formats manually |
+| Closeout/startup contract | `AGENTS.md`, `dev/rules/closeout.md`, `START_NEXT_SESSION_PROMPT.txt`, `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md` | hot-path reads stay minimal; lifecycle state agrees; log has no full prompt; prompt mirror regenerated from handoff at closeout |
 
 ## External Services
 

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const openingSectionMarker = "<!-- ack:section:next-session-opening-message -->";
@@ -26,16 +26,45 @@ export function assessPromptMirrorRoot(root) {
     return { status: "missing", ok: false, reason: "prompt copy unreadable" };
   }
 
-  return assessPromptMirrorTexts(handoffText, promptText);
+  const otherTexts = collectCurrentGovernanceTexts(root, new Set([
+    path.resolve(handoffPath),
+    path.resolve(promptPath)
+  ]));
+  return assessPromptMirrorTexts(handoffText, promptText, otherTexts);
 }
 
-export function assessPromptMirrorTexts(handoffText, promptText) {
+export function assessPromptMirrorTexts(handoffText, promptText, otherTexts = []) {
+  const markerCount = countLiteral(handoffText, openingSectionMarker);
+  const headingCount = (handoffText.match(new RegExp(openingHeadingPattern.source, "gm")) ?? []).length;
+  const contentMarkerCount = openingContentMarkers.reduce((sum, marker) => sum + countLiteral(handoffText, marker), 0);
+  const openingSection = markerCount === 1 ? handoffText.slice(handoffText.indexOf(openingSectionMarker)) : "";
+  const fenceCount = (openingSection.match(/```text[^\r\n]*(?:\r\n?|\n)[\s\S]*?(?:\r\n?|\n)```/g) ?? []).length;
+  if (markerCount !== 1 || headingCount > 1 || contentMarkerCount !== 1 || fenceCount !== 1) {
+    return {
+      status: "structure-invalid",
+      ok: false,
+      reason: `opening structure must be unique (section marker=${markerCount}, heading=${headingCount}, copy marker=${contentMarkerCount}, fenced text=${fenceCount})`
+    };
+  }
+
   const openingMessage = extractOpeningMessage(handoffText);
   if (openingMessage == null) {
     return {
       status: "missing",
       ok: false,
       reason: "handoff opening message missing"
+    };
+  }
+
+  const normalizedOpening = normalizePrompt(openingMessage);
+  const thirdCopies = otherTexts.filter(({ text }) => normalizePrompt(text).includes(normalizedOpening));
+  if (thirdCopies.length > 0) {
+    return {
+      status: "third-copy",
+      ok: false,
+      reason: `full opening message also appears in: ${thirdCopies.map(({ relative }) => relative).join(", ")}`,
+      openingMessage,
+      thirdCopies: thirdCopies.map(({ relative }) => relative)
     };
   }
 
@@ -49,7 +78,6 @@ export function assessPromptMirrorTexts(handoffText, promptText) {
     };
   }
 
-  const normalizedOpening = normalizePrompt(openingMessage);
   const normalizedPrompt = normalizePrompt(promptText);
   if (normalizedOpening === normalizedPrompt) {
     return {
@@ -111,4 +139,49 @@ function firstDiff(left, right) {
     }
   }
   return null;
+}
+
+function countLiteral(text, token) {
+  if (!token) return 0;
+  let count = 0;
+  let offset = 0;
+  while ((offset = text.indexOf(token, offset)) >= 0) {
+    count += 1;
+    offset += token.length;
+  }
+  return count;
+}
+
+function collectCurrentGovernanceTexts(root, excluded) {
+  const candidates = [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    "dev/SESSION_LOG.md",
+    "dev/PROJECT_INDEX.md",
+    "dev/DOC_SYNC_REGISTRY.md",
+    "dev/RULE_PACKS.md",
+    "dev/PROJECT_DECISIONS.md"
+  ];
+  const rulesDir = path.join(root, "dev", "rules");
+  try {
+    for (const entry of readdirSync(rulesDir, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith(".md")) candidates.push(`dev/rules/${entry.name}`);
+    }
+  } catch {
+    // Missing rules are reported by normal doctor checks.
+  }
+
+  const results = [];
+  for (const relative of candidates) {
+    const absolute = path.resolve(root, relative);
+    if (excluded.has(absolute)) continue;
+    try {
+      if (lstatSync(absolute).isSymbolicLink()) continue;
+      results.push({ relative, text: readFileSync(absolute, "utf8") });
+    } catch {
+      // Missing or unreadable files are handled by their owning checks.
+    }
+  }
+  return results;
 }

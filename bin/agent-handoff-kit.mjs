@@ -2,10 +2,12 @@
 
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, copyFile, lstat, mkdir, open, readFile, readdir, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { hostname } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { assessPromptMirrorTexts, extractOpeningMessage } from "./prompt-mirror-core.mjs";
+import { assessPromptMirrorRoot, assessPromptMirrorTexts, extractOpeningMessage } from "./prompt-mirror-core.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(__dirname, "..");
@@ -29,6 +31,7 @@ const mappings = [
   ["packs/release.md", "dev/rules/release.md"],
   ["packs/knowledge.md", "dev/rules/knowledge.md"],
   ["packs/communication.md", "dev/rules/communication.md"],
+  ["packs/closeout.md", "dev/rules/closeout.md"],
   ["packs/onboarding.md", "dev/rules/onboarding.md"],
   ["packs/integrations.md", "dev/rules/integrations.md"]
 ];
@@ -39,64 +42,74 @@ const rulePackTargets = mappings
   .filter((target) => target.startsWith("dev/rules/"));
 const managedCoreStart = "<!-- BEGIN Agent Handoff Kit managed core -->";
 const managedCoreEnd = "<!-- END Agent Handoff Kit managed core -->";
+const credentialLeakPatterns = [
+  { pattern: /sk-ant-[A-Za-z0-9_-]{20,}/, label: "Anthropic API key" },
+  { pattern: /\bsk-[A-Za-z0-9_-]{20,}/, label: "sk-prefixed token" },
+  { pattern: /\bntn_[A-Za-z0-9_-]{40,}/, label: "Notion token" },
+  { pattern: /\bsecret_[A-Za-z0-9_-]{40,}/, label: "secret-prefixed token" },
+  { pattern: /\bya29\.[A-Za-z0-9_-]{20,}/, label: "Google OAuth token" },
+  { pattern: /\b1\/\/[A-Za-z0-9_-]{30,}/, label: "Google refresh token" },
+  { pattern: /\bxox[abprs]-[A-Za-z0-9-]{10,}/, label: "Slack token" },
+  { pattern: /\b(?:ghp|gho|ghs)_[A-Za-z0-9]{36}/, label: "GitHub token" },
+  { pattern: /\bgithub_pat_[A-Za-z0-9_]{20,}/, label: "GitHub fine-grained token" },
+  { pattern: /\bsl\.[A-Za-z0-9_-]{50,}/, label: "Dropbox token" },
+  { pattern: /\bAKIA[A-Z0-9]{16}/, label: "AWS access key" },
+  { pattern: /\bAIza[A-Za-z0-9_-]{35}/, label: "Google API key" }
+];
 
 const requiredAnchors = [
   {
     target: "AGENTS.md",
-    label: "startup read order",
+    label: "continuity-first startup and proportional work",
     snippets: [
-      "## 1. Startup Reads",
+      "## 1. Intent And Startup",
       "dev/SESSION_HANDOFF.md",
-      "dev/SESSION_LOG.md",
+      "Do not read `dev/SESSION_LOG.md` during ordinary startup",
       "dev/PROJECT_INDEX.md",
       "dev/RULE_PACKS.md",
       "Agent Handoff Kit v<version>",
-      "Display version rule",
-      "Agent Handoff Kit template version",
       "continuity ready",
       "推薦下一步",
-      "recommended action",
       "Start Agent Handoff",
-      "Ambiguous startup phrases",
+      "A fresh install or short message only makes guidance available",
+      "Direct ordinary tasks do not show the card",
       "Reachable is not the same as ingested",
-      "Do not treat unread sources as absent",
-      "Task contract changes are durable facts",
-      "External Impact Note",
-      "ARTIFACT GOVERNANCE GATE",
-      // R-030 v0.3.0+: forces managed-core merge on v0.2.x → v0.3.0 upgrade to propagate
-      // startup availability probe + integrations pack reference + credential separation discipline.
-      "startup availability probe",
+      "Proportionate Work Loop",
+      "Pack loading is normally silent",
       "dev/rules/integrations.md",
-      "Credential separation"
+      "Probe an integration only immediately before a task uses it"
     ]
   },
   {
     target: "AGENTS.md",
-    label: "closeout intent and full handoff",
+    label: "closeout trigger and invariants",
     snippets: [
-      "Detect end-of-session or handoff intent",
+      "## 4. Closeout Trigger",
       "收工",
       "Wrap up Agent Handoff",
-      "Ambiguous closeout phrases",
       "wrap up",
       "handoff",
-      "Reconcile `dev/SESSION_HANDOFF.md`",
-      "Add a concise entry to `dev/SESSION_LOG.md`",
-      "Closeout Write Contract",
-      "ack:log-entry:start/end",
-      "next-session opening message",
-      "fenced `text` code block",
-      "handoff saved",
-      "Use the same display version rule as startup",
-      "Never print the literal placeholder `v<version>`",
-      "next-session startup entry",
-      "State Reconciliation Check",
-      "handoff lifecycle consistency",
-      "A final chat summary without updated handoff/log/prompt evidence is not closeout",
-      "Do not append a new state snapshot",
-      "If this session used external tools",
-      "ownership-based external-tool resource closeout check",
+      "dev/rules/closeout.md",
+      "Current state lives in `dev/SESSION_HANDOFF.md`",
+      "no third full copy is retained",
       "START_NEXT_SESSION_PROMPT.txt"
+    ]
+  },
+  {
+    target: "dev/rules/closeout.md",
+    label: "closeout pack complete contract",
+    snippets: [
+      "Closeout Pack",
+      "single detailed contract",
+      "Reconcile lifecycle state",
+      "Completed This Session",
+      "prompt-mirror verification result",
+      "Mark first-use guidance",
+      "Maintenance Trigger Check",
+      "START_NEXT_SESSION_PROMPT.txt",
+      "omit the full opening message by design",
+      "handoff saved",
+      "Stop Conditions"
     ]
   },
   {
@@ -119,10 +132,10 @@ const requiredAnchors = [
       "ack:field:recommended-next-step-explicit",
       "ack:field:lifecycle-conflicts-resolved",
       "ack:field:persistence-routing-checked",
+      "ack:field:first-use-guidance-state",
       "📋 Next session:",
       "```text",
-      "Read in order:",
-      "dev/DOC_SYNC_REGISTRY.md"
+      "Do not read dev/SESSION_LOG.md during ordinary startup"
     ]
   },
   {
@@ -138,7 +151,7 @@ const requiredAnchors = [
   },
   {
     target: "dev/SESSION_LOG.md",
-    label: "session log event and opening message schema",
+    label: "session log event schema without prompt copy",
     placement: sessionLogAnchorPlacement,
     snippets: [
       "ack:section:session-log-preamble",
@@ -150,11 +163,8 @@ const requiredAnchors = [
       "- **QC:**",
       "- **Sync:**",
       "- **Log maintenance:**",
-      "### Next Session Opening Message",
-      "📋 Next session:",
-      "```text",
-      "Read in order:",
-      "dev/DOC_SYNC_REGISTRY.md"
+      "- **Opening-message mirror:**",
+      "full text omitted by design"
     ]
   },
   {
@@ -178,7 +188,7 @@ const requiredAnchors = [
     snippets: [
       "kept, summarized, or archived",
       "Do not remove validation evidence",
-      "latest opening message",
+      "full opening message never belongs in this log",
       "not current state"
     ]
   },
@@ -217,7 +227,8 @@ const requiredAnchors = [
       "browser profiles",
       "desktop app sessions",
       "shared tool servers",
-      "notebook kernels"
+      "notebook kernels",
+      "Short-lived localhost validation services"
     ]
   },
   {
@@ -245,7 +256,9 @@ const requiredAnchors = [
       "Onboarding Pack",
       "transient pack",
       "Explicit onboarding signal keywords",
-      "5-step walk-through pattern",
+      "Continuity startup boundary",
+      "starts continuity and reads the current handoff state; it is not an onboarding signal",
+      "Infer when sufficient; ask only when unresolved",
       "Application Scenario Library",
       "Scenario A. Build systems, tools, platforms, websites, or apps",
       "Scenario B. Organize research or write a report",
@@ -279,6 +292,8 @@ const requiredAnchors = [
       "Runtime-Controlled Tool Operation Variants",
       "Tool Operation References",
       "Do not guess Chrome, Playwright, or DevTools commands",
+      "Local HTML / app validation fallback",
+      "`file://` rejection alone is not enough evidence to stop",
       "Anti-pattern"
     ]
   }
@@ -322,6 +337,7 @@ const schemaChecks = [
       marker("field", "user-intent", "User intent:"),
       marker("field", "task-essence", "Task essence:"),
       marker("field", "success-criteria", "Success criteria:")
+      ,marker("field", "first-use-guidance-state", "First-use guidance state:")
     ]
   },
   {
@@ -331,17 +347,18 @@ const schemaChecks = [
       includes("📋 Next session:"),
       includes("```text"),
       includes("Work in "),
-      includes("Read in order:"),
-      includes("If this root does not match the expected project root")
+      includes("Read AGENTS.md, then dev/SESSION_HANDOFF.md"),
+      includes("Do not read dev/SESSION_LOG.md during ordinary startup")
     ]
   },
   {
     target: "dev/SESSION_HANDOFF.md",
-    label: "handoff lifecycle consistency",
+    label: "handoff lifecycle mechanical checks",
     checks: [
       {
         label: "completed work is not carried forward as unresolved next work",
-        test: (text) => assessHandoffLifecycleConsistency(text).ok
+        test: (text) => assessHandoffLifecycleConsistency(text).ok,
+        explain: (text) => assessHandoffLifecycleConsistency(text).reason
       }
     ]
   },
@@ -363,7 +380,12 @@ const schemaChecks = [
       includes("- **Sync:**"),
       includes("- **Pending:**"),
       includes("- **Risks:**"),
-      includes("- **Log maintenance:**")
+      includes("- **Log maintenance:**"),
+      includes("- **Opening-message mirror:**"),
+      {
+        label: "SESSION_LOG does not contain a full opening-message copy",
+        test: (text) => !text.includes("Read AGENTS.md, then dev/SESSION_HANDOFF.md. Trust the handoff over this generated mirror.")
+      }
     ]
   },
   {
@@ -378,6 +400,10 @@ const schemaChecks = [
       heading("Installed Integrations"),
       heading("Tool Operation References"),
       heading("Local QC Commands"),
+      {
+        label: "Installed Integrations and Tool Operation References are unique real H2 sections before Local QC Commands",
+        test: (text) => projectIndexGovernanceSectionsAreValid(text)
+      },
       heading("Workspace Identity"),
       heading("Change Hotspots"),
       heading("Maintenance Rule"),
@@ -425,16 +451,36 @@ const schemaChecks = [
       // R-029 v0.2.1+: routing table must include onboarding pack first-time signal row.
       // Without this anchor, the upgrade flow may silently leave v0.1.X users with a
       // stale routing table that does not route onboarding signals.
-      includes("First-time user signals"),
+      includes("Explicit onboarding requests"),
       includes("dev/rules/onboarding.md"),
+      includes("fresh install"),
+      includes("dev/rules/closeout.md"),
       // R-030 v0.3.0+: routing table must include integrations pack row.
       includes("dev/rules/integrations.md"),
       includes("External tool resource pressure"),
       includes("ownership-based external-tool resource closeout"),
+      includes("local HTML validation"),
+      includes("localhost fallback"),
       includes("Governance bridge / bridge governance"),
       includes("equivalent Chinese user phrases"),
       includes("scan for unbridged governance documents"),
       includes("scan for unbridged governance documents")
+    ]
+  },
+  {
+    target: "dev/rules/closeout.md",
+    label: "closeout pack structure",
+    checks: [
+      heading("Scope"),
+      heading("Required Reads"),
+      heading("Write Contract"),
+      heading("Full Closeout"),
+      heading("Maintenance Trigger Check"),
+      heading("Opening Message And Card"),
+      heading("Stop Conditions"),
+      includes("full opening message"),
+      includes("first-use guidance"),
+      includes("START_NEXT_SESSION_PROMPT.txt")
     ]
   },
   {
@@ -566,8 +612,23 @@ async function needsProjectIndexVersionInject(root, command, version) {
 }
 
 async function runInstall(command, root, options, version) {
+  await recoverInterruptedTransaction(root);
+  const installedVersion = await readInstalledTemplateVersion(root);
+  if (command === "upgrade" && installedVersion && compareSemver(installedVersion, version) > 0) {
+    printCard(version, "upgrade blocked", "x.x");
+    console.log(`selected root: ${root}`);
+    console.log(`status: blocked`);
+    console.log(`reason: project template v${installedVersion} is newer than this CLI v${version}`);
+    console.log("no files written: use an equal or newer Agent Handoff Kit CLI; downgrade requires a separately designed command");
+    process.exitCode = 1;
+    return;
+  }
   const mode = await detectMode(root);
   const plan = await buildPlan(root, command, version);
+  // Validate the operator-selected path before every exit path, including
+  // dry-run, conflicts, and already-current no-op upgrades. Otherwise a
+  // junction can be silently accepted whenever there is nothing to write.
+  await validateTransactionRoot(root, plan);
 
   // R-031 v0.3.1+: plan-time upgrade no-op detection. When upgrade has zero
   // create/merge/conflict actions (skip-only), skip the full plan listing +
@@ -616,6 +677,14 @@ async function runInstall(command, root, options, version) {
     return;
   }
 
+  if (plan.some((item) => item.action === "conflict")) {
+    console.log("");
+    console.log("⛔ 升級預檢發現 conflict；治理目標檔、版本與 migration artifact 均沒有寫入。");
+    console.log("📋 下一步：根據上方 conflict 資料作非破壞性合併；不要以舊版本資料列當作已完成。");
+    process.exitCode = 1;
+    return;
+  }
+
   if (!options.yes) {
     const ok = await confirmWrite();
     if (!ok) {
@@ -624,132 +693,474 @@ async function runInstall(command, root, options, version) {
     }
   }
 
-  const created = [];
-  const merged = [];
-  const conflicts = plan.filter((item) => item.action === "conflict");
-  const stamp = migrationStamp();
-  const migrationDir = path.join(root, "dev/governance_migrations", stamp);
-  const backupDir = path.join(migrationDir, "backup");
+  await executeInstallTransaction(command, root, mode, plan, version);
+}
 
-  for (const item of plan) {
-    if (item.action !== "create") continue;
-    await mkdir(path.dirname(item.targetAbs), { recursive: true });
-    if (item.targetRel === "AGENTS.md") {
-      const sourceText = await readFile(item.sourceAbs, "utf8");
-      await writeFile(item.targetAbs, mergeManagedBlock("", sourceText), "utf8");
-    } else {
-      await copyFile(item.sourceAbs, item.targetAbs);
-    }
-    created.push(item.targetRel);
+async function readInstalledTemplateVersion(root) {
+  try {
+    const text = await readFile(path.join(root, "dev/PROJECT_INDEX.md"), "utf8");
+    const match = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
+    return match && isStableSemver(match[1]) ? match[1] : null;
+  } catch {
+    return null;
   }
+}
 
-  await hydrateInitialOpeningPrompt(root, created);
-
-  for (const item of plan) {
-    if (item.action !== "merge") continue;
-    const backupPath = path.join(backupDir, item.targetRel);
-    await mkdir(path.dirname(backupPath), { recursive: true });
-    await copyFile(item.targetAbs, backupPath);
-    await writeFile(item.targetAbs, item.mergedText, "utf8");
-    merged.push(item.reason ? `${item.targetRel} - ${item.reason}` : item.targetRel);
-  }
-
-  const promptRegenerated = await regeneratePromptFromHandoffIfHotEvidence(root, backupDir, merged);
-  if (promptRegenerated) {
-    console.log("auto-repair: START_NEXT_SESSION_PROMPT.txt - regenerate prompt from repaired handoff opening message");
-  }
-
-  // R-031.3 v0.3.4+: Inject current CLI version into PROJECT_INDEX template version
-  // metadata row — placed AFTER the merge loop to avoid the ordering bug where merge
-  // overwrites inject. Merge writes item.mergedText computed at plan-build phase
-  // (which contains the pre-inject stale version row); if inject ran before merge,
-  // merge would silently revert it. R-016 still protected: only the metadata row
-  // mutates, user content rows (External Sources / Fact Base etc.) preserved.
-  // The captured metadataUpdated object is passed to writeMigrationReport so the
-  // audit trail records this mutation alongside file create/merge operations.
-  let metadataUpdated = null;
-  if (command === "upgrade" || created.includes("dev/PROJECT_INDEX.md")) {
-    const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
-    try {
-      const text = await readFile(indexPath, "utf8");
-      const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
-      if (m && isStableSemver(m[1]) && compareSemver(m[1], version) < 0) {
-        const updated = text.replace(
-          /\| Agent Handoff Kit template version \| [\d.]+ \|/,
-          `| Agent Handoff Kit template version | ${version} |`
-        );
-        await writeFile(indexPath, updated, "utf8");
-        metadataUpdated = {
-          file: "dev/PROJECT_INDEX.md",
-          field: "Agent Handoff Kit template version",
-          from: m[1],
-          to: version
-        };
-      }
-    } catch {
-      // ignore — doctor anchor (R-016) only checks row existence, not specific value.
-    }
-  }
-
-  const skippedCount = plan.filter((item) => item.action === "skip").length;
-
-  // R-031 v0.3.1+: scenario branching. Upgrade no-op (零改動) short-circuits — skip
-  // migration report, self-check doctor, install banner, onboarding canonical phrase.
-  // Prevents misleading "安裝完成" framing when user is just verifying they are latest.
-  // R-031.3 v0.3.4+: also short-circuit only when metadata is current. If only the
-  // metadata row was stale (counts 0/0/0 but metadataUpdated truthy), user just
-  // received a substantive upgrade — proceed through full ceremony so doctor
-  // self-check confirms the inject result.
-  const isUpgradeNoop = command === "upgrade"
-    && created.length === 0
-    && merged.length === 0
-    && conflicts.length === 0
-    && !metadataUpdated;
-
-  if (isUpgradeNoop) {
-    const noOpHealth = await assessUpgradeNoopHealth(root, version);
-    printUpgradeNoopShortCircuit(version, noOpHealth);
-    if (!noOpHealth.ok) process.exitCode = 1;
+async function executeInstallTransaction(command, root, mode, plan, version) {
+  const outputs = await buildTransactionOutputs(command, root, plan, version);
+  if (outputs.length === 0) {
+    const health = await assessUpgradeNoopHealth(root, version);
+    printUpgradeNoopShortCircuit(version, health);
+    if (!health.ok) process.exitCode = 1;
     return;
   }
 
-  const report = await writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir, metadataUpdated);
-  printInstallSummary(version, command, mode, root, {
-    created: created.length,
-    merged: merged.length,
-    skipped: skippedCount,
-    conflicts: conflicts.length,
-    backupRel: merged.length > 0 ? path.relative(root, backupDir) : null,
-    reportRel: path.relative(root, report)
-  });
-
-  // R-031 v0.3.1+: install vs upgrade narrative split.
-  if (command === "upgrade") {
-    printUpgradeNextSteps(root, conflicts.length);
-  } else {
-    printInstallNextSteps(root, conflicts.length, mode, skippedCount);
+  const credentialInputs = [];
+  for (const relative of requiredTargets) {
+    const buffer = await readOptionalBuffer(path.join(root, relative));
+    if (buffer) credentialInputs.push({ relative, text: decodeUtf8(buffer, relative).text });
+  }
+  const credentialFindings = detectCredentialValues(credentialInputs);
+  if (credentialFindings.length > 0) {
+    console.log("⛔ 升級已停止：待備份的治理檔疑似含有 credential value。");
+    console.log("機密值不會顯示或複製；請先移除並輪換機密，再重跑 upgrade。");
+    for (const finding of credentialFindings) console.log(`blocked  ${finding.relative}:${finding.line} (${finding.label})`);
+    process.exitCode = 1;
+    return;
   }
 
-  // R-024 upgrade.done self-check: after substantive upgrade writes, run doctor automatically.
-  // The user must see whether the merged state actually reaches a clean health state.
-  if (command === "upgrade" && conflicts.length === 0) {
-    console.log("");
-    console.log("------------------------------------------------------------");
-    console.log("🩺 升級後自動檢查：正在檢查升級後的資料夾");
-    console.log("------------------------------------------------------------");
-    const doctorStatus = await runDoctor(root, version, { silentCard: true, context: "upgrade-self-check" });
-    if (doctorStatus !== "passed") {
+  const transaction = await prepareTransaction(root, command, version, outputs);
+  try {
+    await validateTransactionOverlay(root, outputs);
+    transaction.journal.state = "committing";
+    await writeSecureJson(transaction.journalPath, transaction.journal);
+
+    let committedCount = 0;
+    const qaFailAfterCommit = Number.parseInt(process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_COMMIT ?? "", 10);
+    for (const entry of transaction.journal.entries) {
+      const output = outputs.find((item) => item.targetRel === entry.targetRel);
+      await atomicReplaceFromBuffer(root, output.targetAbs, output.after, transaction.id);
+      entry.committed = true;
+      committedCount += 1;
+      await writeSecureJson(transaction.journalPath, transaction.journal);
+      if (Number.isInteger(qaFailAfterCommit) && qaFailAfterCommit === committedCount) {
+        throw new Error(`QA fault injection after committed target ${committedCount}`);
+      }
+    }
+
+    transaction.journal.state = "committed";
+    transaction.journal.committedAt = new Date().toISOString();
+    await writeSecureJson(transaction.journalPath, transaction.journal);
+    const reportPath = await writeTransactionReport(transaction, mode, plan);
+    await unlinkIfExists(transaction.lockPath);
+
+    const created = outputs.filter((item) => !item.before).map((item) => item.targetRel);
+    const merged = outputs.filter((item) => item.before).map((item) => item.reason ? `${item.targetRel} - ${item.reason}` : item.targetRel);
+    printInstallSummary(version, command, mode, root, {
+      created: created.length,
+      merged: merged.length,
+      skipped: plan.filter((item) => item.action === "skip").length,
+      conflicts: 0,
+      backupRel: path.relative(root, transaction.backupDir),
+      reportRel: path.relative(root, reportPath)
+    });
+    if (command === "upgrade") printUpgradeNextSteps(root, 0);
+    else printInstallNextSteps(root, 0, mode, plan.filter((item) => item.action === "skip").length);
+
+    if (command === "upgrade") {
       console.log("");
-      console.log("⚠️  升級後自動檢查未通過；請看上方檢查輸出。");
-      console.log("📋 下一步：把上面 doctor 輸出貼給 AI，請它先按提示修補後再宣稱 upgrade 完成。");
-      process.exitCode = 1;
+      console.log("✅ migration committed：離線遷移提交閏已通過，版本代表本次成功提交。");
+      console.log("🩺 project health：現在執行完整 doctor；它的結果與 migration committed 分開。");
+      const doctorStatus = await runDoctor(root, version, { silentCard: true, context: "post-transaction-project-health" });
+      if (doctorStatus === "passed") console.log("✅ project health: passed");
+      else console.log("⚠️ project health: needs attention; migration remains committed because the deterministic migration gate passed");
+    }
+  } catch (error) {
+    transaction.journal.state = "rollback-needed";
+    transaction.journal.error = safeErrorLabel(error);
+    await writeSecureJson(transaction.journalPath, transaction.journal).catch(() => {});
+    const rollback = await rollbackTransaction(root, transaction.journal, transaction.journalPath);
+    if (rollback.ok) {
+      await unlinkIfExists(transaction.lockPath);
+      console.log("⚠️ migration rolled back：提交閏或寫入失敗，已復原本次交易所改動的目標。");
     } else {
-      console.log("");
-      console.log("✅ 升級驗收完成：doctor 已通過；可以繼續使用這個項目。");
+      console.log("⛔ migration incomplete：現存檔案已出現第三種內容，工具沒有強制回滾以免覆寫後續修改。");
+      for (const conflict of rollback.conflicts) console.log(`blocked  ${conflict}`);
+    }
+    throw error;
+  }
+}
+
+async function buildTransactionOutputs(command, root, plan, version) {
+  const byTarget = new Map();
+  for (const item of plan) {
+    if (item.action !== "create" && item.action !== "merge") continue;
+    const before = await readOptionalBuffer(item.targetAbs);
+    let afterText;
+    if (item.action === "create") {
+      const sourceText = await readFile(item.sourceAbs, "utf8");
+      afterText = item.targetRel === "AGENTS.md" ? mergeManagedBlock("", sourceText) : sourceText;
+    } else {
+      afterText = item.mergedText;
+    }
+    afterText = afterText.replaceAll("<absolute project root>", root);
+    byTarget.set(item.targetRel, {
+      targetRel: item.targetRel,
+      targetAbs: item.targetAbs,
+      before,
+      afterText,
+      reason: item.reason ?? item.action
+    });
+  }
+
+  const indexRel = "dev/PROJECT_INDEX.md";
+  const indexAbs = path.join(root, indexRel);
+  let indexOutput = byTarget.get(indexRel);
+  if (!indexOutput && (command === "upgrade" || await exists(indexAbs))) {
+    const before = await readOptionalBuffer(indexAbs);
+    if (before) indexOutput = { targetRel: indexRel, targetAbs: indexAbs, before, afterText: decodeUtf8(before, indexRel).text, reason: "template version metadata" };
+  }
+  if (indexOutput) {
+    const updated = indexOutput.afterText.replace(/\| Agent Handoff Kit template version \| [\d.]+ \|/, `| Agent Handoff Kit template version | ${version} |`);
+    indexOutput.afterText = updated;
+    byTarget.set(indexRel, indexOutput);
+  }
+
+  const handoffRel = "dev/SESSION_HANDOFF.md";
+  const promptRel = "START_NEXT_SESSION_PROMPT.txt";
+  const handoffOutput = byTarget.get(handoffRel);
+  const finalHandoffText = handoffOutput?.afterText ?? await readOptionalText(path.join(root, handoffRel));
+  if (finalHandoffText) {
+    const opening = extractOpeningMessage(finalHandoffText);
+    if (opening != null) {
+      const promptAbs = path.join(root, promptRel);
+      const promptBefore = await readOptionalBuffer(promptAbs);
+      const existing = byTarget.get(promptRel);
+      byTarget.set(promptRel, {
+        targetRel: promptRel,
+        targetAbs: promptAbs,
+        before: existing?.before ?? promptBefore,
+        afterText: opening.replaceAll("<absolute project root>", root),
+        reason: "regenerated from authoritative handoff opening message"
+      });
     }
   }
 
-  if (conflicts.length > 0) process.exitCode = 1;
+  const outputs = [];
+  for (const item of byTarget.values()) {
+    const after = encodeLikeExisting(item.afterText, item.before, item.targetRel);
+    if (item.before && item.before.equals(after)) continue;
+    outputs.push({ ...item, after, beforeHash: item.before ? sha256(item.before) : null, afterHash: sha256(after) });
+  }
+  return outputs;
+}
+
+async function prepareTransaction(root, command, version, outputs) {
+  const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
+  const migrationsRoot = path.join(root, "dev", "governance_migrations");
+  const migrationDir = path.join(migrationsRoot, id);
+  const backupDir = path.join(migrationDir, "backup");
+  const stageDir = path.join(migrationDir, "stage");
+  const journalPath = path.join(migrationDir, "transaction.json");
+  const lockPath = path.join(migrationsRoot, ".upgrade.lock");
+  await mkdir(backupDir, { recursive: true });
+  await mkdir(stageDir, { recursive: true });
+  await tightenPermissions(migrationsRoot, 0o700);
+  await tightenPermissions(migrationDir, 0o700);
+  const lock = await open(lockPath, "wx", 0o600).catch((error) => {
+    if (error?.code === "EEXIST") throw new Error("another upgrade transaction or unresolved recovery lock is present");
+    throw error;
+  });
+  await lock.writeFile(JSON.stringify({ id, host: hostname(), pid: process.pid, journal: path.relative(root, journalPath) }, null, 2));
+  await lock.close();
+
+  const entries = [];
+  for (const output of outputs) {
+    const stagePath = path.join(stageDir, output.targetRel);
+    await mkdir(path.dirname(stagePath), { recursive: true });
+    await writeFile(stagePath, output.after, { mode: 0o600 });
+    let backupRel = null;
+    if (output.before) {
+      const backupPath = path.join(backupDir, output.targetRel);
+      await mkdir(path.dirname(backupPath), { recursive: true });
+      await writeFile(backupPath, output.before, { mode: 0o600 });
+      backupRel = path.relative(root, backupPath);
+    }
+    entries.push({ targetRel: output.targetRel, existed: Boolean(output.before), beforeHash: output.beforeHash, afterHash: output.afterHash, backupRel, committed: false });
+  }
+  const journal = { id, command, attemptedVersion: version, committedVersion: null, host: hostname(), pid: process.pid, state: "prepared", createdAt: new Date().toISOString(), entries };
+  await writeSecureJson(journalPath, journal);
+  return { id, migrationDir, backupDir, stageDir, journalPath, lockPath, journal };
+}
+
+async function validateTransactionRoot(root, plan) {
+  let rootStats;
+  try {
+    rootStats = await lstat(root);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    const parent = await nearestExistingRealParent(path.dirname(root));
+    if (path.parse(path.resolve(root)).root === path.resolve(root)) throw new Error("selected root cannot be a filesystem root");
+    await mkdir(root, { recursive: true });
+    rootStats = await lstat(root);
+    if (!isInside(parent, await realpath(root))) throw new Error("created root escaped its verified parent");
+  }
+  if (rootStats.isSymbolicLink()) throw new Error("selected root is a symbolic link or junction; use the resolved project root");
+  const realRoot = await realpath(root);
+  for (const item of plan) {
+    if (item.action !== "create" && item.action !== "merge") continue;
+    const relative = path.relative(root, item.targetAbs);
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) throw new Error(`target escapes selected root: ${item.targetRel}`);
+    const parent = await nearestExistingRealParent(path.dirname(item.targetAbs));
+    if (!isInside(realRoot, parent)) throw new Error(`target parent resolves outside selected root: ${item.targetRel}`);
+    try {
+      if ((await lstat(item.targetAbs)).isSymbolicLink()) throw new Error(`target is a symbolic link or junction: ${item.targetRel}`);
+      const buffer = await readFile(item.targetAbs);
+      decodeUtf8(buffer, item.targetRel);
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+}
+
+async function validateTransactionOverlay(root, outputs) {
+  const outputMap = new Map(outputs.map((item) => [item.targetRel, decodeUtf8(item.after, item.targetRel).text]));
+  const finalText = async (relative) => outputMap.get(relative) ?? await readOptionalText(path.join(root, relative));
+  const failures = [];
+  for (const target of requiredTargets) if ((await finalText(target)) == null) failures.push(`${target}: missing after transaction`);
+  for (const rule of requiredAnchors) {
+    const text = await finalText(rule.target);
+    if (text == null) continue;
+    for (const failure of requiredAnchorFailures(rule, text)) failures.push(`${rule.target}: ${failure.kind} ${failure.snippet}`);
+  }
+  for (const rule of schemaChecks) {
+    const text = await finalText(rule.target);
+    if (text == null) continue;
+    for (const check of rule.checks) if (!check.test(text)) failures.push(`${rule.target}: ${check.label}`);
+  }
+
+  const handoffText = await finalText("dev/SESSION_HANDOFF.md");
+  const promptText = await finalText("START_NEXT_SESSION_PROMPT.txt");
+  if (handoffText && promptText) {
+    const otherTexts = [];
+    for (const target of requiredTargets) {
+      if (target === "dev/SESSION_HANDOFF.md" || target === "START_NEXT_SESSION_PROMPT.txt") continue;
+      const text = await finalText(target);
+      if (text) otherTexts.push({ relative: target, text });
+    }
+    const mirror = assessPromptMirrorTexts(handoffText, promptText, otherTexts);
+    if (!mirror.ok) failures.push(`prompt mirror: ${mirror.reason}`);
+  }
+  const bridgeFailures = await validateBridgeTexts(finalText);
+  failures.push(...bridgeFailures);
+  if (failures.length > 0) throw new Error(`migration acceptance gate failed: ${failures.slice(0, 12).join("; ")}${failures.length > 12 ? `; +${failures.length - 12} more` : ""}`);
+}
+
+async function validateBridgeTexts(finalText) {
+  const failures = [];
+  for (const target of ["CLAUDE.md", "GEMINI.md"]) {
+    const failure = bridgeTextFailure(target, await finalText(target) ?? "");
+    if (failure) failures.push(`${target}: ${failure}`);
+  }
+  return failures;
+}
+
+function bridgeTextFailure(targetRel, text) {
+  const active = stripMarkdownCommentsAndFences(text);
+  if (targetRel === "CLAUDE.md") {
+    const imports = active.split(/\r?\n/).filter((line) => line.trim() === "@AGENTS.md");
+    return imports.length === 1 ? null : `expected one active @AGENTS.md import, found ${imports.length}`;
+  }
+  if (targetRel === "GEMINI.md") {
+    return /^Authoritative operating rules remain in `AGENTS\.md`\.\s*$/m.test(active)
+      && /^2\. Read `AGENTS\.md`\.\s*$/m.test(active)
+      ? null
+      : "active AGENTS.md bridge instructions missing or misplaced";
+  }
+  return "unknown bridge target";
+}
+
+async function atomicReplaceFromBuffer(root, targetAbs, buffer, id) {
+  const relative = path.relative(root, targetAbs);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("atomic target escaped root");
+  await mkdir(path.dirname(targetAbs), { recursive: true });
+  const tempPath = path.join(path.dirname(targetAbs), `.${path.basename(targetAbs)}.ack-${id}.tmp`);
+  await writeFile(tempPath, buffer, { mode: 0o600 });
+  await rename(tempPath, targetAbs);
+}
+
+async function rollbackTransaction(root, journal, journalPath) {
+  const conflicts = [];
+  for (const entry of [...journal.entries].reverse()) {
+    if (!entry.committed) continue;
+    const targetAbs = path.join(root, entry.targetRel);
+    const current = await readOptionalBuffer(targetAbs);
+    const currentHash = current ? sha256(current) : null;
+    if (currentHash === entry.beforeHash) continue;
+    if (currentHash !== entry.afterHash) {
+      conflicts.push(`${entry.targetRel}: current content differs from both transaction input and candidate`);
+      continue;
+    }
+    if (entry.existed) {
+      const backup = await readFile(path.join(root, entry.backupRel));
+      await atomicReplaceFromBuffer(root, targetAbs, backup, `${journal.id}-rollback`);
+    } else {
+      await unlink(targetAbs);
+    }
+  }
+  journal.state = conflicts.length === 0 ? "rolled-back" : "manual-recovery-required";
+  journal.rollbackAt = new Date().toISOString();
+  journal.recoveryConflicts = conflicts;
+  await writeSecureJson(journalPath, journal).catch(() => {});
+  return { ok: conflicts.length === 0, conflicts };
+}
+
+async function recoverInterruptedTransaction(root) {
+  const lockPath = path.join(root, "dev", "governance_migrations", ".upgrade.lock");
+  let lock;
+  try {
+    lock = JSON.parse(await readFile(lockPath, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return;
+    throw new Error("upgrade lock exists but is unreadable; no writes attempted");
+  }
+  if (lock.host === hostname() && processIsAlive(lock.pid)) throw new Error(`another upgrade process is active (pid ${lock.pid})`);
+  if (lock.host && lock.host !== hostname()) throw new Error(`upgrade lock belongs to another host (${lock.host}); no automatic recovery attempted`);
+  const journalPath = path.resolve(root, lock.journal ?? "");
+  if (!isInside(root, journalPath)) throw new Error("upgrade lock journal path escapes selected root");
+  let journal;
+  try {
+    journal = JSON.parse(await readFile(journalPath, "utf8"));
+  } catch {
+    throw new Error("incomplete upgrade lock has no readable journal; no automatic recovery attempted");
+  }
+  if (journal.state === "committed" || journal.state === "rolled-back") {
+    await unlinkIfExists(lockPath);
+    return;
+  }
+  const rollback = await rollbackTransaction(root, journal, journalPath);
+  if (!rollback.ok) throw new Error(`interrupted upgrade has third-state edits: ${rollback.conflicts.join("; ")}`);
+  await unlinkIfExists(lockPath);
+  console.log("⚠️ recovered interrupted upgrade: transaction-owned changes were safely rolled back before planning this run");
+}
+
+async function writeTransactionReport(transaction, mode, plan) {
+  const reportPath = path.join(transaction.migrationDir, "migration-report.md");
+  const lines = [
+    "# Agent Handoff Kit Migration Report",
+    "",
+    `- Transaction: ${transaction.id}`,
+    `- Mode: ${mode}`,
+    `- Attempted version: ${transaction.journal.attemptedVersion}`,
+    `- Committed version: ${transaction.journal.attemptedVersion}`,
+    `- Transaction state: ${transaction.journal.state}`,
+    `- Created at: ${transaction.journal.createdAt}`,
+    `- Committed at: ${transaction.journal.committedAt}`,
+    "- Credential values: not recorded",
+    "",
+    "## Actions",
+    "",
+    ...transaction.journal.entries.map((entry) => `- ${entry.existed ? "merge" : "create"}: ${entry.targetRel}; backup=${entry.backupRel ?? "none"}; committed=${entry.committed}`),
+    "",
+    `- Planned skips: ${plan.filter((item) => item.action === "skip").length}`,
+    "- Conflicts: 0"
+  ];
+  await writeFile(reportPath, `${lines.join("\n")}\n`, { mode: 0o600 });
+  await tightenPermissions(reportPath, 0o600);
+  return reportPath;
+}
+
+function decodeUtf8(buffer, relative) {
+  const bom = buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf;
+  const body = bom ? buffer.subarray(3) : buffer;
+  let text;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(body);
+  } catch {
+    throw new Error(`${relative}: invalid UTF-8; conflict required`);
+  }
+  const crlfCount = (text.match(/\r\n/g) ?? []).length;
+  const loneLfCount = (text.match(/(^|[^\r])\n/g) ?? []).length;
+  return {
+    text,
+    bom,
+    newline: crlfCount > loneLfCount ? "\r\n" : "\n",
+    mixed: crlfCount > 0 && loneLfCount > 0
+  };
+}
+
+function encodeLikeExisting(text, before, relative) {
+  if (!before) return Buffer.from(text.replace(/\r\n?/g, "\n"), "utf8");
+  const style = decodeUtf8(before, relative);
+  const normalized = text.replace(/\r\n?/g, "\n").replace(/\n/g, style.newline);
+  return style.bom ? Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(normalized, "utf8")]) : Buffer.from(normalized, "utf8");
+}
+
+function detectCredentialValues(items) {
+  const findings = [];
+  for (const item of items) {
+    for (const { pattern, label } of credentialLeakPatterns) {
+      const match = item.text.match(pattern);
+      if (match) findings.push({ relative: item.relative, line: item.text.slice(0, match.index).split("\n").length, label });
+    }
+  }
+  return findings;
+}
+
+async function nearestExistingRealParent(start) {
+  let current = path.resolve(start);
+  while (true) {
+    try { return await realpath(current); } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+      const parent = path.dirname(current);
+      if (parent === current) throw error;
+      current = parent;
+    }
+  }
+}
+
+function isInside(root, candidate) {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function sha256(buffer) {
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
+async function readOptionalBuffer(filePath) {
+  try { return await readFile(filePath); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
+}
+
+async function readOptionalText(filePath) {
+  const buffer = await readOptionalBuffer(filePath);
+  return buffer ? decodeUtf8(buffer, filePath).text : null;
+}
+
+async function writeSecureJson(filePath, value) {
+  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+  await tightenPermissions(filePath, 0o600);
+}
+
+async function tightenPermissions(filePath, mode) {
+  try { await chmod(filePath, mode); } catch { /* best effort on platforms without POSIX modes */ }
+}
+
+async function unlinkIfExists(filePath) {
+  try { await unlink(filePath); } catch (error) { if (error?.code !== "ENOENT") throw error; }
+}
+
+function processIsAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try { process.kill(pid, 0); return true; } catch { return false; }
+}
+
+function stripMarkdownCommentsAndFences(text) {
+  return text.replace(/<!--[\s\S]*?-->/g, "").replace(/```[\s\S]*?```/g, "");
+}
+
+function safeErrorLabel(error) {
+  return String(error?.message ?? error).slice(0, 500);
 }
 
 async function runDoctor(root, version, options = {}) {
@@ -826,6 +1237,21 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
+  const bridgeFailures = await validateBridgeTexts(async (relative) => readOptionalText(path.join(root, relative)));
+  console.log(`\nbridge checks: 2`);
+  console.log(`${bridgeFailures.length === 0 ? "ok" : "missing"}  CLAUDE.md / GEMINI.md (active one-hop AGENTS.md bridges)`);
+  for (const finding of bridgeFailures) console.log(`  missing: ${finding}`);
+  if (bridgeFailures.length > 0) {
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + anchorRows.length + schemaRows.length + 2,
+      failedKind: "bridge checks",
+      failedCount: bridgeFailures.length,
+      nextStep: "修正 CLAUDE.md / GEMINI.md 的有效橋接指令；註解、程式碼區塊或重複字樣不能代替真實路由。"
+    });
+    process.exitCode = 1;
+    return "failed";
+  }
+
   const researchTraceResult = await checkResearchDecisionTrace(root);
   console.log(`\nresearch decision trace checks: ${researchTraceResult.checked}`);
   console.log(`${researchTraceResult.ok ? "ok" : "missing"}  dev/PROJECT_DECISIONS.md (research-derived decision evidence chains)`);
@@ -862,7 +1288,7 @@ async function runDoctor(root, version, options = {}) {
 
   const artifactResult = await checkGeneratedMarkdownGovernance(root);
   console.log(`\ngenerated markdown governance checks: ${artifactResult.checked}`);
-  console.log(`${artifactResult.ok ? "ok" : "missing"}  dev/PROJECT_INDEX.md (generated Markdown / durable artifact registration)`);
+  console.log(`${artifactResult.ok ? "ok" : "missing"}  dev/PROJECT_INDEX.md (generated Markdown registration; other formats require human review)`);
   if (!artifactResult.ok) {
     for (const finding of artifactResult.findings) {
       console.log(`  missing: ${finding}`);
@@ -871,7 +1297,7 @@ async function runDoctor(root, version, options = {}) {
       checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked + temperatureResult.checked + artifactResult.checked,
       failedKind: "generated markdown governance checks",
       failedCount: artifactResult.findings.length,
-      nextStep: "把新生成或新修改的 Markdown / durable artifact 登記到 dev/PROJECT_INDEX.md，或在 SESSION_LOG / task summary 明確標成 draft、temporary 或 one-time evidence；如內容重複，先合併到單一真源。"
+      nextStep: "把新生成或新修改的 Markdown 登記到 dev/PROJECT_INDEX.md，或在 SESSION_LOG / task summary 以同一紀錄精確標成 draft、temporary 或 one-time evidence；如內容重複，先合併到單一真源。其他持久格式須由 AI 另作人工治理核對。"
     });
     process.exitCode = 1;
     return "failed";
@@ -1073,15 +1499,38 @@ function isGeneratedArtifactCandidate(rel) {
 
 function isArtifactGoverned(rel, { indexText, logText, handoffText }) {
   const normalized = rel.replaceAll("\\", "/");
-  if (indexText.includes(normalized)) return true;
+  if (projectIndexRegistersExactPath(indexText, normalized)) return true;
+  return textExplicitlyClassifiesExactArtifact(logText, normalized)
+    || textExplicitlyClassifiesExactArtifact(handoffText, normalized);
+}
+
+function projectIndexRegistersExactPath(indexText, normalized) {
+  const active = stripMarkdownCommentsAndFences(indexText);
+  for (const line of active.split(/\r?\n/)) {
+    if (!line.trim().startsWith("|")) continue;
+    const cells = line.split("|").slice(1, -1);
+    for (const rawCell of cells) {
+      const cell = rawCell.trim().replace(/^`([^`]+)`$/, "$1");
+      if (cell === normalized) return true;
+      const link = /^\[[^\]]*\]\(([^)]+)\)$/.exec(cell);
+      if (link && link[1].replace(/^<|>$/g, "") === normalized) return true;
+    }
+  }
+  return false;
+}
+
+function textExplicitlyClassifiesExactArtifact(text, normalized) {
+  const active = stripMarkdownCommentsAndFences(text);
   const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const labels = "(draft|temporary|one-time evidence|non-authoritative|not source of truth|草稿|臨時|暫存|一次性|非真源|非權威)";
-  const afterPath = new RegExp(`${escaped}[\\s\\S]{0,240}${labels}`, "i");
-  const beforePath = new RegExp(`${labels}[\\s\\S]{0,240}${escaped}`, "i");
-  return afterPath.test(logText)
-    || beforePath.test(logText)
-    || afterPath.test(handoffText)
-    || beforePath.test(handoffText);
+  const exactPath = new RegExp(`(?:^|[\\s\`|([<])${escaped}(?=$|[\\s\`|)\\]>.,;:])`, "i");
+  const label = /(draft|temporary|one-time evidence|non-authoritative|not source of truth|草稿|臨時|暫存|一次性|非真源|非權威)/i;
+  const markdownPath = /(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.md\b/gi;
+  for (const line of active.split(/\r?\n/)) {
+    if (!exactPath.test(line) || !label.test(line)) continue;
+    const paths = new Set((line.match(markdownPath) ?? []).map((item) => item.replaceAll("\\", "/").toLowerCase()));
+    if (paths.size === 1 && paths.has(normalized.toLowerCase())) return true;
+  }
+  return false;
 }
 
 function stripFencedCodeBlocks(text) {
@@ -1171,28 +1620,6 @@ function currentStateEvidenceFindings(sectionLabel, text, options = {}) {
 
 function lineHasCurrentStateEvidence(line, options = {}) {
   return currentStateEvidenceFindings("line", line, options).length > 0;
-}
-
-function repairHandoffOpeningRootGuard(text) {
-  if (text.includes(rootMismatchGuard)) return { changed: false, text };
-  const bounds = handoffSectionContentBounds(text, "next-session-opening-message", "Next Session Opening Message");
-  if (!bounds) return { changed: false, text };
-  const section = text.slice(bounds.start, bounds.end);
-  if (!section.includes("```text")) return { changed: false, text };
-
-  let repairedSection = section;
-  if (/^Before changing anything,/m.test(repairedSection)) {
-    repairedSection = repairedSection.replace(/^Before changing anything,/m, `${rootMismatchGuard}, stop and ask for confirmation.\n\nBefore changing anything,`);
-  } else if (/\n```/.test(repairedSection)) {
-    repairedSection = repairedSection.replace(/\n```/, `\n${rootMismatchGuard}, stop and ask for confirmation.\n\n\`\`\``);
-  } else {
-    return { changed: false, text };
-  }
-
-  return {
-    changed: repairedSection !== section,
-    text: `${text.slice(0, bounds.start)}${repairedSection}${text.slice(bounds.end)}`
-  };
 }
 
 function repairHandoffCurrentStateEvidenceBoundary(text) {
@@ -1293,22 +1720,6 @@ function getFirstUseNextStep(root, lastCloseout) {
 // dev/SESSION_HANDOFF.md, dev/SESSION_LOG.md for common credential prefix patterns.
 // Credentials must live in OS-level secure storage or AI-tool config, never in dev/*.
 async function checkInstalledIntegrationsCredentialLeak(root) {
-  const credentialPatterns = [
-    { pattern: /sk-ant-[A-Za-z0-9_-]{20,}/, label: "Anthropic API key (sk-ant-)" },
-    { pattern: /\bsk-[A-Za-z0-9_-]{20,}/, label: "OpenAI / generic sk- prefix" },
-    { pattern: /\bntn_[A-Za-z0-9_-]{40,}/, label: "Notion Integration Token (ntn_)" },
-    { pattern: /\bsecret_[A-Za-z0-9_-]{40,}/, label: "Notion legacy secret_ token" },
-    { pattern: /\bya29\.[A-Za-z0-9_-]{20,}/, label: "Google OAuth access token (ya29.)" },
-    { pattern: /\b1\/\/[A-Za-z0-9_-]{30,}/, label: "Google refresh token (1//)" },
-    { pattern: /\bxox[abprs]-[A-Za-z0-9-]{10,}/, label: "Slack token (xoxp-/xoxb-/etc)" },
-    { pattern: /\bghp_[A-Za-z0-9]{36}/, label: "GitHub Personal Access Token (ghp_)" },
-    { pattern: /\bgho_[A-Za-z0-9]{36}/, label: "GitHub OAuth token (gho_)" },
-    { pattern: /\bghs_[A-Za-z0-9]{36}/, label: "GitHub server token (ghs_)" },
-    { pattern: /\bgithub_pat_[A-Za-z0-9_]{20,}/, label: "GitHub fine-grained PAT (github_pat_)" },
-    { pattern: /\bsl\.[A-Za-z0-9_-]{50,}/, label: "Dropbox token (sl.)" },
-    { pattern: /\bAKIA[A-Z0-9]{16}/, label: "AWS access key (AKIA)" },
-    { pattern: /\bAIza[A-Za-z0-9_-]{35}/, label: "Google API key (AIza)" }
-  ];
   const targetFiles = [
     "dev/PROJECT_INDEX.md",
     "dev/SESSION_HANDOFF.md",
@@ -1323,7 +1734,7 @@ async function checkInstalledIntegrationsCredentialLeak(root) {
     } catch {
       continue;
     }
-    for (const { pattern, label } of credentialPatterns) {
+    for (const { pattern, label } of credentialLeakPatterns) {
       const match = text.match(pattern);
       if (match) {
         const line = text.slice(0, match.index).split("\n").length;
@@ -1347,7 +1758,7 @@ function printDoctorSummary(version, root, mode, details) {
     }
   } else {
     console.log(`status: failed (${details.failedCount} ${details.failedKind} failed)`);
-    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : details.failedKind === "research decision trace checks" ? "研究導向決策缺少可追溯來源鏈。" : details.failedKind === "handoff temperature boundary checks" ? "當前交接內容混入一次性或歷史證據。" : details.failedKind === "generated markdown governance checks" ? "有 Markdown 或 durable artifact 未完成入庫、同步或臨時分類。" : "下次開工提示副本與 handoff 真源不同。"}`);
+    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : details.failedKind === "research decision trace checks" ? "研究導向決策缺少可追溯來源鏈。" : details.failedKind === "handoff temperature boundary checks" ? "當前交接內容混入一次性或歷史證據。" : details.failedKind === "generated markdown governance checks" ? "有 Markdown 未完成登記、同步或精確臨時分類；其他持久格式須另作人工治理核對。" : "下次開工提示副本與 handoff 真源不同。"}`);
   }
   console.log("");
   console.log(`📦 版本：v${version}`);
@@ -1411,21 +1822,7 @@ async function hydrateInitialOpeningPrompt(root, created) {
 }
 
 async function checkPromptMirror(root) {
-  const handoffPath = path.join(root, "dev/SESSION_HANDOFF.md");
-  const promptPath = path.join(root, "START_NEXT_SESSION_PROMPT.txt");
-  let handoffText = "";
-  let promptText = "";
-  try {
-    handoffText = await readFile(handoffPath, "utf8");
-  } catch {
-    return [{ target: "START_NEXT_SESSION_PROMPT.txt", label: "matches handoff opening message", ok: false, reason: "handoff unreadable" }];
-  }
-  try {
-    promptText = await readFile(promptPath, "utf8");
-  } catch {
-    return [{ target: "START_NEXT_SESSION_PROMPT.txt", label: "matches handoff opening message", ok: false, reason: "prompt copy unreadable" }];
-  }
-  const mirror = assessPromptMirrorTexts(handoffText, promptText);
+  const mirror = assessPromptMirrorRoot(root);
   return [{
     target: "START_NEXT_SESSION_PROMPT.txt",
     label: "matches handoff opening message",
@@ -1436,16 +1833,68 @@ async function checkPromptMirror(root) {
 
 function assessHandoffLifecycleConsistency(text) {
   const fieldValue = fieldValueAfterMarker(text, "lifecycle-conflicts-resolved");
-  if (isAffirmativeLifecycleFieldValue(fieldValue)) {
-    return { ok: true, reason: "" };
-  }
   if (isUnresolvedLifecycleFieldValue(fieldValue)) {
     return { ok: false, reason: "lifecycle field is explicitly unresolved" };
   }
   if (isPlaceholderLifecycleFieldValue(fieldValue) && hasSubstantiveHandoffState(text)) {
     return { ok: false, reason: "lifecycle field is still placeholder after handoff content changed" };
   }
+  const contradictions = findHandoffLifecycleContradictions(text);
+  if (contradictions.length > 0) {
+    return { ok: false, reason: `resolved work overlaps unresolved carry-forward state: ${contradictions[0]}` };
+  }
   return { ok: true, reason: "" };
+}
+
+function handoffStateLines(text, markerId, headingTitle) {
+  return extractSectionText(text, markerId, headingTitle)
+    .replace(/```[\s\S]*?```/g, "")
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*\d.)\s]+/, "").trim())
+    .filter((line) => line.length > 3 && !line.startsWith("##") && !line.startsWith("<!--") && !/^(TBD|none|n\/a|未適用|無)$/i.test(line));
+}
+
+function lifecycleTopicTokens(line) {
+  const latin = (line.toLowerCase().match(/[a-z0-9][a-z0-9_-]{3,}/g) ?? [])
+    .filter((token) => !new Set(["completed", "complete", "passed", "verified", "pending", "blocked", "follow-up", "monitor-only", "reopened", "session", "current", "next", "work", "task", "with", "from", "that", "this", "handoff", "lifecycle", "migration", "regression", "agent"]).has(token));
+  const chineseRuns = line.match(/[\u3400-\u9fff]{2,}/g) ?? [];
+  const chinese = chineseRuns.flatMap((run) => Array.from({ length: Math.max(0, run.length - 1) }, (_, index) => run.slice(index, index + 2)));
+  return new Set([...latin, ...chinese]);
+}
+
+function lifecycleTopicsOverlap(left, right) {
+  const leftCompact = left.toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]+/g, "");
+  const rightCompact = right.toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]+/g, "");
+  if (leftCompact.length >= 8 && rightCompact.length >= 8 && (leftCompact.includes(rightCompact) || rightCompact.includes(leftCompact))) return true;
+  const leftTokens = lifecycleTopicTokens(left);
+  const common = [...lifecycleTopicTokens(right)].filter((token) => leftTokens.has(token));
+  return common.length >= 2;
+}
+
+function isExplicitLifecycleReclassification(line) {
+  const category = /(monitor-only|follow-up scope|blocked|reopened|只監察|後續追蹤|受阻|重開)/i.test(line);
+  const condition = /(trigger|until|when|missing evidence|reason|條件|證據|原因|待.+(?:時|後))/i.test(line);
+  return category && condition;
+}
+
+function findHandoffLifecycleContradictions(text) {
+  const resolved = [
+    ...handoffStateLines(text, "completed-this-session", "Completed This Session"),
+    ...handoffStateLines(text, "validation-qc", "Validation / QC").filter((line) => /(pass|passed|verified|complete|success|通過|完成|已驗證|已核對)/i.test(line))
+  ];
+  const carryForward = [
+    ...handoffStateLines(text, "next-priorities", "Next Priorities"),
+    ...handoffStateLines(text, "risks-blockers", "Risks / Blockers"),
+    ...handoffStateLines(text, "next-session-opening-message", "Next Session Opening Message")
+  ];
+  const findings = [];
+  for (const pending of carryForward) {
+    if (isExplicitLifecycleReclassification(pending)) continue;
+    for (const done of resolved) {
+      if (lifecycleTopicsOverlap(done, pending)) findings.push(`${done} <> ${pending}`);
+    }
+  }
+  return findings;
 }
 
 function isAffirmativeLifecycleFieldValue(value) {
@@ -1581,7 +2030,7 @@ async function checkSchema(root) {
     }
     const missing = rule.checks
       .filter((check) => !check.test(text))
-      .map((check) => check.label);
+      .map((check) => check.explain?.(text) ? `${check.label}: ${check.explain(text)}` : check.label);
     rows.push({
       target: rule.target,
       label: rule.label,
@@ -1634,8 +2083,15 @@ async function buildPlan(root, command, version = null) {
   const plan = [];
   const context = {
     currentVersion: version,
-    rootTemplateVersion: command === "upgrade" ? await readRootTemplateVersion(root) : null
+    rootTemplateVersion: command === "upgrade" ? await readRootTemplateVersion(root) : null,
+    migrationBaselines: new Map()
   };
+  if (command === "upgrade" && context.rootTemplateVersion === "0.3.38") {
+    for (const relative of ["packs/integrations.md", "packs/onboarding.md", "packs/safety.md"]) {
+      const baseline = await readOptionalText(path.join(packageRoot, "bin", "migration-baselines", "v0.3.38", path.basename(relative)));
+      if (baseline != null) context.migrationBaselines.set(relative, baseline);
+    }
+  }
   for (const [sourceRel, targetRel] of mappings) {
     const sourceAbs = path.join(packageRoot, sourceRel);
     const targetAbs = path.join(root, targetRel);
@@ -1676,8 +2132,7 @@ async function readRootTemplateVersion(root) {
 
 function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText, context = {}) {
   const base = { sourceRel, targetRel, sourceAbs, targetAbs };
-  if (targetText === sourceText && targetRel !== "AGENTS.md") return { ...base, action: "skip", reason: "already current" };
-  if (command !== "upgrade") return { ...base, action: "skip", reason: "init preserves existing files" };
+  if (targetText.replace(/\r\n/g, "\n") === sourceText.replace(/\r\n/g, "\n") && targetRel !== "AGENTS.md") return { ...base, action: "skip", reason: "already current" };
   if (targetRel === "AGENTS.md") {
     const health = assessAgentsMdHealth(targetText);
     if (health.state === "conflict") {
@@ -1721,75 +2176,72 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   // R-029/R-030: RULE_PACKS.md is a routing table, but upgrade still preserves
   // user-added rows. Missing maintainer rows are merged into the existing table
   // instead of replacing the whole file.
-  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("First-time user signals")) {
+  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade") {
     const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
     if (!mergedRulePacks) {
-      return { ...base, action: "conflict", reason: "RULE_PACKS.md routing table header was changed; manual merge required to preserve custom rows" };
+      return { ...base, action: "conflict", reason: "RULE_PACKS.md must contain one valid routing table; marked official rows and local rows could not be separated safely" };
     }
-    return {
-      ...base,
-      action: "merge",
-      reason: "merge missing v0.2.0+ routing rows while preserving existing custom rows (新手引導 signal routing)",
-      mergedText: mergedRulePacks
-    };
-  }
-  // R-030 v0.3.0+: dev/RULE_PACKS.md must also include integrations pack routing row.
-  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("External tool integrations")) {
-    const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
-    if (!mergedRulePacks) {
-      return { ...base, action: "conflict", reason: "RULE_PACKS.md routing table header was changed; manual merge required to preserve custom rows" };
+    if (mergedRulePacks !== targetText) {
+      return {
+        ...base,
+        action: "merge",
+        reason: "update marker-identified official routing rows while preserving every unmarked local row",
+        mergedText: mergedRulePacks
+      };
     }
-    return {
-      ...base,
-      action: "merge",
-      reason: "merge missing v0.3.0+ routing rows while preserving existing custom rows (Integration governance routing)",
-      mergedText: mergedRulePacks
-    };
+    return { ...base, action: "skip", reason: "official marked routes current; local rows preserved" };
   }
-  // External-tool resource lifecycle extension: old v0.3.x installs may already
-  // have the integrations row, but still lack the resource-pressure routing row.
-  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && !targetText.includes("External tool resource pressure")) {
-    const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
-    if (!mergedRulePacks) {
-      return { ...base, action: "conflict", reason: "RULE_PACKS.md routing table header was changed; manual merge required to preserve custom rows" };
+  if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade") {
+    const mergedProjectIndex = mergeProjectIndexGovernanceSections(targetText, sourceText);
+    if (!mergedProjectIndex) {
+      return {
+        ...base,
+        action: "conflict",
+        reason: "PROJECT_INDEX.md must contain unique real H2 governance sections in the expected order; inline or fenced lookalikes are not sections"
+      };
     }
-    return {
-      ...base,
-      action: "merge",
-      reason: "merge missing external-tool resource lifecycle routing row while preserving existing custom rows",
-      mergedText: mergedRulePacks
-    };
-  }
-  // Governance bridge v0.3.27+: route durable document bridging requests to
-  // agent-governance without replacing user-added routing rows.
-  if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade" && (
-    !targetText.includes("Governance bridge / bridge governance")
-    || !targetText.includes("equivalent Chinese user phrases")
-    || !targetText.includes("scan for unbridged governance documents")
-  )) {
-    const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
-    if (!mergedRulePacks) {
-      return { ...base, action: "conflict", reason: "RULE_PACKS.md routing table header was changed; manual merge required to preserve custom rows" };
+    if (mergedProjectIndex !== targetText) {
+      return {
+        ...base,
+        action: "merge",
+        reason: "insert or normalize the unique Installed Integrations and Tool Operation References H2 sections while preserving all existing project content",
+        mergedText: mergedProjectIndex
+      };
     }
-    return {
-      ...base,
-      action: "merge",
-      reason: "merge missing governance bridge routing row while preserving existing custom rows",
-      mergedText: mergedRulePacks
-    };
+    return { ...base, action: "skip", reason: "PROJECT_INDEX.md governance sections current and structurally unique" };
   }
-  // Language migration: older integrations packs were AI-facing rules written
-  // partly in Chinese/Cantonese. If the file still has the trusted legacy Kit
-  // shape, replace it with the current English maintainer pack. If the shape is
-  // ambiguous or locally restructured, stop as a conflict instead of doing a
-  // partial merge that could create a half-English, half-legacy pack.
-  if (targetRel === "dev/rules/integrations.md" && command === "upgrade" && isLegacyChineseIntegrationsPack(targetText)) {
-    return {
-      ...base,
-      action: "merge",
-      reason: "replace legacy Chinese integrations pack with current English maintainer pack",
-      mergedText: sourceText
-    };
+  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade") {
+    const migratedHandoff = migrateSessionHandoff(targetText, sourceText, context);
+    if (!migratedHandoff) {
+      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md lacks unique trusted state/opening boundaries; migration stopped without replacing project state" };
+    }
+    if (migratedHandoff !== targetText) {
+      return { ...base, action: "merge", reason: "update handoff lifecycle/startup contracts while preserving current project state", mergedText: migratedHandoff };
+    }
+    return { ...base, action: "skip", reason: "SESSION_HANDOFF.md lifecycle and startup contracts current" };
+  }
+  if (targetRel === "dev/SESSION_LOG.md" && command === "upgrade") {
+    const migratedLog = migrateSessionLog(targetText, sourceText);
+    if (!migratedLog) {
+      return { ...base, action: "conflict", reason: "SESSION_LOG.md lacks a unique trusted entry-template boundary; migration stopped without replacing trace history" };
+    }
+    if (migratedLog !== targetText) {
+      return { ...base, action: "merge", reason: "update only the log preamble/template and remove Kit-shaped full prompt copies while preserving trace entries", mergedText: migratedLog };
+    }
+    return { ...base, action: "skip", reason: "SESSION_LOG.md trace/template boundary current" };
+  }
+  if (command === "upgrade" && ["dev/rules/integrations.md", "dev/rules/onboarding.md", "dev/rules/safety.md"].includes(targetRel)) {
+    const baseline = context.migrationBaselines?.get(sourceRel);
+    if (baseline != null) {
+      const mergedPack = threeWayPreserveLocalChanges(baseline, targetText, sourceText);
+      if (!mergedPack) {
+        return { ...base, action: "conflict", reason: `${targetRel} has local edits that overlap changed Kit rules; upgrade stopped without replacing custom content` };
+      }
+      if (mergedPack !== targetText) {
+        return { ...base, action: "merge", reason: `three-way merge v0.3.38 official rules while preserving non-overlapping local ${path.basename(targetRel)} changes`, mergedText: mergedPack };
+      }
+      return { ...base, action: "skip", reason: `${targetRel} current after three-way preservation check` };
+    }
   }
   // Governance bridge v0.3.27+: add the triggered review workflow to the
   // agent-governance pack only when the pack still has a trusted Checks section.
@@ -1809,69 +2261,9 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergedGovernancePack
     };
   }
-  // R-030 v0.3.0+: dev/PROJECT_INDEX.md gets ## Installed Integrations section auto-inserted before
-  // ## Local QC Commands on upgrade if missing. NON-DESTRUCTIVE: existing ## External Sources content
-  // is fully preserved (including any user-filled rows). User can later manually add the `via` column
-  // to External Sources rows (or AI can guide that incremental migration during a later session).
-  if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade" && !targetText.includes("## Installed Integrations")) {
-    // Extract just the ## Installed Integrations block from source (not touching External Sources).
-    const sourceInstalledMatch = sourceText.match(/(## Installed Integrations[\s\S]*?)(?=## Local QC Commands)/);
-    if (sourceInstalledMatch && targetText.includes("## Local QC Commands")) {
-      const installedBlock = sourceInstalledMatch[1];
-      return {
-        ...base,
-        action: "merge",
-        reason: "insert ## Installed Integrations section template before ## Local QC Commands (R-030 Integration governance migration; existing External Sources content preserved non-destructively)",
-        mergedText: targetText.replace("## Local QC Commands", installedBlock + "## Local QC Commands")
-      };
-    }
-  }
-  if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade" && !targetText.includes("## Tool Operation References")) {
-    const sourceToolRefsMatch = sourceText.match(/(## Tool Operation References[\s\S]*?)(?=## Local QC Commands)/);
-    if (sourceToolRefsMatch && targetText.includes("## Local QC Commands")) {
-      const toolRefsBlock = sourceToolRefsMatch[1];
-      const normalizedTarget = mergeProjectIndexCredentialReferences(targetText);
-      return {
-        ...base,
-        action: "merge",
-        reason: "insert ## Tool Operation References section template before ## Local QC Commands and normalize integration reference wording (runtime-controlled tool operation governance)",
-        mergedText: normalizedTarget.replace("## Local QC Commands", toolRefsBlock + "## Local QC Commands")
-      };
-    }
-  }
-  if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade" && (
-    targetText.includes("Credential Location")
-    || targetText.includes("Credential Reference（no value）")
-    || targetText.includes("Claude Code MCP config + env var")
-    || targetText.includes("Credential 應由 AI 工具自身 secure storage 管理（譬如 Claude Desktop Extensions")
-    || targetText.includes("機密分離原則")
-  )) {
-    const mergedProjectIndex = mergeProjectIndexCredentialReferences(targetText);
-    if (mergedProjectIndex !== targetText) {
-      return {
-        ...base,
-        action: "merge",
-        reason: "update PROJECT_INDEX credential reference wording without changing user integration rows",
-        mergedText: mergedProjectIndex
-      };
-    }
-  }
-  // Language migration: older onboarding packs were AI-facing rules written
-  // mostly in Chinese. If the file still has the trusted legacy Kit shape,
-  // replace it with the current concise English maintainer pack. If the shape
-  // is ambiguous or locally restructured, stop as a conflict instead of
-  // producing a half-English, half-legacy pack.
-  if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && isLegacyChineseOnboardingPack(targetText)) {
-    return {
-      ...base,
-      action: "merge",
-      reason: "replace legacy Chinese onboarding pack with current English maintainer pack",
-      mergedText: sourceText
-    };
-  }
   // R-030 v0.3.0+: dev/rules/onboarding.md gets Scenario F auto-inserted before
   // ## Cross-reference to guide.html on upgrade if missing and the pack is not
-  // a legacy Chinese pack that should be replaced wholesale.
+  // a legacy pack whose structure cannot accept this bounded insertion safely.
   if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && !targetText.includes("Scenario F. External-tool governance")) {
     const sourceScenarioFMatch = sourceText.match(/(### Scenario F\. External-tool governance[\s\S]*?)(?=## Cross-reference to guide\.html)/);
     if (sourceScenarioFMatch && hasTrustedOnboardingScenarioLibrary(targetText)) {
@@ -1895,108 +2287,29 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
   }
-  // v0.3.6+: SESSION_HANDOFF.md gains a non-destructive lifecycle consistency
-  // field. Existing handoff content stays intact; only the missing field and
-  // rule note are inserted around stable ack markers.
-  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && !targetText.includes("ack:field:lifecycle-conflicts-resolved")) {
-    const mergedHandoff = mergeHandoffLifecycleField(targetText);
-    if (!mergedHandoff) {
-      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md state reconciliation markers were changed; manual merge required to add lifecycle consistency field" };
+  if (targetRel === "dev/rules/onboarding.md" && command === "upgrade" && !targetText.includes("Infer when sufficient; ask only when unresolved")) {
+    const mergedOnboarding = mergeOnboardingDecisionFirstPolicy(targetText, sourceText);
+    if (!mergedOnboarding) {
+      return { ...base, action: "conflict", reason: "onboarding decision flow was customized or structurally changed; manual merge required rather than forcing the chooser-policy migration" };
     }
     return {
       ...base,
       action: "merge",
-      reason: "insert lifecycle consistency field into State Reconciliation Check (completed work must not carry forward as unresolved next work)",
-      mergedText: mergedHandoff
+      reason: "replace the trusted mandatory chooser flow with decision-first onboarding while preserving scenario content and local sections",
+      mergedText: mergedOnboarding
     };
   }
-  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && !targetText.includes("ack:field:persistence-routing-checked")) {
-    const mergedHandoff = mergeHandoffPersistenceRoutingField(targetText);
-    if (!mergedHandoff) {
-      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md state reconciliation markers were changed; manual merge required to add persistence routing field" };
-    }
-    return {
-      ...base,
-      action: "merge",
-      reason: "insert persistence routing field into State Reconciliation Check (one-time evidence must not drive next-session state)",
-      mergedText: mergedHandoff
-    };
-  }
-  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && !targetText.includes("ack:field:recommended-next-step-explicit")) {
-    const mergedHandoff = mergeHandoffRecommendedNextStepDiscipline(targetText);
-    if (!mergedHandoff) {
-      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md state reconciliation markers were changed; manual merge required to add recommended next-step field" };
-    }
-    return {
-      ...base,
-      action: "merge",
-      reason: "insert recommended next-step field and preserve existing next-priority items",
-      mergedText: mergedHandoff
-    };
-  }
-  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && isUpgradeFromOlderTemplate(context)) {
-    const lifecycleValue = fieldValueAfterMarker(targetText, "lifecycle-conflicts-resolved");
-    if (isPlaceholderLifecycleFieldValue(lifecycleValue) && hasSubstantiveHandoffState(targetText)) {
-      const mergedHandoff = reclassifyExistingHandoffLifecyclePlaceholder(targetText);
-      if (!mergedHandoff) {
-        return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md lifecycle field exists but could not be safely reclassified; manual closeout required" };
-      }
+  if (command !== "upgrade") return { ...base, action: "skip", reason: "init preserves existing files" };
+  if (targetRel === "START_NEXT_SESSION_PROMPT.txt" && command === "upgrade") {
+    const mergedStartupGuidance = mergeLegacyFirstStartupGuidance(targetText, sourceText);
+    if (mergedStartupGuidance && mergedStartupGuidance !== targetText) {
       return {
         ...base,
         action: "merge",
-        reason: "reclassify stale lifecycle placeholder from earlier template version so upgrade self-check can validate pre-existing handoff content",
-        mergedText: mergedHandoff
+        reason: "replace the exact legacy first-start chooser sentence without changing surrounding project state",
+        mergedText: mergedStartupGuidance
       };
     }
-  }
-  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && hasMisplacedRequiredAnchor(targetRel, targetText, "handoff log archive continuity")) {
-    return { ...base, action: "conflict", reason: "required Kit anchors are present outside trusted semantic sections; upgrade stopped to avoid accepting naked anchor text as valid state" };
-  }
-  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade" && hasMissingRequiredAnchor(targetRel, targetText, "handoff log archive continuity")) {
-    const mergedHandoff = mergeHandoffArchiveContinuityRule(targetText, sourceText);
-    if (!mergedHandoff) {
-      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md handoff sufficiency markers were changed; manual merge required to add archive continuity rule" };
-    }
-    return {
-      ...base,
-      action: "merge",
-      reason: "insert handoff archive continuity rule so upgrade self-check can pass without requiring manual anchor repair",
-      mergedText: mergedHandoff
-    };
-  }
-  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade") {
-    const repairedOpening = repairHandoffOpeningRootGuard(targetText);
-    if (repairedOpening.changed) {
-      return {
-        ...base,
-        action: "merge",
-        reason: "restore root mismatch guard in Next Session Opening Message",
-        mergedText: repairedOpening.text
-      };
-    }
-  }
-  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade") {
-    const repairedTemperature = repairHandoffCurrentStateEvidenceBoundary(targetText);
-    if (repairedTemperature.changed) {
-      return {
-        ...base,
-        action: "merge",
-        reason: "move historical evidence out of hot handoff state",
-        mergedText: repairedTemperature.text
-      };
-    }
-  }
-  if (targetRel === "dev/SESSION_LOG.md" && command === "upgrade" && !targetText.includes("- **Evidence disposition:**")) {
-    const mergedLog = mergeSessionLogEvidenceDispositionField(targetText);
-    if (!mergedLog) {
-      return { ...base, action: "conflict", reason: "SESSION_LOG.md entry template markers were changed; manual merge required to add evidence disposition field" };
-    }
-    return {
-      ...base,
-      action: "merge",
-      reason: "insert SESSION_LOG evidence disposition field into Entry Template",
-      mergedText: mergedLog
-    };
   }
   if (command === "upgrade" && hasAnchorRepairMarkerDrift(targetText)) {
     return { ...base, action: "conflict", reason: "legacy anchor repair block markers are incomplete or obsolete; manual semantic cleanup required before upgrade can safely continue" };
@@ -2012,9 +2325,6 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
     return { ...base, action: "conflict", reason: "required Kit anchors are missing but no safe semantic repair path exists; upgrade stopped without appending naked anchor text" };
   }
   if (targetRel === "CLAUDE.md" || targetRel === "GEMINI.md") {
-    if (!targetText.includes("AGENTS.md")) {
-      return { ...base, action: "conflict", reason: "existing bridge does not route to AGENTS.md" };
-    }
     if (looksLikeExpandedKitBridge(targetRel, targetText)) {
       return {
         ...base,
@@ -2022,6 +2332,10 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
         reason: `${targetRel} appears to be an expanded Kit bridge; restore short bridge so AGENTS.md remains the single source of truth`,
         mergedText: sourceText
       };
+    }
+    const bridgeFailure = bridgeTextFailure(targetRel, targetText);
+    if (bridgeFailure) {
+      return { ...base, action: "conflict", reason: `existing bridge is not an active one-hop route (${bridgeFailure})` };
     }
   }
   return { ...base, action: "skip", reason: "preserve existing file" };
@@ -2065,6 +2379,89 @@ function mergeOnboardingScenarioALabel(targetText) {
     "### Scenario A. Build systems, tools, platforms, websites, or apps"
   );
   return merged;
+}
+
+function mergeOnboardingDecisionFirstPolicy(targetText, sourceText) {
+  const legacySignalLine = "- equivalent Chinese user phrases such as \"新手\", \"教我用\", \"我剛安裝\", \"點開始\", \"開工\", \"能力\", or \"能做甚麼\"";
+  const currentSignalBoundary = "- equivalent Chinese user phrases such as \"新手\", \"教我用\", \"我剛安裝\", \"點開始\", \"能力\", or \"能做甚麼\"\n\n### Continuity startup boundary\n\n`Start Agent Handoff` / \"開工\" starts continuity and reads the current handoff state; it is not an onboarding signal. If the same message or loaded state contains a concrete objective, infer the working scenario and begin the first safe action. Only when no executable objective remains after state reading should the AI ask one concise question or offer the guided onboarding path. Explicit requests such as \"新手，教我用\" enter onboarding directly.";
+  let working = targetText;
+  let startupBoundaryChanged = false;
+  if (working.includes(legacySignalLine) && !working.includes("### Continuity startup boundary")) {
+    working = working.replace(legacySignalLine, currentSignalBoundary);
+    startupBoundaryChanged = true;
+  }
+
+  const legacyStart = "### 2. Offer scenario choice before task execution";
+  const legacyEnd = "### 5. Keep the first task small";
+  const sourceStart = "### 2. Infer first; offer scenario choice only when needed";
+  const sourceEnd = "### 5. Keep the first task small";
+  const targetStartIndex = working.indexOf(legacyStart);
+  const targetEndIndex = working.indexOf(legacyEnd);
+  const sourceStartIndex = sourceText.indexOf(sourceStart);
+  const sourceEndIndex = sourceText.indexOf(sourceEnd);
+  if (targetStartIndex < 0 || targetEndIndex <= targetStartIndex) {
+    return startupBoundaryChanged && working.includes("Infer when sufficient; ask only when unresolved") ? working : null;
+  }
+  if (sourceStartIndex < 0 || sourceEndIndex <= sourceStartIndex) return null;
+
+  const legacyDecisionBlock = working.slice(targetStartIndex, targetEndIndex);
+  const trustedLegacyPhrases = [
+    "When onboarding applies, the first visible response must combine the startup card and scenario chooser",
+    "After the user picks a scenario, guide one small first task through five steps",
+    "Do not run all five steps in one message"
+  ];
+  if (!trustedLegacyPhrases.every((phrase) => legacyDecisionBlock.includes(phrase))) return null;
+
+  const replacements = [
+    [
+      "Use this transient pack for first-time Agent Handoff Kit users, vague first messages, or fresh-install sessions where the user has not yet chosen a working scenario.",
+      "Use this transient pack for first-time Agent Handoff Kit users who request guidance, or when the user's first-task intent remains genuinely unresolved after reading the available project state."
+    ],
+    [
+      "- The first user message is short and vague.",
+      "- The first user message is short and still genuinely vague after available project state is read."
+    ],
+    [
+      "- `SESSION_HANDOFF` Active Objective is empty and Session count is 1.",
+      "- `SESSION_HANDOFF` Active Objective is empty and Session count is 1, and the user has not already supplied a concrete objective with enough material facts."
+    ],
+    [
+      "Each scenario keeps the same five-step rhythm. The model may adapt wording, but must preserve the intent, tone, and safety boundaries.",
+      "Each scenario is a fallback guidance template, not a mandatory questionnaire. The model may skip answered steps, infer the route when evidence is sufficient, and adapt wording while preserving intent, tone, and safety boundaries."
+    ],
+    [
+      "Step E.1: ask for four facts: objective, existing material or tools, technical comfort level, and the first small result the user wants.",
+      "Step E.1: use any facts already provided, then ask only for missing information that materially affects the first safe action. Do not ask about technical comfort unless it changes the delivery approach."
+    ],
+    [
+      "| Treating a vague first message as a specific task | The user may be trying to learn the workflow or choose a scenario. | Offer the A-F scenario chooser first. |",
+      "| Treating a genuinely vague first message as a specific task | The user may be trying to learn the workflow or choose a scenario. | Offer the A-F scenario chooser only when the intent remains unresolved. |"
+    ],
+    [
+      "| Running all five steps without waiting | The user loses control of the walk-through. | Pause for confirmation at each step. |",
+      "| Forcing the chooser or all five guided steps after the objective is already concrete | The user must repeat known information and the AI shifts technical work back to the user. | Infer the scenario, state the assumption, and begin the first safe action; ask only for missing facts or required risk approval. |"
+    ]
+  ];
+  if (!replacements.every(([before]) => working.includes(before))) return null;
+
+  let merged = `${working.slice(0, targetStartIndex)}${sourceText.slice(sourceStartIndex, sourceEndIndex)}${working.slice(targetEndIndex)}`;
+  for (const [before, after] of replacements) merged = merged.replace(before, after);
+  return merged.includes("Infer when sufficient; ask only when unresolved")
+    && !merged.includes("Offer scenario choice before task execution")
+    && !merged.includes("Each scenario keeps the same five-step rhythm")
+    ? merged
+    : null;
+}
+
+function mergeLegacyFirstStartupGuidance(targetText, sourceText) {
+  const legacySentence = "This is the first startup after installing Agent Handoff Kit. Load the onboarding guidance from dev/RULE_PACKS.md when appropriate. Help me choose the right working scenario, then guide me through the first task step by step.";
+  if (!targetText.includes(legacySentence)) return targetText;
+  const sourceSentence = sourceText.split(/\r?\n/).find((line) => (
+    line.startsWith("This is the first startup after installing Agent Handoff Kit.")
+    && line.includes("If my objective and the available project facts are already concrete")
+    && line.includes("Offer the chooser only if my intent is genuinely unresolved")
+  ));
+  return sourceSentence ? targetText.replace(legacySentence, sourceSentence) : null;
 }
 
 function mergeAgentGovernanceBridgeWorkflow(targetText, sourceText) {
@@ -2185,6 +2582,7 @@ function sessionLogAnchorPlacement(snippet, text) {
     "Record what actually happened in the session",
     "kept, summarized, or archived",
     "Do not remove validation evidence",
+    "full opening message never belongs in this log",
     "latest opening message",
     "not current state"
   ];
@@ -2239,6 +2637,12 @@ function projectDecisionsAnchorPlacement(snippet, text) {
 }
 
 function onboardingAnchorPlacement(snippet, text) {
+  if (snippet === "Continuity startup boundary" || snippet === "starts continuity and reads the current handoff state; it is not an onboarding signal") {
+    return snippetAppearsBetweenHeadings(text, snippet, "## Load When", "## Discipline");
+  }
+  if (snippet === "Infer when sufficient; ask only when unresolved") {
+    return snippetAppearsBetweenHeadings(text, snippet, "## Discipline", "## Application Scenario Library");
+  }
   if (snippet === "Application Scenario Library") {
     return Boolean(textSectionBounds(text, "## Application Scenario Library", "## Cross-reference to guide.html"));
   }
@@ -2249,7 +2653,7 @@ function onboardingAnchorPlacement(snippet, text) {
 }
 
 function integrationsAnchorPlacement(snippet, text) {
-  if (snippet === "Credential Separation Principle" || snippet === "External Tool Usage Verification Gate" || snippet === "External Tool Resource Lifecycle" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation" || snippet === "Source-of-truth Architecture" || snippet === "Cross-session Lifecycle" || snippet === "Runtime-Controlled Tool Operation Variants" || snippet === "Tool Operation References" || snippet === "Do not guess Chrome, Playwright, or DevTools commands") {
+  if (snippet === "Credential Separation Principle" || snippet === "External Tool Usage Verification Gate" || snippet === "External Tool Resource Lifecycle" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation" || snippet === "Source-of-truth Architecture" || snippet === "Cross-session Lifecycle" || snippet === "Runtime-Controlled Tool Operation Variants" || snippet === "Tool Operation References" || snippet === "Do not guess Chrome, Playwright, or DevTools commands" || snippet === "Local HTML / app validation fallback" || snippet === "`file://` rejection alone is not enough evidence to stop") {
     return snippetAppearsBetweenHeadings(text, snippet, "## Discipline", "## Rules");
   }
   if (snippet === "Connector-first default") {
@@ -2328,6 +2732,14 @@ const semanticAnchorRepairStrategies = {
       action: "merge",
       reason: "insert communication pack recommended next-step discipline without replacing local prose",
       mergedText: mergedCommunication
+    } : null;
+  },
+  "dev/rules/onboarding.md": (targetText, sourceText) => {
+    const mergedOnboarding = mergeOnboardingDecisionFirstPolicy(targetText, sourceText);
+    return mergedOnboarding ? {
+      action: "merge",
+      reason: "restore decision-first onboarding in its trusted semantic sections",
+      mergedText: mergedOnboarding
     } : null;
   },
   "dev/rules/integrations.md": (targetText, sourceText, missing) => {
@@ -2425,6 +2837,169 @@ function mergeCommunicationNextStepDiscipline(targetText, sourceText, missing) {
   }
 
   return merged === targetText ? null : merged;
+}
+
+function parseMarkdownH2Sections(text) {
+  const sections = [];
+  const linePattern = /.*(?:\r?\n|$)/g;
+  let fenced = false;
+  let fenceDelimiter = null;
+  let inComment = false;
+  let match;
+  while ((match = linePattern.exec(text)) && match[0] !== "") {
+    const raw = match[0];
+    const line = raw.replace(/\r?\n$/, "");
+    const trimmed = line.trim();
+    if (inComment) {
+      if (trimmed.includes("-->")) inComment = false;
+      continue;
+    }
+    if (trimmed.startsWith("<!--")) {
+      if (!trimmed.includes("-->")) inComment = true;
+      continue;
+    }
+    const fence = trimmed.match(/^(`{3,}|~{3,})/);
+    if (fence) {
+      if (!fenced) {
+        fenced = true;
+        fenceDelimiter = fence[1][0];
+      } else if (fence[1][0] === fenceDelimiter) {
+        fenced = false;
+        fenceDelimiter = null;
+      }
+      continue;
+    }
+    if (fenced) continue;
+    const headingMatch = line.match(/^## ([^#].*?)\s*$/);
+    if (headingMatch) sections.push({ title: headingMatch[1], start: match.index, end: text.length });
+  }
+  for (let index = 0; index < sections.length - 1; index += 1) {
+    sections[index].end = sections[index + 1].start;
+  }
+  return sections;
+}
+
+function lcsLinePairs(left, right) {
+  const rows = left.length + 1;
+  const cols = right.length + 1;
+  const table = Array.from({ length: rows }, () => new Uint16Array(cols));
+  for (let i = left.length - 1; i >= 0; i -= 1) {
+    for (let j = right.length - 1; j >= 0; j -= 1) {
+      table[i][j] = left[i] === right[j]
+        ? table[i + 1][j + 1] + 1
+        : Math.max(table[i + 1][j], table[i][j + 1]);
+    }
+  }
+  const pairs = [];
+  let i = 0;
+  let j = 0;
+  while (i < left.length && j < right.length) {
+    if (left[i] === right[j]) {
+      pairs.push([i, j]);
+      i += 1;
+      j += 1;
+    } else if (table[i + 1][j] >= table[i][j + 1]) i += 1;
+    else j += 1;
+  }
+  return pairs;
+}
+
+function lineDiffHunks(base, changed) {
+  const pairs = [...lcsLinePairs(base, changed), [base.length, changed.length]];
+  const hunks = [];
+  let baseCursor = 0;
+  let changedCursor = 0;
+  for (const [baseMatch, changedMatch] of pairs) {
+    if (baseMatch > baseCursor || changedMatch > changedCursor) {
+      hunks.push({ baseStart: baseCursor, baseEnd: baseMatch, added: changed.slice(changedCursor, changedMatch) });
+    }
+    baseCursor = baseMatch + 1;
+    changedCursor = changedMatch + 1;
+  }
+  return hunks;
+}
+
+function hunksOverlap(left, right) {
+  const leftInsertion = left.baseStart === left.baseEnd;
+  const rightInsertion = right.baseStart === right.baseEnd;
+  if (leftInsertion && rightInsertion) return false;
+  if (leftInsertion) return left.baseStart > right.baseStart && left.baseStart < right.baseEnd;
+  if (rightInsertion) return right.baseStart > left.baseStart && right.baseStart < left.baseEnd;
+  return left.baseStart < right.baseEnd && right.baseStart < left.baseEnd;
+}
+
+function mapBaseBoundaryToChanged(base, changed, boundary) {
+  if (boundary === 0) return 0;
+  if (boundary === base.length) return changed.length;
+  const pairs = lcsLinePairs(base, changed);
+  const next = pairs.find(([baseIndex]) => baseIndex >= boundary);
+  if (next) return next[1];
+  const previous = [...pairs].reverse().find(([baseIndex]) => baseIndex < boundary);
+  return previous ? previous[1] + 1 : null;
+}
+
+function threeWayPreserveLocalChanges(baseText, localText, currentText) {
+  if (localText.replace(/\r\n/g, "\n") === currentText.replace(/\r\n/g, "\n")) return localText;
+  const baseHadFinalNewline = /\r?\n$/.test(baseText);
+  const localHadFinalNewline = /\r?\n$/.test(localText);
+  const base = baseText.replace(/\r\n/g, "\n").replace(/\n$/, "").split("\n");
+  const local = localText.replace(/\r\n/g, "\n").replace(/\n$/, "").split("\n");
+  const current = currentText.replace(/\r\n/g, "\n").replace(/\n$/, "").split("\n");
+  const localHunks = lineDiffHunks(base, local);
+  const upstreamHunks = lineDiffHunks(base, current);
+  if (localHunks.some((localHunk) => upstreamHunks.some((upstreamHunk) => hunksOverlap(localHunk, upstreamHunk)))) return null;
+
+  const merged = [...current];
+  const mapped = [];
+  for (const hunk of localHunks) {
+    const start = mapBaseBoundaryToChanged(base, current, hunk.baseStart);
+    const end = mapBaseBoundaryToChanged(base, current, hunk.baseEnd);
+    if (start == null || end == null || end < start) return null;
+    mapped.push({ start, end, added: hunk.added });
+  }
+  for (const hunk of mapped.sort((a, b) => b.start - a.start)) merged.splice(hunk.start, hunk.end - hunk.start, ...hunk.added);
+  const newline = localText.includes("\r\n") ? "\r\n" : "\n";
+  return `${merged.join(newline)}${localHadFinalNewline || baseHadFinalNewline ? newline : ""}`;
+}
+
+function uniqueH2Section(text, title) {
+  const matches = parseMarkdownH2Sections(text).filter((section) => section.title === title);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function projectIndexGovernanceSectionsAreValid(text) {
+  const installed = uniqueH2Section(text, "Installed Integrations");
+  const toolRefs = uniqueH2Section(text, "Tool Operation References");
+  const localQc = uniqueH2Section(text, "Local QC Commands");
+  return Boolean(installed && toolRefs && localQc && installed.start < toolRefs.start && toolRefs.start < localQc.start);
+}
+
+function mergeProjectIndexGovernanceSections(targetText, sourceText) {
+  const targetSections = parseMarkdownH2Sections(targetText);
+  const sourceSections = parseMarkdownH2Sections(sourceText);
+  const requiredTitles = ["Installed Integrations", "Tool Operation References", "Local QC Commands"];
+  const targetByTitle = new Map(requiredTitles.map((title) => [title, targetSections.filter((section) => section.title === title)]));
+  const sourceByTitle = new Map(requiredTitles.map((title) => [title, sourceSections.filter((section) => section.title === title)]));
+  if (requiredTitles.some((title) => sourceByTitle.get(title).length !== 1)) return null;
+  if (targetByTitle.get("Local QC Commands").length !== 1) return null;
+  if (targetByTitle.get("Installed Integrations").length > 1 || targetByTitle.get("Tool Operation References").length > 1) return null;
+
+  const installed = targetByTitle.get("Installed Integrations")[0];
+  const toolRefs = targetByTitle.get("Tool Operation References")[0];
+  const localQc = targetByTitle.get("Local QC Commands")[0];
+  if ((installed && installed.start > localQc.start) || (toolRefs && toolRefs.start > localQc.start)) return null;
+  if (installed && toolRefs && installed.start > toolRefs.start) return null;
+
+  const missing = requiredTitles.slice(0, 2).filter((title) => targetByTitle.get(title).length === 0);
+  let merged = targetText;
+  if (missing.length > 0) {
+    const insertion = missing
+      .map((title) => sourceText.slice(sourceByTitle.get(title)[0].start, sourceByTitle.get(title)[0].end).trimEnd())
+      .join("\n\n");
+    merged = `${targetText.slice(0, localQc.start).trimEnd()}\n\n${insertion}\n\n${targetText.slice(localQc.start)}`;
+  }
+  merged = mergeProjectIndexCredentialReferences(merged);
+  return projectIndexGovernanceSectionsAreValid(merged) ? merged : null;
 }
 
 function mergeProjectIndexCredentialReferences(targetText) {
@@ -2525,7 +3100,8 @@ function mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing) {
     { snippet: "parser failure", number: "13" },
     { snippet: "Process termination and cache cleanup boundary", number: "14" },
     { snippet: "task-owned or agent-managed", number: "14" },
-    { snippet: "other-agent-owned", number: "14" }
+    { snippet: "other-agent-owned", number: "14" },
+    { snippet: "Short-lived localhost validation services", number: "15" }
   ];
   for (const { snippet, number } of appendableRules) {
     if (!remainingMissing.includes(snippet) || targetText.includes(snippet)) continue;
@@ -2594,7 +3170,7 @@ function mergeIntegrationsSectionsByMissingAnchors(targetText, sourceText, missi
     changed = true;
   }
 
-  if (missing.some((snippet) => snippet === "External Tool Usage Verification Gate" || snippet === "External Tool Resource Lifecycle" || snippet === "other-agent-owned" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation" || snippet === "Runtime-Controlled Tool Operation Variants" || snippet === "Tool Operation References" || snippet === "Do not guess Chrome, Playwright, or DevTools commands")) {
+  if (missing.some((snippet) => snippet === "External Tool Usage Verification Gate" || snippet === "External Tool Resource Lifecycle" || snippet === "other-agent-owned" || snippet === "do not invent" || snippet === "input schema" || snippet === "official documentation" || snippet === "Runtime-Controlled Tool Operation Variants" || snippet === "Tool Operation References" || snippet === "Do not guess Chrome, Playwright, or DevTools commands" || snippet === "Local HTML / app validation fallback" || snippet === "`file://` rejection alone is not enough evidence to stop")) {
     const withVerificationGate = mergeIntegrationsVerificationGateSection(merged, sourceText);
     if (!withVerificationGate) return null;
     merged = withVerificationGate;
@@ -2638,38 +3214,6 @@ function mergeIntegrationsVerificationGateSection(targetText, sourceText) {
   return null;
 }
 
-function isLegacyChineseIntegrationsPack(text) {
-  return text.includes("# Integrations Pack")
-    && countText(text, "## Scope") === 1
-    && countText(text, "## Load When") === 1
-    && countText(text, "## Discipline") === 1
-    && countText(text, "## Rules") === 1
-    && countText(text, "## Checks") === 1
-    && countText(text, "## Closeout") === 1
-    && countText(text, "## Cross-reference") === 1
-    && (text.includes("機密分離原則") || text.includes("四類整合"))
-    && !text.includes("## Local Discipline")
-    && !text.includes("Duplicate ambiguous local heading")
-    && countText(text, "四類整合") <= 2;
-}
-
-function isLegacyChineseOnboardingPack(text) {
-  return text.includes("# Onboarding Pack")
-    && countText(text, "## Scope") === 1
-    && countText(text, "## Load When") === 1
-    && countText(text, "## Discipline") === 1
-    && countText(text, "## Application Scenario Library") === 1
-    && countText(text, "## Cross-reference to guide.html") === 1
-    && countText(text, "## Tone Discipline") === 1
-    && countText(text, "## Closeout") === 1
-    && text.includes("### Scenario A.")
-    && text.includes("### Scenario E.")
-    && (text.includes("明確 onboarding signal keywords") || text.includes("Scenario F. 審視已裝外部工具") || text.includes("Anti-pattern（不要做的事）"))
-    && !text.includes("### Local Scenario A")
-    && !text.includes("structurally ambiguous onboarding")
-    && !text.includes("## Local Discipline");
-}
-
 function hasTrustedSafetyPackShape(text) {
   return text.includes("# Safety Pack")
     && text.includes("## Scope")
@@ -2702,9 +3246,9 @@ function safetyAnchorHasTrustedRuleShape(text, snippet) {
       && line.includes("do not compose filesystem modification commands across shells");
   }
   if (snippet === "git reset --hard") {
-    return line.includes("branch deletion")
-      && line.includes("force push")
-      && line.includes("history rewrite");
+    return line.includes("Never run")
+      && line.includes("User request does not make these named commands permissible")
+      && line.includes("git clean -fdx");
   }
   if (snippet === "secret values") {
     return line.includes("Do not print")
@@ -2790,6 +3334,75 @@ function projectIndexTemplateVersion(text) {
   const stack = text.slice(bounds.start, bounds.end);
   const row = stack.match(/^\| Agent Handoff Kit template version \| ([\d.]+) \| [^|\n]+ \|$/m);
   return row ? row[1] : null;
+}
+
+function migrateSessionHandoff(targetText, sourceText, context = {}) {
+  if (countText(targetText, "## Next Session Opening Message") !== 1) return null;
+  let merged = mergeLegacyFirstStartupGuidance(targetText, sourceText) ?? targetText;
+
+  if (!merged.includes("ack:field:lifecycle-conflicts-resolved")) {
+    merged = mergeHandoffLifecycleField(merged);
+    if (!merged) return null;
+  }
+  merged = ensureCurrentHandoffMigrationFields(merged);
+  if (!merged) return null;
+  if (isUpgradeFromOlderTemplate(context)
+    && isPlaceholderLifecycleFieldValue(fieldValueAfterMarker(merged, "lifecycle-conflicts-resolved"))
+    && hasSubstantiveHandoffState(merged)) {
+    merged = reclassifyExistingHandoffLifecyclePlaceholder(merged);
+    if (!merged) return null;
+  }
+
+  if (!merged.includes("ack:field:first-use-guidance-state")) {
+    const nextMarker = "<!-- ack:section:task-understanding-summary -->";
+    if (!merged.includes(nextMarker)) return null;
+    const field = "<!-- ack:field:first-use-guidance-state -->\n5. First-use guidance state: not_applicable — added by upgrade; prior use state is preserved and onboarding is not reactivated.\n\n";
+    merged = merged.replace(nextMarker, `${field}${nextMarker}`);
+  }
+
+  const archiveRule = mergeHandoffArchiveContinuityRule(merged, sourceText);
+  if (!archiveRule) return null;
+  merged = archiveRule;
+
+  const targetBounds = handoffSectionContentBounds(merged, "next-session-opening-message", "Next Session Opening Message");
+  const sourceBounds = handoffSectionContentBounds(sourceText, "next-session-opening-message", "Next Session Opening Message");
+  if (!targetBounds || !sourceBounds) return null;
+  const targetSection = merged.slice(targetBounds.start, targetBounds.end);
+  const sourceSection = sourceText.slice(sourceBounds.start, sourceBounds.end);
+  const targetPrompt = targetSection.match(/```text\s*\r?\n([\s\S]*?)\r?\n```/);
+  const sourcePrompt = sourceSection.match(/```text\s*\r?\n([\s\S]*?)\r?\n```/);
+  if (!targetPrompt || !sourcePrompt) return null;
+  const existingRoot = targetPrompt[1].match(/^Work in (.+?)\. Read AGENTS\.md,/m)?.[1] ?? "<absolute project root>";
+  const currentPrompt = sourcePrompt[1].replace("<absolute project root>", existingRoot);
+  const updatedSection = targetSection.replace(targetPrompt[0], `\`\`\`text\n${currentPrompt}\n\`\`\``);
+  merged = `${merged.slice(0, targetBounds.start)}${updatedSection}${merged.slice(targetBounds.end)}`;
+
+  const temperatureRepair = repairHandoffCurrentStateEvidenceBoundary(merged);
+  return temperatureRepair.text;
+}
+
+function migrateSessionLog(targetText, sourceText) {
+  let merged = mergeSessionLogTemplateContract(targetText, sourceText);
+  if (!merged) return null;
+  merged = mergeSessionLogEvidenceDispositionField(merged) ?? merged;
+
+  const startMarker = "<!-- ack:log-entry:start -->";
+  const endMarker = "<!-- ack:log-entry:end -->";
+  if (countText(merged, startMarker) !== 1 || countText(merged, endMarker) !== 1
+    || countText(sourceText, startMarker) !== 1 || countText(sourceText, endMarker) !== 1) return null;
+  const targetStart = merged.indexOf(startMarker);
+  const targetEnd = merged.indexOf(endMarker, targetStart) + endMarker.length;
+  const sourceStart = sourceText.indexOf(startMarker);
+  const sourceEnd = sourceText.indexOf(endMarker, sourceStart) + endMarker.length;
+  merged = `${merged.slice(0, targetStart)}${sourceText.slice(sourceStart, sourceEnd)}${merged.slice(targetEnd)}`;
+
+  merged = merged.replace(/```(?:text)?\s*\r?\n([\s\S]*?)\r?\n```/g, (block, content) => {
+    const signatures = ["Work in ", "Read AGENTS.md", "SESSION_HANDOFF.md", "PROJECT_INDEX.md"];
+    return signatures.every((signature) => content.includes(signature))
+      ? "Opening-message mirror: migrated; full text omitted by design."
+      : block;
+  });
+  return merged;
 }
 
 function mergeHandoffLifecycleField(targetText) {
@@ -2972,6 +3585,7 @@ function restoreMissingSessionLogPreambleLines(targetText, sourceText) {
     "Record what actually happened in the session",
     "kept, summarized, or archived",
     "Do not remove validation evidence",
+    "full opening message never belongs",
     "latest opening message",
     "not current state"
   ].flatMap((snippet) => {
@@ -3009,48 +3623,56 @@ function mergeHandoffArchiveContinuityRule(targetText, sourceText) {
 }
 
 function mergeRulePacksRows(targetText, sourceText) {
-  const requiredPacks = [
-    "dev/rules/onboarding.md",
-    "dev/rules/integrations.md",
-    "dev/rules/agent-governance.md"
-  ];
-  const sourceRows = sourceText
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith("|") && requiredPacks.some((pack) => line.includes(pack)));
-  if (sourceRows.length === 0) return targetText;
+  const sourceRows = sourceText.split(/\r?\n/).filter((line) => /^\|.*<!-- ack:route:[a-z0-9-]+ -->/.test(line));
+  const sourceById = new Map(sourceRows.map((row) => [routeMarkerId(row), row]));
+  if (sourceById.size === 0 || sourceById.size !== sourceRows.length) return null;
 
   const lines = targetText.split(/\r?\n/);
-  const tableStart = lines.findIndex((line) => line.trim() === "| Task signal | Pack | Purpose |");
-  if (tableStart < 0) return null;
+  const headerIndexes = lines.map((line, index) => line.trim() === "| Task signal | Pack | Purpose |" ? index : -1).filter((index) => index >= 0);
+  if (headerIndexes.length !== 1) return null;
+  const tableStart = headerIndexes[0];
+  if (!/^\|[-\s|]+\|$/.test(lines[tableStart + 1]?.trim() ?? "")) return null;
+  let tableEnd = tableStart + 2;
+  while (tableEnd < lines.length && lines[tableEnd].startsWith("|")) tableEnd += 1;
 
-  let tableEnd = tableStart;
-  while (tableEnd < lines.length && lines[tableEnd].startsWith("|")) tableEnd++;
+  const seen = new Set();
+  const localRows = [];
+  const replacedRows = [];
+  for (const row of lines.slice(tableStart + 2, tableEnd)) {
+    const markedId = routeMarkerId(row);
+    const legacyId = markedId ? null : knownOfficialLegacyRouteId(row);
+    const id = markedId ?? legacyId;
+    if (id && sourceById.has(id)) {
+      if (seen.has(id)) return null;
+      seen.add(id);
+      replacedRows.push(sourceById.get(id));
+      continue;
+    }
+    localRows.push(row);
+  }
 
-  const before = lines.slice(0, tableStart);
-  const governanceBridgeSourceRow = sourceRows.find((row) => row.includes("Governance bridge / bridge governance"));
-  const hasAnyGovernanceRow = targetText.includes("Governance bridge / 治理打通") || targetText.includes("Governance bridge / bridge governance");
-  const table = lines.slice(tableStart, tableEnd).map((line) => (
-    governanceBridgeSourceRow && (line.includes("Governance bridge / 治理打通") || line.includes("Governance bridge / bridge governance"))
-      ? governanceBridgeSourceRow
-      : line
-  ));
-  const after = lines.slice(tableEnd);
-  const sourceRowsToApply = sourceRows.filter((row) => {
-    if (row.includes("dev/rules/onboarding.md")) return !targetText.includes("First-time user signals");
-    if (row.includes("External tool resource pressure")) return !targetText.includes("External tool resource pressure");
-    if (row.includes("dev/rules/integrations.md")) return !targetText.includes("External tool integrations");
-    if (row.includes("Governance bridge / bridge governance")) return !hasAnyGovernanceRow;
-    return false;
-  });
-  if (sourceRowsToApply.length === 0 && table.join("\n") === lines.slice(tableStart, tableEnd).join("\n")) return targetText;
+  const missingOfficialRows = sourceRows.filter((row) => !seen.has(routeMarkerId(row)));
+  const mergedTable = [lines[tableStart], lines[tableStart + 1], ...missingOfficialRows, ...replacedRows, ...localRows];
+  const originalTable = lines.slice(tableStart, tableEnd);
+  if (mergedTable.join("\n") === originalTable.join("\n")) return targetText;
+  return [...lines.slice(0, tableStart), ...mergedTable, ...lines.slice(tableEnd)].join("\n");
+}
 
-  const merged = [
-    ...before,
-    ...table,
-    ...sourceRowsToApply,
-    ...after
-  ];
-  return merged.join("\n");
+const knownOfficialLegacyRouteHashes = new Map([
+  ["f2c36ac687929b03891b37fe79aace2c806d9d5027c43b7d280c386574e44c14", "onboarding"],
+  ["3153da07fb53483eeb4a35cfff013f44c5a75d14b1a44ee536bcd85cbc3219c6", "governance-bridge"],
+  ["d3379dc2984fb0f2a8f122c4efbf131b2da320e66845d4c5f1945300431879f3", "long-term-governance"],
+  ["2011d8309aaa5d6cc76f7036e990355c472a5ed6ba81fcf8e0078b9a6c5f6ef1", "integration-use"],
+  ["3fc0717cc408dbe96e8925a07f6315448abb0f38106dbe844a098d7ab84d37cc", "runtime-tool"],
+  ["7cd99dbd30bbf7be9641f6a5fc7bf4c7cbe3efb3ab114fe1f19c254cd110612d", "resource-closeout"]
+]);
+
+function routeMarkerId(row) {
+  return row.match(/<!-- ack:route:([a-z0-9-]+) -->/)?.[1] ?? null;
+}
+
+function knownOfficialLegacyRouteId(row) {
+  return knownOfficialLegacyRouteHashes.get(sha256(Buffer.from(row.trim(), "utf8"))) ?? null;
 }
 
 // R-031.2 v0.3.2+: Version alignment assessment for doctor "項目狀態速覽".
@@ -3472,7 +4094,7 @@ function printInstallSummary(version, command, mode, root, counts) {
     console.log("🚀 下一步：把 migration report 或這段輸出貼給 AI，請它判斷衝突檔案怎樣處理；工具已停手，沒有覆寫 conflict 檔案。");
   } else if (command === "upgrade") {
     console.log("🚀 下一步：留意下方升級後自動檢查；若全綠即升級完成。");
-  } else if (mode === "partial" || counts.skipped > 0) {
+  } else if (counts.skipped > 0) {
     console.log("🚀 下一步：先看下方提示。若你原本已有 AGENTS.md 或其他 AI 規則，請先執行 upgrade --dry-run 補入口連接，再執行 doctor。");
   } else {
     console.log("🚀 下一步：不用再留在終端機。打開 AI 工具，啟動 Agent Handoff。");
@@ -3663,7 +4285,7 @@ function printCard(version, status, eyes) {
 function printInstallNextSteps(root, conflictCount, mode = "first-install", skippedCount = 0) {
   console.log("");
   console.log("============================================================");
-  if (mode === "partial" || skippedCount > 0) {
+  if (skippedCount > 0) {
     console.log("⚠️  已補齊缺少檔案，但仍要檢查入口連接");
   } else {
     console.log("✅ 安裝完成：下一步請在 AI 對話中操作");
@@ -3675,7 +4297,7 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
     console.log("📋 下一步：把 migration report 或這段輸出貼給 AI，請它幫你判斷怎樣合併。");
     console.log("");
   }
-  if (mode === "partial" || skippedCount > 0) {
+  if (skippedCount > 0) {
     console.log("你原本已有部分 AI 記憶檔，工具已保留它們，沒有覆寫。");
     console.log("下一步先不要開始新任務；請在終端機執行以下預演，讓工具檢查能否安全補入口連接：");
     console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run");
@@ -3698,8 +4320,9 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
   console.log(startupPathBootstrapPrompt(root));
   console.log("------------------------------------------------------------");
   console.log("");
-  console.log("🚀 AI 會依 AGENTS.md 讀取 START_NEXT_SESSION_PROMPT.txt。第一次安裝後，該檔案會觸發新手引導；收工後，該檔案會承載下一次接力狀態。");
-  console.log("   收工可說「Wrap up Agent Handoff」/「收工」；「某某開工 / 某某收工」會先確認是否指本工具交接。");
+  console.log("🚀 AI 會依 AGENTS.md 先讀取權威交接狀態。START_NEXT_SESSION_PROMPT.txt 只是給尚未指向此資料夾的 AI 使用的生成鏡像。");
+  console.log("   已給出明確任務時，AI 直接開始第一個安全步驟；只有你要求教學或仍無可執行目標時才進入新手引導。");
+  console.log("   收工可說「Wrap up Agent Handoff」/「收工」；「開工，繼續 <任務>」會直接接力。");
   console.log("============================================================");
 }
 
@@ -3718,7 +4341,7 @@ function printUpgradeNextSteps(root, conflictCount) {
     console.log("============================================================");
     return;
   }
-  console.log("🛠️  Kit 檔案已更新：等待下方 doctor 驗收");
+  console.log("🛠️  Kit migration 已通過離線提交閏；下方 doctor 另行回報整體項目健康");
   console.log("============================================================");
   console.log("📋 如你正在進行中的工作對話已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
   console.log("");
@@ -3834,10 +4457,10 @@ Commands:
   Work in <project root>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
   例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity。
   普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具。
-  AI 會依 AGENTS.md 讀取 START_NEXT_SESSION_PROMPT.txt；第一次安裝後該檔案會啟動新手引導，
-  收工後該檔案會承載下一次接力狀態。
-  用「Wrap up Agent Handoff」/「收工」保存交接；「某某開工 / 某某收工」
-  會先確認是否指本工具交接。
+  AI 已在項目根目錄時，依 AGENTS.md 判斷意圖；只有接力、收工或依賴既有狀態的任務才讀交接狀態，
+  不會再重讀 START_NEXT_SESSION_PROMPT.txt。第一次安裝只令新手引導可用，不會強制進入教學。
+  用「Wrap up Agent Handoff」/「收工」保存交接；「<項目名> 開工」是明確接力。
+  只有語句確實可能指現實工作、活動或其他語境時，AI 才問一條精簡確認問題。
 
 終端機範例：
   npx --yes @adamchanadam/agent-handoff-kit@latest init

@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-狀態：目前版本為 `v0.3.38`。
+狀態：目前候選版本為 `v0.3.39`；尚未發佈。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
@@ -85,9 +85,9 @@ Start Agent Handoff
 Work in <你的專案資料夾>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
 ```
 
-第一次安裝後，`START_NEXT_SESSION_PROMPT.txt` 內會放新手引導，AI 會帶你選擇使用情境（建構系統 / 研究報告 / 知識庫整理 / 學寫代碼 / 其他），再一步一步陪你做第一個任務。每次收工後，同一個檔案會改成下一次接力需要的真實狀態。你不需要手動打開或複製整份交接內容。
+第一次安裝只會令新手引導可用，不會強制啟動。你已清楚描述目標和現有資料時，AI 會直接開始第一個安全步驟；只有目標仍然含糊，或你明確要求教學時，才會載入新手引導。日常「開工」先讀 `dev/SESSION_HANDOFF.md`；同一資料夾內不會再重讀 `START_NEXT_SESSION_PROMPT.txt` 或 `dev/SESSION_LOG.md`。提示副本只供尚未指向專案資料夾的 AI 接入。
 
-若你說的是「某某開工」（例如餐廳開工、項目開工）這類帶其他上下文的話，AI 應先反問你是否指 Agent Handoff Kit 接力，而不是立即啟動交接流程。
+「開工，繼續 &lt;任務&gt;」、「&lt;項目&gt; 開工」或 `Start Agent Handoff and continue &lt;task&gt;` 會直接接力。只有語句明顯可能指現實世界的開業、輪班或其他無關事件時，AI 才作一次簡短確認。
 
 然後用日常話描述你要完成的任務。AI 應先讀交接文件，說明目前狀態、下一步與風險，再開始工作。
 
@@ -184,7 +184,7 @@ AI 應先判斷這條規則應放在哪裡：是一次性備忘、下次交接�
 
 就算你不懂代碼，這套工具也會要求 AI 在高風險操作前停下來講清楚。
 
-- 禁止破壞性指令：例如 `rm -rf`、`git reset --hard`、強制推送、系統根路徑操作。
+- 破壞性操作分界：`rm -rf`、`git reset --hard` 等指定破壞性命令及系統根路徑操作一律禁止；強制推送、分支或標籤刪除及歷史改寫，須另取明確授權並核對受影響 ref。
 - 機密保護：`.env`、API key、token 不可印出、不可提交、不可上傳。
 - 查證不猜：使用第三方服務、Connector、MCP、CLI、API 或 plugin API 前，先核對目前工具說明、官方文件或已驗證的本地操作說明；查不到就標示未核實。
 - 外部工具安全收口：用完 MCP、browser、自動化工具、notebook 或 helper server 後，AI 只可自動關閉能證明屬於本任務的資源；不明、共享、使用者或其他 AI agent 可能擁有的程序與暫存資料，必須先回報並等你確認。
@@ -193,7 +193,7 @@ AI 應先判斷這條規則應放在哪裡：是一次性備忘、下次交接�
 
 ## 🔗 可選配合：Adam-AI-Instructions
 
-Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templates/Adam-AI-Instructions) 配合使用。兩者分工互補，不重疊：
+Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templates/Adam-AI-Instructions) 配合使用。兩者分工互補，但在安全、機密、不可逆操作及發佈底線上刻意保留最低限度的共同防線；這不是父子真源，也不應合併成同一套規則：
 
 - **Adam-AI-Instructions** 負責 AI 在**單一對話**內的做事規矩：語氣、做事優先序、回覆骨架、計算紀律、用語紀律、安全護欄、輸出層分工。屬「AI 應該怎樣答你」的持久基準。
 - **Agent Handoff Kit** 負責 AI 在**對話之間**的接力：當前狀態、下一步、檔案登記、收工同下次開工。屬「AI 在對話之間怎樣記住你的項目」的持久基準。
