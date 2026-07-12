@@ -1975,8 +1975,9 @@ function lifecycleTopicWindows(line, stripNegated = false) {
 }
 
 function lifecycleShortChineseCore(line, stripNegated = false) {
-  const source = stripNegated ? stripResolvedNegatedActionClauses(line) : line;
-  const ignored = /(後續追蹤|只監察|尚未完成|已經完成|重新開啟|完成|已驗證|繼續|下一步|待辦|原因|條件|尚未|未完成|通過|風險|受阻|重開|監察|追蹤)/g;
+  const rawSource = stripNegated ? stripResolvedNegatedActionClauses(line) : line;
+  const source = rawSource.split(/(?:\s+[—–-]\s*)?(?:reason|condition)\s*[:：]|(?:原因|條件)\s*[:：]/i)[0];
+  const ignored = /(後續追蹤|只監察|尚未完成|已經完成|重新開啟|完成|已驗證|繼續|下一步|待辦|尚未|未完成|通過|風險|受阻|重開|監察|追蹤|修復|修補|修正)/g;
   const core = (source.match(/[\u3400-\u9fff]+/g) ?? []).join("").replace(ignored, "");
   return core.length >= 2 && core.length <= 5 ? core : null;
 }
@@ -2362,7 +2363,7 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       return { ...base, action: "conflict", reason: "SESSION_LOG.md lacks a unique trusted entry-template boundary; migration stopped without replacing trace history" };
     }
     if (migratedLog !== targetText) {
-      return { ...base, action: "merge", reason: "update only the log preamble/template and remove Kit-shaped full prompt copies while preserving trace entries", mergedText: migratedLog };
+      return { ...base, action: "merge", reason: "update only the trusted current log preamble/template while preserving every historical trace entry", mergedText: migratedLog };
     }
     return { ...base, action: "skip", reason: "SESSION_LOG.md trace/template boundary current" };
   }
@@ -3586,13 +3587,6 @@ function migrateSessionLog(targetText, sourceText) {
   const sourceContract = sessionLogEntryTemplateContract(sourceText);
   if (!targetContract || !sourceContract) return null;
   merged = `${merged.slice(0, targetContract.entryStart)}${sourceText.slice(sourceContract.entryStart, sourceContract.entryEnd)}${merged.slice(targetContract.entryEnd)}`;
-
-  merged = merged.replace(/```(?:text)?\s*\r?\n([\s\S]*?)\r?\n```/g, (block, content) => {
-    const signatures = ["Work in ", "Read AGENTS.md", "SESSION_HANDOFF.md", "PROJECT_INDEX.md"];
-    return signatures.every((signature) => content.includes(signature))
-      ? "Opening-message mirror: migrated; full text omitted by design."
-      : block;
-  });
   return merged;
 }
 

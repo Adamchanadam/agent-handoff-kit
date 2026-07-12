@@ -1,6 +1,6 @@
 # Agent Handoff Kit
 
-目前公開版本：`v0.3.39`。本 source 為未發布的 `v0.3.40` 修正候選。
+目前版本：`v0.3.40`。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
