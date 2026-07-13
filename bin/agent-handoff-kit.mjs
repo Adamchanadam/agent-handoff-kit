@@ -604,6 +604,9 @@ async function needsProjectIndexVersionInject(root, command, version) {
 }
 
 async function runInstall(command, root, options, version) {
+  // Guard the selected root before reading or recovering any persisted
+  // transaction. Recovery is a write path and must not run through a junction.
+  await validateTransactionRoot(root, [], { createMissingRoot: false });
   if (options.dryRun) await assertDryRunHasNoPendingTransaction(root);
   else await recoverInterruptedTransaction(root);
   const installedVersion = await readInstalledTemplateVersion(root);
@@ -621,7 +624,9 @@ async function runInstall(command, root, options, version) {
   // Validate the operator-selected path before every exit path, including
   // dry-run, conflicts, and already-current no-op upgrades. Otherwise a
   // junction can be silently accepted whenever there is nothing to write.
-  await validateTransactionRoot(root, plan, { createMissingRoot: !options.dryRun });
+  // Before confirmation, validate the selected path without creating it. A
+  // cancelled init/upgrade must leave a previously missing root absent.
+  await validateTransactionRoot(root, plan, { createMissingRoot: false });
 
   // R-031 v0.3.1+: plan-time upgrade no-op detection. When upgrade has zero
   // create/merge/conflict actions (skip-only), skip the full plan listing +
@@ -744,6 +749,9 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
   // Run the same deterministic acceptance gate used by dry-run before creating
   // a lock, stage, backup, journal, or migration directory.
   await validateTransactionOverlay(root, outputs);
+  // The user has confirmed writes. Create and revalidate a missing root only
+  // now, immediately before transaction artifacts are prepared.
+  await validateTransactionRoot(root, plan, { createMissingRoot: true });
   const transaction = await prepareTransaction(root, command, version, outputs, mode, plan);
   try {
     transaction.journal.state = "committing";
@@ -754,6 +762,11 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
     for (const entry of transaction.journal.entries) {
       const output = outputs.find((item) => item.targetRel === entry.targetRel);
       await atomicReplaceFromBuffer(root, output.targetAbs, output.after, transaction.id);
+      if (process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_REPLACE === "1") {
+        const interruption = new Error("QA interruption after target replacement before journal update");
+        interruption.code = "ACK_QA_INTERRUPT_AFTER_REPLACE";
+        throw interruption;
+      }
       entry.committed = true;
       committedCount += 1;
       await writeSecureJson(transaction.journalPath, transaction.journal);
@@ -796,7 +809,7 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
       else console.log("⚠️ project health: needs attention; migration remains committed because the deterministic migration gate passed");
     }
   } catch (error) {
-    if (error?.code === "ACK_QA_INTERRUPT_AFTER_JOURNAL_COMMIT") throw error;
+    if (["ACK_QA_INTERRUPT_AFTER_REPLACE", "ACK_QA_INTERRUPT_AFTER_JOURNAL_COMMIT"].includes(error?.code)) throw error;
     transaction.journal.state = "rollback-needed";
     transaction.journal.error = safeErrorLabel(error);
     await writeSecureJson(transaction.journalPath, transaction.journal).catch(() => {});
@@ -1040,31 +1053,140 @@ async function atomicReplaceFromBuffer(root, targetAbs, buffer, id) {
   await rename(tempPath, targetAbs);
 }
 
-async function rollbackTransaction(root, journal, journalPath) {
+async function validateRecoveryJournal(root, journal, journalPath, lockId = null) {
+  const migrationsRoot = path.resolve(root, "dev", "governance_migrations");
+  const migrationDir = path.dirname(journalPath);
+  if (path.basename(journalPath) !== "transaction.json" || !samePath(path.dirname(migrationDir), migrationsRoot)) {
+    throw new Error("upgrade journal is not in one direct transaction directory; no recovery writes attempted");
+  }
+  if (!journal || typeof journal !== "object" || Array.isArray(journal)) throw new Error("upgrade journal schema is invalid; no recovery writes attempted");
+  if (typeof journal.id !== "string" || journal.id !== path.basename(migrationDir) || (lockId && journal.id !== lockId)) {
+    throw new Error("upgrade journal identity does not match its lock and directory; no recovery writes attempted");
+  }
+  if (!Array.isArray(journal.entries) || journal.entries.length === 0) throw new Error("upgrade journal has no valid entries; no recovery writes attempted");
+  if (!isStableSemver(journal.attemptedVersion ?? "")) throw new Error("upgrade journal attempted version is invalid; no recovery writes attempted");
+  const allowedStates = new Set(["prepared", "committing", "rollback-needed", "manual-recovery-required", "committed", "rolled-back"]);
+  if (!allowedStates.has(journal.state)) throw new Error("upgrade journal state is invalid; no recovery writes attempted");
+
+  const seen = new Set();
+  const rootStats = await lstat(root);
+  if (!rootStats.isDirectory() || rootStats.isSymbolicLink()) throw new Error("selected recovery root is not a safe directory; no recovery writes attempted");
+  const rootReal = await realpath(root);
+  const backupRoot = path.join(migrationDir, "backup");
+  const stageRoot = path.join(migrationDir, "stage");
+  const migrationsStats = await lstat(migrationsRoot).catch(() => null);
+  const migrationStats = await lstat(migrationDir).catch(() => null);
+  const journalStats = await lstat(journalPath).catch(() => null);
+  const backupStats = await lstat(backupRoot).catch(() => null);
+  const stageStats = await lstat(stageRoot).catch(() => null);
+  if (!migrationsStats?.isDirectory() || migrationsStats.isSymbolicLink()
+    || !migrationStats?.isDirectory() || migrationStats.isSymbolicLink()
+    || !journalStats?.isFile() || journalStats.isSymbolicLink()
+    || !backupStats?.isDirectory() || backupStats.isSymbolicLink()
+    || !stageStats?.isDirectory() || stageStats.isSymbolicLink()) {
+    throw new Error("upgrade transaction directories or journal are missing or unsafe; no recovery writes attempted");
+  }
+  const migrationsReal = await realpath(migrationsRoot);
+  const migrationReal = await realpath(migrationDir);
+  const journalReal = await realpath(journalPath);
+  const backupRealRoot = await realpath(backupRoot);
+  const stageRealRoot = await realpath(stageRoot);
+  if (!isInside(rootReal, migrationsReal) || !isInside(migrationsReal, migrationReal)
+    || !isInside(migrationReal, journalReal) || !isInside(migrationReal, backupRealRoot) || !isInside(migrationReal, stageRealRoot)
+    || !samePath(path.dirname(migrationReal), migrationsReal)
+    || !samePath(path.dirname(backupRealRoot), migrationReal) || !samePath(path.dirname(stageRealRoot), migrationReal)) {
+    throw new Error("upgrade transaction paths resolve outside the selected root or transaction; no recovery writes attempted");
+  }
+  const validated = [];
+  const validHash = (value) => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+  for (const entry of journal.entries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error("upgrade journal entry schema is invalid; no recovery writes attempted");
+    if (!requiredTargets.includes(entry.targetRel) || seen.has(entry.targetRel)) throw new Error("upgrade journal target is unknown or duplicated; no recovery writes attempted");
+    seen.add(entry.targetRel);
+    if (typeof entry.existed !== "boolean" || typeof entry.committed !== "boolean" || !validHash(entry.afterHash)) {
+      throw new Error("upgrade journal entry flags or candidate hash are invalid; no recovery writes attempted");
+    }
+    if (entry.existed ? !validHash(entry.beforeHash) : entry.beforeHash !== null) {
+      throw new Error("upgrade journal input hash is invalid; no recovery writes attempted");
+    }
+
+    const targetAbs = path.resolve(root, entry.targetRel);
+    if (!isInside(root, targetAbs)) throw new Error("upgrade journal target escapes selected root; no recovery writes attempted");
+    const targetParent = await nearestExistingRealParent(path.dirname(targetAbs));
+    if (!isInside(rootReal, targetParent)) throw new Error("upgrade journal target parent escapes selected root; no recovery writes attempted");
+    try {
+      if ((await lstat(targetAbs)).isSymbolicLink()) throw new Error("upgrade journal target is a symbolic link; no recovery writes attempted");
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+
+    const stageAbs = path.resolve(stageRoot, entry.targetRel);
+    const stageStats = await lstat(stageAbs).catch(() => null);
+    if (!stageStats?.isFile() || stageStats.isSymbolicLink()) throw new Error("upgrade journal stage is missing or unsafe; no recovery writes attempted");
+    const stageReal = await realpath(stageAbs);
+    if (!isInside(stageRealRoot, stageReal)) throw new Error("upgrade journal stage resolves outside this transaction; no recovery writes attempted");
+    if (sha256(await readFile(stageAbs)) !== entry.afterHash) throw new Error("upgrade journal stage hash does not match the recorded candidate; no recovery writes attempted");
+
+    let backup = null;
+    if (entry.existed) {
+      if (typeof entry.backupRel !== "string" || !entry.backupRel) throw new Error("upgrade journal backup path is missing; no recovery writes attempted");
+      const backupAbs = path.resolve(root, entry.backupRel);
+      const expectedBackup = path.resolve(backupRoot, entry.targetRel);
+      if (!samePath(backupAbs, expectedBackup) || !isInside(backupRoot, backupAbs)) throw new Error("upgrade journal backup path is outside this transaction; no recovery writes attempted");
+      const backupFileStats = await lstat(backupAbs).catch(() => null);
+      if (!backupFileStats?.isFile() || backupFileStats.isSymbolicLink()) throw new Error("upgrade journal backup is missing or unsafe; no recovery writes attempted");
+      const backupReal = await realpath(backupAbs);
+      if (!isInside(backupRealRoot, backupReal)) throw new Error("upgrade journal backup resolves outside this transaction; no recovery writes attempted");
+      backup = await readFile(backupAbs);
+      if (sha256(backup) !== entry.beforeHash) throw new Error("upgrade journal backup hash does not match the recorded input; no recovery writes attempted");
+    } else if (entry.backupRel !== null) {
+      throw new Error("upgrade journal has an unexpected backup for a created target; no recovery writes attempted");
+    }
+    validated.push({ entry, targetAbs, backup });
+  }
+  if (journal.state === "committed" && validated.some(({ entry }) => !entry.committed)) {
+    throw new Error("committed upgrade journal contains an uncommitted entry; no recovery writes attempted");
+  }
+  return validated;
+}
+
+async function rollbackTransaction(root, journal, journalPath, lockId = null) {
+  const validated = await validateRecoveryJournal(root, journal, journalPath, lockId);
   const conflicts = [];
-  for (const entry of [...journal.entries].reverse()) {
-    if (!entry.committed) continue;
-    const targetAbs = path.join(root, entry.targetRel);
-    const current = await readOptionalBuffer(targetAbs);
+  const operations = [];
+  // Do not trust the committed flag: the process can stop after replacement
+  // but before the journal flag is persisted. Inspect every target hash first.
+  for (const item of [...validated].reverse()) {
+    const current = await readOptionalBuffer(item.targetAbs);
     const currentHash = current ? sha256(current) : null;
-    if (currentHash === entry.beforeHash) continue;
-    if (currentHash !== entry.afterHash) {
-      conflicts.push(`${entry.targetRel}: current content differs from both transaction input and candidate`);
+    if (currentHash === item.entry.beforeHash) continue;
+    if (currentHash !== item.entry.afterHash) {
+      conflicts.push(`${item.entry.targetRel}: current content differs from both transaction input and candidate`);
       continue;
     }
-    if (entry.existed) {
-      const backup = await readFile(path.join(root, entry.backupRel));
-      await atomicReplaceFromBuffer(root, targetAbs, backup, `${journal.id}-rollback`);
-    } else {
-      await unlink(targetAbs);
-    }
+    operations.push(item);
   }
-  journal.state = conflicts.length === 0 ? "rolled-back" : "manual-recovery-required";
+  if (conflicts.length > 0) {
+    journal.state = "manual-recovery-required";
+    journal.committedVersion = null;
+    journal.recoveryConflicts = conflicts;
+    await writeSecureJson(journalPath, journal);
+    return { ok: false, conflicts };
+  }
+
+  for (const { entry, targetAbs, backup } of operations) {
+    if (entry.existed) await atomicReplaceFromBuffer(root, targetAbs, backup, `${journal.id}-rollback`);
+    else await unlink(targetAbs);
+    const restored = await readOptionalBuffer(targetAbs);
+    const restoredHash = restored ? sha256(restored) : null;
+    if (restoredHash !== entry.beforeHash) throw new Error(`${entry.targetRel}: rollback verification failed; recovery lock retained`);
+  }
+  journal.state = "rolled-back";
   journal.committedVersion = null;
   journal.rollbackAt = new Date().toISOString();
-  journal.recoveryConflicts = conflicts;
-  await writeSecureJson(journalPath, journal).catch(() => {});
-  return { ok: conflicts.length === 0, conflicts };
+  journal.recoveryConflicts = [];
+  await writeSecureJson(journalPath, journal);
+  return { ok: true, conflicts: [] };
 }
 
 async function recoverInterruptedTransaction(root) {
@@ -1076,6 +1198,10 @@ async function recoverInterruptedTransaction(root) {
     if (error?.code === "ENOENT") return;
     throw new Error("upgrade lock exists but is unreadable; no writes attempted");
   }
+  if (!lock || typeof lock !== "object" || Array.isArray(lock) || typeof lock.id !== "string" || typeof lock.journal !== "string"
+    || typeof lock.host !== "string" || !Number.isInteger(lock.pid) || lock.pid <= 0) {
+    throw new Error("upgrade lock schema is invalid; no automatic recovery attempted");
+  }
   if (lock.host === hostname() && processIsAlive(lock.pid)) throw new Error(`another upgrade process is active (pid ${lock.pid})`);
   if (lock.host && lock.host !== hostname()) throw new Error(`upgrade lock belongs to another host (${lock.host}); no automatic recovery attempted`);
   const journalPath = path.resolve(root, lock.journal ?? "");
@@ -1086,6 +1212,7 @@ async function recoverInterruptedTransaction(root) {
   } catch {
     throw new Error("incomplete upgrade lock has no readable journal; no automatic recovery attempted");
   }
+  await validateRecoveryJournal(root, journal, journalPath, lock.id);
   if (journal.state === "committed") {
     if (!journal.committedVersion) journal.committedVersion = journal.attemptedVersion;
     const migrationDir = path.dirname(journalPath);
@@ -1099,7 +1226,7 @@ async function recoverInterruptedTransaction(root) {
     await unlinkIfExists(lockPath);
     return;
   }
-  const rollback = await rollbackTransaction(root, journal, journalPath);
+  const rollback = await rollbackTransaction(root, journal, journalPath, lock.id);
   if (!rollback.ok) throw new Error(`interrupted upgrade has third-state edits: ${rollback.conflicts.join("; ")}`);
   await unlinkIfExists(lockPath);
   console.log("⚠️ recovered interrupted upgrade: transaction-owned changes were safely rolled back before planning this run");
