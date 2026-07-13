@@ -191,7 +191,7 @@
 
   <header>
     <div class="wrap">
-      <span class="kicker">AI-readable install page · v0.3.40</span>
+      <span class="kicker">AI-readable install page · v0.3.41</span>
       <h1>給 AI 讀的<br/>安裝與升級指令</h1>
       <p class="lead">本頁給能讀寫本機資料夾、可執行終端機命令的 agentic AI 使用。用戶不用先理解 npm 或選擇指令；AI 讀完本頁後，應在目前資料夾安全判斷要安裝、升級或停止。</p>
 
@@ -248,7 +248,7 @@
 
       <div class="stop">
         <strong>預演有 conflict 時：</strong>
-        停止。列出衝突檔案與原因，請用戶決定，不自行合併、不重裝覆寫。
+        停止並保持零寫入。AI 先核對 CLI 顯示的實際項目版本、目標版本及目前交易狀態，再讀衝突檔與正式來源的差異；舊 migration 資料夾、stage 或已回滾報告只屬歷史證據，不代表目前版本。可證明為未改動的正式舊檔才交由新版自動遷移；真正自訂或來源不明便保守停手。一般使用者毋須判斷技術差異，也不應以重裝或整檔覆寫繞過。
       </div>
     </div>
   </section>

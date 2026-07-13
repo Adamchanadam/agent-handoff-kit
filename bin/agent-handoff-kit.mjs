@@ -8,35 +8,14 @@ import { hostname } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assessPromptMirrorRoot, assessPromptMirrorTexts, extractOpeningMessage } from "./prompt-mirror-core.mjs";
+import { installedFileContract, installedMappings, requiredInstalledTargets } from "./installed-file-contract.mjs";
+import { getOfficialBaseline, identifyOfficialOrigin, loadOfficialOriginCatalog } from "./official-origin-catalog.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(__dirname, "..");
 
-const mappings = [
-  ["runtime-core/AGENTS.core.md", "AGENTS.md"],
-  ["runtime-core/CLAUDE.md", "CLAUDE.md"],
-  ["runtime-core/GEMINI.md", "GEMINI.md"],
-  ["runtime-core/START_NEXT_SESSION_PROMPT.txt", "START_NEXT_SESSION_PROMPT.txt"],
-  ["runtime-core/SESSION_HANDOFF.md", "dev/SESSION_HANDOFF.md"],
-  ["runtime-core/SESSION_LOG.md", "dev/SESSION_LOG.md"],
-  ["runtime-core/PROJECT_INDEX.md", "dev/PROJECT_INDEX.md"],
-  ["runtime-core/DOC_SYNC_REGISTRY.md", "dev/DOC_SYNC_REGISTRY.md"],
-  ["runtime-core/RULE_PACKS.md", "dev/RULE_PACKS.md"],
-  ["runtime-core/PROJECT_DECISIONS.md", "dev/PROJECT_DECISIONS.md"],
-  ["packs/safety.md", "dev/rules/safety.md"],
-  ["packs/coding.md", "dev/rules/coding.md"],
-  ["packs/writing.md", "dev/rules/writing.md"],
-  ["packs/research.md", "dev/rules/research.md"],
-  ["packs/agent-governance.md", "dev/rules/agent-governance.md"],
-  ["packs/release.md", "dev/rules/release.md"],
-  ["packs/knowledge.md", "dev/rules/knowledge.md"],
-  ["packs/communication.md", "dev/rules/communication.md"],
-  ["packs/closeout.md", "dev/rules/closeout.md"],
-  ["packs/onboarding.md", "dev/rules/onboarding.md"],
-  ["packs/integrations.md", "dev/rules/integrations.md"]
-];
-
-const requiredTargets = mappings.map(([, target]) => target);
+const mappings = installedMappings;
+const requiredTargets = requiredInstalledTargets;
 const rulePackTargets = mappings
   .map(([, target]) => target)
   .filter((target) => target.startsWith("dev/rules/"));
@@ -670,6 +649,7 @@ async function runInstall(command, root, options, version) {
     console.log(`command: ${command}`);
     console.log(`current directory: ${process.cwd()}`);
     console.log(`selected root: ${root}`);
+    console.log(`version state: live ${installedVersion ? `v${installedVersion}` : "unverified"} -> target v${version}; current transaction: none (historical migration folders are evidence only)`);
     console.log(`mode: ${mode}`);
     console.log("");
     console.log(`📋 計劃預覽：create 0 / merge 0 / skip ${planSkipCount} / conflict 0 — 沒有檔案需要建立或合併。`);
@@ -682,7 +662,30 @@ async function runInstall(command, root, options, version) {
     return;
   }
 
-  printPlan(command, root, mode, plan, version, options.dryRun);
+  let candidateOutputs = null;
+  if (planConflictCount === 0) {
+    candidateOutputs = await buildTransactionOutputs(command, root, plan, version);
+    const credentialFindings = await detectInstalledCredentialFindings(root);
+    if (credentialFindings.length > 0) {
+      plan.push({
+        targetRel: "transaction preflight",
+        action: "conflict",
+        reason: `existing governance contains ${credentialFindings.length} possible credential value(s); remove and rotate them before upgrade`
+      });
+    } else {
+      try {
+        await validateTransactionOverlay(root, candidateOutputs);
+      } catch (error) {
+        plan.push({
+          targetRel: "transaction preflight",
+          action: "conflict",
+          reason: safeErrorLabel(error)
+        });
+      }
+    }
+  }
+
+  printPlan(command, root, mode, plan, version, options.dryRun, installedVersion);
 
   if (options.dryRun) {
     console.log("\ndry-run: no files written");
@@ -694,7 +697,7 @@ async function runInstall(command, root, options, version) {
   if (plan.some((item) => item.action === "conflict")) {
     console.log("");
     console.log("⛔ 升級預檢發現 conflict；治理目標檔、版本與 migration artifact 均沒有寫入。");
-    console.log("📋 下一步：根據上方 conflict 資料作非破壞性合併；不要以舊版本資料列當作已完成。");
+    console.log("📋 下一步：由 Kit 開發者或可讀取檔案的 AI 核對來源、差異與安全合併路徑；一般使用者毋須判斷技術差異。不要把歷史 stage、舊報告或版本列當作目前交易。");
     process.exitCode = 1;
     return;
   }
@@ -707,7 +710,7 @@ async function runInstall(command, root, options, version) {
     }
   }
 
-  await executeInstallTransaction(command, root, mode, plan, version);
+  await executeInstallTransaction(command, root, mode, plan, version, candidateOutputs);
 }
 
 async function readInstalledTemplateVersion(root) {
@@ -720,8 +723,8 @@ async function readInstalledTemplateVersion(root) {
   }
 }
 
-async function executeInstallTransaction(command, root, mode, plan, version) {
-  const outputs = await buildTransactionOutputs(command, root, plan, version);
+async function executeInstallTransaction(command, root, mode, plan, version, candidateOutputs = null) {
+  const outputs = candidateOutputs ?? await buildTransactionOutputs(command, root, plan, version);
   if (outputs.length === 0) {
     const health = await assessUpgradeNoopHealth(root, version);
     printUpgradeNoopShortCircuit(version, health);
@@ -729,12 +732,7 @@ async function executeInstallTransaction(command, root, mode, plan, version) {
     return;
   }
 
-  const credentialInputs = [];
-  for (const relative of requiredTargets) {
-    const buffer = await readOptionalBuffer(path.join(root, relative));
-    if (buffer) credentialInputs.push({ relative, text: decodeUtf8(buffer, relative).text });
-  }
-  const credentialFindings = detectCredentialValues(credentialInputs);
+  const credentialFindings = await detectInstalledCredentialFindings(root);
   if (credentialFindings.length > 0) {
     console.log("⛔ 升級已停止：待備份的治理檔疑似含有 credential value。");
     console.log("機密值不會顯示或複製；請先移除並輪換機密，再重跑 upgrade。");
@@ -743,9 +741,11 @@ async function executeInstallTransaction(command, root, mode, plan, version) {
     return;
   }
 
+  // Run the same deterministic acceptance gate used by dry-run before creating
+  // a lock, stage, backup, journal, or migration directory.
+  await validateTransactionOverlay(root, outputs);
   const transaction = await prepareTransaction(root, command, version, outputs, mode, plan);
   try {
-    await validateTransactionOverlay(root, outputs);
     transaction.journal.state = "committing";
     await writeSecureJson(transaction.journalPath, transaction.journal);
 
@@ -810,6 +810,15 @@ async function executeInstallTransaction(command, root, mode, plan, version) {
     }
     throw error;
   }
+}
+
+async function detectInstalledCredentialFindings(root) {
+  const credentialInputs = [];
+  for (const relative of requiredTargets) {
+    const buffer = await readOptionalBuffer(path.join(root, relative));
+    if (buffer) credentialInputs.push({ relative, text: decodeUtf8(buffer, relative).text });
+  }
+  return detectCredentialValues(credentialInputs);
 }
 
 async function buildTransactionOutputs(command, root, plan, version) {
@@ -2221,13 +2230,19 @@ async function buildPlan(root, command, version = null) {
   const context = {
     currentVersion: version,
     rootTemplateVersion: command === "upgrade" ? await readRootTemplateVersion(root) : null,
-    migrationBaselines: new Map()
+    officialCatalog: command === "upgrade" ? await loadOfficialOriginCatalog() : null,
+    officialOrigins: new Map(),
+    trustedBaselineVersion: null,
+    historicalOfficialEvidence: false
   };
-  if (command === "upgrade" && context.rootTemplateVersion === "0.3.38") {
-    for (const relative of ["packs/integrations.md", "packs/onboarding.md", "packs/safety.md"]) {
-      const baseline = await readOptionalText(path.join(packageRoot, "bin", "migration-baselines", "v0.3.38", path.basename(relative)));
-      if (baseline != null) context.migrationBaselines.set(relative, baseline);
+  if (command === "upgrade") {
+    for (const [, targetRel] of mappings) {
+      const targetText = await readOptionalText(path.join(root, targetRel));
+      if (targetText == null) continue;
+      context.officialOrigins.set(targetRel, identifyOfficialOrigin({ targetRel, text: targetText, catalog: context.officialCatalog }));
     }
+    context.trustedBaselineVersion = selectTrustedOfficialBaseline(context);
+    context.historicalOfficialEvidence = countHistoricalOfficialSignals(context) >= 2;
   }
   for (const [sourceRel, targetRel] of mappings) {
     const sourceAbs = path.join(packageRoot, sourceRel);
@@ -2254,6 +2269,51 @@ async function buildPlan(root, command, version = null) {
     });
   }
   return plan;
+}
+
+function countHistoricalOfficialSignals(context) {
+  if (!isStableSemver(context.currentVersion)) return 0;
+  return [...context.officialOrigins.values()].filter((origin) => (
+    origin.exactVersions.length > 0
+    && !origin.exactVersions.includes(context.currentVersion)
+    && origin.exactVersions.every((version) => isStableSemver(version) && compareSemver(version, context.currentVersion) < 0)
+  )).length;
+}
+
+function selectTrustedOfficialBaseline(context) {
+  const version = context.rootTemplateVersion;
+  if (!isStableSemver(version) || !context.officialCatalog?.releases?.[version]) return null;
+  const dynamicTargets = new Set(["START_NEXT_SESSION_PROMPT.txt", "dev/SESSION_HANDOFF.md", "dev/PROJECT_INDEX.md"]);
+  let exactSupport = 0;
+  let contradiction = false;
+  for (const [targetRel, origin] of context.officialOrigins) {
+    const candidates = dynamicTargets.has(targetRel)
+      ? [...new Set([...origin.exactVersions, ...origin.canonicalVersions])]
+      : origin.exactVersions;
+    if (candidates.length === 0) continue;
+    if (!candidates.includes(version)) contradiction = true;
+    else if (!dynamicTargets.has(targetRel)) exactSupport += 1;
+  }
+  return !contradiction && exactSupport >= 2 ? version : null;
+}
+
+function trustedOfficialOrigin(targetRel, context) {
+  const origin = context.officialOrigins?.get(targetRel);
+  if (!origin) return null;
+  if (origin.exact) return { kind: "exact", versions: origin.exactVersions };
+  const baseline = context.trustedBaselineVersion;
+  if (baseline && origin.canonicalVersions.includes(baseline)) return { kind: "canonical", versions: [baseline] };
+  return null;
+}
+
+function requiresHistoricalBaselineProof(context) {
+  if (!isStableSemver(context.currentVersion)) return false;
+  if (!context.rootTemplateVersion) return context.historicalOfficialEvidence;
+  return Boolean(
+    isStableSemver(context.rootTemplateVersion)
+    && context.officialCatalog?.releases?.[context.rootTemplateVersion]
+    && compareSemver(context.rootTemplateVersion, context.currentVersion) < 0
+  );
 }
 
 async function readRootTemplateVersion(root) {
@@ -2308,6 +2368,27 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       action: "merge",
       reason: "add managed core while preserving existing AGENTS.md content",
       mergedText: mergeManagedBlock(targetText, sourceText)
+    };
+  }
+  const officialOrigin = command === "upgrade" ? trustedOfficialOrigin(targetRel, context) : null;
+  if (officialOrigin) {
+    return {
+      ...base,
+      action: "merge",
+      reason: `replace unchanged official ${officialOrigin.kind === "exact" ? "historical" : "root-bound historical"} ${targetRel} with the current Kit file`,
+      mergedText: sourceText
+    };
+  }
+  if (
+    command === "upgrade"
+    && installedFileContract(targetRel)?.strategy === "rule-pack"
+    && requiresHistoricalBaselineProof(context)
+    && !context.trustedBaselineVersion
+  ) {
+    return {
+      ...base,
+      action: "conflict",
+      reason: `${targetRel} has local content but the version row and official file fingerprints do not identify one consistent historical baseline; upgrade stopped instead of guessing`
     };
   }
   // R-029/R-030: RULE_PACKS.md is a routing table, but upgrade still preserves
@@ -2367,9 +2448,13 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
     }
     return { ...base, action: "skip", reason: "SESSION_LOG.md trace/template boundary current" };
   }
-  if (command === "upgrade" && ["dev/rules/integrations.md", "dev/rules/onboarding.md", "dev/rules/safety.md"].includes(targetRel)) {
-    const baseline = context.migrationBaselines?.get(sourceRel);
-    if (baseline != null) {
+  if (command === "upgrade" && installedFileContract(targetRel)?.strategy === "rule-pack" && context.trustedBaselineVersion) {
+    const baselineRecord = getOfficialBaseline({
+      version: context.trustedBaselineVersion,
+      targetRel,
+      catalog: context.officialCatalog
+    });
+    if (baselineRecord?.state === "present") {
       if (isKnownV038ContinuityQuickFix(sourceRel, targetText)) {
         return {
           ...base,
@@ -2378,14 +2463,14 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
           mergedText: sourceText
         };
       }
-      const mergedPack = threeWayPreserveLocalChanges(baseline, targetText, sourceText);
+      const mergedPack = threeWayPreserveLocalAppendix(baselineRecord.text, targetText, sourceText);
       if (!mergedPack) {
-        return { ...base, action: "conflict", reason: `${targetRel} has local edits that overlap changed Kit rules; upgrade stopped without replacing custom content` };
+        return { ...base, action: "conflict", reason: `${targetRel} differs from its verified official baseline outside a clearly headed local appendix; arbitrary line-level non-overlap is not treated as proof that rule changes are compatible` };
       }
       if (mergedPack !== targetText) {
-        return { ...base, action: "merge", reason: `three-way merge v0.3.38 official rules while preserving non-overlapping local ${path.basename(targetRel)} changes`, mergedText: mergedPack };
+        return { ...base, action: "merge", reason: `update verified official rules while preserving the clearly headed local ${path.basename(targetRel)} appendix`, mergedText: mergedPack };
       }
-      return { ...base, action: "skip", reason: `${targetRel} current after three-way preservation check` };
+      return { ...base, action: "skip", reason: `${targetRel} current after verified-baseline preservation check` };
     }
   }
   // Governance bridge v0.3.27+: add the triggered review workflow to the
@@ -2470,14 +2555,6 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
     return { ...base, action: "conflict", reason: "required Kit anchors are missing but no safe semantic repair path exists; upgrade stopped without appending naked anchor text" };
   }
   if (targetRel === "CLAUDE.md" || targetRel === "GEMINI.md") {
-    if (looksLikeExpandedKitBridge(targetRel, targetText)) {
-      return {
-        ...base,
-        action: "merge",
-        reason: `${targetRel} appears to be an expanded Kit bridge; restore short bridge so AGENTS.md remains the single source of truth`,
-        mergedText: sourceText
-      };
-    }
     const bridgeFailure = bridgeTextFailure(targetRel, targetText);
     if (bridgeFailure) {
       return { ...base, action: "conflict", reason: `existing bridge is not an active one-hop route (${bridgeFailure})` };
@@ -2491,22 +2568,6 @@ function isUpgradeFromOlderTemplate(context) {
   return isStableSemver(rootTemplateVersion)
     && isStableSemver(currentVersion)
     && compareSemver(rootTemplateVersion, currentVersion) < 0;
-}
-
-function looksLikeExpandedKitBridge(targetRel, text) {
-  if (text.includes("This file is a bridge only")) return false;
-  if (targetRel === "CLAUDE.md") {
-    return (text.includes("This file provides guidance to Claude Code") && text.includes("## Session Startup"))
-      || text.includes("## Architecture")
-      || text.includes("## CLI Commands")
-      || text.includes("Every non-trivial task follows");
-  }
-  if (targetRel === "GEMINI.md") {
-    return text.includes("## Architecture")
-      || text.includes("## CLI Commands")
-      || text.includes("Every non-trivial task follows");
-  }
-  return false;
 }
 
 function mergeOnboardingScenarioALabel(targetText) {
@@ -3150,6 +3211,25 @@ function threeWayPreserveLocalChanges(baseText, localText, currentText) {
   for (const hunk of mapped.sort((a, b) => b.start - a.start)) merged.splice(hunk.start, hunk.end - hunk.start, ...hunk.added);
   const newline = localText.includes("\r\n") ? "\r\n" : "\n";
   return `${merged.join(newline)}${localHadFinalNewline || baseHadFinalNewline ? newline : ""}`;
+}
+
+// Rule packs and other normative Kit files may preserve a clearly separated
+// local appendix, but must not treat arbitrary line-level non-overlap as proof
+// that two rule changes are semantically compatible. Existing-line edits,
+// insertions inside the official body, or a missing local heading are conflicts.
+function threeWayPreserveLocalAppendix(baseText, localText, currentText) {
+  const baseNormalized = baseText.replace(/\r\n/g, "\n").trimEnd();
+  const localNormalized = localText.replace(/\r\n/g, "\n").trimEnd();
+  if (localNormalized === baseNormalized) return currentText;
+  if (!localNormalized.startsWith(`${baseNormalized}\n`)) return null;
+
+  const appendix = localNormalized.slice(baseNormalized.length).trimStart();
+  if (!/^## (?:Local|Project[- ]specific|Project Specific|Custom)(?:\s|$)/i.test(appendix)) return null;
+  const currentNormalized = currentText.replace(/\r\n/g, "\n").trimEnd();
+  if (currentNormalized.includes(appendix)) return localText;
+  const newline = localText.includes("\r\n") ? "\r\n" : "\n";
+  const appendixWithNewlines = appendix.replace(/\n/g, newline);
+  return `${currentText.trimEnd()}${newline}${newline}${appendixWithNewlines}${newline}`;
 }
 
 function isKnownV038ContinuityQuickFix(sourceRel, text) {
@@ -4241,11 +4321,14 @@ async function detectMode(root) {
   return "partial";
 }
 
-function printPlan(command, root, mode, plan, version, isDryRun = false) {
+function printPlan(command, root, mode, plan, version, isDryRun = false, installedVersion = null) {
   printCard(version, "continuity ready", "o.o");
   console.log(`command: ${command}`);
   console.log(`current directory: ${process.cwd()}`);
   console.log(`selected root: ${root}`);
+  console.log(`live project version: ${installedVersion ? `v${installedVersion}` : "unverified"}`);
+  console.log(`target CLI version: v${version}`);
+  console.log("current transaction: none (historical migration folders are evidence only)");
   console.log(`mode: ${mode}`);
   console.log("");
   const planIntro = planIntroFor(command, mode, isDryRun);
@@ -4270,7 +4353,7 @@ function planIntroFor(command, mode, isDryRun) {
   if (command === "upgrade") {
     return `${prefix} 工具會檢查既有 Kit 檔案；能安全合併才合併，不能判斷時會停手並列為 conflict。`;
   }
-  return `${prefix} create 代表建立缺少檔案；merge 代表先備份再合併；skip 代表保留既有檔案；conflict 代表工具停手等你判斷。`;
+  return `${prefix} create 代表建立缺少檔案；merge 代表先備份再合併；skip 代表保留既有檔案；conflict 代表工具零寫入停手並提供技術證據。`;
 }
 
 // R-026 CLI Output Contract: install/upgrade 完成必含四項（版本／模式／剛完成／下一步）。
@@ -4286,7 +4369,7 @@ function printInstallSummary(version, command, mode, root, counts) {
   console.log(`🛠️  模式：${mode}`);
   console.log(`🔎 剛完成：${command} 命令；create ${counts.created} / merge ${counts.merged} / skip ${counts.skipped} / conflict ${counts.conflicts}。`);
   if (counts.conflicts > 0) {
-    console.log("🚀 下一步：把 migration report 或這段輸出貼給 AI，請它判斷衝突檔案怎樣處理；工具已停手，沒有覆寫 conflict 檔案。");
+    console.log("🚀 下一步：把這段輸出交給 Kit 開發者或可讀取專案的 AI 核對正式來源及差異；一般使用者毋須裁決技術內容。工具已停手，沒有覆寫 conflict 檔案。");
   } else if (command === "upgrade") {
     console.log("🚀 下一步：留意下方 migration committed 與 project health 的分開結果。");
   } else if (counts.skipped > 0) {
@@ -4313,9 +4396,9 @@ function printDryRunExplanation(command, mode, plan) {
     console.log("✅ 沒有發現 conflict。請按你剛才預演的命令去掉 --dry-run 後正式執行。");
     return;
   }
-  console.log(`⚠️  需要人工確認：有 ${conflicts.length} 個既有檔案，工具不能安全判斷怎樣合併。`);
+  console.log(`⚠️  技術核對未完成：有 ${conflicts.length} 個既有檔案，工具目前不能證明可安全合併。`);
   console.log("⚠️  這不是檔案壞掉，也沒有覆寫你的檔案。");
-  console.log("📋 下一步：把這段輸出貼給 AI，叫它幫你判斷要保留、合併，還是手動修改。");
+  console.log("📋 下一步：把這段輸出交給 Kit 開發者或可讀取專案的 AI，由它核對正式來源及差異；一般使用者毋須閱讀或裁決檔案內容。");
 }
 
 async function confirmWrite() {
@@ -4487,9 +4570,9 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
   }
   console.log("============================================================");
   if (conflictCount > 0) {
-    console.log("⚠️  狀態：有既有檔案需要人工確認，詳情見 migration report。");
+    console.log("⚠️  狀態：有既有檔案未能證明可安全合併。");
     console.log("⚠️  這不是檔案壞掉；工具已停手，沒有覆寫 conflict 檔案。");
-    console.log("📋 下一步：把 migration report 或這段輸出貼給 AI，請它幫你判斷怎樣合併。");
+    console.log("📋 下一步：把這段輸出交給 Kit 開發者或可讀取專案的 AI 核對來源與差異；一般使用者毋須判斷檔案內容。");
     console.log("");
   }
   if (skippedCount > 0) {
@@ -4528,11 +4611,11 @@ function printUpgradeNextSteps(root, conflictCount) {
   console.log("");
   console.log("============================================================");
   if (conflictCount > 0) {
-    console.log("⚠️  升級未完成：有檔案需要人工確認");
+    console.log("⚠️  升級未完成：有檔案未能證明可安全合併");
     console.log("============================================================");
-    console.log("⚠️  狀態：有既有檔案需要人工確認，詳情見 migration report。");
+    console.log("⚠️  狀態：工具已保守停手，沒有建立目前交易或覆寫檔案。");
     console.log("⚠️  這不是檔案壞掉；工具已停手，沒有覆寫 conflict 檔案。");
-    console.log("📋 下一步：把 migration report 或這段輸出貼給 AI，請它幫你判斷怎樣合併。");
+    console.log("📋 下一步：把這段輸出交給 Kit 開發者或可讀取專案的 AI 核對正式來源及差異；一般使用者毋須裁決技術內容。");
     console.log("============================================================");
     return;
   }
