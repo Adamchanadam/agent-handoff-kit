@@ -9208,6 +9208,199 @@
           "canonicalSha256": "cd696ae93f90ccbf0e0ae24f522c9a1a9d6482b0dd7011225096ab771d2c7fae"
         }
       }
+    },
+    "0.3.41": {
+      "source": {
+        "npm": {
+          "spec": "@adamchanadam/agent-handoff-kit@0.3.41",
+          "shasum": "8b9238287485ef15208c4c339e8cdfe283ce1c23",
+          "integrity": "sha512-2DQjMXhLigpW30vE0bb1aa7F5h1YYW5kXSfruzwg6IltyclvV9EBYPLUTOj49p6QIwmPWcetvJIB8zK0LZFH5Q==",
+          "entryCount": 29,
+          "gitHead": null
+        },
+        "git": {
+          "tag": "v0.3.41",
+          "directObject": "c3195a85567c27588ee3085fc0638864b0dad4ca",
+          "peeledCommit": null,
+          "commit": "c3195a85567c27588ee3085fc0638864b0dad4ca"
+        },
+        "githubRelease": {
+          "tag": "v0.3.41",
+          "publishedAt": "2026-07-13T07:26:46Z"
+        },
+        "sourceDivergence": {
+          "status": "npm-gitHead-unavailable",
+          "npmGitHead": null,
+          "remoteTagCommit": "c3195a85567c27588ee3085fc0638864b0dad4ca"
+        }
+      },
+      "managedSegments": {
+        "AGENTS.md": {
+          "sourceRel": "runtime-core/AGENTS.core.md",
+          "artifactSource": {
+            "sha256": "2d6a31377839c7fd18140d229e483b303c27e95a46e459923faa54315450a549",
+            "bytes": 10943
+          },
+          "transform": {
+            "kind": "utf8-trim-wrapped-managed-core",
+            "beginMarker": "<!-- BEGIN Agent Handoff Kit managed core -->",
+            "endMarker": "<!-- END Agent Handoff Kit managed core -->",
+            "core": {
+              "sha256": "f7f3cdc5d4e030e3a803792591a313e52959671115fe420d031d7eb8b7da0aaf",
+              "bytes": 10852
+            }
+          }
+        }
+      },
+      "manifest": {
+        "AGENTS.md": {
+          "state": "present",
+          "contentId": "f6a3c6b004693d3081d314c871dbc14bd5d7001067eb751db85d6045ec46010c",
+          "rawSha256": "2d6a31377839c7fd18140d229e483b303c27e95a46e459923faa54315450a549",
+          "normalizedSha256": "2d6a31377839c7fd18140d229e483b303c27e95a46e459923faa54315450a549",
+          "canonicalSha256": "2d6a31377839c7fd18140d229e483b303c27e95a46e459923faa54315450a549"
+        },
+        "CLAUDE.md": {
+          "state": "present",
+          "contentId": "7a2cf08a1171762ebcb53f43036a2170655379416945258b9c85d4b189ecaecf",
+          "rawSha256": "9e326c3c1ab08fbcd23b28cd398561c17d851a59997842e0f4f97ff3473ff0ad",
+          "normalizedSha256": "9e326c3c1ab08fbcd23b28cd398561c17d851a59997842e0f4f97ff3473ff0ad",
+          "canonicalSha256": "9e326c3c1ab08fbcd23b28cd398561c17d851a59997842e0f4f97ff3473ff0ad"
+        },
+        "GEMINI.md": {
+          "state": "present",
+          "contentId": "36da47034bb2ce6c760ddbbbbd49dccc1d17665dbb18bec56ffa3b26bac1c135",
+          "rawSha256": "b6e8bfc51ba751fec2acd1719c4459b41524f013e0464a5573de7f66d436c986",
+          "normalizedSha256": "b6e8bfc51ba751fec2acd1719c4459b41524f013e0464a5573de7f66d436c986",
+          "canonicalSha256": "b6e8bfc51ba751fec2acd1719c4459b41524f013e0464a5573de7f66d436c986"
+        },
+        "START_NEXT_SESSION_PROMPT.txt": {
+          "state": "present",
+          "contentId": "7da46e6c8a5955acec2c23e9dcedda2cd37341c66db361b1ebfe1f906d2f152a",
+          "rawSha256": "a9ffe5e76399f36bf58fcb190021b607d32af95f537df3f6836ac3923d87cb16",
+          "normalizedSha256": "a9ffe5e76399f36bf58fcb190021b607d32af95f537df3f6836ac3923d87cb16",
+          "canonicalSha256": "6b0af3cff9bb98f65b41100dc2a4b3b38e641a38ad1b35c496c1bad55962ef3f"
+        },
+        "dev/SESSION_HANDOFF.md": {
+          "state": "present",
+          "contentId": "989ded633a9f5ce7101b6af7f7fd9a151ffdb5531d48a46c72c72656eb555d67",
+          "rawSha256": "83bc172e6858b2b8a41c83a8dbaf2b9b0250733ab0ba4487eabb8405d1877489",
+          "normalizedSha256": "83bc172e6858b2b8a41c83a8dbaf2b9b0250733ab0ba4487eabb8405d1877489",
+          "canonicalSha256": "52afa64c4bc785a19f9122cbae4b0fac28e131c9b08ec76a47df003db26f182e"
+        },
+        "dev/SESSION_LOG.md": {
+          "state": "present",
+          "contentId": "7b6184ee4dabe89f504a894c3d4803f012d962c7af53c7f29801a8fb28d9d51c",
+          "rawSha256": "fb6bfd7026a15f87a54cfa64fbd69f032538b0c3193372876a3722fb997a3a47",
+          "normalizedSha256": "fb6bfd7026a15f87a54cfa64fbd69f032538b0c3193372876a3722fb997a3a47",
+          "canonicalSha256": "fb6bfd7026a15f87a54cfa64fbd69f032538b0c3193372876a3722fb997a3a47"
+        },
+        "dev/PROJECT_INDEX.md": {
+          "state": "present",
+          "contentId": "919a1219d3af25dadb1ff7a5163975873810973c734006a5bd9c8adb7d29f92c",
+          "rawSha256": "e09d2dc3465dc9064332e27e10e93724348cf057f926088fcb861eeefee9f26a",
+          "normalizedSha256": "e09d2dc3465dc9064332e27e10e93724348cf057f926088fcb861eeefee9f26a",
+          "canonicalSha256": "cfa59ce72a66c0bb94966db0c9e27766007fa15f8776526ab68235bb7a0b086b"
+        },
+        "dev/DOC_SYNC_REGISTRY.md": {
+          "state": "present",
+          "contentId": "f6545b524dc440d3563041e04a05caff4229863f6cae2a39127f85a29a120249",
+          "rawSha256": "56807afee836d3ce19cabb1d020ef37168880a405b5eb8c6d7347e25e94c36e6",
+          "normalizedSha256": "56807afee836d3ce19cabb1d020ef37168880a405b5eb8c6d7347e25e94c36e6",
+          "canonicalSha256": "56807afee836d3ce19cabb1d020ef37168880a405b5eb8c6d7347e25e94c36e6"
+        },
+        "dev/RULE_PACKS.md": {
+          "state": "present",
+          "contentId": "a92986fcb4f7630e533bacf114d096e8e655973de297ff972a1bf1de5610af4b",
+          "rawSha256": "a3e433884fc6bf26448acfa79ba106acaaafe5b4bdb212cb8ce6dc4aaea2faaf",
+          "normalizedSha256": "a3e433884fc6bf26448acfa79ba106acaaafe5b4bdb212cb8ce6dc4aaea2faaf",
+          "canonicalSha256": "a3e433884fc6bf26448acfa79ba106acaaafe5b4bdb212cb8ce6dc4aaea2faaf"
+        },
+        "dev/PROJECT_DECISIONS.md": {
+          "state": "present",
+          "contentId": "3aae993bd5b85bf6b1d1d458f1bcf82c7d3105c843f053ffa13553bb5931b8c4",
+          "rawSha256": "c2fbfb759a36145a92750226d0f7585d49ce0fa4bf1cfde474988ce510dc455e",
+          "normalizedSha256": "c2fbfb759a36145a92750226d0f7585d49ce0fa4bf1cfde474988ce510dc455e",
+          "canonicalSha256": "c2fbfb759a36145a92750226d0f7585d49ce0fa4bf1cfde474988ce510dc455e"
+        },
+        "dev/rules/safety.md": {
+          "state": "present",
+          "contentId": "dd6bcf74722d038f76d202e2044a6583a6e6ad107fbb010520e513eec799ff4a",
+          "rawSha256": "685e501bb8a8cf721dd742312c9160a46a1066a4a875235eaaf579c1c8e72ab0",
+          "normalizedSha256": "685e501bb8a8cf721dd742312c9160a46a1066a4a875235eaaf579c1c8e72ab0",
+          "canonicalSha256": "685e501bb8a8cf721dd742312c9160a46a1066a4a875235eaaf579c1c8e72ab0"
+        },
+        "dev/rules/coding.md": {
+          "state": "present",
+          "contentId": "1c6deb9a5a281c13e97b0ac96079e9e1beccbd1ff106186e7a6ac78c0eeb75c2",
+          "rawSha256": "79e96a709d7e9ccc629a0e35f88fde72522cccb71a0e7bd103b02ab7a5a1e7f4",
+          "normalizedSha256": "79e96a709d7e9ccc629a0e35f88fde72522cccb71a0e7bd103b02ab7a5a1e7f4",
+          "canonicalSha256": "79e96a709d7e9ccc629a0e35f88fde72522cccb71a0e7bd103b02ab7a5a1e7f4"
+        },
+        "dev/rules/writing.md": {
+          "state": "present",
+          "contentId": "ef7cdcd2b9cf8646e9a50134c00f3e0ab35a732ee08202442b56ef68ce532480",
+          "rawSha256": "9d565ea60680328e973be6e8832048d3f7a7989fa4175bd04613637408d3aab5",
+          "normalizedSha256": "9d565ea60680328e973be6e8832048d3f7a7989fa4175bd04613637408d3aab5",
+          "canonicalSha256": "9d565ea60680328e973be6e8832048d3f7a7989fa4175bd04613637408d3aab5"
+        },
+        "dev/rules/research.md": {
+          "state": "present",
+          "contentId": "4414f9c82c6d04ad49d7446f4b0740055242f425ef5b00391d9c8c78c96c0f66",
+          "rawSha256": "b282a48392250b570651f5e2e80c59d6c247617d08db35331d1e7538747a2104",
+          "normalizedSha256": "b282a48392250b570651f5e2e80c59d6c247617d08db35331d1e7538747a2104",
+          "canonicalSha256": "b282a48392250b570651f5e2e80c59d6c247617d08db35331d1e7538747a2104"
+        },
+        "dev/rules/agent-governance.md": {
+          "state": "present",
+          "contentId": "d3751dc9cb96774413fdd32895bc0c04fcf177346945dab52ffb3cc0ad3a6855",
+          "rawSha256": "33baedd735ee7ec83583f37122a7bfea5c986536b4be6e3d14653f66acec0e77",
+          "normalizedSha256": "33baedd735ee7ec83583f37122a7bfea5c986536b4be6e3d14653f66acec0e77",
+          "canonicalSha256": "33baedd735ee7ec83583f37122a7bfea5c986536b4be6e3d14653f66acec0e77"
+        },
+        "dev/rules/release.md": {
+          "state": "present",
+          "contentId": "cfa6928575650eda574e9bd7c6961ebef2d409b00d09347086ea9f2aeefeb191",
+          "rawSha256": "30ee60802efde189845caba562b0736afb5f67a2ef5e222513024216a7425895",
+          "normalizedSha256": "30ee60802efde189845caba562b0736afb5f67a2ef5e222513024216a7425895",
+          "canonicalSha256": "30ee60802efde189845caba562b0736afb5f67a2ef5e222513024216a7425895"
+        },
+        "dev/rules/knowledge.md": {
+          "state": "present",
+          "contentId": "a5944e8e165bd48e211868f5fb1c4d97754151c35d4bd547cecc4242a4292cd3",
+          "rawSha256": "590bfa8fb176f344f5a030334cbe3292b9c9a30e89f00d1aa0aa1fb86eed6c7c",
+          "normalizedSha256": "590bfa8fb176f344f5a030334cbe3292b9c9a30e89f00d1aa0aa1fb86eed6c7c",
+          "canonicalSha256": "590bfa8fb176f344f5a030334cbe3292b9c9a30e89f00d1aa0aa1fb86eed6c7c"
+        },
+        "dev/rules/communication.md": {
+          "state": "present",
+          "contentId": "4518d3e0f8d21217a192190e1dc730f0fb74d109ace2b4d13ac0e39c476b9aee",
+          "rawSha256": "e64bb9a986c1f8af694ab78f755b288dda7b2404661d84eb43e2c66ff43f724d",
+          "normalizedSha256": "e64bb9a986c1f8af694ab78f755b288dda7b2404661d84eb43e2c66ff43f724d",
+          "canonicalSha256": "e64bb9a986c1f8af694ab78f755b288dda7b2404661d84eb43e2c66ff43f724d"
+        },
+        "dev/rules/closeout.md": {
+          "state": "present",
+          "contentId": "34dfd68ea8f60131951e270d17afb813be93004ff0a9c8d41ac05a933bb76947",
+          "rawSha256": "5a9e90053acb175cb9594e8f6f3fd13dbc62dab38e579136f64f4701319cda8b",
+          "normalizedSha256": "5a9e90053acb175cb9594e8f6f3fd13dbc62dab38e579136f64f4701319cda8b",
+          "canonicalSha256": "5a9e90053acb175cb9594e8f6f3fd13dbc62dab38e579136f64f4701319cda8b"
+        },
+        "dev/rules/onboarding.md": {
+          "state": "present",
+          "contentId": "049f7c85629b5d337550e8cf03267d8bacfcfd7bb15135110629f3a71122f9ec",
+          "rawSha256": "7f6b1f68b401697b78c6025ad762b21084783b1a5d942af0f53bee98e3849986",
+          "normalizedSha256": "7f6b1f68b401697b78c6025ad762b21084783b1a5d942af0f53bee98e3849986",
+          "canonicalSha256": "7f6b1f68b401697b78c6025ad762b21084783b1a5d942af0f53bee98e3849986"
+        },
+        "dev/rules/integrations.md": {
+          "state": "present",
+          "contentId": "6286f7d7b45803071ffddcd1ca864cf87213f0f21c3b195d10261a8c4187dfd1",
+          "rawSha256": "cd696ae93f90ccbf0e0ae24f522c9a1a9d6482b0dd7011225096ab771d2c7fae",
+          "normalizedSha256": "cd696ae93f90ccbf0e0ae24f522c9a1a9d6482b0dd7011225096ab771d2c7fae",
+          "canonicalSha256": "cd696ae93f90ccbf0e0ae24f522c9a1a9d6482b0dd7011225096ab771d2c7fae"
+        }
+      }
     }
   },
   "contents": {
@@ -9842,5 +10035,5 @@
       "text": "# Integrations Pack\n\n## Scope\n\nUse this pack for governance of already-installed external tool integrations: **Connectors** (official or platform-vetted MCP servers), **MCPs** (community or custom MCP servers), **Plugins** (bundles that may register skills, MCP servers, hooks, or apps), and **Skills** (`SKILL.md` instruction sets).\n\nWhen a task touches external sources or external write surfaces such as Notion, Google Drive, Dropbox, Slack, Linear, GitHub, HubSpot, browsers, screenshots, DevTools, Playwright, desktop app automation, crawlers, notebooks, or local helper services, this pack makes the agent check declared integrations and tool operation references first, prefer direct runtime access when available, and fall back to manual packets only when the integration is unavailable.\n\nThis pack does not teach users how to install tools. Installation is handled by the user's AI runtime, tool vendor, or official documentation. This pack governs what happens after a tool is already installed: declaration, verification, safe use, resource lifecycle, drift handling, and cross-session continuity.\n\n## Load When\n\n- The task mentions Notion, Google Drive, Slack, Linear, Dropbox, HubSpot, GitHub, browser automation, UI validation, screenshot capture, Chrome, Playwright, DevTools, desktop app automation, crawlers, notebooks, local helper services, or other external tools.\n- The user asks whether the agent can directly read or write an external system.\n- The current task or handoff names a declared integration as a dependency, or the user requests an integration health check.\n- First-time onboarding asks the user to declare installed external tools.\n- The project uses a multi-layer source-of-truth setup, for example Notion index + local source files + Google Drive reference mirrors.\n- The user reports resource pressure, stale MCP or plugin services, browser automation left running, cache growth, or slowdown after external-tool use.\n\n## Discipline\n\n### 1. Credential Separation Principle\n\nCredential values such as API keys, OAuth tokens, app secrets, and refresh tokens belong only in AI runtime secure storage, OS credential stores, tool configuration, environment indirection, or user-managed secret stores. Agent Handoff Kit files may record credential references, never credential values.\n\n| Storage layer | Examples | What Kit files may record |\n|---|---|---|\n| AI runtime secure storage / Connector storage | Notion, Slack, Linear, Google Drive, Atlassian, HubSpot, or similar connectors | Storage type or connector name only |\n| OS credential store | macOS Keychain, Windows Credential Manager, Linux secret service | `OS credential store` only |\n| Tool config / env indirection | AI tool MCP config, plugin config, environment variable name | Config location or env var name only; never the value |\n| User-managed secret store | Team vault or secret manager | Store type or owner only |\n\nNo file under `dev/` should contain a credential value. Enforce three rules:\n\n1. Do not ask the user to paste credential values into chat.\n2. If a credential-like prefix appears, redact it and warn the user to rotate the token when appropriate. Examples include `sk-`, `sk-ant-`, `ntn_`, `secret_`, `ya29.`, `1//`, `xoxp-`, `xoxb-`, `ghp_`, `gho_`, `ghs_`, `github_pat_`, `sl.`, `AKIA`, and `AIza`.\n3. Before writing to `dev/PROJECT_INDEX.md` `## Installed Integrations`, self-check that no credential value is being persisted. Doctor also checks `PROJECT_INDEX`, `SESSION_HANDOFF`, and `SESSION_LOG` for common credential prefixes.\n\n### 2. External Tool Usage Verification Gate\n\nAgents must not use model memory, old session experience, copied examples, Connector marketing text, or guessed command shapes as the source for external-tool usage. Before first use of an external tool layer in the current task, and again before any write, destructive action, permission-sensitive action, raw API / SDK / CLI / URI call, plugin API change, or retry after `unknown tool`, `invalid arguments`, HTTP 400 / 404, permission, auth, or schema errors, verify the current usage source for that layer:\n\n| Layer | Required current source before invocation |\n|---|---|\n| Connector / MCP tool | Current runtime-exposed tool name, description, and input schema. Use the tool list/schema exposed by the active AI runtime or MCP server; do not invent `mcp__*` names or arguments. |\n| Plugin / Skill | Current plugin/skill instructions plus any registered MCP tool schema it exposes. |\n| Raw API / SDK / CLI / URI | Current official documentation or a project-local runbook that states source, version/date, and scope. If the runbook lacks those, verify against official docs. |\n| Local app plugin API | Official API documentation, official type definitions, official sample project, or local installed package types matching the project version. |\n| Project-local runbook | Accept as a task source only when it records the upstream source, version/date, scope, and known limits. |\n\nIf the required source cannot be inspected, mark the tool use `blocked` or `unverified`, ask the user for the current docs/schema/runbook, or fall back to a manual packet. Do not continue by trial and error. Connector-first means schema-first for the active runtime, not memory-first.\n\n#### Runtime-Controlled Tool Operation Variants\n\nFor browser and tool-operation work, first check `dev/PROJECT_INDEX.md` `## Tool Operation References` when present. A successful method from a previous session is reusable only when it is registered there with source, version/date, scope, known limits, and last verification.\n\n| Variant | Examples | Required source before use |\n|---|---|---|\n| Browser / UI validation | Browser tool, screenshot, Chrome, DevTools, Playwright smoke test, visual QA | Active runtime browser/tool schema; registered tool operation reference; or current official docs for raw CLI/SDK use. Do not guess Chrome, Playwright, or DevTools commands. |\n| Desktop or local app automation | Desktop app session, app plugin, local browser profile, extension-dependent workflow | Active app/plugin/tool schema or official automation API docs. Do not mutate user sessions, profiles, or extension state without confirmation. |\n| Crawler / scraper / local helper | Firecrawl-like tools, crawler services, local helper server | Active tool schema, registered operation reference, or official docs. Respect source permissions, rate limits, and cleanup boundaries. |\n| Notebook / data runtime | Notebook kernel, data runtime, long-lived analysis server | Active runtime/kernel schema or registered operation reference. Classify kernels and servers by ownership before cleanup. |\n| Raw CLI / SDK / tool server | Direct command invocation, SDK script, MCP/tool server operation | Current official docs, installed package types, or registered operation reference. Mark blocked or unverified if unavailable. |\n\n#### Local HTML / app validation fallback\n\nA blocked browser surface is not the same as a blocked validation task. If a browser tool rejects a local `file://` page because of URL policy, sandbox policy, or browser-use safety policy, do not try to bypass that policy through raw CDP, alternate browser surfaces, extension state, or hidden browser commands. Treat the rejected `file://` attempt as one failed surface and switch to a materially safer project-local validation path when available.\n\nFor local HTML, static app, generated guide, or local UI validation, the preferred fallback is a short-lived localhost service:\n\n1. Check `PROJECT_INDEX` `## Tool Operation References` for a registered browser, Chrome DevTools, Playwright, or local validation procedure.\n2. If no registered procedure is available and the file can be safely served, start a task-owned local static server bound to loopback such as `127.0.0.1`.\n3. Open the served `http://127.0.0.1:<port>/...` URL with the verified browser, DevTools, or Playwright surface.\n4. Verify real behavior through visible page state, text hits, click/state changes, console evidence, screenshot, or another task-relevant readback.\n5. Close the task-owned browser tab/context and stop the localhost service before completion; record any cleanup limit under the resource lifecycle rules.\n\nOnly mark local HTML / app validation as `blocked` after the registered operation reference, the localhost fallback, and the available verified browser / DevTools / Playwright surface are each unavailable or fail for a stated reason. A `file://` rejection alone is not enough evidence to stop.\n\n### 2.1 External Tool Resource Lifecycle\n\nExternal tools must be treated as resources with ownership, not just capabilities. After using Connector, MCP, plugin, browser automation, local server, crawler, notebook, or similar external tool services, classify any opened session, process, browser context, temporary directory, cache, or helper service into one of these ownership classes:\n\n| Ownership class | Examples | Agent action |\n|---|---|---|\n| Task-owned | Process, browser context, temp directory, or helper service clearly started by this task and no longer needed. Evidence may include parent-child process chain, start time, tool family, task-created path, or runtime session handle. | Close or clean up automatically through the runtime or tool's graceful shutdown API when available; OS-level termination is allowed only when ownership is clear and graceful close is unavailable or failed. |\n| Agent-managed | Kit-managed or agent-created temp/cache under a known task workspace, with bounded path and age/size rules. | Clean automatically inside the declared boundary. Never scan or clean broad user, system, browser, package-manager, or marketplace caches through this class. |\n| Shared / user-owned / other-agent-owned / system-level | User's normal browser, another AI agent's active browser or MCP service, global MCP service, global npm/cache directory, shared credential store, project files, OS temp root, or any process whose owner is uncertain. | Do not terminate, delete, disable, or reconfigure automatically. Report evidence and propose exact remediation for user confirmation. |\n| Unknown | Generic `node`, `python`, `chrome`, or helper process without reliable owner evidence. | Treat as shared until proven otherwise. |\n\nFor ordinary external-tool tasks, perform a lightweight closeout check: close task-owned handles, note any known retained session, and report only meaningful residual risk. For long-running, multi-tool, MCP-heavy, browser-automation, repeated-error, or user-reported slowdown tasks, perform a fuller resource review when the runtime exposes enough data: group by tool family, count, approximate memory where available, age / start time where available, and ownership class. If process command lines or environment details may contain secrets, redact arguments and secret-like values before reporting.\n\nThe preferred cleanup order is: graceful tool/session close, then task-owned process termination, then task-owned temp cleanup. Shared or ambiguous resources require explicit user confirmation with exact process IDs or paths, tool names, expected impact, and restart path before any termination, cache deletion, tool disablement, or configuration change. Never terminate or clean up a tool resource that may belong to another AI agent running on the same machine unless ownership has been proven for the current task.\n\n### 3. Integration Type Discipline\n\n#### 3.1 Connectors\n\nConnectors are ready-to-use external tool surfaces exposed by the active AI runtime. Their credentials are normally managed by runtime secure storage, OS credential storage, or connector storage.\n\nDiscipline:\n\n- Use only runtime-exposed tools whose current name, description, and input schema have been inspected.\n- Read back every external write before claiming success.\n- If auth fails, surface the failure and point the user to the runtime or connector settings. Do not attempt automatic re-auth.\n\n#### 3.2 MCPs\n\nMCP servers may be official, community, custom, or project-local. Custom MCPs often depend on manual configuration.\n\nDiscipline:\n\n- Use only the active runtime's exposed tool name, description, and input schema.\n- Treat non-vetted or custom MCP write operations with extra caution. Destructive writes require dry-run and user confirmation under `packs/safety.md`.\n- If the server fails because of process crash, config error, or unavailable runtime state, surface the failure, recommend checking MCP config and restarting the host tool, and do not blindly retry.\n\n#### 3.3 Plugins\n\nPlugins are distribution bundles. A plugin may register skills, MCP servers, hooks, apps, or other runtime capabilities.\n\nDiscipline:\n\n- Do not invoke a plugin as a separate abstraction unless the runtime exposes such an action.\n- If a plugin provides a skill, follow the skill trigger rules.\n- If a plugin provides an MCP server or app tool, treat it under the Connector / MCP rules above and the resource lifecycle rules in this pack.\n\n#### 3.4 Skills\n\nSkills are instruction overlays, usually stored as `SKILL.md`, and may be installed directly or shipped by a plugin.\n\nDiscipline:\n\n- Invoke a skill when the user explicitly names it or when the skill's trigger conditions are clearly met.\n- Skill instructions coexist with rule-pack discipline.\n- If a skill conflicts with safety, governance, or closeout rules, the rule pack and core safety boundary take precedence.\n\n### 4. Source-of-truth Architecture\n\nWhen a project uses multiple integrations as a source-of-truth system, read `dev/PROJECT_INDEX.md` `## Installed Integrations` `### Source-of-truth Architecture` before acting.\n\n| Layer | Role | Write direction |\n|---|---|---|\n| Source of truth | Original auditable reference content | User places or controls it; agent does not directly write it unless the project explicitly declares that integration as writable truth. |\n| Index | Metadata, summary, tags, and references for source files | Agent may read/write through declared Connector or MCP when verified. |\n| Persistent mirror | Backup or cross-device reference mirror | User-controlled sync by default; agent does not push automatically. |\n| Working draft | Task output and local work product | Agent may read/write local files under normal safety rules. |\n\nEach layer's responsible integration must be explicit in `PROJECT_INDEX`. Do not cross layers, for example by treating an index as primary truth or pushing a working draft to a mirror without authorization.\n\n### 5. Cross-session Lifecycle\n\n#### Phase 0 — First-contact declaration\n\nDuring first-time onboarding, ask the user whether relevant external tools are already installed or available. This may be handled by the onboarding pack's external-tool scenario.\n\n#### Phase 1 — Initial recording\n\nRecord declared integrations in `PROJECT_INDEX` `## Installed Integrations`, using the Connectors / MCPs / Plugins / Skills subsections and the Source-of-truth Architecture table when needed.\n\n#### Phase 2 — Cross-session handoff\n\n`SESSION_HANDOFF` durable anchors should point future agents to `PROJECT_INDEX` `## Installed Integrations`. The next-session opening message already includes `PROJECT_INDEX` in the read order.\n\n#### Phase 3 — Before-use availability probe\n\nImmediately before the current task uses a declared integration, run the smallest relevant availability probe when the runtime exposes the needed tool schema. Do not probe unrelated integrations at startup. `TBD`, examples, blank rows, and placeholder-only tables are not declarations.\n\n- Probe success: update `Last Verified` and proceed.\n- Probe fail: warn that the integration is declared but unavailable in the current runtime, then use fallback flow only for the affected surface.\n\n#### Phase 4 — Task execution\n\nApply the knowledge pack's Connector-first discipline: check declaration, use the verified direct tool when available, fall back to manual packet only when unavailable, and ask the user when the referenced integration is undeclared.\n\n#### Phase 5 — Mid-session drift handling\n\nIf an integration fails mid-task because of expired auth, rate limit, network timeout, tool crash, or missing runtime capability:\n\n- Surface the failure and impact.\n- Do not auto-fix credentials or auth.\n- Update `PROJECT_INDEX` `Last Verified` / note fields where appropriate.\n- Record the drift in `SESSION_LOG` and unresolved risk in `SESSION_HANDOFF` when it affects future work.\n\n#### Phase 6 — Cross-tool consistency\n\nIntegration declarations are project-level; they do not guarantee every AI runtime has the same tools installed. A new runtime must verify availability, warn on capability differences, and use fallback flow unless the user chooses to install or switch tools.\n\n## Rules\n\n1. **Credential separation**: never ask for, log, or persist credential values. Redact credential-like values and warn about rotation when appropriate.\n2. **External Tool Usage Verification Gate**: verify current runtime schema, official docs, official types/samples, or registered tool operation references before invoking or retrying external tools.\n3. **Declaration before use**: read `dev/PROJECT_INDEX.md` `## Installed Integrations` and `## Tool Operation References` before external-tool or runtime-controlled tool-operation work. If absent, ask about integration status rather than assuming none exists.\n4. **Connector-first default**: when a declared integration is functional, prefer the verified direct tool call. Manual paste is fallback, not default.\n5. **Write operations require read-back verification**: read back every external write before claiming success.\n6. **No auto-fix credential / auth issues**: surface auth failures to the user and point to the runtime settings or tool owner.\n7. **Cross-tool capability awareness**: verify availability immediately before use, when the current objective declares the integration as a dependency, or when the user requests a health check.\n8. **Do not cross source-of-truth layers**: follow the role and write direction declared in `PROJECT_INDEX`.\n9. **Drift event mandatory recording**: record integration drift in `PROJECT_INDEX`, `SESSION_LOG`, and `SESSION_HANDOFF` when it affects future work.\n10. **Plugin / Skill subordination**: plugin and skill instructions coexist with rule packs; safety, governance, and closeout rules take precedence on conflict.\n11. **External tool resource lifecycle**: after external-tool use, classify resources by ownership. Task-owned / agent-managed resources may be closed or cleaned automatically; shared, user-owned, system-level, other-agent-owned, or unknown resources require evidence reporting and user confirmation before remediation.\n12. **Local HTML / app validation fallback**: if `file://` browser access is blocked, do not bypass the policy and do not stop on that single surface failure. Use a registered operation reference or a short-lived loopback localhost service for actual browser / DevTools / Playwright validation, then close the task-owned service and record the evidence.\n\n## Checks\n\n- Verify `dev/PROJECT_INDEX.md` `## Installed Integrations` exists and has the expected subsections when the project declares integrations.\n- Before probing or invoking a declared integration, inspect current runtime tool description and input schema.\n- Before browser validation, screenshots, Chrome, Playwright, DevTools, desktop automation, crawler, notebook, or raw CLI/SDK/tool-server work, verify the current source from runtime schema, official docs, or `PROJECT_INDEX` `## Tool Operation References`.\n- Before external-tool first use, write, destructive operation, raw API / SDK / CLI / URI / plugin API call, or retry after tool error, confirm the current usage source.\n- Surface and record mid-session integration drift.\n- After external-tool use, perform ownership-based resource closeout. For long-running, multi-tool, MCP, browser automation, repeated-error, or slowdown scenarios, report grouped residual processes or services when observable.\n- Before closeout, update `Last Verified` for integrations touched this session.\n- Self-check credential leakage before writing `PROJECT_INDEX`, `SESSION_HANDOFF`, or `SESSION_LOG`.\n- Verify that `PROJECT_INDEX` External Sources `via` references match declared Installed Integrations entries.\n- For local HTML / app validation, verify that a rejected `file://` attempt is followed by a registered operation reference or short-lived localhost fallback before declaring `blocked`.\n\n## Closeout\n\n1. Update `PROJECT_INDEX` `## Installed Integrations` `Last Verified` cells for integrations touched this session.\n2. If drift happened, record the drift narrative, impact, and suggested next handling in `SESSION_LOG`.\n3. Add unresolved integration failures to `SESSION_HANDOFF` `## Risks / Blockers`.\n4. If unresolved drift affects startup, mention the next-session verification need in the opening message.\n5. If the user declared a new integration during the session, ensure it is registered in `PROJECT_INDEX` and cross-referenced from External Sources when applicable.\n6. If shared or ambiguous external-tool processes, caches, browser contexts, or helper services remain, record only a redacted evidence summary and recommended remediation. Do not write raw secret-bearing command lines into handoff or log files.\n\n## Anti-patterns\n\n| Anti-pattern | Why it is wrong | Correct approach |\n|---|---|---|\n| Assuming no Connector or MCP exists whenever the user mentions Notion, Google Drive, or another external source | Mature connector ecosystems make paste-only fallback an unreliable default. | Read `PROJECT_INDEX` Installed Integrations first; ask about integration status if undeclared. |\n| Guessing tool names, endpoints, CLI flags, URI parameters, or plugin APIs from memory | Stale examples cause unknown tool, invalid args, 400 / 404, permission, or auth loops. | Verify active runtime schema, official docs, official types/samples, or versioned local runbooks. |\n| Treating browser validation as ordinary coding and guessing Chrome, Playwright, or DevTools commands | Browser and tool-control surfaces differ across runtimes, profiles, plugins, and installed packages. | Verify the active runtime schema, official docs, or a registered tool operation reference; mark blocked or use a manual packet when unavailable. |\n| Treating a Connector marketing page or old example as executable schema | Marketing pages do not prove the active runtime's current tool name or input schema. | Use active runtime tool list/schema as the invocation source. |\n| Retrying unknown tool / invalid args by changing names or parameters repeatedly | Trial-and-error hides the real schema or docs gap. | Stop same-pattern retries and return to the External Tool Usage Verification Gate. |\n| Writing credential values into `PROJECT_INDEX`, `SESSION_HANDOFF`, or `SESSION_LOG` | Project files and git history are persistent; leaked credentials remain exposed. | Record credential references only, never values. |\n| Using a credential value pasted in chat and then recording it | Chat history and logs may persist the secret. | Redact, warn, and ask the user to rotate if needed. |\n| Auto-fixing auth or re-auth flows | Auth belongs to the user and the runtime/tool boundary. | Surface the failure and point to the runtime or tool settings. |\n| Claiming an external write succeeded without read-back | External writes may fail silently or partially. | Read back and compare before claiming success. |\n| Crossing source-of-truth layers | It can corrupt truth, mirrors, or working drafts. | Follow the declared layer role and write direction in `PROJECT_INDEX`. |\n| Skipping startup availability verification because an old handoff said the tool worked | Tokens expire, runtimes change, and tools can be removed. | Probe availability in the current runtime before using the integration. |\n| Leaving task-owned MCP / browser / helper processes running after the task | Turns one-off tool use into a long-lived resource leak and can slow the host. | Use graceful close or task-owned process cleanup automatically; switch to user confirmation only when ownership is unclear. |\n| Broadly killing by process name such as `node.exe`, `python`, or `chrome` | A generic process name does not prove ownership and may terminate user work, another project, or another AI agent's active tools. | Classify by tool family, process ID, start time, parent chain, and task-created path; treat unknown ownership as shared. |\n| Automatically cleaning global caches, marketplace caches, OS temp roots, or browser profiles | May remove shared state, login state, or data other tools still need. | Automatically clean only task-owned / agent-managed bounded paths; report evidence and wait for confirmation otherwise. |\n\n## Cross-reference\n\n- `packs/knowledge.md` Rule 5: Connector-first source access discipline.\n- `packs/safety.md` Rule 10: external API / SDK / CLI / tool verification boundary.\n- `packs/safety.md` Rule 12: credential leak prevention.\n- `packs/safety.md` Rule 14: process termination and cache cleanup boundary for external-tool resources.\n- `packs/onboarding.md` Scenario F: first-contact declaration entry point.\n- `runtime-core/AGENTS.core.md` Section 1: task-triggered availability probe discipline.\n- `runtime-core/PROJECT_INDEX.md` `## Installed Integrations` and `## External Sources` `via` column: declaration registry.\n"
     }
   },
-  "catalogDigestSha256": "397f6990c65f0deb54a183e4cec939426e181372d1f9a4d3af0c7a3c96447d91"
+  "catalogDigestSha256": "202218f2895e1d03603b14b5e75bcfca2129183de3da034ff9d38cf8f595af1d"
 }

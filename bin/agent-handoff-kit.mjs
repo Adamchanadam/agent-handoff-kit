@@ -717,6 +717,30 @@ async function runInstall(command, root, options, version) {
     process.exitCode = 1;
     return;
   }
+  // A preserved historical version row may remain intentionally stale after an
+  // exact managed-core replacement.  Do not create a second preservation
+  // transaction merely because that user-owned row still names the older Kit.
+  // The only no-op authority here is the already committed whole current-state
+  // witness, freshly revalidated against every accepted byte, reader, route,
+  // priority, and effect by both loaders below.
+  if (command === "upgrade") {
+    const acceptedCurrentState = await loadCommittedCurrentStateWitness(root);
+    if (acceptedCurrentState?.transaction?.command === "upgrade"
+      && acceptedCurrentState.transaction.attemptedVersion === version) {
+      const noOpHealth = await assessUpgradeNoopHealth(root, version);
+      console.log(`command: ${command}`);
+      console.log(`current directory: ${process.cwd()}`);
+      console.log(`selected root: ${root}`);
+      console.log(`version state: retained metadata ${installedVersion ? `v${installedVersion}` : "unverified"}; accepted current-state target v${version}`);
+      console.log("mode: accepted-current-state");
+      console.log("");
+      console.log("📋 已由同一個已提交 current-state witness 重新讀回所有受保護 bytes、reader、route、priority 與 effect；不建立第二筆交易。");
+      if (options.dryRun) console.log("dry-run: no files written");
+      printUpgradeNoopShortCircuit(version, noOpHealth);
+      if (!noOpHealth.ok) process.exitCode = 1;
+      return;
+    }
+  }
   const mode = await detectMode(root);
   const plan = await buildPlan(root, command, version);
   // Validate the operator-selected path before every exit path, including

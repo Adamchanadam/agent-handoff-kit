@@ -12,6 +12,7 @@
 - 頂層 readiness 現會實跑 official-origin catalog、Gate-5 whole-set closure、artifact-backed vertical 及原五檔 closure；任一 checker 缺失或失敗都不能輸出成功。
 - 對已釘選的 v0.3.38 舊 `AGENTS.md`，只有官方 artifact 能精確證明的 Kit core 才會更新；舊 core 前後的內容會原樣保留並可重建整檔。任何 core bytes 不精確的混合檔仍整檔保留，不會靠標題、語言或位置猜測分段。
 - 若舊專案版本早於候選、但官方 catalog 尚未有該版本的 raw-byte 身分，`AGENTS.md` 與直接讀取的交接狀態只會整檔保留並由同一 acceptance 讀回；版本欄位只可觸發保守保留，不能授權覆寫。
+- 已釘選的 v0.3.41 舊專案若以直接 `AGENTS.md` 加入用戶內容，升級會真正更新精確 Kit core 並保留外圍原始 bytes；catalog 未能精確證明身分時，core 未更新不會被誤報為升級成功。
 
 ### 開工與收工
 
