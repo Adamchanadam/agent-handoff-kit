@@ -8,25 +8,25 @@
 
 ## v0.3.43 發佈狀態
 
-- 狀態：本機候選，尚未推送、tag、建立 GitHub Release 或 npm publish。產品起點是已發布 v0.3.42 公開 `main` `3d0ca58`；本候選會在完整 commit-bound 全面檢通過後才取得本地 commit identity。
+- 狀態：release-complete。產品 commit `387eeac2f44cf408d48f0ee3615600cd774ec72b` 已推送至公開 `main` 並由 annotated `v0.3.43` tag 精確指向；GitHub Release 為非 draft／非 prerelease；npm `latest` 為 `0.3.43`，fileCount 35，shasum `b87e01b5bce9c78992ae9e7f6c4ef9035dfc4332`，integrity `sha512-f78KWCF77I2zFgy3SdeUFCkI3iEhvL/WMH5LyMOvmXcF2wAeohzTzJnXS1ERP+mtR1wJghLc1JYLe+Q5LqGVVQ==`。
 - 本輪修正已發布 v0.3.42 的真實升級旅程假綠：同一份已驗證 current-state witness 證明 target 已接受，doctor 卻只讀保留的 `PROJECT_INDEX` metadata，並叫用戶再升級。修補後，doctor 以已驗證 accepted version 作目前狀態；metadata 只作資訊。
 - R-034 資料保護核心仍有效：v0.3.41 direct-`AGENTS.md` user suffix、exact core 更新、same-state readback、drift 拒絕、第二次 upgrade 無 phantom transaction 與 recovery 均須重跑。
 - 發佈前驗收必須直接執行本文件所在的 source QA scripts；它們不屬於 npm package，不能以 package.json `scripts` 欄位是否存在取代實際執行。npm package 只驗證 runtime、README、LICENSE、bin、runtime-core 和 packs 的明確白名單。
-- 本節和後續 `full-audit-v0.3.43-candidate.md` 會綁定同一產品 commit、QA harness hash 及 package identity；完成前 release readiness 一律為 NO。
+- 本節和 `full-audit-v0.3.43-candidate.md` 綁定同一產品 commit、QA harness hash 及 package identity。發佈後驗證亦已從 npm 公開套件完成：published install、`--help`、fresh `init`／`doctor`，以及 v0.3.41 direct-`AGENTS.md` user suffix → published v0.3.43 upgrade + sequential doctor 都通過；doctor 顯示 accepted current-state v0.3.43，沒有重複升級建議。
 
 ### Cross-mind evidence 9-trigger table（v0.3.43）
 
 | Trigger | Hit? | Decision | Evidence |
 |---|---:|---|---|
 | 1. Failure or blocker | yes | iterated | Published v0.3.42 could say `status: passed` and still tell a successfully upgraded user to upgrade again; the direct and packed journeys now assert this cannot pass. |
-| 2. External side effects | yes | passed | All validation is in isolated temporary roots; no user project, push, tag, release, or publish was performed. |
+| 2. External side effects | yes | passed | All validation used isolated temporary roots; the explicitly authorized public push, tag, GitHub Release and npm publication completed only after the commit-bound audit passed. |
 | 3. User-visible output | yes | iterated | Doctor now distinguishes tool version, accepted current state, retained metadata and npm latest; the next step must match the same verified state. |
 | 4. Complexity or boundary | yes | iterated | The frozen 110-path R-034 source witness remains distinct from the lean public candidate's own commit-bound raw-byte manifest. |
 | 5. Security or data preservation | yes | passed | Artifact-backed ownership, byte preservation, recovery, and failure-propagation checks remain required. |
 | 6. Semantic runtime effect | yes | iterated | The direct journey verifies ordinary entry, doctor, report and success use one fresh current-state witness and the doctor conclusion uses its accepted target. |
 | 7. Historical upgrade path | yes | iterated | The pinned v0.3.41 direct-AGENTS journey and packed candidate smoke both preserve the user suffix and reject repeat-upgrade advice. |
 | 8. Real user journey | yes | passed | Isolated UAT covers bare status-only startup and explicit continuation without widening the startup contract. |
-| 9. Release statement | yes | iterated | Candidate wording and QA records state local-only status; no push, publication or external release is claimed. |
+| 9. Release statement | yes | passed | GitHub main, annotated tag, public Release and npm registry metadata were read back against the same product commit and package identity; the published journey passed. |
 
 ## v0.3.41 發佈狀態
 

@@ -2,7 +2,7 @@
 
 ## v0.3.43 — 2026-07-17
 
-狀態：本機候選，尚未推送、tag 或發佈。
+狀態：正式發佈版本。GitHub `main`、annotated `v0.3.43` tag、GitHub Release 與 npm `latest` 均已完成；公開套件為 35 個檔案。
 
 ### 升級完成後的狀態一致性
 
