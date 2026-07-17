@@ -1,5 +1,21 @@
 # 變更紀錄
 
+## v0.3.43 — 2026-07-17
+
+狀態：本機候選，尚未推送、tag 或發佈。
+
+### 升級完成後的狀態一致性
+
+- `doctor` 現在只會在已完整驗證同一份 current-state witness 後，才把其中的 accepted version 當作項目的目前狀態。
+- 舊專案為保護原始 bytes 而保留的 `PROJECT_INDEX` 版本，只會清楚顯示為保留資料；若 accepted version 已等於目前工具，`doctor` 不會再叫用戶重跑 upgrade。
+- `doctor` 會分清目前工具、已接受目前狀態、保留 metadata 與 npm 最新版本；工具太舊、項目確實較舊、或 npm 有新版時，才顯示相應下一步。
+- v0.3.41 direct-`AGENTS.md` 升級旅程與打包後安裝旅程，現在都驗證第一次與第二次 `doctor` 的版本及下一步語意，避免只靠 exit code 或 `status: passed` 假綠。
+
+### 公開中英文入口
+
+- 保留原有繁體中文 README、入門、實操指南與 AI 安裝頁，並新增對應英文版本及雙向語言導航。
+- 英文 README 是公開套件的一部分；公開 mirror 和 npm package 會明確驗證它存在，QA、fixtures 與維護工具仍不會入包。
+
 ## v0.3.42 — 2026-07-17
 
 狀態：正式發佈版本。本節保留技術變更；使用者摘要見 GitHub Release 與版本頁。

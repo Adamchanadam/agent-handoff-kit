@@ -2189,7 +2189,11 @@ async function runDoctor(root, version, options = {}) {
   console.log("");
   console.log("項目狀態速覽：");
   const versionAlignment = await assessVersionAlignment(root, version, {
-    skipRegistryLookup: options.skipVersionRegistryLookup === true
+    skipRegistryLookup: options.skipVersionRegistryLookup === true,
+    // checkCurrentStateWitness above has freshly verified both the journal
+    // identity and active bytes.  Only that verified transaction target may
+    // speak for a preserved project's current product state.
+    acceptedVersion: currentStateWitness?.transaction?.attemptedVersion ?? null
   });
   printVersionAlignment(versionAlignment);
   const versionNextStep = getVersionAlignmentNextStep(versionAlignment);
@@ -6162,11 +6166,28 @@ async function assessVersionAlignment(root, cliVersion, options = {}) {
     }
   }
 
-  return { cliVersion, rootVersion, npmLatest };
+  const acceptedVersion = isStableSemver(options.acceptedVersion ?? "")
+    ? options.acceptedVersion
+    : null;
+  return { cliVersion, rootVersion, npmLatest, acceptedVersion };
 }
 
 function printVersionAlignment(result) {
-  const { cliVersion, rootVersion, npmLatest } = result;
+  const { cliVersion, rootVersion, npmLatest, acceptedVersion } = result;
+  if (acceptedVersion !== null) {
+    const metadata = rootVersion === null ? "項目版本記錄缺失" : `項目記錄 v${rootVersion}${rootVersion === acceptedVersion ? "" : "（保留資料）"}`;
+    console.log(`  📦 版本：工具 v${cliVersion} / 已接受目前狀態 v${acceptedVersion} / ${metadata} / npm latest ${npmLatest ? "v" + npmLatest : "無法查詢"}`);
+    if (compareSemver(acceptedVersion, cliVersion) < 0) {
+      console.log(`     項目已接受的狀態是 v${acceptedVersion}，目前工具是 v${cliVersion}；要升級時先執行：npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run`);
+    } else if (compareSemver(acceptedVersion, cliVersion) > 0) {
+      console.log(`     項目已接受的狀態比目前工具新；請先用較新的工具執行 doctor 或 upgrade，不會用舊工具把項目降級。`);
+    }
+    if (npmLatest && compareSemver(npmLatest, cliVersion) > 0) {
+      console.log(`     npm 有新版（v${npmLatest}）；doctor 只檢查不修改。要使用最新版時先執行：npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run`);
+      console.log("     --dry-run 只預覽、不寫入；確認計劃沒問題後，再去掉 --dry-run 正式升級。");
+    }
+    return;
+  }
   if (rootVersion === null) {
     console.log(`  📦 版本：工具 v${cliVersion} / 項目版本記錄缺失（可能曾經手動編輯）/ npm latest ${npmLatest ? "v" + npmLatest : "無法查詢"}`);
     return;
@@ -6191,7 +6212,19 @@ function printVersionAlignment(result) {
 }
 
 function getVersionAlignmentNextStep(result) {
-  const { cliVersion, rootVersion, npmLatest } = result;
+  const { cliVersion, rootVersion, npmLatest, acceptedVersion } = result;
+  if (acceptedVersion !== null) {
+    if (compareSemver(acceptedVersion, cliVersion) > 0) {
+      return `檢查已通過，但項目已接受的狀態是 v${acceptedVersion}，比目前工具 v${cliVersion} 新。請先使用較新的工具；doctor 不會用舊工具把項目降級。`;
+    }
+    if (npmLatest && compareSemver(npmLatest, cliVersion) > 0) {
+      return `檢查已通過，npm 有新版 v${npmLatest}。doctor 沒有修改檔案；要升級時先執行 npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認計劃沒問題後，再去掉 --dry-run 正式升級。`;
+    }
+    if (compareSemver(acceptedVersion, cliVersion) < 0) {
+      return `檢查已通過，但項目已接受的狀態仍是 v${acceptedVersion}，目前工具是 v${cliVersion}。doctor 沒有修改檔案；要升級時先執行 npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認後再去掉 --dry-run 正式升級。`;
+    }
+    return null;
+  }
   if (npmLatest && compareSemver(npmLatest, cliVersion) > 0) {
     return `檢查已通過，但 npm 有新版 v${npmLatest}。doctor 沒有修改檔案；建議先執行 npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run。--dry-run 只預覽、不寫入；確認計劃沒問題後，再去掉 --dry-run 正式升級。`;
   }

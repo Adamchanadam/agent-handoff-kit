@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "version": "0.3.30",
+  "source": {
+    "npm": {
+      "spec": "@adamchanadam/agent-handoff-kit@0.3.30",
+      "shasum": "261743db2c90e913ca6f94158900b3d8c0522ebd",
+      "integrity": "sha512-NT8EUM12irzMMD+85EzR62whQDfBTzFHavfMDH1LVjyzhrwBw8hdz8pMlZGHbrL9R0oXWbaP7uSxBX7Uq7wscw==",
+      "entryCount": 25,
+      "gitHead": "32983b83951a87212d6774df9a1b6b1dc978ba7e"
+    },
+    "git": {
+      "tag": "v0.3.30",
+      "directObject": "32983b83951a87212d6774df9a1b6b1dc978ba7e",
+      "peeledCommit": null,
+      "commit": "32983b83951a87212d6774df9a1b6b1dc978ba7e"
+    },
+    "githubRelease": {
+      "tag": "v0.3.30",
+      "publishedAt": "2026-06-25T21:12:02Z"
+    },
+    "sourceDivergence": {
+      "status": "same-commit",
+      "npmGitHead": "32983b83951a87212d6774df9a1b6b1dc978ba7e",
+      "remoteTagCommit": "32983b83951a87212d6774df9a1b6b1dc978ba7e"
+    }
+  },
+  "installedTargets": {
+    "AGENTS.md": {
+      "state": "present",
+      "contentId": "f540dedc19c083717d67a497cc4d179db9564ac8107658075333e64dfae9632a",
+      "rawSha256": "d29cc10a847c1f26155d8b5edc3f1b6fcf166d0de7fb6028989233a135cda07b",
+      "normalizedSha256": "171678ce3f22e35f3017b7a1045fb0861c0d40579bdca69c84b86ef39788c84d",
+      "canonicalSha256": "171678ce3f22e35f3017b7a1045fb0861c0d40579bdca69c84b86ef39788c84d"
+    },
+    "CLAUDE.md": {
+      "state": "present",
+      "contentId": "7a2cf08a1171762ebcb53f43036a2170655379416945258b9c85d4b189ecaecf",
+      "rawSha256": "9e326c3c1ab08fbcd23b28cd398561c17d851a59997842e0f4f97ff3473ff0ad",
+      "normalizedSha256": "9e326c3c1ab08fbcd23b28cd398561c17d851a59997842e0f4f97ff3473ff0ad",
+      "canonicalSha256": "9e326c3c1ab08fbcd23b28cd398561c17d851a59997842e0f4f97ff3473ff0ad"
+    },
+    "GEMINI.md": {
+      "state": "present",
+      "contentId": "36da47034bb2ce6c760ddbbbbd49dccc1d17665dbb18bec56ffa3b26bac1c135",
+      "rawSha256": "b6e8bfc51ba751fec2acd1719c4459b41524f013e0464a5573de7f66d436c986",
+      "normalizedSha256": "b6e8bfc51ba751fec2acd1719c4459b41524f013e0464a5573de7f66d436c986",
+      "canonicalSha256": "b6e8bfc51ba751fec2acd1719c4459b41524f013e0464a5573de7f66d436c986"
+    },
+    "START_NEXT_SESSION_PROMPT.txt": {
+      "state": "present",
+      "contentId": "a7d3812223f49fd1befcbdc68ed13f27137c24021caf0ec4b2a6e2c311969c55",
+      "rawSha256": "e7c5ef7b32e39f0f4e6b06e620992b42055425013759d8782fc5de7be67166d9",
+      "normalizedSha256": "e7c5ef7b32e39f0f4e6b06e620992b42055425013759d8782fc5de7be67166d9",
+      "canonicalSha256": "bb1db11b3de84a5139881d1fe5623a2bcc138fc08f711d808a25f98b9043cf42"
+    },
+    "dev/SESSION_HANDOFF.md": {
+      "state": "present",
+      "contentId": "c6c0fef9ac2f6b1f9cb963045d6fe8abaa4bf297afe5b08796bed0e5fbd0fee6",
+      "rawSha256": "da8539c8bd3db1827ddee7988d3b8dc20fba4a17ba1799c9469fba06a6bcbf5f",
+      "normalizedSha256": "1a8ad132259605af8ff248600248c6fc277f0b7d46aa4cedf97ca6db8dc42663",
+      "canonicalSha256": "6365fb6c5bbef831ae5abd81b4c51015e29ae570260280ca9a421d1391c5b54a"
+    },
+    "dev/SESSION_LOG.md": {
+      "state": "present",
+      "contentId": "757c4781358e758eefd4441bd9eb42be0db6873127fbb8a4bf5bac987dec9993",
+      "rawSha256": "d23229d70cd2bf3adbb6c0ed4c5ba156863bcad2e092a08628eef42557e827e9",
+      "normalizedSha256": "d23229d70cd2bf3adbb6c0ed4c5ba156863bcad2e092a08628eef42557e827e9",
+      "canonicalSha256": "d23229d70cd2bf3adbb6c0ed4c5ba156863bcad2e092a08628eef42557e827e9"
+    },
+    "dev/PROJECT_INDEX.md": {
+      "state": "present",
+      "contentId": "1c5e8417298063a9a7534696b0290213bdbd212c9330e40a5458e1298ca0ef69",
+      "rawSha256": "1a61e8c3582eb93339cb6d6782e7b295a19b953d2814e34218792723fc3694f3",
+      "normalizedSha256": "46ba7f2e8a50b1fcb8fb883f83a2c1620fb84c41fa6fab9ae0d1667485de3dcc",
+      "canonicalSha256": "6645f52789c2268400be5fee0a798e0ccb12c0f4de86ef362e3c8adf814c138d"
+    },
+    "dev/DOC_SYNC_REGISTRY.md": {
+      "state": "present",
+      "contentId": "098f513c4e074a8a0e18ed413cf981a70b90aeea764d8014f819ab382f1d58ad",
+      "rawSha256": "7400abf937a392fbc80b7bcb4ead1c21a665c1ee9e4b773ef80faedeb365cec0",
+      "normalizedSha256": "7400abf937a392fbc80b7bcb4ead1c21a665c1ee9e4b773ef80faedeb365cec0",
+      "canonicalSha256": "7400abf937a392fbc80b7bcb4ead1c21a665c1ee9e4b773ef80faedeb365cec0"
+    },
+    "dev/RULE_PACKS.md": {
+      "state": "present",
+      "contentId": "9c5b9a696c4d03e4940ce579db5d22acb86df9809ad6ef6d7f1d02c1fd808d90",
+      "rawSha256": "5efba25654b6b3725fd828eab0c4bef35bbfe1f7ef4ec1a4d31b02882ab972ee",
+      "normalizedSha256": "a02b3610b10ea99729dff58daebada8f4d5e696b7d0cc4461ccd5ac218f9b825",
+      "canonicalSha256": "a02b3610b10ea99729dff58daebada8f4d5e696b7d0cc4461ccd5ac218f9b825"
+    },
+    "dev/PROJECT_DECISIONS.md": {
+      "state": "present",
+      "contentId": "a4b7603a3c43b452ea94724d5b93b4477db8a15269dfea7f77c4608ab677fa88",
+      "rawSha256": "882b38656b015c9ff4939cd9bd9d103c67b9d73f88bde042521602c781c63a23",
+      "normalizedSha256": "882b38656b015c9ff4939cd9bd9d103c67b9d73f88bde042521602c781c63a23",
+      "canonicalSha256": "882b38656b015c9ff4939cd9bd9d103c67b9d73f88bde042521602c781c63a23"
+    },
+    "dev/rules/safety.md": {
+      "state": "present",
+      "contentId": "27776570da1b92da026fa6605799b898c235932c4111d257a1732ca1b0bb51e3",
+      "rawSha256": "823f41894873edfffe734a9b70f16f18fad3a770c68daf8a81e7ad41deb89022",
+      "normalizedSha256": "e2a88a91d1539fc68f2b226394d48aa4f76689ce7e7a0233dcd75eb7a45ed6d5",
+      "canonicalSha256": "e2a88a91d1539fc68f2b226394d48aa4f76689ce7e7a0233dcd75eb7a45ed6d5"
+    },
+    "dev/rules/coding.md": {
+      "state": "present",
+      "contentId": "1c6deb9a5a281c13e97b0ac96079e9e1beccbd1ff106186e7a6ac78c0eeb75c2",
+      "rawSha256": "79e96a709d7e9ccc629a0e35f88fde72522cccb71a0e7bd103b02ab7a5a1e7f4",
+      "normalizedSha256": "79e96a709d7e9ccc629a0e35f88fde72522cccb71a0e7bd103b02ab7a5a1e7f4",
+      "canonicalSha256": "79e96a709d7e9ccc629a0e35f88fde72522cccb71a0e7bd103b02ab7a5a1e7f4"
+    },
+    "dev/rules/writing.md": {
+      "state": "present",
+      "contentId": "cb9dda9132f390cd64d20fa5ab0b42ddf0805dc1b040f7ceeb23ae9e05e3c233",
+      "rawSha256": "4a31967593ea7ab6a721a0ab1cd50eb9bb98e10721b12a28eec66feb69ca122b",
+      "normalizedSha256": "4a31967593ea7ab6a721a0ab1cd50eb9bb98e10721b12a28eec66feb69ca122b",
+      "canonicalSha256": "4a31967593ea7ab6a721a0ab1cd50eb9bb98e10721b12a28eec66feb69ca122b"
+    },
+    "dev/rules/research.md": {
+      "state": "present",
+      "contentId": "4414f9c82c6d04ad49d7446f4b0740055242f425ef5b00391d9c8c78c96c0f66",
+      "rawSha256": "b282a48392250b570651f5e2e80c59d6c247617d08db35331d1e7538747a2104",
+      "normalizedSha256": "b282a48392250b570651f5e2e80c59d6c247617d08db35331d1e7538747a2104",
+      "canonicalSha256": "b282a48392250b570651f5e2e80c59d6c247617d08db35331d1e7538747a2104"
+    },
+    "dev/rules/agent-governance.md": {
+      "state": "present",
+      "contentId": "985ca9de44b0422ff7ef0f376e37e56560d911282b92425e473be984235d12f7",
+      "rawSha256": "07607dc0f16b3cfb41220274eb12e6e9c13bc85b57c650476c629bf579a1dbf2",
+      "normalizedSha256": "07607dc0f16b3cfb41220274eb12e6e9c13bc85b57c650476c629bf579a1dbf2",
+      "canonicalSha256": "07607dc0f16b3cfb41220274eb12e6e9c13bc85b57c650476c629bf579a1dbf2"
+    },
+    "dev/rules/release.md": {
+      "state": "present",
+      "contentId": "cfa6928575650eda574e9bd7c6961ebef2d409b00d09347086ea9f2aeefeb191",
+      "rawSha256": "30ee60802efde189845caba562b0736afb5f67a2ef5e222513024216a7425895",
+      "normalizedSha256": "30ee60802efde189845caba562b0736afb5f67a2ef5e222513024216a7425895",
+      "canonicalSha256": "30ee60802efde189845caba562b0736afb5f67a2ef5e222513024216a7425895"
+    },
+    "dev/rules/knowledge.md": {
+      "state": "present",
+      "contentId": "7a3918105f3615b1fedb6743e627fed91a9923200fcc857b65eaeed319857b0e",
+      "rawSha256": "57e40fa54f1524c27bdd3f0416970a559892ebe02a1cf7716fba4edc065610c4",
+      "normalizedSha256": "ab0087077aa1c42a4aacffbcdbb220e6c9be5bafa0692a1b447556cb89999fec",
+      "canonicalSha256": "ab0087077aa1c42a4aacffbcdbb220e6c9be5bafa0692a1b447556cb89999fec"
+    },
+    "dev/rules/communication.md": {
+      "state": "present",
+      "contentId": "f246c84647335b0a479d803cf03af1acdd1b34a2465463983a03d59f3f70a478",
+      "rawSha256": "a365c74ffd60af8ef46d0c28dca57fb555d22c59e76f3fef80426b9bb414cfc9",
+      "normalizedSha256": "a365c74ffd60af8ef46d0c28dca57fb555d22c59e76f3fef80426b9bb414cfc9",
+      "canonicalSha256": "a365c74ffd60af8ef46d0c28dca57fb555d22c59e76f3fef80426b9bb414cfc9"
+    },
+    "dev/rules/closeout.md": {
+      "state": "absent"
+    },
+    "dev/rules/onboarding.md": {
+      "state": "present",
+      "contentId": "1f9225393520bacb3712f190f7dbc51548300d36d7ac3310bf6f69e46c50ed45",
+      "rawSha256": "140826448e462b9131e7907364102d02d54c0abd04542fc548d2da91f3a4d0aa",
+      "normalizedSha256": "0f81fbbe80e001a9c0b84ea133f5fb76baa77547995552621429c8e181e4a67a",
+      "canonicalSha256": "0f81fbbe80e001a9c0b84ea133f5fb76baa77547995552621429c8e181e4a67a"
+    },
+    "dev/rules/integrations.md": {
+      "state": "present",
+      "contentId": "7f2a6f3d33e9a67e92d10966060c8dd045501ae87c545dc2395d40b423afc850",
+      "rawSha256": "503f8d8c9e5fd3d4ddfc746ef6e9e20fb16a5cc729101ddc1c0834170aa1e82b",
+      "normalizedSha256": "503f8d8c9e5fd3d4ddfc746ef6e9e20fb16a5cc729101ddc1c0834170aa1e82b",
+      "canonicalSha256": "503f8d8c9e5fd3d4ddfc746ef6e9e20fb16a5cc729101ddc1c0834170aa1e82b"
+    }
+  }
+}
