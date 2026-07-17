@@ -11,7 +11,7 @@ Do not read `dev/SESSION_LOG.md` during ordinary startup; it is trace-back evide
 Route intent in this order:
 
 1. Clear closeout intent routes directly to `dev/rules/closeout.md`.
-2. Clear continuity intent such as "開工", "Start Agent Handoff", "開始接力", or "continue handoff" resumes from the handoff. If the same message or loaded state contains a concrete objective, begin its first safe action in the same response.
+2. Clear continuity intent such as "開工", "Start Agent Handoff", "開始接力", or "continue handoff" resumes the minimum current state from the handoff. A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, writes, network access, or opt-out wording such as "unless you object I will start". A concrete objective found only in loaded state is not authority to complete it. A same-message task may begin normally. An explicit instruction such as "開工，繼續做到下一個 blocker" or "開工，繼續完成目前目標" may continue under the normal task and safety rules.
 3. A direct ordinary task begins without a startup card or onboarding ceremony. Read only the sources and packs required by that task.
 4. Explicit guidance requests such as "I'm new", "teach me", "help me start", "新手", "教我用", or "點開始" may load `dev/rules/onboarding.md`. A fresh install or short message only makes guidance available; it never overrides a concrete objective. If no executable objective remains after state reading, ask one concise question or offer guided onboarding.
 
@@ -25,7 +25,7 @@ Before a non-trivial task, identify and read the required local and external tru
 
 Probe an integration only immediately before a task uses it, when the handoff explicitly identifies it as a dependency for the current objective, or when the user requests an integration health check. `TBD`, examples, blank rows, and undeclared placeholders are not installed integrations. Record `Last Verified` only after a real probe and through the normal persistence gate. Never write integration status merely because a session started.
 
-Show the startup card only for explicit continuity startup. Combine it with the first useful task action when the objective is clear; do not spend a separate response on the card. Direct ordinary tasks do not show the card. If onboarding is explicitly requested, combine any card and guidance in one response.
+Show the startup card only for explicit continuity startup. For a plain continuity message, show the card after the minimum state recovery and end the turn; its recommended next action is advice, not permission to act. An explicit same-message task or long-run continuation may combine the card with its first useful action. Direct ordinary tasks do not show the card. If onboarding is explicitly requested, combine any card and guidance in one response.
 
 Use a verified version already present in loaded state. If obtaining it would require reading an otherwise unnecessary file, print `version unverified`; do not create a second version source merely to fill the card.
 
@@ -45,6 +45,8 @@ Use the full product name, plain user language, and one recommended next action.
 ## 2. Proportionate Work Loop
 
 Apply PLAN → READ → CHANGE → QC internally and in proportion to task state and risk. Do not make the user watch governance ceremony that does not help the task.
+
+In every user-facing reply, lead with ordinary language: state the result and its practical effect, then the next action when one helps. Put exact commands, errors, hashes, and detailed evidence after that; brevity must not hide uncertainty or safety risk.
 
 - Simple answers, pure conversation or creation with no durable state, and low-risk tasks with an obvious target may proceed directly with proportionate reading and checking.
 - Non-trivial work reads relevant sources before changing them.
@@ -97,7 +99,8 @@ The always-enforced closeout invariants are:
 2. Completed, pending, risk, validation, and opening-message lifecycle states agree.
 3. `START_NEXT_SESSION_PROMPT.txt` is regenerated from the sole authoritative handoff block and no third full copy is retained.
 4. Closeout is not complete until required files are written, read back, and the available closeout checks pass.
-5. Git commit, push, release, publish, deployment, deletion, and permission changes remain separately authorized actions.
+5. After those checks, render the final card with `agent-handoff-kit closeout-status --root <project root>`; only its `status: complete` output may say `handoff saved`. A nonzero / `blocked` result is an honest blocked closeout, not a completed one.
+6. Git commit, push, release, publish, deployment, deletion, and permission changes remain separately authorized actions.
 
 ## 5. Pack Loading
 

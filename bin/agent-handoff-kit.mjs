@@ -2,14 +2,26 @@
 
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { chmod, copyFile, lstat, mkdir, open, readFile, readdir, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { chmod, copyFile, link, lstat, mkdir, open, readFile, readdir, realpath, stat, unlink, writeFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assessPromptMirrorRoot, assessPromptMirrorTexts, extractOpeningMessage } from "./prompt-mirror-core.mjs";
-import { installedFileContract, installedMappings, requiredInstalledTargets } from "./installed-file-contract.mjs";
-import { getOfficialBaseline, identifyOfficialOrigin, loadOfficialOriginCatalog } from "./official-origin-catalog.mjs";
+import { freshInstallMappings, installedFileContract, installedMappings, requiredInstalledTargets, upgradeStateMappings, upgradeStateTargets } from "./installed-file-contract.mjs";
+import { getArtifactBoundManagedSegment, getOfficialBaseline, identifyOfficialOrigin, loadOfficialOriginCatalog } from "./official-origin-catalog.mjs";
+import { assertGate5FrozenSet, extractExplicitLocalReferences, freezeGate5Set } from "./upgrade-inventory.mjs";
+import {
+  FORMAL_USER_RULES_ENTRY_ANCHOR,
+  USER_RULES_ROUTER_PATH,
+  createUserRulesState,
+  isFormalUserRulesContentPath,
+  parseUserRulesRegistry,
+  readFormalUserRules,
+  renderUserRulesAcceptanceDigest,
+  renderUserRulesRouter,
+  userRulesAcceptanceDigest
+} from "./user-rules-router.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(__dirname, "..");
@@ -21,6 +33,12 @@ const rulePackTargets = mappings
   .filter((target) => target.startsWith("dev/rules/"));
 const managedCoreStart = "<!-- BEGIN Agent Handoff Kit managed core -->";
 const managedCoreEnd = "<!-- END Agent Handoff Kit managed core -->";
+const directStatefulTargets = new Set([
+  "START_NEXT_SESSION_PROMPT.txt",
+  "dev/SESSION_HANDOFF.md",
+  "dev/PROJECT_INDEX.md",
+  "dev/SESSION_LOG.md"
+]);
 const credentialLeakPatterns = [
   { pattern: /sk-ant-[A-Za-z0-9_-]{20,}/, label: "Anthropic API key" },
   { pattern: /\bsk-[A-Za-z0-9_-]{20,}/, label: "sk-prefixed token" },
@@ -80,7 +98,9 @@ const requiredAnchors = [
       "dev/rules/closeout.md",
       "Current state lives in `dev/SESSION_HANDOFF.md`",
       "no third full copy is retained",
-      "START_NEXT_SESSION_PROMPT.txt"
+      "START_NEXT_SESSION_PROMPT.txt",
+      "closeout-status",
+      "handoff saved"
     ]
   },
   {
@@ -97,6 +117,8 @@ const requiredAnchors = [
       "START_NEXT_SESSION_PROMPT.txt",
       "omit the full opening message by design",
       "handoff saved",
+      "Project-required persistence",
+      "closeout-status",
       "Stop Conditions"
     ]
   },
@@ -120,6 +142,8 @@ const requiredAnchors = [
       "ack:field:recommended-next-step-explicit",
       "ack:field:lifecycle-conflicts-resolved",
       "ack:field:persistence-routing-checked",
+      "ack:field:closeout-outcome",
+      "ack:field:project-required-persistence",
       "ack:field:first-use-guidance-state",
       "📋 Next session:",
       "```text",
@@ -245,7 +269,7 @@ const requiredAnchors = [
       "transient pack",
       "Explicit onboarding signal keywords",
       "Continuity startup boundary",
-      "starts continuity and reads the current handoff state; it is not an onboarding signal",
+      "starts continuity and reads the minimum current handoff state; it is not an onboarding signal",
       "Infer when sufficient; ask only when unresolved",
       "Application Scenario Library",
       "Scenario A. Build systems, tools, platforms, websites, or apps",
@@ -319,6 +343,8 @@ const schemaChecks = [
       marker("field", "stale-snapshots-left", "Stale snapshots left in this handoff"),
       marker("field", "lifecycle-conflicts-resolved", "Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified"),
       marker("field", "persistence-routing-checked", "Persistence routing checked"),
+      marker("field", "closeout-outcome", "Closeout outcome"),
+      marker("field", "project-required-persistence", "Project-required persistence"),
       marker("field", "recommended-next-step-explicit", "Recommended next step is explicit and reasoned"),
       marker("field", "opening-message-matches-current-state", "Opening message matches current state"),
       marker("field", "state-sections-rewritten-or-confirmed", "State sections rewritten or confirmed current"),
@@ -541,9 +567,11 @@ main().catch((error) => {
 });
 
 async function main() {
-  const version = await readPackageVersion();
-  await maybePrintUpdateNotice(version);
   const { command, options } = parseArgs(process.argv.slice(2));
+  const version = await readPackageVersion();
+  // `doctor` renders version alignment itself.  Let that single health run own
+  // the lookup instead of checking once here and once again inside doctor.
+  if (command !== "closeout-status" && command !== "doctor") await maybePrintUpdateNotice(version);
   if (!command || options.help) {
     printHelp(version);
     return;
@@ -561,7 +589,72 @@ async function main() {
     return;
   }
 
+  if (command === "closeout-status") {
+    await runCloseoutStatus(root, version);
+    return;
+  }
+
   throw new Error(`unknown command "${command}"`);
+}
+
+async function runCloseoutStatus(root, version) {
+  let handoffText = "";
+  try {
+    handoffText = await readFile(path.join(root, "dev", "SESSION_HANDOFF.md"), "utf8");
+  } catch {
+    printCloseoutStatusCard(version, { ok: false, findings: ["current handoff is unreadable"] });
+    process.exitCode = 1;
+    return;
+  }
+
+  const findings = [];
+  const outcome = closeoutOutcome(fieldValueAfterMarker(handoffText, "closeout-outcome"));
+  const persistence = projectRequiredPersistence(fieldValueAfterMarker(handoffText, "project-required-persistence"));
+  if (outcome !== "complete") findings.push("closeout outcome is not complete");
+  if (!new Set(["complete", "not_required"]).has(persistence)) findings.push("project-required persistence is not complete or not required");
+  if (!assessHandoffLifecycleConsistency(handoffText).ok) findings.push("handoff lifecycle read-back is not healthy");
+  if (!assessPromptMirrorRoot(root).ok) findings.push("opening-message mirror is not current");
+
+  // A closeout card needs a fresh local health readback, not a version-notice
+  // network request.  The caller has already completed the closeout workflow.
+  const doctor = await assessUpgradeNoopHealth(root, version, { skipVersionRegistryLookup: true });
+  if (!doctor.ok) findings.push("fresh doctor read-back did not pass");
+
+  const result = { ok: findings.length === 0, findings };
+  printCloseoutStatusCard(version, result);
+  if (!result.ok) process.exitCode = 1;
+}
+
+function closeoutOutcome(value) {
+  return /^(complete|completed)\b/i.test((value ?? "").trim()) ? "complete" : "blocked";
+}
+
+function projectRequiredPersistence(value) {
+  const normalized = (value ?? "").trim();
+  if (/^(complete|completed)\b/i.test(normalized)) return "complete";
+  if (/^not_required\b/i.test(normalized)) return "not_required";
+  return "blocked";
+}
+
+function printCloseoutStatusCard(version, result) {
+  console.log(`   /\\_/\\   Agent Handoff Kit v${version}`);
+  if (result.ok) {
+    console.log("  ( -.- )  handoff saved");
+    console.log("   > ^ <");
+    console.log("");
+    console.log("status: complete");
+    console.log("✅ Done: required closeout state is complete");
+    console.log("🔎 QC: fresh doctor and opening-message mirror passed");
+    console.log("📌 Handoff: opening message ready");
+    console.log("⚠️ Boundary: none");
+    return;
+  }
+  console.log("  ( x.x )  handoff blocked");
+  console.log("   > ^ <");
+  console.log("");
+  console.log("status: blocked");
+  console.log(`⚠️ Blocker: ${result.findings.join("; ")}`);
+  console.log("📌 Handoff: keep the current state resumable; do not call this closeout complete");
 }
 
 function parseArgs(args) {
@@ -608,10 +701,15 @@ async function runInstall(command, root, options, version) {
   // transaction. Recovery is a write path and must not run through a junction.
   await validateTransactionRoot(root, [], { createMissingRoot: false });
   if (options.dryRun) await assertDryRunHasNoPendingTransaction(root);
-  else await recoverInterruptedTransaction(root);
+  else {
+    await recoverInterruptedTransaction(root);
+    if (command === "upgrade" && process.env.AGENT_HANDOFF_KIT_QA_RECOVER_ONLY === "1") {
+      console.log("QA recovery-only path completed; no new upgrade transaction was started.");
+      return;
+    }
+  }
   const installedVersion = await readInstalledTemplateVersion(root);
   if (command === "upgrade" && installedVersion && compareSemver(installedVersion, version) > 0) {
-    printCard(version, "upgrade blocked", "x.x");
     console.log(`selected root: ${root}`);
     console.log(`status: blocked`);
     console.log(`reason: project template v${installedVersion} is newer than this CLI v${version}`);
@@ -632,9 +730,20 @@ async function runInstall(command, root, options, version) {
   // create/merge/conflict actions (skip-only), skip the full plan listing +
   // confirmWrite + ceremony. The plan listing in this scenario is pure noise —
   // user is already at latest and just verifying status.
+  const planConflictCount = plan.filter((item) => item.action === "conflict").length;
+  // A verified formal user-rules transition is represented as a planned merge
+  // so a real change stays atomic with the Kit base.  On a freshly installed,
+  // already-current root it can nevertheless produce no bytes at all.  Compute
+  // that state in memory before choosing the user-facing no-op path; doctor
+  // still performs the authoritative fresh readback below.
+  let candidateOutputs = null;
+  if (command === "upgrade" && planConflictCount === 0) {
+    candidateOutputs = await buildTransactionOutputs(command, root, plan, version);
+    reconcilePlanWithTransactionOutputs(plan, candidateOutputs);
+  }
   const planCreateCount = plan.filter((item) => item.action === "create").length;
   const planMergeCount = plan.filter((item) => item.action === "merge").length;
-  const planConflictCount = plan.filter((item) => item.action === "conflict").length;
+  const planPreserveCount = plan.filter((item) => item.action === "preserve").length;
   const planSkipCount = plan.filter((item) => item.action === "skip").length;
   // R-031.3 v0.3.4+: metadata-only stale guard. If PROJECT_INDEX template version
   // row is stale but structure is fully current (all v0.2.0+ files already present),
@@ -643,14 +752,17 @@ async function runInstall(command, root, options, version) {
   // root on stale version forever.
   const projectIndexVersionNeedsInject = await needsProjectIndexVersionInject(root, command, version);
   const isUpgradeNoopAtPlanTime = command === "upgrade"
-    && planCreateCount === 0
-    && planMergeCount === 0
     && planConflictCount === 0
     && !projectIndexVersionNeedsInject;
 
-  if (isUpgradeNoopAtPlanTime) {
+  const hasNoTransactionOutputs = candidateOutputs?.length === 0;
+
+  if (isUpgradeNoopAtPlanTime && (
+    (planCreateCount === 0 && planMergeCount === 0 && planPreserveCount === 0)
+    || hasNoTransactionOutputs
+  )) {
     const noOpHealth = await assessUpgradeNoopHealth(root, version);
-    printCard(version, "continuity ready", "o.o");
+    if (noOpHealth.ok) printCard(version, "continuity ready", "o.o");
     console.log(`command: ${command}`);
     console.log(`current directory: ${process.cwd()}`);
     console.log(`selected root: ${root}`);
@@ -667,9 +779,8 @@ async function runInstall(command, root, options, version) {
     return;
   }
 
-  let candidateOutputs = null;
   if (planConflictCount === 0) {
-    candidateOutputs = await buildTransactionOutputs(command, root, plan, version);
+    candidateOutputs ??= await buildTransactionOutputs(command, root, plan, version);
     const credentialFindings = await detectInstalledCredentialFindings(root);
     if (credentialFindings.length > 0) {
       plan.push({
@@ -752,17 +863,44 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
   // The user has confirmed writes. Create and revalidate a missing root only
   // now, immediately before transaction artifacts are prepared.
   await validateTransactionRoot(root, plan, { createMissingRoot: true });
-  const transaction = await prepareTransaction(root, command, version, outputs, mode, plan);
+  // Gate 5 does not introduce a second state owner.  When this existing
+  // transaction already has a runtime acceptance, bind the pre-transaction
+  // root-source witness into the same current-state digest before the journal
+  // directory itself is created.
+  const sourceConservation = command === "upgrade" && resolveRuntimeAcceptance(outputs)
+    ? await createSourceConservation(root, outputs)
+    : null;
+  // A repair may restore the exact bytes of a prior committed state.  Keep the
+  // causal replacement relation inside the existing sealed journal so ordinary
+  // doctor can select the freshly read-back transaction without falling back
+  // to mtime or a separate current-state registry.
+  const supersedesCurrentStateDigests = command === "upgrade"
+    ? await findRestoredCurrentStateDigests(root, outputs)
+    : [];
+  const transaction = await prepareTransaction(root, command, version, outputs, mode, plan, sourceConservation, supersedesCurrentStateDigests);
   try {
     transaction.journal.state = "committing";
     await writeSecureJson(transaction.journalPath, transaction.journal);
 
     let committedCount = 0;
     const qaFailAfterCommit = Number.parseInt(process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_COMMIT ?? "", 10);
+    const qaFailAfterCommitTarget = process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_COMMIT_TARGET ?? null;
+    const qaInterruptAfterReplace = process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_REPLACE === "1"
+      ? 1
+      : Number.parseInt(process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_REPLACE_COUNT ?? "", 10);
     for (const entry of transaction.journal.entries) {
       const output = outputs.find((item) => item.targetRel === entry.targetRel);
-      await atomicReplaceFromBuffer(root, output.targetAbs, output.after, transaction.id);
-      if (process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_REPLACE === "1") {
+      const current = await readOptionalBuffer(output.targetAbs);
+      const currentHash = current ? sha256(current) : null;
+      if (currentHash !== entry.beforeHash) {
+        throw new Error(`${entry.targetRel}: target changed after transaction preparation; no overwrite attempted`);
+      }
+      await atomicReplaceFromBuffer(root, output.targetAbs, output.after, transaction.id, entry.beforeHash, {
+        targetRel: entry.targetRel,
+        escrowDir: transaction.escrowDir,
+        phase: "forward"
+      });
+      if (Number.isInteger(qaInterruptAfterReplace) && qaInterruptAfterReplace === committedCount + 1) {
         const interruption = new Error("QA interruption after target replacement before journal update");
         interruption.code = "ACK_QA_INTERRUPT_AFTER_REPLACE";
         throw interruption;
@@ -770,10 +908,45 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
       entry.committed = true;
       committedCount += 1;
       await writeSecureJson(transaction.journalPath, transaction.journal);
-      if (Number.isInteger(qaFailAfterCommit) && qaFailAfterCommit === committedCount) {
-        throw new Error(`QA fault injection after committed target ${committedCount}`);
+      if ((Number.isInteger(qaFailAfterCommit) && qaFailAfterCommit === committedCount)
+        || (qaFailAfterCommitTarget === entry.targetRel)) {
+        throw new Error(`QA fault injection after committed target ${entry.targetRel}`);
       }
     }
+
+    // Test-only fault injection for the acceptance/readback boundary.  This
+    // runs after every transaction target has been published and journaled,
+    // but before the single fresh doctor readback that is allowed to certify
+    // success.  Production behavior is unchanged unless the explicit QA
+    // environment variables are present.
+    await injectTransactionWindowDrift(root, transaction.journal);
+
+    let formalRuntimeState = null;
+    let runtimeAcceptanceState = null;
+    const doctorStatus = await runDoctor(root, version, {
+      silentCard: true,
+      context: "post-transaction-project-health",
+      allowActiveTransaction: true,
+      expectedCurrentStateWitness: transaction.journal.currentStateWitness,
+      captureFormalUserRules: (state) => { formalRuntimeState = state; },
+      captureRuntimeAcceptance: (state) => { runtimeAcceptanceState = state; }
+    });
+    if (doctorStatus !== "passed") {
+      throw new Error("post-transaction doctor failed; transaction is not committed");
+    }
+    if (transaction.journal.formalUserRules) {
+      if (!formalRuntimeState) throw new Error("post-transaction doctor did not produce the required formal runtime readback");
+      transaction.journal.runtimeReadback = formalUserRulesReadbackFromDoctorState(formalRuntimeState, transaction.journal.formalUserRules);
+    }
+    if (transaction.journal.runtimeAcceptance) {
+      if (!runtimeAcceptanceState) throw new Error("post-transaction doctor did not produce the required formal runtime acceptance readback");
+      transaction.journal.runtimeAcceptanceReadback = runtimeAcceptanceReadbackFromDoctorState(runtimeAcceptanceState, transaction.journal.runtimeAcceptance);
+    }
+    transaction.journal.currentStateReadback = currentStateReadbackFromDoctorStates(
+      transaction.journal.currentStateWitness,
+      formalRuntimeState,
+      runtimeAcceptanceState
+    );
 
     transaction.journal.committedVersion = version;
     transaction.journal.state = "committed";
@@ -789,6 +962,7 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
 
     const created = outputs.filter((item) => !item.before).map((item) => item.targetRel);
     const merged = outputs.filter((item) => item.before).map((item) => item.reason ? `${item.targetRel} - ${item.reason}` : item.targetRel);
+    printCard(version, command === "upgrade" ? "upgrade verified" : "continuity ready", "o.o");
     printInstallSummary(version, command, mode, root, {
       created: created.length,
       merged: merged.length,
@@ -802,14 +976,20 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
 
     if (command === "upgrade") {
       console.log("");
-      console.log("✅ migration committed：離線遷移驗收已通過，版本代表本次成功提交。");
-      console.log("🩺 project health：現在執行完整 doctor；它的結果與 migration committed 分開。");
-      const doctorStatus = await runDoctor(root, version, { silentCard: true, context: "post-transaction-project-health" });
-      if (doctorStatus === "passed") console.log("✅ project health: passed");
-      else console.log("⚠️ project health: needs attention; migration remains committed because the deterministic migration gate passed");
+      console.log("✅ migration committed：已由同一輪正式 doctor 讀回後提交。");
+      console.log("✅ project health: passed");
     }
   } catch (error) {
     if (["ACK_QA_INTERRUPT_AFTER_REPLACE", "ACK_QA_INTERRUPT_AFTER_JOURNAL_COMMIT"].includes(error?.code)) throw error;
+    if (isNoClobberConflict(error)) {
+      transaction.journal.state = "manual-recovery-required";
+      transaction.journal.committedVersion = null;
+      transaction.journal.error = safeErrorLabel(error);
+      transaction.journal.recoveryConflicts = [safeErrorLabel(error)];
+      await writeSecureJson(transaction.journalPath, transaction.journal).catch(() => {});
+      console.log("⛔ migration incomplete：no-clobber boundary preserved concurrent bytes; recovery lock remains.");
+      throw error;
+    }
     transaction.journal.state = "rollback-needed";
     transaction.journal.error = safeErrorLabel(error);
     await writeSecureJson(transaction.journalPath, transaction.journal).catch(() => {});
@@ -837,21 +1017,37 @@ async function detectInstalledCredentialFindings(root) {
 async function buildTransactionOutputs(command, root, plan, version) {
   const byTarget = new Map();
   for (const item of plan) {
-    if (item.action !== "create" && item.action !== "merge") continue;
+    if (item.action !== "create" && item.action !== "merge" && item.action !== "preserve") continue;
     const before = await readOptionalBuffer(item.targetAbs);
-    let afterText;
-    if (item.action === "create") {
-      const sourceText = await readFile(item.sourceAbs, "utf8");
+    let afterText = null;
+    let after = null;
+    if (item.action === "preserve") {
+      if (!before) throw new Error(`${item.targetRel}: preserved transaction item disappeared before preparation`);
+      after = Buffer.from(before);
+    } else if (item.action === "create") {
+      const sourceText = await readTemplateSource(command, item.sourceRel, item.targetRel, item.sourceAbs);
       afterText = item.targetRel === "AGENTS.md" ? mergeManagedBlock("", sourceText) : sourceText;
     } else {
       afterText = item.mergedText;
+      after = item.mergedBytes ? Buffer.from(item.mergedBytes) : null;
     }
-    afterText = afterText.replaceAll("<absolute project root>", root);
+    // A first install may merge into a user-owned AGENTS.md.  It still creates
+    // the formal router, so the matching active AGENTS entry must be installed
+    // in the same transaction.  Do not duplicate a pre-existing entry.
+    if (command === "init" && item.targetRel === "AGENTS.md" && !afterText.includes(FORMAL_USER_RULES_ENTRY_ANCHOR)) {
+      const userRulesEntry = await readFile(path.join(packageRoot, "runtime-core", "USER_RULES_ENTRY.md"), "utf8");
+      afterText = `${afterText.trimEnd()}\n\n${userRulesEntry.trim()}\n`;
+    }
+    if (afterText != null) afterText = afterText.replaceAll("<absolute project root>", root);
     byTarget.set(item.targetRel, {
       targetRel: item.targetRel,
       targetAbs: item.targetAbs,
       before,
+      after,
       afterText,
+      ...(item.action === "preserve" ? { forceTransaction: true } : {}),
+      ...(item.action === "preserve" ? { preservedRuntimeItem: item.preservedRuntimeItem } : {}),
+      ...(item.managedSegmentRuntimeItem ? { managedSegmentRuntimeItem: item.managedSegmentRuntimeItem } : {}),
       reason: item.reason ?? item.action
     });
   }
@@ -863,7 +1059,7 @@ async function buildTransactionOutputs(command, root, plan, version) {
     const before = await readOptionalBuffer(indexAbs);
     if (before) indexOutput = { targetRel: indexRel, targetAbs: indexAbs, before, afterText: decodeUtf8(before, indexRel).text, reason: "template version metadata" };
   }
-  if (indexOutput) {
+  if (indexOutput?.afterText != null) {
     const updated = indexOutput.afterText.replace(/\| Agent Handoff Kit template version \| [\d.]+ \|/, `| Agent Handoff Kit template version | ${version} |`);
     indexOutput.afterText = updated;
     byTarget.set(indexRel, indexOutput);
@@ -879,35 +1075,148 @@ async function buildTransactionOutputs(command, root, plan, version) {
       const promptAbs = path.join(root, promptRel);
       const promptBefore = await readOptionalBuffer(promptAbs);
       const existing = byTarget.get(promptRel);
-      byTarget.set(promptRel, {
-        targetRel: promptRel,
-        targetAbs: promptAbs,
-        before: existing?.before ?? promptBefore,
-        afterText: opening.replaceAll("<absolute project root>", root),
-        reason: "regenerated from authoritative handoff opening message"
-      });
+      if (!existing?.preservedRuntimeItem) {
+        // A preserved historical handoff is itself the authoritative source for
+        // this convenience mirror.  Do not change its root placeholder only in
+        // the newly created mirror: that would make the final transaction fail
+        // the mirror check while leaving the preserved handoff untouched.
+        const preserveHandoffOpening = Boolean(handoffOutput?.preservedRuntimeItem);
+        byTarget.set(promptRel, {
+          targetRel: promptRel,
+          targetAbs: promptAbs,
+          before: existing?.before ?? promptBefore,
+          afterText: preserveHandoffOpening ? opening : opening.replaceAll("<absolute project root>", root),
+          reason: preserveHandoffOpening
+            ? "regenerated byte-for-byte from preserved authoritative handoff opening message"
+            : "regenerated from authoritative handoff opening message"
+        });
+      }
     }
   }
 
+  await synchronizeFormalUserRulesTransactionState(command, root, byTarget, version);
+
   const outputs = [];
   for (const item of byTarget.values()) {
-    const after = encodeLikeExisting(item.afterText, item.before, item.targetRel);
-    if (item.before && item.before.equals(after)) continue;
+    const after = item.after ?? encodeLikeExisting(item.afterText, item.before, item.targetRel);
+    if (!item.forceTransaction && item.before && item.before.equals(after)) continue;
     outputs.push({ ...item, after, beforeHash: item.before ? sha256(item.before) : null, afterHash: sha256(after) });
+  }
+  const runtimeAcceptance = await createRuntimeAcceptance(root, outputs);
+  if (runtimeAcceptance) {
+    const acceptanceTargets = new Set(runtimeAcceptance.entries.map((entry) => entry.targetRel));
+    for (const output of outputs) {
+      if (acceptanceTargets.has(output.targetRel)) output.runtimeAcceptance = runtimeAcceptance;
+    }
   }
   return outputs;
 }
 
-async function prepareTransaction(root, command, version, outputs, mode, plan) {
+function reconcilePlanWithTransactionOutputs(plan, outputs) {
+  const outputTargets = new Set(outputs.map((item) => item.targetRel));
+  for (const item of plan) {
+    if (!["create", "merge", "preserve"].includes(item.action) || outputTargets.has(item.targetRel)) continue;
+    // Planning formal state transitions before rendering their canonical
+    // acceptance is necessary for safety. Once the in-memory comparison proves
+    // no bytes would change, do not present that transition as a write.
+    item.action = "skip";
+    item.reason = "already accepted with no byte change in this transaction";
+  }
+}
+
+async function synchronizeFormalUserRulesTransactionState(command, root, byTarget, version) {
+  const routerOutput = byTarget.get(USER_RULES_ROUTER_PATH);
+  if (!routerOutput) return;
+
+  let prior = null;
+  if (command === "upgrade") {
+    // The old formal reader is the sole authority for whether a prior router
+    // is eligible for transition. A path, title, or directory never grants
+    // this authority.
+    prior = await readFormalUserRules({ root });
+  }
+
+  let agentOutput = byTarget.get("AGENTS.md");
+  if (!agentOutput) {
+    const targetAbs = path.join(root, "AGENTS.md");
+    const before = await readOptionalBuffer(targetAbs);
+    if (!before) throw new Error("formal user-rules transition requires AGENTS.md");
+    agentOutput = {
+      targetRel: "AGENTS.md",
+      targetAbs,
+      before,
+      afterText: decodeUtf8(before, "AGENTS.md").text,
+      reason: "formal user-rules acceptance transition"
+    };
+    byTarget.set("AGENTS.md", agentOutput);
+  }
+
+  const agentsText = agentOutput.afterText
+    ?? decodeUtf8(agentOutput.after ?? agentOutput.before, "AGENTS.md").text;
+  const entries = parseUserRulesRegistry(routerOutput.afterText);
+  const state = createUserRulesState({ packageVersion: version, agentsText });
+  routerOutput.afterText = renderUserRulesRouter(routerOutput.afterText, { state, entries });
+  const acceptanceDigest = userRulesAcceptanceDigest(entries, state);
+  const renderedAgentsText = renderUserRulesAcceptanceDigest(agentsText, acceptanceDigest);
+  if (agentOutput.after) {
+    const renderedBytes = encodeLikeExisting(renderedAgentsText, agentOutput.before, "AGENTS.md");
+    if (!agentOutput.after.equals(renderedBytes)) {
+      throw new Error("formal user-rules transition would alter preserved AGENTS.md bytes; upgrade stops instead of rewriting a non-exact source");
+    }
+  }
+  agentOutput.afterText = renderedAgentsText;
+  const witness = createFormalUserRulesWitness(entries, state, acceptanceDigest);
+  routerOutput.formalUserRules = witness;
+  agentOutput.formalUserRules = witness;
+
+  if (!prior) return;
+  if (prior.rules.length !== entries.length || prior.acceptanceDigest !== userRulesAcceptanceDigest(entries, prior.state)) {
+    throw new Error("formal user-rules transition input changed after formal reader validation");
+  }
+  for (const rule of prior.rules) {
+    if (byTarget.has(rule.path)) throw new Error(`formal user-rules content overlaps a Kit transaction target: ${rule.path}`);
+    byTarget.set(rule.path, {
+      targetRel: rule.path,
+      targetAbs: path.join(root, rule.path),
+      before: rule.bytes,
+      after: Buffer.from(rule.bytes),
+      forceTransaction: true,
+      formalUserRuleContent: true,
+      formalUserRules: witness,
+      reason: "formal user-rules original-byte preservation"
+    });
+  }
+}
+
+function createFormalUserRulesWitness(entries, state, acceptanceDigest) {
+  return Object.freeze({
+    acceptanceDigest,
+    state,
+    entries: Object.freeze(entries.map((entry) => Object.freeze({
+      entryId: entry.entryId,
+      contentPath: entry.contentPath,
+      accepted: Object.freeze({ sha256: entry.accepted.sha256, bytes: entry.accepted.bytes }),
+      sourceWitness: Object.freeze({ sha256: entry.sourceWitness.sha256, bytes: entry.sourceWitness.bytes }),
+      originalReader: entry.originalReader,
+      activeReader: entry.activeReader,
+      priorityRelation: entry.priorityRelation,
+      effectDecision: entry.effectDecision
+    })))
+  });
+}
+
+async function prepareTransaction(root, command, version, outputs, mode, plan, sourceConservation = null, supersedesCurrentStateDigests = []) {
   const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   const migrationDir = path.join(migrationsRoot, id);
   const backupDir = path.join(migrationDir, "backup");
   const stageDir = path.join(migrationDir, "stage");
+  const escrowDir = path.join(migrationDir, "no-clobber-escrow");
   const journalPath = path.join(migrationDir, "transaction.json");
   const lockPath = path.join(migrationsRoot, ".upgrade.lock");
   await mkdir(backupDir, { recursive: true });
   await mkdir(stageDir, { recursive: true });
+  await mkdir(escrowDir, { recursive: true });
   await tightenPermissions(migrationsRoot, 0o700);
   await tightenPermissions(migrationDir, 0o700);
   const lock = await open(lockPath, "wx", 0o600).catch((error) => {
@@ -942,10 +1251,22 @@ async function prepareTransaction(root, command, version, outputs, mode, plan) {
     pid: process.pid,
     state: "prepared",
     createdAt: new Date().toISOString(),
-    entries
+    entries,
+    formalUserRules: resolveFormalUserRulesWitness(outputs),
+    runtimeReadback: null,
+    runtimeAcceptance: resolveRuntimeAcceptance(outputs),
+    runtimeAcceptanceReadback: null,
+    sourceConservation,
+    ...(supersedesCurrentStateDigests.length > 0 ? { supersedesCurrentStateDigests } : {}),
+    currentStateWitness: null,
+    currentStateReadback: null
   };
+  // One journal-local identity binds every component that may certify this
+  // transaction.  Component digests remain useful evidence, but neither can
+  // independently authorise doctor/report/success.
+  journal.currentStateWitness = createCurrentStateWitness(journal);
   await writeSecureJson(journalPath, journal);
-  return { id, migrationDir, backupDir, stageDir, journalPath, lockPath, journal };
+  return { id, migrationDir, backupDir, stageDir, escrowDir, journalPath, lockPath, journal };
 }
 
 async function validateTransactionRoot(root, plan, { createMissingRoot = true } = {}) {
@@ -959,7 +1280,7 @@ async function validateTransactionRoot(root, plan, { createMissingRoot = true } 
     if (!samePath(parent.lexical, parent.real)) throw new Error("selected root resolves through a symbolic link or junction; use the resolved project root");
     if (!createMissingRoot) {
       for (const item of plan) {
-        if (item.action !== "create" && item.action !== "merge") continue;
+        if (item.action !== "create" && item.action !== "merge" && item.action !== "preserve") continue;
         const relative = path.relative(path.resolve(root), path.resolve(item.targetAbs));
         if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) throw new Error(`target escapes selected root: ${item.targetRel}`);
       }
@@ -972,7 +1293,7 @@ async function validateTransactionRoot(root, plan, { createMissingRoot = true } 
   if (rootStats.isSymbolicLink()) throw new Error("selected root is a symbolic link or junction; use the resolved project root");
   const realRoot = await realpath(root);
   for (const item of plan) {
-    if (item.action !== "create" && item.action !== "merge") continue;
+    if (item.action !== "create" && item.action !== "merge" && item.action !== "preserve") continue;
     const relative = path.relative(root, item.targetAbs);
     if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) throw new Error(`target escapes selected root: ${item.targetRel}`);
     const parent = await nearestExistingRealParent(path.dirname(item.targetAbs));
@@ -988,16 +1309,24 @@ async function validateTransactionRoot(root, plan, { createMissingRoot = true } 
 }
 
 async function validateTransactionOverlay(root, outputs) {
-  const outputMap = new Map(outputs.map((item) => [item.targetRel, decodeUtf8(item.after, item.targetRel).text]));
+  const runtimeAcceptance = resolveRuntimeAcceptance(outputs);
+  const preservedRuntimeTargets = new Set(runtimeAcceptance?.entries
+    .filter((entry) => entry.disposition === "preserve")
+    .map((entry) => entry.targetRel) ?? []);
+  const outputMap = new Map(outputs
+    .filter((item) => !item.formalUserRuleContent)
+    .map((item) => [item.targetRel, decodeUtf8(item.after, item.targetRel).text]));
   const finalText = async (relative) => outputMap.get(relative) ?? await readOptionalText(path.join(root, relative));
   const failures = [];
   for (const target of requiredTargets) if ((await finalText(target)) == null) failures.push(`${target}: missing after transaction`);
   for (const rule of requiredAnchors) {
+    if (preservedRuntimeTargets.has(rule.target)) continue;
     const text = await finalText(rule.target);
     if (text == null) continue;
     for (const failure of requiredAnchorFailures(rule, text)) failures.push(`${rule.target}: ${failure.kind} ${failure.snippet}`);
   }
   for (const rule of schemaChecks) {
+    if (preservedRuntimeTargets.has(rule.target)) continue;
     const text = await finalText(rule.target);
     if (text == null) continue;
     for (const check of rule.checks) if (!check.test(text)) failures.push(`${rule.target}: ${check.label}`);
@@ -1044,13 +1373,144 @@ function bridgeTextFailure(targetRel, text) {
   return "unknown bridge target";
 }
 
-async function atomicReplaceFromBuffer(root, targetAbs, buffer, id) {
+async function atomicReplaceFromBuffer(root, targetAbs, buffer, id, expectedHash, options = {}) {
+  const targetRel = options.targetRel ?? path.relative(root, targetAbs);
+  const phase = options.phase ?? "forward";
+  const escrowDir = options.escrowDir;
+  if (!targetRel || targetRel.startsWith("..") || path.isAbsolute(targetRel)) throw new Error("atomic target escaped root");
+  if (!escrowDir) throw new Error("no-clobber escrow directory is required");
+  if (buffer !== null && !Buffer.isBuffer(buffer)) throw new Error("atomic replacement buffer is invalid");
+
+  const rootReal = await realpath(root);
+  const escrowRoot = path.resolve(escrowDir, phase);
+  if (!isInside(root, escrowRoot)) throw new Error("no-clobber escrow escaped root");
+  await mkdir(escrowRoot, { recursive: true });
+  const escrowRootReal = await realpath(escrowRoot);
+  if (!isInside(rootReal, escrowRootReal)) throw new Error("no-clobber escrow resolves outside selected root");
+
+  // Every target replacement is a no-clobber sequence.  A hard-link escrow
+  // first retains the precise inode that was read.  The current name is then
+  // removed only after that escrow still has the expected hash, and the new
+  // name is created with link(), which fails instead of overwriting a writer
+  // that appears in the final window.  Escrows are retained as transaction
+  // witnesses; they are never silently cleaned after a concurrent change.
+  await assertTransactionTargetSafeAndCurrent(root, targetAbs, expectedHash);
+  await mkdir(path.dirname(targetAbs), { recursive: true });
+  await assertTransactionTargetSafeAndCurrent(root, targetAbs, expectedHash);
+
+  const tempPath = buffer === null ? null : path.join(path.dirname(targetAbs), `.${path.basename(targetAbs)}.ack-${id}.tmp`);
+  const replacementHash = buffer === null ? null : sha256(buffer);
+  if (tempPath) await writeFile(tempPath, buffer, { mode: 0o600, flag: "wx" });
+  await assertTransactionTargetSafeAndCurrent(root, targetAbs, expectedHash);
+
+  let escrowPath = null;
+  if (expectedHash !== null) {
+    escrowPath = path.resolve(escrowRoot, targetRel);
+    if (!isInside(escrowRoot, escrowPath)) throw new Error("no-clobber escrow target escaped root");
+    await mkdir(path.dirname(escrowPath), { recursive: true });
+    const escrowParent = await nearestExistingRealParent(path.dirname(escrowPath));
+    if (!isInside(rootReal, escrowParent)) throw new Error("no-clobber escrow parent resolves outside selected root");
+    if (await lstat(escrowPath).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error))) {
+      throw noClobberConflict(`${targetRel}: no-clobber escrow already exists; recovery lock retained`);
+    }
+    try {
+      await link(targetAbs, escrowPath);
+    } catch (error) {
+      throw noClobberConflict(`${targetRel}: could not preserve current target before replacement; recovery lock retained`, error);
+    }
+    const escrowBeforeReplace = await readOptionalBuffer(escrowPath);
+    if (!escrowBeforeReplace || sha256(escrowBeforeReplace) !== expectedHash) {
+      throw noClobberConflict(`${targetRel}: target changed before no-clobber replacement; recovery lock retained`);
+    }
+    try {
+      await unlink(targetAbs);
+    } catch (error) {
+      throw noClobberConflict(`${targetRel}: could not detach expected target; recovery lock retained`, error);
+    }
+  }
+
+  await injectNoClobberRace(targetAbs, targetRel, phase);
+  if (buffer === null) {
+    if (await readOptionalBuffer(targetAbs)) {
+      throw noClobberConflict(`${targetRel}: target appeared during no-clobber removal; recovery lock retained`);
+    }
+  } else {
+    try {
+      await link(tempPath, targetAbs);
+    } catch (error) {
+      throw noClobberConflict(`${targetRel}: target appeared during final no-clobber replacement; recovery lock retained`, error);
+    }
+    const published = await readOptionalBuffer(targetAbs);
+    if (!published || sha256(published) !== replacementHash) {
+      throw noClobberConflict(`${targetRel}: final replacement did not retain candidate bytes; recovery lock retained`);
+    }
+    await unlink(tempPath).catch((error) => {
+      if (error?.code !== "ENOENT") throw error;
+    });
+  }
+
+  if (escrowPath) {
+    const escrowAfterReplace = await readOptionalBuffer(escrowPath);
+    if (!escrowAfterReplace || sha256(escrowAfterReplace) !== expectedHash) {
+      throw noClobberConflict(`${targetRel}: concurrent bytes changed the preserved pre-replacement inode; recovery lock retained`);
+    }
+  }
+}
+
+async function injectNoClobberRace(targetAbs, targetRel, phase) {
+  if (process.env.AGENT_HANDOFF_KIT_QA_MUTATE_TARGET_AFTER_FINAL_VALIDATION !== targetRel) return;
+  if (process.env.AGENT_HANDOFF_KIT_QA_MUTATE_TARGET_AFTER_FINAL_VALIDATION_PHASE !== phase) return;
+  const encoded = process.env.AGENT_HANDOFF_KIT_QA_MUTATE_TARGET_AFTER_FINAL_VALIDATION_BASE64;
+  if (!encoded) throw new Error("QA final-window target race payload is missing");
+  try {
+    await writeFile(targetAbs, Buffer.from(encoded, "base64"), { mode: 0o600, flag: "wx" });
+  } catch (error) {
+    throw noClobberConflict(`${targetRel}: QA final-window writer could not create its competing target`, error);
+  }
+}
+
+async function injectTransactionWindowDrift(root, journal) {
+  const targetRel = process.env.AGENT_HANDOFF_KIT_QA_MUTATE_AFTER_TRANSACTION_PREPARE;
+  if (!targetRel) return;
+  const encoded = process.env.AGENT_HANDOFF_KIT_QA_MUTATE_AFTER_TRANSACTION_PREPARE_BASE64;
+  if (!encoded) throw new Error("QA transaction-window drift payload is missing");
+  if (!journal.entries.some((entry) => entry.targetRel === targetRel)) {
+    throw new Error(`QA transaction-window target is not part of this transaction: ${targetRel}`);
+  }
+  const targetAbs = path.resolve(root, targetRel);
+  if (!isInside(root, targetAbs)) throw new Error("QA transaction-window target escaped root");
+  await writeFile(targetAbs, Buffer.from(encoded, "base64"), { mode: 0o600 });
+}
+
+function noClobberConflict(message, cause = null) {
+  const error = new Error(message);
+  error.code = "ACK_NO_CLOBBER_CONFLICT";
+  if (cause) error.cause = cause;
+  return error;
+}
+
+function isNoClobberConflict(error) {
+  return error?.code === "ACK_NO_CLOBBER_CONFLICT";
+}
+
+async function assertTransactionTargetSafeAndCurrent(root, targetAbs, expectedHash) {
   const relative = path.relative(root, targetAbs);
   if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("atomic target escaped root");
-  await mkdir(path.dirname(targetAbs), { recursive: true });
-  const tempPath = path.join(path.dirname(targetAbs), `.${path.basename(targetAbs)}.ack-${id}.tmp`);
-  await writeFile(tempPath, buffer, { mode: 0o600 });
-  await rename(tempPath, targetAbs);
+  const rootReal = await realpath(root);
+  const parentReal = await nearestExistingRealParent(path.dirname(targetAbs));
+  if (!isInside(rootReal, parentReal)) throw new Error("atomic target parent resolves outside selected root");
+  try {
+    const targetStats = await lstat(targetAbs);
+    if (targetStats.isSymbolicLink()) throw new Error("atomic target is a symbolic link or junction");
+    if (!targetStats.isFile()) throw new Error("atomic target is not a regular file");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  const current = await readOptionalBuffer(targetAbs);
+  const currentHash = current ? sha256(current) : null;
+  if (currentHash !== expectedHash) {
+    throw new Error(`${relative}: target changed after transaction preparation; no overwrite attempted`);
+  }
 }
 
 async function validateRecoveryJournal(root, journal, journalPath, lockId = null) {
@@ -1069,6 +1529,8 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   if (!allowedStates.has(journal.state)) throw new Error("upgrade journal state is invalid; no recovery writes attempted");
 
   const seen = new Set();
+  const formalWitness = validateFormalUserRulesWitness(journal.formalUserRules);
+  const runtimeAcceptance = validateRuntimeAcceptance(journal.runtimeAcceptance);
   const rootStats = await lstat(root);
   if (!rootStats.isDirectory() || rootStats.isSymbolicLink()) throw new Error("selected recovery root is not a safe directory; no recovery writes attempted");
   const rootReal = await realpath(root);
@@ -1101,7 +1563,10 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   const validHash = (value) => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
   for (const entry of journal.entries) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error("upgrade journal entry schema is invalid; no recovery writes attempted");
-    if (!requiredTargets.includes(entry.targetRel) || seen.has(entry.targetRel)) throw new Error("upgrade journal target is unknown or duplicated; no recovery writes attempted");
+    const allowedTarget = requiredTargets.includes(entry.targetRel)
+      || upgradeStateTargets.includes(entry.targetRel)
+      || formalWitness?.contentPaths.has(entry.targetRel);
+    if (!allowedTarget || seen.has(entry.targetRel)) throw new Error("upgrade journal target is unknown or duplicated; no recovery writes attempted");
     seen.add(entry.targetRel);
     if (typeof entry.existed !== "boolean" || typeof entry.committed !== "boolean" || !validHash(entry.afterHash)) {
       throw new Error("upgrade journal entry flags or candidate hash are invalid; no recovery writes attempted");
@@ -1147,6 +1612,20 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   if (journal.state === "committed" && validated.some(({ entry }) => !entry.committed)) {
     throw new Error("committed upgrade journal contains an uncommitted entry; no recovery writes attempted");
   }
+  if (runtimeAcceptance) {
+    for (const accepted of runtimeAcceptance.entries) {
+      const transactionEntry = validated.find(({ entry }) => entry.targetRel === accepted.targetRel)?.entry;
+      if (!transactionEntry || transactionEntry.afterHash !== accepted.accepted.sha256) {
+        throw new Error("runtime acceptance entry is not bound to the transaction candidate; no recovery writes attempted");
+      }
+    }
+  }
+  if (journal.currentStateWitness) {
+    const currentStateWitness = validateCurrentStateWitness(journal);
+    validateCurrentStateReadback(journal.currentStateReadback, currentStateWitness);
+  } else if (journal.currentStateReadback != null) {
+    throw new Error("shared current-state readback exists without a current-state witness; no recovery writes attempted");
+  }
   return validated;
 }
 
@@ -1174,9 +1653,23 @@ async function rollbackTransaction(root, journal, journalPath, lockId = null) {
     return { ok: false, conflicts };
   }
 
+  const rollbackEscrowDir = path.join(path.dirname(journalPath), "no-clobber-escrow");
   for (const { entry, targetAbs, backup } of operations) {
-    if (entry.existed) await atomicReplaceFromBuffer(root, targetAbs, backup, `${journal.id}-rollback`);
-    else await unlink(targetAbs);
+    try {
+      await atomicReplaceFromBuffer(root, targetAbs, entry.existed ? backup : null, `${journal.id}-rollback`, entry.afterHash, {
+        targetRel: entry.targetRel,
+        escrowDir: rollbackEscrowDir,
+        phase: "rollback"
+      });
+    } catch (error) {
+      if (!isNoClobberConflict(error)) throw error;
+      conflicts.push(safeErrorLabel(error));
+      journal.state = "manual-recovery-required";
+      journal.committedVersion = null;
+      journal.recoveryConflicts = conflicts;
+      await writeSecureJson(journalPath, journal);
+      return { ok: false, conflicts };
+    }
     const restored = await readOptionalBuffer(targetAbs);
     const restoredHash = restored ? sha256(restored) : null;
     if (restoredHash !== entry.beforeHash) throw new Error(`${entry.targetRel}: rollback verification failed; recovery lock retained`);
@@ -1215,6 +1708,32 @@ async function recoverInterruptedTransaction(root) {
   await validateRecoveryJournal(root, journal, journalPath, lock.id);
   if (journal.state === "committed") {
     if (!journal.committedVersion) journal.committedVersion = journal.attemptedVersion;
+    let formalRuntimeState = null;
+    let runtimeAcceptanceState = null;
+    const doctorStatus = await runDoctor(root, journal.committedVersion, {
+      silentCard: true,
+      context: "recovered-committed-transaction-health",
+      allowActiveTransaction: true,
+      expectedCurrentStateWitness: journal.currentStateWitness,
+      captureFormalUserRules: (state) => { formalRuntimeState = state; },
+      captureRuntimeAcceptance: (state) => { runtimeAcceptanceState = state; }
+    });
+    if (doctorStatus !== "passed") throw new Error("committed upgrade recovery failed fresh doctor readback; recovery lock retained");
+    if (journal.formalUserRules) {
+      if (!formalRuntimeState) throw new Error("committed upgrade recovery has no formal doctor readback; recovery lock retained");
+      journal.runtimeReadback = formalUserRulesReadbackFromDoctorState(formalRuntimeState, journal.formalUserRules);
+    }
+    if (journal.runtimeAcceptance) {
+      if (!runtimeAcceptanceState) throw new Error("committed upgrade recovery has no formal runtime acceptance readback; recovery lock retained");
+      journal.runtimeAcceptanceReadback = runtimeAcceptanceReadbackFromDoctorState(runtimeAcceptanceState, journal.runtimeAcceptance);
+    }
+    if (journal.currentStateWitness) {
+      journal.currentStateReadback = currentStateReadbackFromDoctorStates(
+        journal.currentStateWitness,
+        formalRuntimeState,
+        runtimeAcceptanceState
+      );
+    }
     const migrationDir = path.dirname(journalPath);
     await writeSecureJson(journalPath, journal);
     await writeTransactionReport({ id: journal.id, migrationDir, journal });
@@ -1251,7 +1770,16 @@ async function writeTransactionReport(transaction) {
     ...transaction.journal.entries.map((entry) => `- ${entry.existed ? "merge" : "create"}: ${entry.targetRel}; backup=${entry.backupRel ?? "none"}; committed=${entry.committed}`),
     "",
     `- Planned skips: ${transaction.journal.plannedSkips ?? "unknown"}`,
-    "- Conflicts: 0"
+    "- Conflicts: 0",
+    "",
+    "## Formal User Rules Acceptance",
+    ...renderFormalUserRulesReport(transaction.journal.formalUserRules, transaction.journal.runtimeReadback),
+    "",
+    "## Runtime Acceptance",
+    ...renderRuntimeAcceptanceReport(transaction.journal.runtimeAcceptance, transaction.journal.runtimeAcceptanceReadback),
+    "",
+    "## Shared Current-State Witness",
+    ...renderCurrentStateWitnessReport(transaction.journal.currentStateWitness, transaction.journal.currentStateReadback)
   ];
   await writeFile(reportPath, `${lines.join("\n")}\n`, { mode: 0o600 });
   await tightenPermissions(reportPath, 0o600);
@@ -1380,7 +1908,19 @@ function safeErrorLabel(error) {
 }
 
 async function runDoctor(root, version, options = {}) {
-  if (!options.silentCard) printCard(version, "doctor ready", "o.o");
+  // The transaction journal is the existing shared acceptance authority. A
+  // preserved non-exact rule pack may intentionally retain older/user bytes;
+  // its missing current-template anchors are acceptable only when this same
+  // authority can immediately read back the active AGENTS -> RULE_PACKS route
+  // and exact preserved bytes below. No journal record means no exemption.
+  const currentStateWitness = options.expectedCurrentStateWitness
+    ? validateCurrentStateWitnessValue(options.expectedCurrentStateWitness)
+    : await loadCommittedCurrentStateWitness(root);
+  const formalUserRulesWitness = currentStateWitness?.formalUserRules ?? null;
+  const runtimeAcceptanceWitness = currentStateWitness?.runtimeAcceptance ?? null;
+  const acceptedRuntimeTargets = new Set(runtimeAcceptanceWitness?.entries
+    .filter((entry) => entry.disposition === "preserve")
+    .map((entry) => entry.targetRel) ?? []);
   const rows = [];
   for (const target of requiredTargets) {
     rows.push({ target, ok: await exists(path.join(root, target)) });
@@ -1410,20 +1950,43 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
+  const currentStateResult = await checkCurrentStateWitness(root, currentStateWitness);
+  console.log(`\nshared current-state checks: ${currentStateResult.checked}`);
+  const currentStateLabel = currentStateWitness?.sourceConservation
+    ? "ordered transaction and frozen-source bytes (same journal identity as report and success)"
+    : "ordered transaction bytes (same journal identity as report and success)";
+  console.log(`${currentStateResult.ok ? "ok" : "missing"}  ${currentStateLabel}`);
+  if (!currentStateResult.ok) console.log(`  missing: ${currentStateResult.finding}`);
+  if (!currentStateResult.ok) {
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + currentStateResult.checked,
+      failedKind: "shared current-state checks",
+      failedCount: 1,
+      nextStep: "不要覆寫或接受目前狀態；先保留 recovery lock，並以同一 transaction journal 的完整有序 bytes witness 排除漂移。"
+    });
+    process.exitCode = 1;
+    return "failed";
+  }
+
   const anchorRows = await checkRequiredAnchors(root);
-  const anchorFailures = anchorRows.filter((row) => !row.ok);
+  const acceptedPreservedAnchorRows = anchorRows.filter((row) => !row.ok && acceptedRuntimeTargets.has(row.target));
+  const anchorFailures = anchorRows.filter((row) => !row.ok && !acceptedRuntimeTargets.has(row.target));
   console.log(`\nrequired anchors: ${anchorRows.length}`);
   for (const row of anchorRows) {
-    console.log(`${row.ok ? "ok" : "missing"}  ${row.target} (${row.label})`);
+    const acceptedPreservation = !row.ok && acceptedRuntimeTargets.has(row.target);
+    console.log(`${row.ok ? "ok" : acceptedPreservation ? "preserved" : "missing"}  ${row.target} (${row.label})`);
     if (!row.ok && row.missing && row.missing.length > 0) {
       console.log(`  missing anchor text: ${row.missing.map((snippet) => JSON.stringify(snippet)).join("; ")}`);
     }
+  }
+  for (const row of acceptedPreservedAnchorRows) {
+    console.log(`  accepted preservation: ${row.target} remains runtime-readable only through the same transaction acceptance witness`);
   }
 
   if (anchorFailures.length > 0) {
     printAnchorRepairGuidance(anchorFailures, options.context);
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + anchorRows.length,
+      checked: rows.length + currentStateResult.checked + anchorRows.length,
       failedKind: "anchor checks",
       failedCount: anchorFailures.length,
       nextStep: anchorRepairNextStep(options.context)
@@ -1433,10 +1996,12 @@ async function runDoctor(root, version, options = {}) {
   }
 
   const schemaRows = await checkSchema(root);
-  const schemaFailures = schemaRows.filter((row) => !row.ok);
+  const acceptedPreservedSchemaRows = schemaRows.filter((row) => !row.ok && acceptedRuntimeTargets.has(row.target));
+  const schemaFailures = schemaRows.filter((row) => !row.ok && !acceptedRuntimeTargets.has(row.target));
   console.log(`\nschema checks: ${schemaRows.length}`);
   for (const row of schemaRows) {
-    console.log(`${row.ok ? "ok" : "missing"}  ${row.target} (${row.label})`);
+    const acceptedPreservation = !row.ok && acceptedRuntimeTargets.has(row.target);
+    console.log(`${row.ok ? "ok" : acceptedPreservation ? "preserved" : "missing"}  ${row.target} (${row.label})`);
     if (!row.ok && row.missing.length > 0) {
       console.log(`  missing: ${row.missing.join("; ")}`);
     }
@@ -1444,7 +2009,7 @@ async function runDoctor(root, version, options = {}) {
 
   if (schemaFailures.length > 0) {
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + anchorRows.length + schemaRows.length,
+      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length,
       failedKind: "schema checks",
       failedCount: schemaFailures.length,
       nextStep: "把這段 doctor 輸出貼給 AI，請它先修交接結構，不要直接重裝覆蓋。"
@@ -1452,6 +2017,42 @@ async function runDoctor(root, version, options = {}) {
     process.exitCode = 1;
     return "failed";
   }
+  for (const row of acceptedPreservedSchemaRows) {
+    console.log(`  accepted preservation: ${row.target} remains runtime-readable only through the same transaction acceptance witness`);
+  }
+
+  const userRulesResult = await checkFormalUserRules(root, { ...options, expectedFormalUserRules: formalUserRulesWitness });
+  console.log(`\nformal user-rules checks: ${userRulesResult.checked}`);
+  console.log(`${userRulesResult.ok ? "ok" : "missing"}  AGENTS.md -> ${USER_RULES_ROUTER_PATH} (accepted user-rule bytes and order)`);
+  if (!userRulesResult.ok) console.log(`  missing: ${userRulesResult.finding}`);
+  if (!userRulesResult.ok) {
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked,
+      failedKind: "formal user-rules checks",
+      failedCount: 1,
+      nextStep: "不要重跑 upgrade 或覆寫用戶規則；先還原或重新以完整接受紀錄登記 dev/USER_RULES.md 及其 user rule bytes。"
+    });
+    process.exitCode = 1;
+    return "failed";
+  }
+
+  const runtimeAcceptanceResult = await checkRuntimeAcceptance(root, { ...options, expectedRuntimeAcceptance: runtimeAcceptanceWitness });
+  console.log(`\nruntime acceptance checks: ${runtimeAcceptanceResult.checked}`);
+  console.log(`${runtimeAcceptanceResult.ok ? "ok" : "missing"}  ${runtimeAcceptanceSurfaceLabel(runtimeAcceptanceWitness)}`);
+  if (!runtimeAcceptanceResult.ok) console.log(`  missing: ${runtimeAcceptanceResult.finding}`);
+  if (!runtimeAcceptanceResult.ok) {
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked,
+      failedKind: "runtime acceptance checks",
+      failedCount: 1,
+      nextStep: "不要覆寫或搬移 preserved runtime bytes；先還原由同一 transaction acceptance 記錄的 direct AGENTS 或 AGENTS → RULE_PACKS reader，或保留 recovery lock 並停止。"
+    });
+    process.exitCode = 1;
+    return "failed";
+  }
+
+  console.log(`\nshared current-state witness: ${currentStateWitness ? "1" : "0"}`);
+  console.log(`${currentStateWitness ? "ok" : "not-applicable"}  transaction journal whole identity (doctor reads the same accepted state as report and success)`);
 
   const bridgeFailures = await validateBridgeTexts(async (relative) => readOptionalText(path.join(root, relative)));
   console.log(`\nbridge checks: 2`);
@@ -1459,7 +2060,7 @@ async function runDoctor(root, version, options = {}) {
   for (const finding of bridgeFailures) console.log(`  missing: ${finding}`);
   if (bridgeFailures.length > 0) {
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + anchorRows.length + schemaRows.length + 2,
+      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + 2,
       failedKind: "bridge checks",
       failedCount: bridgeFailures.length,
       nextStep: "修正 CLAUDE.md / GEMINI.md 的有效橋接指令；註解、程式碼區塊或重複字樣不能代替真實路由。"
@@ -1476,7 +2077,7 @@ async function runDoctor(root, version, options = {}) {
       console.log(`  missing: ${finding}`);
     }
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked,
+      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + researchTraceResult.checked,
       failedKind: "research decision trace checks",
       failedCount: researchTraceResult.findings.length,
       nextStep: "把 research-derived decision 的 Evidence chain 補齊，並確認 Source=source:<id> token 已登記在 dev/PROJECT_INDEX.md 的 Fact Base 或 External Sources。"
@@ -1493,7 +2094,7 @@ async function runDoctor(root, version, options = {}) {
       console.log(`  missing: ${finding}`);
     }
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked + temperatureResult.checked,
+      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + researchTraceResult.checked + temperatureResult.checked,
       failedKind: "handoff temperature boundary checks",
       failedCount: temperatureResult.findings.length,
       nextStep: "把一次性驗收證據、舊版本狀態、source token 或 Evidence chain 從 Durable Anchors / Next Priorities / opening message 移回 SESSION_LOG、PROJECT_INDEX 或 PROJECT_DECISIONS。"
@@ -1510,7 +2111,7 @@ async function runDoctor(root, version, options = {}) {
       console.log(`  missing: ${finding}`);
     }
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked + temperatureResult.checked + artifactResult.checked,
+      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + researchTraceResult.checked + temperatureResult.checked + artifactResult.checked,
       failedKind: "generated markdown governance checks",
       failedCount: artifactResult.findings.length,
       nextStep: "把新生成或新修改的 Markdown 登記到 dev/PROJECT_INDEX.md，或在 SESSION_LOG / task summary 以同一紀錄精確標成 draft、temporary 或 one-time evidence；如內容重複，先合併到單一真源。其他持久格式須由 AI 另作人工治理核對。"
@@ -1531,7 +2132,7 @@ async function runDoctor(root, version, options = {}) {
 
   if (mirrorBlockingFailures.length > 0) {
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + anchorRows.length + schemaRows.length + mirrorRows.length,
+      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + mirrorRows.length,
       failedKind: "prompt mirror checks",
       failedCount: mirrorBlockingFailures.length,
       nextStep: "以 dev/SESSION_HANDOFF.md 的 Next Session Opening Message 為準，重生 START_NEXT_SESSION_PROMPT.txt。"
@@ -1563,7 +2164,9 @@ async function runDoctor(root, version, options = {}) {
   // suspect drift / curious about version / continuity awareness），唔等用戶 ask AI。
   console.log("");
   console.log("項目狀態速覽：");
-  const versionAlignment = await assessVersionAlignment(root, version);
+  const versionAlignment = await assessVersionAlignment(root, version, {
+    skipRegistryLookup: options.skipVersionRegistryLookup === true
+  });
   printVersionAlignment(versionAlignment);
   const versionNextStep = getVersionAlignmentNextStep(versionAlignment);
   const lastCloseout = await assessLastCloseout(root);
@@ -1574,10 +2177,18 @@ async function runDoctor(root, version, options = {}) {
   const promptMirrorNextStep = mirrorWarnings.length > 0
     ? "檢查已通過。START_NEXT_SESSION_PROMPT.txt 只是下次開工便利副本；session 進行中不用手動重生，收工 closeout 時 AI 會從 dev/SESSION_HANDOFF.md 重生。"
     : null;
+  // A preserved non-exact PROJECT_INDEX may legitimately leave a version
+  // alignment note alongside a prompt-copy warning.  Both are actionable;
+  // do not let the former hide the latter from the ordinary doctor result.
+  const healthyNextStep = [versionNextStep, promptMirrorNextStep, onboardingNextStep]
+    .filter(Boolean)
+    .join(" ")
+    || "檢查已通過。繼續使用你原本的 AI 開工方式；準備結束本輪工作、需要保存交接、或有下一輪必須知道的狀態時，在 AI 對話輸入「收工」。";
 
   const overallHealthy = credentialResult.ok;
+  if (overallHealthy && !options.silentCard) printCard(version, "doctor ready", "o.o");
   printDoctorSummary(version, root, overallHealthy ? "healthy" : "needs-attention", {
-      checked: rows.length + anchorRows.length + schemaRows.length + researchTraceResult.checked + temperatureResult.checked + artifactResult.checked + mirrorRows.length + 2,
+      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + researchTraceResult.checked + temperatureResult.checked + artifactResult.checked + mirrorRows.length + 2,
     failedKind: !credentialResult.ok ? "credential leak" : null,
     failedCount: !credentialResult.ok ? credentialResult.findings.length : 0,
     warningKind: mirrorWarnings.length > 0 ? "prompt mirror warning" : null,
@@ -1585,10 +2196,1243 @@ async function runDoctor(root, version, options = {}) {
     nextStep: !credentialResult.ok
       ? "立即從相關檔案 redact credential value + rotate 已泄露 token；credential 應該由 AI 工具自身 secure storage 管理，永不寫入 dev/* 任何檔。"
       : disciplineResult.ok
-      ? versionNextStep ?? promptMirrorNextStep ?? onboardingNextStep ?? "檢查已通過。繼續使用你原本的 AI 開工方式；準備結束本輪工作、需要保存交接、或有下一輪必須知道的狀態時，在 AI 對話輸入「收工」。"
+      ? healthyNextStep
       : "繼續使用；下次 closeout 時 AI 應自動執行 SESSION_LOG N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
   });
   return overallHealthy ? "passed" : "failed";
+}
+
+function renderFormalUserRulesReport(witness, readback) {
+  if (!witness) return ["- not applicable"];
+  return [
+    `- Acceptance digest: ${witness.acceptanceDigest}`,
+    `- Ordered entries: ${witness.entries.map((entry) => `${entry.entryId}:${entry.contentPath}:${entry.accepted.sha256}`).join(", ") || "none"}`,
+    `- Kit base: ${witness.state.kitBase.packageVersion}; ${witness.state.kitBase.managedCoreSha256}`,
+    `- Router: ${witness.state.router.path}; ${witness.state.router.contentRoot}`,
+    `- Fresh runtime readback: ${readback ? `${readback.acceptanceDigest}; AGENTS=${readback.agentsSha256}; router=${readback.routerSha256}` : "missing"}`
+  ];
+}
+
+function renderRuntimeAcceptanceReport(witness, readback) {
+  if (!witness) return ["- not applicable"];
+  return [
+    `- Acceptance digest: ${witness.acceptanceDigest}`,
+    `- Ordered accepted entries: ${witness.entries.map((entry) => `${entry.targetRel}:${entry.accepted.sha256}:${entry.disposition}:${entry.effectDecision}${entry.sourceByteRanges ? `:ranges=${entry.sourceByteRanges.map((range) => `${range.start}-${range.end}`).join("+")}` : ""}`).join(", ")}`,
+    `- Fresh runtime readback: ${readback ? `${readback.acceptanceDigest}; ${readback.entries.map((entry) => `${entry.targetRel}:${entry.sha256}`).join(", ")}` : "missing"}`
+  ];
+}
+
+function renderCurrentStateWitnessReport(witness, readback) {
+  if (!witness) return ["- not applicable"];
+  return [
+    `- Current-state digest: ${witness.currentStateDigest}`,
+    `- Ordered transaction entries: ${witness.entries.map((entry) => `${entry.targetRel}:${entry.afterHash}`).join(", ")}`,
+    `- Frozen source-conservation entries: ${witness.sourceConservation?.entries.length ?? 0}`,
+    `- Formal user-rules component: ${witness.formalUserRules?.acceptanceDigest ?? "none"}`,
+    `- RULE_PACKS runtime component: ${witness.runtimeAcceptance?.acceptanceDigest ?? "none"}`,
+    `- Same fresh doctor readback: ${readback ? readback.currentStateDigest : "missing"}`
+  ];
+}
+
+function validateFormalUserRulesWitness(value) {
+  if (value == null) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || typeof value.acceptanceDigest !== "string" || !/^[a-f0-9]{64}$/.test(value.acceptanceDigest)
+    || !value.state || typeof value.state !== "object" || Array.isArray(value.state)
+    || !Array.isArray(value.entries)) {
+    throw new Error("formal user-rules witness is invalid; no recovery writes attempted");
+  }
+  const { kitBase, router } = value.state;
+  if (!kitBase || kitBase.target !== "AGENTS.md" || !isStableSemver(kitBase.packageVersion ?? "")
+    || typeof kitBase.managedCoreSha256 !== "string" || !/^[a-f0-9]{64}$/.test(kitBase.managedCoreSha256)
+    || !router || router.path !== USER_RULES_ROUTER_PATH || router.contentRoot !== "dev/user_rules/") {
+    throw new Error("formal user-rules state witness is invalid; no recovery writes attempted");
+  }
+  const contentPaths = new Set();
+  for (const entry of value.entries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)
+      || typeof entry.entryId !== "string" || !isFormalUserRulesContentPath(entry.contentPath)
+      || !entry.accepted || typeof entry.accepted !== "object" || !/^[a-f0-9]{64}$/.test(entry.accepted.sha256 ?? "") || !Number.isInteger(entry.accepted.bytes) || entry.accepted.bytes < 0
+      || !entry.sourceWitness || typeof entry.sourceWitness !== "object" || entry.sourceWitness.sha256 !== entry.accepted.sha256 || entry.sourceWitness.bytes !== entry.accepted.bytes
+      || !entry.originalReader || typeof entry.originalReader.reader !== "string" || typeof entry.originalReader.via !== "string"
+      || !entry.activeReader || entry.activeReader.reader !== "AGENTS.md" || entry.activeReader.via !== USER_RULES_ROUTER_PATH
+      || typeof entry.priorityRelation !== "string" || !entry.priorityRelation.trim()
+      || typeof entry.effectDecision !== "string" || !entry.effectDecision.trim()
+      || contentPaths.has(entry.contentPath)) {
+      throw new Error("formal user-rules entry witness is invalid; no recovery writes attempted");
+    }
+    contentPaths.add(entry.contentPath);
+  }
+  return { contentPaths };
+}
+
+function resolveFormalUserRulesWitness(outputs) {
+  const witnesses = outputs.map((item) => item.formalUserRules).filter(Boolean);
+  if (witnesses.length === 0) return null;
+  const canonical = JSON.stringify(witnesses[0]);
+  if (witnesses.some((witness) => JSON.stringify(witness) !== canonical)) {
+    throw new Error("formal user-rules transaction outputs do not share one acceptance witness");
+  }
+  return witnesses[0];
+}
+
+function resolveRuntimeAcceptance(outputs) {
+  const witnesses = outputs.map((item) => item.runtimeAcceptance).filter(Boolean);
+  if (witnesses.length === 0) return null;
+  const canonical = JSON.stringify(witnesses[0]);
+  if (witnesses.some((witness) => JSON.stringify(witness) !== canonical)) {
+    throw new Error("transaction outputs do not share one runtime acceptance witness");
+  }
+  return validateRuntimeAcceptance(witnesses[0]);
+}
+
+async function createSourceConservation(root, outputs) {
+  // `freezeGate5Set` is an existing read-only discovery witness.  Reuse it
+  // here rather than creating a registry, pointer, or component authority.
+  // Its ordered source records become one component of the journal's existing
+  // whole current-state witness before this transaction creates any files.
+  const frozen = await freezeGate5Set({ root });
+  assertGate5FrozenSet(frozen);
+  const outputByTarget = new Map(outputs.map((item) => [item.targetRel, item]));
+  const entries = frozen.items.map((item) => {
+    const output = outputByTarget.get(item.sourcePath) ?? null;
+    const sourceWitness = Object.freeze({ sha256: item.sourceIdentity.sha256, bytes: item.sourceIdentity.bytes });
+    const accepted = output
+      ? Object.freeze({ sha256: output.afterHash, bytes: output.after.length })
+      : sourceWitness;
+    const disposition = output?.preservedRuntimeItem
+      ? "preserve"
+      : output
+        ? "transaction-output"
+        : item.classifications.includes("transaction-state")
+          ? "retained-historical-state"
+          : item.priorityConflict.status === "not-applicable-outside-known-kit-reachability"
+            ? "outside-known-kit-reachability"
+            : "unchanged-source";
+    return Object.freeze({
+      sourcePath: item.sourcePath,
+      sourceWitness,
+      accepted,
+      // A single exact whole-file range proves the source itself was not
+      // inferred from headings, path spelling, or a partial parser.
+      sourceByteRanges: Object.freeze([Object.freeze({ start: 0, end: sourceWitness.bytes, sha256: sourceWitness.sha256 })]),
+      disposition,
+      existingReaders: Object.freeze(item.existingReaders.map((reader) => Object.freeze({ reader: reader.reader, via: reader.via }))),
+      priorityRelation: item.priorityConflict.relation,
+      effectDecision: item.effect.decision,
+      classifications: Object.freeze([...item.classifications])
+    });
+  });
+  return Object.freeze({
+    schemaVersion: 1,
+    frozenSetSha256: frozen.frozenSetSha256,
+    entries: Object.freeze(entries)
+  });
+}
+
+function currentStateWitnessBody(journal) {
+  const transaction = {
+    id: journal.id,
+    command: journal.command,
+    mode: journal.mode,
+    attemptedVersion: journal.attemptedVersion
+  };
+  if (Array.isArray(journal.supersedesCurrentStateDigests) && journal.supersedesCurrentStateDigests.length > 0) {
+    transaction.supersedesCurrentStateDigests = journal.supersedesCurrentStateDigests;
+  }
+  const body = {
+    schemaVersion: journal.sourceConservation ? 2 : 1,
+    transaction,
+    // `committed` changes while the transaction runs.  The ordered target
+    // identities below do not, so they are safe to seal before the first
+    // replace and remain the exact state identity after commit/recovery.
+    entries: journal.entries.map((entry) => ({
+      targetRel: entry.targetRel,
+      existed: entry.existed,
+      beforeHash: entry.beforeHash,
+      afterHash: entry.afterHash,
+      backupRel: entry.backupRel
+    })),
+    formalUserRules: journal.formalUserRules ?? null,
+    runtimeAcceptance: journal.runtimeAcceptance ?? null
+  };
+  if (journal.sourceConservation) body.sourceConservation = journal.sourceConservation;
+  return body;
+}
+
+function createCurrentStateWitness(journal) {
+  const body = currentStateWitnessBody(journal);
+  return Object.freeze({
+    ...body,
+    currentStateDigest: sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8"))
+  });
+}
+
+function validateCurrentStateWitnessValue(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || ![1, 2].includes(value.schemaVersion)
+    || !value.transaction || typeof value.transaction !== "object" || Array.isArray(value.transaction)
+    || typeof value.transaction.id !== "string" || !value.transaction.id
+    || (value.transaction.command !== "init" && value.transaction.command !== "upgrade")
+    || typeof value.transaction.mode !== "string" || !value.transaction.mode
+    || !isStableSemver(value.transaction.attemptedVersion ?? "")
+    || !Array.isArray(value.entries) || value.entries.length === 0
+    || typeof value.currentStateDigest !== "string" || !/^[a-f0-9]{64}$/.test(value.currentStateDigest)) {
+    throw new Error("shared current-state witness is invalid; no recovery writes attempted");
+  }
+  const supersedes = value.transaction.supersedesCurrentStateDigests;
+  if (supersedes !== undefined && (
+    !Array.isArray(supersedes)
+    || supersedes.length === 0
+    || supersedes.some((digest, index) => typeof digest !== "string" || !/^[a-f0-9]{64}$/.test(digest) || (index > 0 && supersedes[index - 1].localeCompare(digest) >= 0))
+  )) {
+    throw new Error("shared current-state supersession links are invalid; no recovery writes attempted");
+  }
+  const formalWitness = validateFormalUserRulesWitness(value.formalUserRules);
+  const runtimeAcceptance = validateRuntimeAcceptance(value.runtimeAcceptance);
+  if (value.schemaVersion === 1 && value.sourceConservation != null) {
+    throw new Error("legacy shared current-state witness cannot contain source conservation; no recovery writes attempted");
+  }
+  const sourceConservation = validateSourceConservation(value.sourceConservation, { required: value.schemaVersion === 2 });
+  const knownTargets = new Set([
+    ...requiredTargets,
+    ...upgradeStateTargets,
+    ...(formalWitness ? [...formalWitness.contentPaths] : [])
+  ]);
+  const seenTargets = new Set();
+  for (const entry of value.entries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)
+      || typeof entry.targetRel !== "string" || !knownTargets.has(entry.targetRel) || seenTargets.has(entry.targetRel)
+      || typeof entry.existed !== "boolean"
+      || typeof entry.afterHash !== "string" || !/^[a-f0-9]{64}$/.test(entry.afterHash)
+      || (entry.existed && (typeof entry.beforeHash !== "string" || !/^[a-f0-9]{64}$/.test(entry.beforeHash) || typeof entry.backupRel !== "string" || !entry.backupRel))
+      || (!entry.existed && (entry.beforeHash !== null || entry.backupRel !== null))) {
+      throw new Error("shared current-state entry witness is invalid; no recovery writes attempted");
+    }
+    seenTargets.add(entry.targetRel);
+  }
+  if (sourceConservation) {
+    const conservedByPath = new Map(sourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
+    for (const entry of value.entries) {
+      if (!entry.existed) continue;
+      const conserved = conservedByPath.get(entry.targetRel);
+      if (!conserved || conserved.sourceWitness.sha256 !== entry.beforeHash || conserved.accepted.sha256 !== entry.afterHash) {
+        throw new Error("shared current-state source conservation is detached from a transaction entry; no recovery writes attempted");
+      }
+    }
+    for (const entry of runtimeAcceptance?.entries ?? []) {
+      const conserved = conservedByPath.get(entry.targetRel);
+      if (!conserved || conserved.sourceWitness.sha256 !== entry.sourceWitness.sha256 || conserved.accepted.sha256 !== entry.accepted.sha256) {
+        throw new Error("shared current-state source conservation is detached from runtime acceptance; no recovery writes attempted");
+      }
+    }
+  }
+  const body = {
+    schemaVersion: value.schemaVersion,
+    transaction: value.transaction,
+    entries: value.entries,
+    formalUserRules: value.formalUserRules ?? null,
+    runtimeAcceptance: value.runtimeAcceptance ?? null
+  };
+  if (value.schemaVersion === 2) body.sourceConservation = value.sourceConservation;
+  if (sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8")) !== value.currentStateDigest) {
+    throw new Error("shared current-state witness digest does not match its ordered components; no recovery writes attempted");
+  }
+  return value;
+}
+
+function validateSourceConservation(value, { required = false } = {}) {
+  if (value == null) {
+    if (required) throw new Error("shared current-state witness omits required source conservation; no recovery writes attempted");
+    return null;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || value.schemaVersion !== 1
+    || typeof value.frozenSetSha256 !== "string" || !/^[a-f0-9]{64}$/.test(value.frozenSetSha256)
+    || !Array.isArray(value.entries) || value.entries.length === 0) {
+    throw new Error("shared current-state source conservation is invalid; no recovery writes attempted");
+  }
+  const seen = new Set();
+  let prior = null;
+  for (const entry of value.entries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)
+      || !isSafeProjectRelative(entry.sourcePath) || seen.has(entry.sourcePath)
+      || !validByteWitness(entry.sourceWitness) || !validByteWitness(entry.accepted)
+      || !Array.isArray(entry.sourceByteRanges) || entry.sourceByteRanges.length !== 1
+      || entry.sourceByteRanges[0]?.start !== 0 || entry.sourceByteRanges[0]?.end !== entry.sourceWitness.bytes
+      || entry.sourceByteRanges[0]?.sha256 !== entry.sourceWitness.sha256
+      || !["preserve", "transaction-output", "unchanged-source", "retained-historical-state", "outside-known-kit-reachability"].includes(entry.disposition)
+      || !Array.isArray(entry.existingReaders)
+      || entry.existingReaders.some((reader) => !reader || typeof reader !== "object" || Array.isArray(reader) || typeof reader.reader !== "string" || !reader.reader || typeof reader.via !== "string" || !reader.via)
+      || typeof entry.priorityRelation !== "string" || !entry.priorityRelation
+      || typeof entry.effectDecision !== "string" || !entry.effectDecision
+      || !Array.isArray(entry.classifications) || entry.classifications.length === 0 || entry.classifications.some((classification) => typeof classification !== "string" || !classification)) {
+      throw new Error("shared current-state source conservation entry is invalid; no recovery writes attempted");
+    }
+    if (prior != null && prior.localeCompare(entry.sourcePath) >= 0) {
+      throw new Error("shared current-state source conservation entries are not in source-path order; no recovery writes attempted");
+    }
+    prior = entry.sourcePath;
+    seen.add(entry.sourcePath);
+  }
+  return value;
+}
+
+function isSafeProjectRelative(value) {
+  if (typeof value !== "string" || !value || value.includes("\\")) return false;
+  const normalized = path.posix.normalize(value);
+  return normalized === value && normalized !== "." && normalized !== ".." && !normalized.startsWith("../") && !path.posix.isAbsolute(normalized);
+}
+
+function validateCurrentStateWitness(journal) {
+  const witness = validateCurrentStateWitnessValue(journal.currentStateWitness);
+  const expected = currentStateWitnessBody(journal);
+  const actual = {
+    schemaVersion: witness.schemaVersion,
+    transaction: witness.transaction,
+    entries: witness.entries,
+    formalUserRules: witness.formalUserRules ?? null,
+    runtimeAcceptance: witness.runtimeAcceptance ?? null
+  };
+  if (witness.schemaVersion === 2) actual.sourceConservation = witness.sourceConservation;
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error("shared current-state witness is detached from its transaction components; no recovery writes attempted");
+  }
+  return witness;
+}
+
+async function createRuntimeAcceptance(root, outputs) {
+  // The existing shared acceptance covers only the two already-proven Gate 5
+  // readers: direct AGENTS.md preservation or an artifact-bound exact core
+  // replacement, a directly preserved RULE_PACKS entry, and RULE_PACKS
+  // routes. It remains one transaction-local authority, not a generic
+  // ownership framework.
+  // It is intentionally not a generic ownership framework.
+  const directAgents = outputs.filter((item) => (
+    item.targetRel === "AGENTS.md"
+    && item.preservedRuntimeItem?.preservationKind === "whole-file-direct-agents"
+  ));
+  const managedSegmentAgents = outputs.filter((item) => (
+    item.targetRel === "AGENTS.md"
+    && item.managedSegmentRuntimeItem?.preservationKind === "artifact-bound-managed-core"
+  ));
+  const directRulePacks = outputs.filter((item) => (
+    item.targetRel === "dev/RULE_PACKS.md"
+    && item.preservedRuntimeItem?.preservationKind === "whole-file-direct-rule-packs"
+  ));
+  const directStateful = outputs.filter((item) => (
+    directStatefulTargets.has(item.targetRel)
+    && item.preservedRuntimeItem?.preservationKind === "whole-file-direct-stateful"
+  ));
+  // Runtime acceptance records a pre-existing reader and its preserved or
+  // replaced bytes. A fresh-init output has no such source state, so it must
+  // not be treated as though an old AGENTS -> RULE_PACKS route existed.
+  const governed = outputs.filter((item) => item.before != null
+    && installedFileContract(item.targetRel)?.strategy === "rule-pack");
+  if (directAgents.length === 0 && managedSegmentAgents.length === 0 && directRulePacks.length === 0 && directStateful.length === 0 && governed.length === 0) return null;
+  if (directAgents.length + managedSegmentAgents.length > 1) throw new Error("runtime acceptance has more than one direct AGENTS item");
+  if (directRulePacks.length > 1) throw new Error("runtime acceptance has more than one direct RULE_PACKS whole-file item");
+  if (new Set(directStateful.map((item) => item.targetRel)).size !== directStateful.length) throw new Error("runtime acceptance has duplicate direct stateful items");
+
+  const outputByTarget = new Map(outputs.map((item) => [item.targetRel, item]));
+  const needsAgents = directRulePacks.length > 0 || governed.length > 0 || directStateful.some((item) => item.targetRel !== "START_NEXT_SESSION_PROMPT.txt");
+  const needsRulePackRoute = directRulePacks.length > 0 || governed.length > 0;
+  const originalAgents = needsAgents ? await readRuntimeAcceptanceBytes(root, "AGENTS.md") : null;
+  const originalRouter = needsRulePackRoute ? await readRuntimeAcceptanceBytes(root, "dev/RULE_PACKS.md") : null;
+  const activeAgents = needsAgents ? (outputByTarget.get("AGENTS.md")?.after ?? originalAgents) : null;
+  const activeRouter = needsRulePackRoute ? (outputByTarget.get("dev/RULE_PACKS.md")?.after ?? originalRouter) : null;
+
+  const entries = [];
+  for (const item of directAgents) {
+    if (!item.before || !item.after.equals(item.before)) {
+      throw new Error("direct AGENTS preservation must retain identical whole-file bytes");
+    }
+    const sourceWitness = byteWitness(item.before);
+    const originalReader = await directAgentsEntryWitness(root, item.before);
+    const activeReader = await directAgentsEntryWitness(root, item.after, outputByTarget);
+    entries.push(Object.freeze({
+      targetRel: item.targetRel,
+      accepted: sourceWitness,
+      sourceWitness,
+      sourceByteRanges: Object.freeze([Object.freeze({ start: 0, end: item.before.length, sha256: sourceWitness.sha256 })]),
+      originalReader,
+      activeReader,
+      priorityRelation: "direct AGENTS.md formal-entry byte order unchanged (single complete source range 0..N)",
+      conflictDecision: item.preservedRuntimeItem.conflictDecision,
+      effectDecision: "preserve-unmodified-through-direct-formal-entry",
+      disposition: item.preservedRuntimeItem.disposition
+    }));
+  }
+
+  for (const item of managedSegmentAgents) {
+    const segment = item.managedSegmentRuntimeItem;
+    if (!item.before || !item.after) throw new Error("artifact-bound AGENTS replacement has no complete byte state");
+    const prior = findArtifactBoundManagedCoreSegment(item.before, segment.artifactSegment);
+    const activeBoundary = findUniqueManagedCoreBoundary(item.after, segment.artifactSegment.transform);
+    const active = activeBoundary && Object.freeze({
+      ...activeBoundary,
+      ...byteWitness(item.after.subarray(activeBoundary.start, activeBoundary.end))
+    });
+    if (!prior || prior.start !== segment.sourceSegment.start || prior.end !== segment.sourceSegment.end || !active) {
+      throw new Error("artifact-bound AGENTS replacement lost its exact managed segment boundary");
+    }
+    const replacementStart = prior.start;
+    const replacementEnd = replacementStart + active.bytes;
+    const sourceWitness = byteWitness(item.before);
+    const accepted = byteWitness(item.after);
+    const sourceByteRanges = Object.freeze([
+      Object.freeze({ start: 0, end: prior.start, sha256: sha256(item.before.subarray(0, prior.start)) }),
+      Object.freeze({ start: prior.start, end: prior.end, sha256: prior.sha256 }),
+      Object.freeze({ start: prior.end, end: item.before.length, sha256: sha256(item.before.subarray(prior.end)) })
+    ]);
+    if (!item.before.subarray(0, prior.start).equals(item.after.subarray(0, replacementStart))
+      || !item.before.subarray(prior.end).equals(item.after.subarray(replacementEnd))) {
+      throw new Error("artifact-bound AGENTS replacement changed a surrounding user byte");
+    }
+    const originalReader = await directAgentsEntryWitness(root, item.before);
+    const activeReader = await directAgentsEntryWitness(root, item.after, outputByTarget);
+    entries.push(Object.freeze({
+      targetRel: item.targetRel,
+      accepted,
+      sourceWitness,
+      sourceByteRanges,
+      managedSegment: Object.freeze({
+        version: segment.artifactSegment.version,
+        targetRel: segment.artifactSegment.targetRel,
+        sourceRel: segment.artifactSegment.sourceRel,
+        artifact: segment.artifactSegment.artifact,
+        transform: Object.freeze({
+          kind: segment.artifactSegment.transform.kind,
+          beginMarker: segment.artifactSegment.transform.beginMarker,
+          endMarker: segment.artifactSegment.transform.endMarker
+        }),
+        source: Object.freeze({ start: prior.start, end: prior.end, sha256: prior.sha256, bytes: prior.bytes }),
+        accepted: Object.freeze({ start: replacementStart, end: replacementEnd, sha256: active.sha256, bytes: active.bytes })
+      }),
+      originalReader,
+      activeReader,
+      priorityRelation: "direct AGENTS.md byte order preserved as prefix, artifact-bound core, suffix; all three source ranges reconstruct the original file",
+      conflictDecision: segment.conflictDecision,
+      effectDecision: "replace-artifact-bound-managed-core-through-direct-formal-entry",
+      disposition: segment.disposition
+    }));
+  }
+
+  for (const item of directStateful) {
+    if (!item.before || !item.after.equals(item.before)) {
+      throw new Error(`${item.targetRel}: direct stateful preservation must retain identical whole-file bytes`);
+    }
+    const sourceWitness = byteWitness(item.before);
+    const originalReader = await directStatefulEntryWitness(root, item.targetRel, item.before, originalAgents);
+    const activeReader = await directStatefulEntryWitness(root, item.targetRel, item.after, activeAgents);
+    entries.push(Object.freeze({
+      targetRel: item.targetRel,
+      accepted: sourceWitness,
+      sourceWitness,
+      sourceByteRanges: Object.freeze([Object.freeze({ start: 0, end: item.before.length, sha256: sourceWitness.sha256 })]),
+      originalReader,
+      activeReader,
+      priorityRelation: item.targetRel === "START_NEXT_SESSION_PROMPT.txt"
+        ? "formal startup entry byte order unchanged (single complete source range 0..N)"
+        : "AGENTS.md direct formal-entry reader byte order unchanged (single complete source range 0..N)",
+      conflictDecision: item.preservedRuntimeItem.conflictDecision,
+      effectDecision: "preserve-unmodified-through-direct-stateful-formal-entry",
+      disposition: item.preservedRuntimeItem.disposition
+    }));
+  }
+
+  for (const item of directRulePacks) {
+    if (!item.before || !item.after.equals(item.before)) {
+      throw new Error("direct RULE_PACKS preservation must retain identical whole-file bytes");
+    }
+    const sourceWitness = byteWitness(item.before);
+    const originalReader = await directRulePacksEntryWitness(root, originalAgents, originalRouter);
+    const activeReader = await directRulePacksEntryWitness(root, activeAgents, activeRouter, outputByTarget);
+    entries.push(Object.freeze({
+      targetRel: item.targetRel,
+      accepted: sourceWitness,
+      sourceWitness,
+      sourceByteRanges: Object.freeze([Object.freeze({ start: 0, end: item.before.length, sha256: sourceWitness.sha256 })]),
+      originalReader,
+      activeReader,
+      priorityRelation: "AGENTS.md formal entry and ordered RULE_PACKS table unchanged (single complete source range 0..N)",
+      conflictDecision: item.preservedRuntimeItem.conflictDecision,
+      effectDecision: "preserve-unmodified-through-direct-rule-packs-entry",
+      disposition: item.preservedRuntimeItem.disposition
+    }));
+  }
+
+  for (const item of governed) {
+    const originalRoute = rulePackRouteWitness(originalAgents, originalRouter, item.targetRel);
+    const activeRoute = rulePackRouteWitness(activeAgents, activeRouter, item.targetRel);
+    const preserved = Boolean(item.preservedRuntimeItem);
+    entries.push(Object.freeze({
+      targetRel: item.targetRel,
+      accepted: byteWitness(item.after),
+      sourceWitness: byteWitness(item.before ?? Buffer.alloc(0)),
+      originalReader: Object.freeze({ reader: "AGENTS.md", via: "dev/RULE_PACKS.md", routeWitness: originalRoute }),
+      activeReader: Object.freeze({ reader: "AGENTS.md", via: "dev/RULE_PACKS.md", routeWitness: activeRoute }),
+      priorityRelation: `existing ordered RULE_PACKS route(s): ${activeRoute.routes.map((route) => route.order).join(",")}`,
+      conflictDecision: preserved ? item.preservedRuntimeItem.conflictDecision : "exact-official-package-bytes",
+      effectDecision: preserved ? "preserve-unmodified-through-existing-rule-pack-route" : "replace-exact-official-bytes-through-existing-rule-pack-route",
+      disposition: preserved ? item.preservedRuntimeItem.disposition : "replace"
+    }));
+  }
+  const body = {
+    schemaVersion: managedSegmentAgents.length > 0 ? 5 : directStateful.length > 0 || directAgents.length > 0 ? 4 : directRulePacks.length > 0 ? 3 : 1,
+    entries
+  };
+  return Object.freeze({
+    ...body,
+    acceptanceDigest: sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8"))
+  });
+}
+
+async function readRuntimeAcceptanceBytes(root, targetRel) {
+  const targetAbs = path.join(root, targetRel);
+  await validateTransactionRoot(root, [{ action: "merge", targetRel, targetAbs }], { createMissingRoot: false });
+  const bytes = await readOptionalBuffer(targetAbs);
+  if (!bytes) throw new Error(`${targetRel}: runtime acceptance source is missing`);
+  return bytes;
+}
+
+function byteWitness(bytes) {
+  return Object.freeze({ sha256: sha256(bytes), bytes: bytes.length });
+}
+
+async function directAgentsEntryWitness(root, bytes, outputByTarget = null) {
+  const text = decodeUtf8(bytes, "AGENTS.md").text;
+  if (!text.trim()) throw new Error("AGENTS.md direct formal entry is empty");
+  const references = [];
+  for (const reference of directFormalAgentReferences(text)) {
+    if (reference.path === "AGENTS.md") continue;
+    const targetBytes = outputByTarget?.get(reference.path)?.after ?? await readRuntimeAcceptanceBytes(root, reference.path);
+    references.push(Object.freeze({
+      targetRel: reference.path,
+      via: reference.via,
+      sha256: sha256(targetBytes),
+      bytes: targetBytes.length
+    }));
+  }
+  return Object.freeze({
+    reader: "AGENTS.md",
+    via: "direct-formal-entry",
+    agentsSha256: sha256(bytes),
+    bytes: bytes.length,
+    references: Object.freeze(references)
+  });
+}
+
+function directFormalAgentReferences(text) {
+  return extractExplicitLocalReferences(text).filter((reference) => (
+    reference.via === "markdown-link"
+    || (reference.via === "inline-code-path" && Boolean(installedFileContract(reference.path)))
+  ));
+}
+
+async function directStatefulEntryWitness(root, targetRel, targetBytes, agentsBytes = null) {
+  if (!directStatefulTargets.has(targetRel)) throw new Error(`${targetRel}: not a direct stateful acceptance target`);
+  const targetText = decodeUtf8(targetBytes, targetRel).text;
+  if (!targetText.trim()) throw new Error(`${targetRel}: direct stateful formal entry is empty`);
+  if (targetRel === "START_NEXT_SESSION_PROMPT.txt") {
+    return Object.freeze({
+      reader: "START_NEXT_SESSION_PROMPT.txt",
+      via: "formal-startup-entry",
+      targetRel,
+      targetSha256: sha256(targetBytes),
+      bytes: targetBytes.length
+    });
+  }
+  const activeAgents = agentsBytes ?? await readRuntimeAcceptanceBytes(root, "AGENTS.md");
+  const agentsText = decodeUtf8(activeAgents, "AGENTS.md").text;
+  if (!agentsText.includes(`\`${targetRel}\``)) {
+    throw new Error(`AGENTS.md has no active direct formal entry for ${targetRel}`);
+  }
+  return Object.freeze({
+    reader: "AGENTS.md",
+    via: "direct-formal-entry",
+    targetRel,
+    targetSha256: sha256(targetBytes),
+    bytes: targetBytes.length,
+    agentsSha256: sha256(activeAgents),
+    agentsBytes: activeAgents.length
+  });
+}
+
+function rulePackRouteWitness(agentsBytes, routerBytes, targetRel) {
+  const agentsText = decodeUtf8(agentsBytes, "AGENTS.md").text;
+  const routerText = decodeUtf8(routerBytes, "dev/RULE_PACKS.md").text;
+  const activeAgents = stripMarkdownCommentsAndFences(agentsText);
+  const entryPatterns = [
+    /\bRead\s+`dev\/RULE_PACKS\.md`\s+when\b/,
+    /\bUse\s+`dev\/RULE_PACKS\.md`\s+to\b/
+  ];
+  if (!entryPatterns.some((pattern) => pattern.test(activeAgents))) {
+    throw new Error(`AGENTS.md has no active formal RULE_PACKS instruction for ${targetRel}`);
+  }
+
+  const activeRouter = stripMarkdownCommentsAndFences(routerText);
+  const lines = activeRouter.split(/\r?\n/);
+  const headerIndexes = lines
+    .map((line, index) => line.trim() === "| Task signal | Pack | Purpose |" ? index : -1)
+    .filter((index) => index >= 0);
+  if (headerIndexes.length !== 1 || !/^\|[-\s|]+\|$/.test(lines[headerIndexes[0] + 1]?.trim() ?? "")) {
+    throw new Error("RULE_PACKS.md has no unique active routing table");
+  }
+  const routes = [];
+  for (let index = headerIndexes[0] + 2; index < lines.length && lines[index].startsWith("|"); index += 1) {
+    const cells = lines[index].split("|").slice(1, -1).map((cell) => cell.trim());
+    if (cells.length !== 3 || !cells[1].includes(`\`${targetRel}\``)) continue;
+    routes.push(Object.freeze({
+      order: index - (headerIndexes[0] + 2),
+      rowSha256: sha256(Buffer.from(lines[index].trim(), "utf8"))
+    }));
+  }
+  if (routes.length === 0) throw new Error(`RULE_PACKS.md has no active route to ${targetRel}`);
+  return Object.freeze({
+    agentsSha256: sha256(agentsBytes),
+    routerSha256: sha256(routerBytes),
+    routes: Object.freeze(routes)
+  });
+}
+
+async function directRulePacksEntryWitness(root, agentsBytes, routerBytes, outputByTarget = null) {
+  const agentsText = decodeUtf8(agentsBytes, "AGENTS.md").text;
+  const activeAgents = stripMarkdownCommentsAndFences(agentsText);
+  const entryPatterns = [
+    /\bRead\s+`dev\/RULE_PACKS\.md`\s+when\b/,
+    /\bUse\s+`dev\/RULE_PACKS\.md`\s+to\b/
+  ];
+  if (!entryPatterns.some((pattern) => pattern.test(activeAgents))) {
+    throw new Error("AGENTS.md has no active formal RULE_PACKS instruction");
+  }
+
+  const routerText = decodeUtf8(routerBytes, "dev/RULE_PACKS.md").text;
+  const activeRouter = stripMarkdownCommentsAndFences(routerText);
+  const lines = activeRouter.split(/\r?\n/);
+  const headerIndexes = lines
+    .map((line, index) => line.trim() === "| Task signal | Pack | Purpose |" ? index : -1)
+    .filter((index) => index >= 0);
+  if (headerIndexes.length !== 1 || !/^\|[-\s|]+\|$/.test(lines[headerIndexes[0] + 1]?.trim() ?? "")) {
+    throw new Error("RULE_PACKS.md has no unique active routing table");
+  }
+
+  const routes = [];
+  for (let index = headerIndexes[0] + 2; index < lines.length && lines[index].startsWith("|"); index += 1) {
+    const cells = lines[index].split("|").slice(1, -1).map((cell) => cell.trim());
+    if (cells.length !== 3) throw new Error("RULE_PACKS.md has an invalid active routing row");
+    const targets = [...cells[1].matchAll(/`([^`\r\n]+)`/g)].map((match) => match[1].trim()).filter(Boolean);
+    if (targets.length === 0) throw new Error("RULE_PACKS.md active routing row has no readable target");
+    for (const targetRel of targets) {
+      const bytes = outputByTarget?.get(targetRel)?.after ?? await readRuntimeAcceptanceBytes(root, targetRel);
+      routes.push(Object.freeze({
+        order: index - (headerIndexes[0] + 2),
+        rowSha256: sha256(Buffer.from(lines[index].trim(), "utf8")),
+        targetRel,
+        sha256: sha256(bytes),
+        bytes: bytes.length
+      }));
+    }
+  }
+  if (routes.length === 0) throw new Error("RULE_PACKS.md active routing table has no readable targets");
+  return Object.freeze({
+    reader: "AGENTS.md",
+    via: "direct-rule-packs-entry",
+    agentsSha256: sha256(agentsBytes),
+    routerSha256: sha256(routerBytes),
+    routes: Object.freeze(routes)
+  });
+}
+
+function validateRuntimeAcceptance(value) {
+  if (value == null) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value) || ![1, 2, 3, 4, 5].includes(value.schemaVersion)
+    || !Array.isArray(value.entries) || typeof value.acceptanceDigest !== "string" || !/^[a-f0-9]{64}$/.test(value.acceptanceDigest)) {
+    throw new Error("runtime acceptance witness is invalid; no recovery writes attempted");
+  }
+  const body = { schemaVersion: value.schemaVersion, entries: value.entries };
+  if (sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8")) !== value.acceptanceDigest) {
+    throw new Error("runtime acceptance digest does not match its ordered witness; no recovery writes attempted");
+  }
+  const targets = new Set();
+  for (const entry of value.entries) {
+    const directAgents = entry?.targetRel === "AGENTS.md";
+    const directRulePacks = entry?.targetRel === "dev/RULE_PACKS.md";
+    const directStateful = directStatefulTargets.has(entry?.targetRel);
+    const validEntry = directAgents
+      ? value.schemaVersion >= 2
+        && validDirectAgentsAcceptanceEntry(entry, { requireReferences: value.schemaVersion >= 4 })
+      : directRulePacks
+        ? value.schemaVersion >= 3
+          && validDirectRulePacksAcceptanceEntry(entry)
+        : directStateful
+          ? value.schemaVersion >= 4
+            && validDirectStatefulAcceptanceEntry(entry)
+      : validRulePackAcceptanceEntry(entry);
+    if (targets.has(entry?.targetRel) || !validEntry) {
+      throw new Error("runtime acceptance entry is invalid; no recovery writes attempted");
+    }
+    targets.add(entry.targetRel);
+  }
+  if (value.entries.length === 0) throw new Error("runtime acceptance has no preserved entry; no recovery writes attempted");
+  return value;
+}
+
+function validRulePackAcceptanceEntry(entry) {
+  return Boolean(entry && typeof entry === "object" && !Array.isArray(entry)
+    && installedFileContract(entry.targetRel)?.strategy === "rule-pack"
+    && validRuntimeAcceptanceDecision(entry)
+    && !entry.sourceByteRanges
+    && validByteWitness(entry.accepted) && validByteWitness(entry.sourceWitness)
+    && validRulePackReader(entry.originalReader) && validRulePackReader(entry.activeReader)
+    && typeof entry.priorityRelation === "string" && entry.priorityRelation.trim());
+}
+
+function validDirectAgentsAcceptanceEntry(entry, { requireReferences = false } = {}) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)
+    || installedFileContract(entry.targetRel)?.strategy !== "managed-core"
+    || !validRuntimeAcceptanceDecision(entry)
+    || !validDirectAgentsReader(entry.originalReader, { requireReferences }) || !validDirectAgentsReader(entry.activeReader, { requireReferences })
+    || entry.originalReader.agentsSha256 !== entry.sourceWitness.sha256
+    || entry.activeReader.agentsSha256 !== entry.accepted.sha256
+    || entry.originalReader.bytes !== entry.sourceWitness.bytes
+    || entry.activeReader.bytes !== entry.accepted.bytes
+    || typeof entry.priorityRelation !== "string" || !entry.priorityRelation.trim()) return false;
+  if (entry.managedSegment) return validArtifactBoundManagedAgentsEntry(entry);
+  if (!sameByteWitness(entry.accepted, entry.sourceWitness)) return false;
+  const ranges = entry.sourceByteRanges;
+  return Array.isArray(ranges) && ranges.length === 1
+    && ranges[0]?.start === 0
+    && ranges[0]?.end === entry.sourceWitness.bytes
+    && ranges[0]?.sha256 === entry.sourceWitness.sha256;
+}
+
+function validArtifactBoundManagedAgentsEntry(entry) {
+  const segment = entry.managedSegment;
+  if (!segment || typeof segment !== "object" || Array.isArray(segment)
+    || entry.disposition !== "replace-managed-segment"
+    || entry.conflictDecision !== "artifact-bound-exact-managed-core"
+    || entry.effectDecision !== "replace-artifact-bound-managed-core-through-direct-formal-entry"
+    || typeof segment.version !== "string" || !segment.version
+    || segment.targetRel !== "AGENTS.md"
+    || segment.sourceRel !== "runtime-core/AGENTS.core.md"
+    || typeof segment.artifact?.spec !== "string"
+    || !/^[a-f0-9]{40}$/.test(segment.artifact?.shasum ?? "")
+    || typeof segment.artifact?.integrity !== "string" || !segment.artifact.integrity.startsWith("sha512-")
+    || segment.transform?.kind !== "utf8-trim-wrapped-managed-core"
+    || typeof segment.transform.beginMarker !== "string" || !segment.transform.beginMarker
+    || typeof segment.transform.endMarker !== "string" || !segment.transform.endMarker
+    || !validManagedSegmentRange(segment.source, entry.sourceWitness.bytes)
+    || !validManagedSegmentRange(segment.accepted, entry.accepted.bytes)) return false;
+  const ranges = entry.sourceByteRanges;
+  return Array.isArray(ranges) && ranges.length === 3
+    && ranges.every((range) => Number.isInteger(range?.start) && Number.isInteger(range?.end)
+      && range.start >= 0 && range.end >= range.start && /^[a-f0-9]{64}$/.test(range.sha256 ?? ""))
+    && ranges[0].start === 0
+    && ranges[0].end === segment.source.start
+    && ranges[1].start === segment.source.start
+    && ranges[1].end === segment.source.end
+    && ranges[1].sha256 === segment.source.sha256
+    && ranges[2].start === segment.source.end
+    && ranges[2].end === entry.sourceWitness.bytes;
+}
+
+function validManagedSegmentRange(range, totalBytes) {
+  return Boolean(range && typeof range === "object" && !Array.isArray(range)
+    && Number.isInteger(range.start) && Number.isInteger(range.end)
+    && range.start >= 0 && range.end >= range.start && range.end <= totalBytes
+    && /^[a-f0-9]{64}$/.test(range.sha256 ?? "")
+    && Number.isInteger(range.bytes) && range.bytes === range.end - range.start);
+}
+
+function validDirectRulePacksAcceptanceEntry(entry) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)
+    || installedFileContract(entry.targetRel)?.strategy !== "marked-routing-table"
+    || !validRuntimeAcceptanceDecision(entry)
+    || !sameByteWitness(entry.accepted, entry.sourceWitness)
+    || !validDirectRulePacksReader(entry.originalReader) || !validDirectRulePacksReader(entry.activeReader)
+    || entry.originalReader.routerSha256 !== entry.sourceWitness.sha256
+    || entry.activeReader.routerSha256 !== entry.accepted.sha256
+    || typeof entry.priorityRelation !== "string" || !entry.priorityRelation.trim()) return false;
+  const ranges = entry.sourceByteRanges;
+  return Array.isArray(ranges) && ranges.length === 1
+    && ranges[0]?.start === 0
+    && ranges[0]?.end === entry.sourceWitness.bytes
+    && ranges[0]?.sha256 === entry.sourceWitness.sha256;
+}
+
+function validDirectStatefulAcceptanceEntry(entry) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)
+    || !directStatefulTargets.has(entry.targetRel)
+    || !validRuntimeAcceptanceDecision(entry)
+    || !sameByteWitness(entry.accepted, entry.sourceWitness)
+    || !validDirectStatefulReader(entry.originalReader, entry.targetRel)
+    || !validDirectStatefulReader(entry.activeReader, entry.targetRel)
+    || entry.originalReader.targetSha256 !== entry.sourceWitness.sha256
+    || entry.activeReader.targetSha256 !== entry.accepted.sha256
+    || entry.originalReader.bytes !== entry.sourceWitness.bytes
+    || entry.activeReader.bytes !== entry.accepted.bytes
+    || typeof entry.priorityRelation !== "string" || !entry.priorityRelation.trim()) return false;
+  const ranges = entry.sourceByteRanges;
+  return Array.isArray(ranges) && ranges.length === 1
+    && ranges[0]?.start === 0
+    && ranges[0]?.end === entry.sourceWitness.bytes
+    && ranges[0]?.sha256 === entry.sourceWitness.sha256;
+}
+
+function validRuntimeAcceptanceDecision(entry) {
+  if (entry.targetRel === "AGENTS.md") {
+    return (entry.disposition === "preserve"
+      && entry.conflictDecision === "non-exact-package-bytes"
+      && entry.effectDecision === "preserve-unmodified-through-direct-formal-entry")
+      || (entry.disposition === "replace-managed-segment"
+        && entry.conflictDecision === "artifact-bound-exact-managed-core"
+        && entry.effectDecision === "replace-artifact-bound-managed-core-through-direct-formal-entry");
+  }
+  if (entry.targetRel === "dev/RULE_PACKS.md") {
+    return entry.disposition === "preserve"
+      && entry.conflictDecision === "non-exact-package-bytes"
+      && entry.effectDecision === "preserve-unmodified-through-direct-rule-packs-entry";
+  }
+  if (directStatefulTargets.has(entry.targetRel)) {
+    return entry.disposition === "preserve"
+      && entry.conflictDecision === "non-exact-package-bytes"
+      && entry.effectDecision === "preserve-unmodified-through-direct-stateful-formal-entry";
+  }
+  return (entry.disposition === "preserve"
+      && entry.conflictDecision === "non-exact-package-bytes"
+      && entry.effectDecision === "preserve-unmodified-through-existing-rule-pack-route")
+    || (entry.disposition === "replace"
+      && entry.conflictDecision === "exact-official-package-bytes"
+      && entry.effectDecision === "replace-exact-official-bytes-through-existing-rule-pack-route");
+}
+
+function validByteWitness(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value)
+    && typeof value.sha256 === "string" && /^[a-f0-9]{64}$/.test(value.sha256)
+    && Number.isInteger(value.bytes) && value.bytes >= 0);
+}
+
+function sameByteWitness(left, right) {
+  return validByteWitness(left) && validByteWitness(right) && left.sha256 === right.sha256 && left.bytes === right.bytes;
+}
+
+function validRulePackReader(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || value.reader !== "AGENTS.md" || value.via !== "dev/RULE_PACKS.md") return false;
+  const witness = value.routeWitness;
+  return Boolean(witness && typeof witness === "object" && !Array.isArray(witness)
+    && typeof witness.agentsSha256 === "string" && /^[a-f0-9]{64}$/.test(witness.agentsSha256)
+    && typeof witness.routerSha256 === "string" && /^[a-f0-9]{64}$/.test(witness.routerSha256)
+    && Array.isArray(witness.routes) && witness.routes.length > 0
+    && witness.routes.every((route) => Number.isInteger(route.order) && route.order >= 0 && typeof route.rowSha256 === "string" && /^[a-f0-9]{64}$/.test(route.rowSha256)));
+}
+
+function validDirectAgentsReader(value, { requireReferences = false } = {}) {
+  const validReferences = !requireReferences
+    ? !Object.hasOwn(value ?? {}, "references") || validDirectAgentReferences(value.references)
+    : validDirectAgentReferences(value?.references);
+  return Boolean(value && typeof value === "object" && !Array.isArray(value)
+    && value.reader === "AGENTS.md" && value.via === "direct-formal-entry"
+    && typeof value.agentsSha256 === "string" && /^[a-f0-9]{64}$/.test(value.agentsSha256)
+    && Number.isInteger(value.bytes) && value.bytes >= 0
+    && validReferences);
+}
+
+function validDirectAgentReferences(value) {
+  return Array.isArray(value)
+    && value.every((reference) => reference && typeof reference === "object" && !Array.isArray(reference)
+      && typeof reference.targetRel === "string" && reference.targetRel
+      && typeof reference.via === "string" && reference.via
+      && typeof reference.sha256 === "string" && /^[a-f0-9]{64}$/.test(reference.sha256)
+      && Number.isInteger(reference.bytes) && reference.bytes >= 0);
+}
+
+function validDirectRulePacksReader(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value)
+    && value.reader === "AGENTS.md" && value.via === "direct-rule-packs-entry"
+    && typeof value.agentsSha256 === "string" && /^[a-f0-9]{64}$/.test(value.agentsSha256)
+    && typeof value.routerSha256 === "string" && /^[a-f0-9]{64}$/.test(value.routerSha256)
+    && Array.isArray(value.routes) && value.routes.length > 0
+    && value.routes.every((route) => Number.isInteger(route.order) && route.order >= 0
+      && typeof route.rowSha256 === "string" && /^[a-f0-9]{64}$/.test(route.rowSha256)
+      && typeof route.targetRel === "string" && route.targetRel
+      && typeof route.sha256 === "string" && /^[a-f0-9]{64}$/.test(route.sha256)
+      && Number.isInteger(route.bytes) && route.bytes >= 0));
+}
+
+function validDirectStatefulReader(value, targetRel) {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || value.targetRel !== targetRel
+    || typeof value.targetSha256 !== "string" || !/^[a-f0-9]{64}$/.test(value.targetSha256)
+    || !Number.isInteger(value.bytes) || value.bytes < 0) return false;
+  if (targetRel === "START_NEXT_SESSION_PROMPT.txt") {
+    return value.reader === "START_NEXT_SESSION_PROMPT.txt" && value.via === "formal-startup-entry"
+      && !Object.hasOwn(value, "agentsSha256") && !Object.hasOwn(value, "agentsBytes");
+  }
+  return value.reader === "AGENTS.md" && value.via === "direct-formal-entry"
+    && typeof value.agentsSha256 === "string" && /^[a-f0-9]{64}$/.test(value.agentsSha256)
+    && Number.isInteger(value.agentsBytes) && value.agentsBytes >= 0;
+}
+
+function runtimeAcceptanceSurfaceLabel(witness) {
+  const entries = witness?.entries ?? [];
+  const directAgentsEntry = entries.find((entry) => entry.targetRel === "AGENTS.md");
+  const directAgents = Boolean(directAgentsEntry);
+  const directAgentsUsesSegment = Boolean(directAgentsEntry?.managedSegment);
+  const directAgentsLabel = directAgentsEntry?.managedSegment
+    ? "direct AGENTS artifact-bound managed-core entry"
+    : "direct AGENTS whole-file entry";
+  const directRulePacks = entries.some((entry) => entry.targetRel === "dev/RULE_PACKS.md");
+  const directStateful = entries.some((entry) => directStatefulTargets.has(entry.targetRel));
+  const routedRulePacks = entries.some((entry) => entry.targetRel !== "AGENTS.md" && entry.targetRel !== "dev/RULE_PACKS.md" && !directStatefulTargets.has(entry.targetRel));
+  if (directStateful) {
+    const additions = [
+      directAgents ? directAgentsLabel : null,
+      directRulePacks ? "direct RULE_PACKS entry" : null,
+      routedRulePacks ? "AGENTS -> RULE_PACKS routes" : null
+    ].filter(Boolean);
+    return `formal startup/direct AGENTS stateful entries${additions.length ? ` + ${additions.join(" + ")}` : ""} (${directAgentsUsesSegment ? "accepted bytes" : "accepted whole-file bytes"}, readers, priority, and effect)`;
+  }
+  if (directAgents && directRulePacks && routedRulePacks) return "AGENTS.md direct formal entry + direct RULE_PACKS entry + AGENTS.md -> dev/RULE_PACKS.md routes (accepted bytes, readers, priority, and effect)";
+  if (directAgents && directRulePacks) return "AGENTS.md direct formal entry + direct RULE_PACKS entry (accepted whole-file bytes, readers, priority, and effect)";
+  if (directRulePacks && routedRulePacks) return "AGENTS.md -> direct RULE_PACKS entry and routes (accepted bytes, readers, priority, and effect)";
+  if (directRulePacks) return "AGENTS.md -> direct RULE_PACKS entry (accepted whole-file bytes, reader, priority, and effect)";
+  if (directAgents && routedRulePacks) return "AGENTS.md direct formal entry + AGENTS.md -> dev/RULE_PACKS.md (accepted bytes, readers, priority, and effect)";
+  if (directAgents) return `AGENTS.md ${directAgentsEntry?.managedSegment ? "artifact-bound managed-core" : "direct formal"} entry (accepted bytes, reader, priority, and effect)`;
+  return "AGENTS.md -> dev/RULE_PACKS.md (accepted preserved runtime bytes and route)";
+}
+
+async function readRuntimeAcceptance(root, witness, { allowActiveTransaction = false } = {}) {
+  const accepted = validateRuntimeAcceptance(witness);
+  if (!allowActiveTransaction && await hasActiveTransactionLock(root)) {
+    throw new Error("runtime acceptance is pending recovery; normal entry refuses to read a partial transaction state");
+  }
+  const needsAgents = accepted.entries.some((entry) => entry.targetRel !== "AGENTS.md" && entry.targetRel !== "START_NEXT_SESSION_PROMPT.txt");
+  const needsRulePackRoute = accepted.entries.some((entry) => entry.targetRel !== "AGENTS.md" && !directStatefulTargets.has(entry.targetRel));
+  const agentsBytes = needsAgents ? await readRuntimeAcceptanceBytes(root, "AGENTS.md") : null;
+  const routerBytes = needsRulePackRoute ? await readRuntimeAcceptanceBytes(root, "dev/RULE_PACKS.md") : null;
+  const entries = [];
+  for (const entry of accepted.entries) {
+    const bytes = await readRuntimeAcceptanceBytes(root, entry.targetRel);
+    if (!sameByteWitness(byteWitness(bytes), entry.accepted)) {
+      throw new Error(`${entry.targetRel}: active bytes differ from the accepted preserved witness`);
+    }
+    if (entry.targetRel === "AGENTS.md") {
+      if (entry.managedSegment) assertAcceptedArtifactBoundManagedSegment(bytes, entry);
+      const directReader = await directAgentsEntryWitness(root, bytes);
+      if (JSON.stringify(directReader) !== JSON.stringify(entry.activeReader)) {
+        throw new Error("AGENTS.md direct formal-entry reader differs from the accepted witness");
+      }
+    } else if (directStatefulTargets.has(entry.targetRel)) {
+      const directReader = await directStatefulEntryWitness(root, entry.targetRel, bytes, agentsBytes);
+      if (JSON.stringify(directReader) !== JSON.stringify(entry.activeReader)) {
+        throw new Error(`${entry.targetRel}: direct stateful formal reader differs from the accepted witness`);
+      }
+    } else if (entry.targetRel === "dev/RULE_PACKS.md") {
+      const directReader = await directRulePacksEntryWitness(root, agentsBytes, bytes);
+      if (JSON.stringify(directReader) !== JSON.stringify(entry.activeReader)) {
+        throw new Error("AGENTS.md direct RULE_PACKS reader or routed target effect differs from the accepted witness");
+      }
+    } else {
+      const routeWitness = rulePackRouteWitness(agentsBytes, routerBytes, entry.targetRel);
+      if (JSON.stringify(routeWitness) !== JSON.stringify(entry.activeReader.routeWitness)) {
+        throw new Error(`${entry.targetRel}: AGENTS -> RULE_PACKS runtime route differs from the accepted witness`);
+      }
+    }
+    entries.push(Object.freeze({ targetRel: entry.targetRel, sha256: sha256(bytes), bytes: bytes.length, activeReader: entry.activeReader, priorityRelation: entry.priorityRelation, effectDecision: entry.effectDecision, disposition: entry.disposition }));
+  }
+  return Object.freeze({ acceptanceDigest: accepted.acceptanceDigest, entries: Object.freeze(entries) });
+}
+
+function assertAcceptedArtifactBoundManagedSegment(bytes, entry) {
+  const active = findUniqueManagedCoreBoundary(bytes, entry.managedSegment.transform);
+  if (!active || active.start !== entry.managedSegment.accepted.start || active.end !== entry.managedSegment.accepted.end) {
+    throw new Error("AGENTS.md artifact-bound managed segment range differs from the accepted witness");
+  }
+  const acceptedCore = bytes.subarray(active.start, active.end);
+  if (sha256(acceptedCore) !== entry.managedSegment.accepted.sha256 || acceptedCore.length !== entry.managedSegment.accepted.bytes) {
+    throw new Error("AGENTS.md artifact-bound managed segment bytes differ from the accepted witness");
+  }
+  const ranges = entry.sourceByteRanges;
+  const suffixStart = entry.managedSegment.accepted.end;
+  if (sha256(bytes.subarray(0, active.start)) !== ranges[0].sha256
+    || sha256(bytes.subarray(suffixStart)) !== ranges[2].sha256
+    || bytes.subarray(0, active.start).length !== ranges[0].end - ranges[0].start
+    || bytes.subarray(suffixStart).length !== ranges[2].end - ranges[2].start) {
+    throw new Error("AGENTS.md artifact-bound managed segment changed surrounding preserved bytes");
+  }
+}
+
+async function hasActiveTransactionLock(root) {
+  try {
+    await lstat(path.join(root, "dev", "governance_migrations", ".upgrade.lock"));
+    return true;
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+async function loadCommittedCurrentStateWitness(root) {
+  const migrationsRoot = path.join(root, "dev", "governance_migrations");
+  let names;
+  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
+  const candidates = [];
+  const staleSourceConservation = [];
+  for (const name of names) {
+    if (name === ".upgrade.lock") continue;
+    const journalPath = path.join(migrationsRoot, name, "transaction.json");
+    try {
+      const stats = await lstat(journalPath);
+      if (!stats.isFile() || stats.isSymbolicLink()) continue;
+      const journal = JSON.parse(await readFile(journalPath, "utf8"));
+      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
+      await validateRecoveryJournal(root, journal, journalPath);
+      if (await journalMatchesCurrentState(root, journal)) candidates.push({ journal, journalPath });
+      else if (journal.currentStateWitness.sourceConservation) staleSourceConservation.push(journalPath);
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+  if (candidates.length === 0 && staleSourceConservation.length > 0) {
+    throw new Error("committed Gate 5 current-state source witness no longer matches project bytes; doctor refuses an unbound success state");
+  }
+  if (candidates.length === 0) return null;
+  // A later repair can deliberately restore the exact bytes of an earlier
+  // state. Its sealed supersession link is the only permitted tie-breaker:
+  // filesystem timestamps remain untrusted and an unlinked tie stays fatal.
+  const superseded = new Set(candidates.flatMap(({ journal }) => (
+    journal.currentStateWitness.transaction.supersedesCurrentStateDigests ?? []
+  )));
+  const currentCandidates = candidates.filter(({ journal }) => !superseded.has(journal.currentStateWitness.currentStateDigest));
+  if (currentCandidates.length !== 1) {
+    throw new Error("multiple committed journals match the current filesystem state; doctor refuses ambiguous current-state authority");
+  }
+  return validateCurrentStateWitness(currentCandidates[0].journal);
+}
+
+async function findRestoredCurrentStateDigests(root, outputs) {
+  const migrationsRoot = path.join(root, "dev", "governance_migrations");
+  let names;
+  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return []; throw error; }
+  const outputWitnesses = new Map(outputs.map((item) => [item.targetRel, { sha256: item.afterHash, bytes: item.after.length }]));
+  const restored = [];
+  for (const name of names) {
+    if (name === ".upgrade.lock") continue;
+    const journalPath = path.join(migrationsRoot, name, "transaction.json");
+    try {
+      const stats = await lstat(journalPath);
+      if (!stats.isFile() || stats.isSymbolicLink()) continue;
+      const journal = JSON.parse(await readFile(journalPath, "utf8"));
+      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
+      await validateRecoveryJournal(root, journal, journalPath);
+      if (await journalIsRestoredByOutputs(root, journal, outputWitnesses)) {
+        restored.push(journal.currentStateWitness.currentStateDigest);
+      }
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+  return [...new Set(restored)].sort((left, right) => left.localeCompare(right));
+}
+
+async function journalIsRestoredByOutputs(root, journal, outputWitnesses) {
+  const witness = validateCurrentStateWitness(journal);
+  for (const entry of journal.entries) {
+    const replacement = outputWitnesses.get(entry.targetRel);
+    if (replacement) {
+      if (replacement.sha256 !== entry.afterHash) return false;
+      continue;
+    }
+    const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
+    if (!bytes || sha256(bytes) !== entry.afterHash) return false;
+  }
+  for (const entry of witness.sourceConservation?.entries ?? []) {
+    const replacement = outputWitnesses.get(entry.sourcePath);
+    if (replacement) {
+      if (replacement.sha256 !== entry.accepted.sha256 || replacement.bytes !== entry.accepted.bytes) return false;
+      continue;
+    }
+    const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
+    if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) return false;
+  }
+  return true;
+}
+
+async function checkCurrentStateWitness(root, witness) {
+  if (!witness) return { ok: true, checked: 0, finding: null };
+  try {
+    const accepted = validateCurrentStateWitnessValue(witness);
+    const plan = accepted.entries.map((entry) => ({
+      action: "merge",
+      targetRel: entry.targetRel,
+      targetAbs: path.join(root, entry.targetRel)
+    }));
+    await validateTransactionRoot(root, plan, { createMissingRoot: false });
+    for (const entry of accepted.entries) {
+      const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
+      if (!bytes || sha256(bytes) !== entry.afterHash) {
+        return { ok: false, checked: accepted.entries.length, finding: `${entry.targetRel}: current bytes differ from the shared transaction witness` };
+      }
+    }
+    for (const entry of accepted.sourceConservation?.entries ?? []) {
+      const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
+      if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) {
+        return {
+          ok: false,
+          checked: accepted.entries.length + accepted.sourceConservation.entries.length,
+          finding: `${entry.sourcePath}: current bytes differ from the shared frozen-source witness`
+        };
+      }
+    }
+    return { ok: true, checked: accepted.entries.length + (accepted.sourceConservation?.entries.length ?? 0), finding: null };
+  } catch (error) {
+    return { ok: false, checked: (witness.entries?.length ?? 0) + (witness.sourceConservation?.entries?.length ?? 0) || 1, finding: String(error?.message ?? error) };
+  }
+}
+
+async function journalMatchesCurrentState(root, journal) {
+  const witness = validateCurrentStateWitness(journal);
+  const plan = journal.entries.map((entry) => ({
+    action: "merge",
+    targetRel: entry.targetRel,
+    targetAbs: path.join(root, entry.targetRel)
+  }));
+  await validateTransactionRoot(root, plan, { createMissingRoot: false });
+  for (const entry of journal.entries) {
+    const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
+    if (!bytes || sha256(bytes) !== entry.afterHash) return false;
+  }
+  for (const entry of witness.sourceConservation?.entries ?? []) {
+    const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
+    if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) return false;
+  }
+  return true;
+}
+
+async function checkRuntimeAcceptance(root, options = {}) {
+  const witness = options.expectedRuntimeAcceptance ?? null;
+  if (!witness) return { ok: true, checked: 0, finding: null, state: null };
+  try {
+    const state = await readRuntimeAcceptance(root, witness, { allowActiveTransaction: options.allowActiveTransaction === true });
+    if (typeof options.captureRuntimeAcceptance === "function") options.captureRuntimeAcceptance(state);
+    return { ok: true, checked: 1, finding: null, state };
+  } catch (error) {
+    return { ok: false, checked: 1, finding: String(error?.message ?? error), state: null };
+  }
+}
+
+function runtimeAcceptanceReadbackFromDoctorState(state, witness) {
+  if (!state || state.acceptanceDigest !== witness.acceptanceDigest || state.entries.length !== witness.entries.length) {
+    throw new Error("runtime acceptance doctor readback does not match the transaction witness");
+  }
+  for (let index = 0; index < witness.entries.length; index += 1) {
+    const expected = witness.entries[index];
+    const actual = state.entries[index];
+    if (actual.targetRel !== expected.targetRel || actual.sha256 !== expected.accepted.sha256 || actual.bytes !== expected.accepted.bytes
+      || actual.disposition !== expected.disposition || actual.priorityRelation !== expected.priorityRelation || actual.effectDecision !== expected.effectDecision
+      || JSON.stringify(actual.activeReader) !== JSON.stringify(expected.activeReader)) {
+      throw new Error("runtime acceptance doctor readback order, route, metadata, or effect differs from the transaction witness");
+    }
+  }
+  const hasDirectAgents = witness.entries.some((entry) => entry.targetRel === "AGENTS.md");
+  const hasDirectRulePacks = witness.entries.some((entry) => entry.targetRel === "dev/RULE_PACKS.md");
+  const hasDirectStateful = witness.entries.some((entry) => directStatefulTargets.has(entry.targetRel));
+  return {
+    reader: hasDirectStateful
+      ? `doctor ${runtimeAcceptanceSurfaceLabel(witness)}`
+      : hasDirectAgents && hasDirectRulePacks
+      ? "doctor direct AGENTS and RULE_PACKS formal-entry runtime acceptance check"
+      : hasDirectAgents
+        ? "doctor direct AGENTS formal-entry runtime acceptance check"
+        : hasDirectRulePacks
+          ? "doctor AGENTS -> direct RULE_PACKS formal-entry runtime acceptance check"
+          : "doctor AGENTS -> RULE_PACKS runtime acceptance check",
+    acceptanceDigest: state.acceptanceDigest,
+    entries: state.entries.map((entry) => ({ targetRel: entry.targetRel, sha256: entry.sha256, bytes: entry.bytes, disposition: entry.disposition }))
+  };
+}
+
+function currentStateReadbackFromDoctorStates(witness, formalState, runtimeAcceptanceState) {
+  const accepted = validateCurrentStateWitnessValue(witness);
+  const formalReadback = accepted.formalUserRules
+    ? formalUserRulesReadbackFromDoctorState(formalState, accepted.formalUserRules)
+    : null;
+  const runtimeReadback = accepted.runtimeAcceptance
+    ? runtimeAcceptanceReadbackFromDoctorState(runtimeAcceptanceState, accepted.runtimeAcceptance)
+    : null;
+  return {
+    reader: "doctor shared current-state witness check",
+    currentStateDigest: accepted.currentStateDigest,
+    sourceConservationEntryCount: accepted.sourceConservation?.entries.length ?? 0,
+    formalUserRulesAcceptanceDigest: formalReadback?.acceptanceDigest ?? null,
+    runtimeAcceptanceDigest: runtimeReadback?.acceptanceDigest ?? null,
+    formalUserRules: formalReadback,
+    runtimeAcceptance: runtimeReadback
+  };
+}
+
+function validateCurrentStateReadback(value, witness) {
+  if (value == null) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || value.reader !== "doctor shared current-state witness check"
+    || value.currentStateDigest !== witness.currentStateDigest
+    || (witness.sourceConservation && value.sourceConservationEntryCount !== witness.sourceConservation.entries.length)
+    || (!witness.sourceConservation && value.sourceConservationEntryCount != null && value.sourceConservationEntryCount !== 0)
+    || value.formalUserRulesAcceptanceDigest !== (witness.formalUserRules?.acceptanceDigest ?? null)
+    || value.runtimeAcceptanceDigest !== (witness.runtimeAcceptance?.acceptanceDigest ?? null)) {
+    throw new Error("shared current-state doctor readback is detached from the accepted witness; no recovery writes attempted");
+  }
+  return value;
+}
+
+async function checkFormalUserRules(root, options = {}) {
+  const agentsText = await readOptionalText(path.join(root, "AGENTS.md"));
+  const routerPresent = await exists(path.join(root, USER_RULES_ROUTER_PATH));
+  const declaresFormalEntry = Boolean(agentsText?.includes(FORMAL_USER_RULES_ENTRY_ANCHOR));
+  if (!declaresFormalEntry && !routerPresent) {
+    return { ok: true, checked: 0, finding: null };
+  }
+  try {
+    const state = await readFormalUserRules({ root, allowActiveTransaction: options.allowActiveTransaction === true });
+    if (options.expectedFormalUserRules) assertFormalUserRulesReadback(state, options.expectedFormalUserRules);
+    if (typeof options.captureFormalUserRules === "function") options.captureFormalUserRules(state);
+    return { ok: true, checked: 1, finding: null, state };
+  } catch (error) {
+    return { ok: false, checked: 1, finding: String(error?.message ?? error) };
+  }
+}
+
+function formalUserRulesReadbackFromDoctorState(state, witness) {
+  assertFormalUserRulesReadback(state, witness);
+  return {
+    reader: "doctor formal user-rules check",
+    acceptanceDigest: state.acceptanceDigest,
+    agentsSha256: state.agentsSha256,
+    routerSha256: state.routerSha256,
+    entries: state.rules.map((rule) => ({ entryId: rule.entryId, contentPath: rule.path, sha256: rule.sha256, bytes: rule.bytes.length }))
+  };
+}
+
+function assertFormalUserRulesReadback(actual, witness) {
+  if (!witness || actual.acceptanceDigest !== witness.acceptanceDigest
+    || JSON.stringify(actual.state) !== JSON.stringify(witness.state)
+    || actual.rules.length !== witness.entries.length) {
+    throw new Error("formal user-rules runtime readback does not match the transaction acceptance witness");
+  }
+  for (let index = 0; index < witness.entries.length; index += 1) {
+    const expected = witness.entries[index];
+    const rule = actual.rules[index];
+    if (rule.entryId !== expected.entryId || rule.path !== expected.contentPath
+      || rule.sha256 !== expected.accepted.sha256 || rule.bytes.length !== expected.accepted.bytes
+      || rule.sourceWitness.sha256 !== expected.sourceWitness.sha256 || rule.sourceWitness.bytes !== expected.sourceWitness.bytes
+      || rule.originalReader.reader !== expected.originalReader.reader || rule.originalReader.via !== expected.originalReader.via
+      || rule.activeReader.reader !== expected.activeReader.reader || rule.activeReader.via !== expected.activeReader.via
+      || rule.priorityRelation !== expected.priorityRelation || rule.effectDecision !== expected.effectDecision) {
+      throw new Error("formal user-rules runtime readback order, metadata, or effect differs from the transaction acceptance witness");
+    }
+  }
 }
 
 async function checkResearchDecisionTrace(root) {
@@ -2075,7 +3919,7 @@ function handoffStateLines(text, markerId, headingTitle) {
 }
 
 function isOwnedOpeningLifecycleBoilerplate(line) {
-  return /^Resume the current objective\. If my message or the handoff already gives an executable task, begin its first safe action in this response\./i.test(line)
+  return /^Resume the current objective\. A plain `Start Agent Handoff` \/ `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery/i.test(line)
     || /^A fresh install only makes guidance available; it does not force onboarding\./i.test(line)
     || /^Load onboarding only when I explicitly ask for guidance or no executable objective remains after state reading\./i.test(line);
 }
@@ -2354,6 +4198,7 @@ function tableHeader(...cells) {
 
 async function buildPlan(root, command, version = null) {
   const plan = [];
+  const planMappings = command === "init" ? freshInstallMappings : [...mappings, ...upgradeStateMappings];
   const context = {
     currentVersion: version,
     rootTemplateVersion: command === "upgrade" ? await readRootTemplateVersion(root) : null,
@@ -2363,21 +4208,59 @@ async function buildPlan(root, command, version = null) {
     historicalOfficialEvidence: false
   };
   if (command === "upgrade") {
-    for (const [, targetRel] of mappings) {
-      const targetText = await readOptionalText(path.join(root, targetRel));
-      if (targetText == null) continue;
-      context.officialOrigins.set(targetRel, identifyOfficialOrigin({ targetRel, text: targetText, catalog: context.officialCatalog }));
+    for (const [, targetRel] of planMappings) {
+      if (upgradeStateTargets.includes(targetRel)) continue;
+      const targetBytes = await readOptionalBuffer(path.join(root, targetRel));
+      if (targetBytes == null) continue;
+      const targetText = targetBytes.toString("utf8");
+      context.officialOrigins.set(targetRel, identifyOfficialOrigin({ targetRel, text: targetText, bytes: targetBytes, catalog: context.officialCatalog }));
     }
     context.trustedBaselineVersion = selectTrustedOfficialBaseline(context);
     context.historicalOfficialEvidence = countHistoricalOfficialSignals(context) >= 2;
   }
-  for (const [sourceRel, targetRel] of mappings) {
+  for (const [sourceRel, targetRel] of planMappings) {
     const sourceAbs = path.join(packageRoot, sourceRel);
     const targetAbs = path.join(root, targetRel);
-    const sourceText = await readFile(sourceAbs, "utf8");
+    const sourceText = await readTemplateSource(command, sourceRel, targetRel, sourceAbs);
+    if (command === "upgrade" && upgradeStateTargets.includes(targetRel)) {
+      const routerText = await readOptionalText(targetAbs);
+      const agentsText = await readOptionalText(path.join(root, "AGENTS.md"));
+      const declaresFormalEntry = Boolean(agentsText?.includes(FORMAL_USER_RULES_ENTRY_ANCHOR));
+      if (!routerText && !declaresFormalEntry) {
+        plan.push({
+          sourceRel,
+          targetRel,
+          sourceAbs,
+          targetAbs,
+          action: "skip",
+          reason: "no pre-existing formal user-rules state; router path does not imply legacy ownership"
+        });
+      } else if (!routerText || !declaresFormalEntry) {
+        plan.push({
+          sourceRel,
+          targetRel,
+          sourceAbs,
+          targetAbs,
+          action: "conflict",
+          reason: "formal user-rules entry and router are incomplete; upgrade stops instead of creating, replacing, or inferring ownership"
+        });
+      } else {
+        plan.push({
+          sourceRel,
+          targetRel,
+          sourceAbs,
+          targetAbs,
+          action: "merge",
+          mergedText: routerText,
+          reason: "transition verified formal user-rules state atomically with the Kit base"
+        });
+      }
+      continue;
+    }
     if (await exists(targetAbs)) {
-      const targetText = await readFile(targetAbs, "utf8");
-      plan.push(classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText, context));
+      const targetBytes = await readOptionalBuffer(targetAbs);
+      const targetText = decodeUtf8(targetBytes, targetRel).text;
+      plan.push(classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText, context, targetBytes));
       continue;
     }
     const misplacedRel = targetRel.startsWith("dev/rules/")
@@ -2398,12 +4281,16 @@ async function buildPlan(root, command, version = null) {
   return plan;
 }
 
+async function readTemplateSource(command, sourceRel, targetRel, sourceAbs) {
+  return readFile(sourceAbs, "utf8");
+}
+
 function countHistoricalOfficialSignals(context) {
   if (!isStableSemver(context.currentVersion)) return 0;
   return [...context.officialOrigins.values()].filter((origin) => (
-    origin.exactVersions.length > 0
-    && !origin.exactVersions.includes(context.currentVersion)
-    && origin.exactVersions.every((version) => isStableSemver(version) && compareSemver(version, context.currentVersion) < 0)
+    origin.rawExactVersions.length > 0
+    && !origin.rawExactVersions.includes(context.currentVersion)
+    && origin.rawExactVersions.every((version) => isStableSemver(version) && compareSemver(version, context.currentVersion) < 0)
   )).length;
 }
 
@@ -2411,25 +4298,24 @@ function selectTrustedOfficialBaseline(context) {
   const version = context.rootTemplateVersion;
   if (!isStableSemver(version) || !context.officialCatalog?.releases?.[version]) return null;
   const dynamicTargets = new Set(["START_NEXT_SESSION_PROMPT.txt", "dev/SESSION_HANDOFF.md", "dev/PROJECT_INDEX.md"]);
-  let exactSupport = 0;
+  // Normalized/canonical identity only selects a historical baseline for a
+  // preserve decision. It never reaches trustedOfficialOrigin(), which keeps
+  // raw byte equality as the sole authority to replace Kit-managed content.
+  let baselineSupport = 0;
   let contradiction = false;
   for (const [targetRel, origin] of context.officialOrigins) {
-    const candidates = dynamicTargets.has(targetRel)
-      ? [...new Set([...origin.exactVersions, ...origin.canonicalVersions])]
-      : origin.exactVersions;
+    const candidates = [...new Set([...origin.rawExactVersions, ...origin.exactVersions, ...origin.canonicalVersions])];
     if (candidates.length === 0) continue;
     if (!candidates.includes(version)) contradiction = true;
-    else if (!dynamicTargets.has(targetRel)) exactSupport += 1;
+    else if (!dynamicTargets.has(targetRel) && (origin.rawExactVersions.includes(version) || origin.exactVersions.includes(version))) baselineSupport += 1;
   }
-  return !contradiction && exactSupport >= 2 ? version : null;
+  return !contradiction && baselineSupport >= 2 ? version : null;
 }
 
 function trustedOfficialOrigin(targetRel, context) {
   const origin = context.officialOrigins?.get(targetRel);
   if (!origin) return null;
-  if (origin.exact) return { kind: "exact", versions: origin.exactVersions };
-  const baseline = context.trustedBaselineVersion;
-  if (baseline && origin.canonicalVersions.includes(baseline)) return { kind: "canonical", versions: [baseline] };
+  if (origin.rawExact) return { kind: "raw-exact", versions: origin.rawExactVersions };
   return null;
 }
 
@@ -2454,10 +4340,104 @@ async function readRootTemplateVersion(root) {
   }
 }
 
-function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText, context = {}) {
+function findArtifactBoundManagedCoreSegment(bytes, artifactSegment) {
+  const boundary = findUniqueManagedCoreBoundary(bytes, artifactSegment.transform);
+  if (!boundary) return null;
+  const core = bytes.subarray(boundary.start, boundary.end);
+  const witness = byteWitness(core);
+  if (witness.sha256 !== artifactSegment.transform.core.sha256 || witness.bytes !== artifactSegment.transform.core.bytes) return null;
+  return Object.freeze({ ...boundary, ...witness });
+}
+
+function findUniqueManagedCoreBoundary(bytes, transform) {
+  const begin = Buffer.from(`${transform.beginMarker}\n`, "utf8");
+  const end = Buffer.from(`\n${transform.endMarker}`, "utf8");
+  const beginIndex = bytes.indexOf(begin);
+  if (beginIndex < 0 || bytes.indexOf(begin, beginIndex + begin.length) >= 0) return null;
+  const start = beginIndex + begin.length;
+  const endIndex = bytes.indexOf(end, start);
+  if (endIndex < 0 || bytes.indexOf(end, endIndex + end.length) >= 0) return null;
+  return Object.freeze({ start, end: endIndex });
+}
+
+function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText, context = {}, targetBytes = null) {
   const base = { sourceRel, targetRel, sourceAbs, targetAbs };
   if (targetText.replace(/\r\n/g, "\n") === sourceText.replace(/\r\n/g, "\n") && targetRel !== "AGENTS.md") return { ...base, action: "skip", reason: "already current" };
   if (targetRel === "AGENTS.md") {
+    // R-034 Gate 5: marker shape, titles, and pathname are never ownership
+    // evidence. An upgrade may replace the AGENTS core only when the whole
+    // current file has exact package identity. A known legacy base with any
+    // non-exact bytes remains the direct formal entry, so preserve the entire
+    // file as one accepted range rather than trying to infer a managed slice.
+    if (command === "upgrade") {
+      const officialOrigin = trustedOfficialOrigin(targetRel, context);
+      if (officialOrigin) {
+        return {
+          ...base,
+          action: "merge",
+          reason: "replace raw-exact official historical AGENTS.md core",
+          mergedText: mergeManagedBlock(targetText, sourceText)
+        };
+      }
+      const artifactSegment = context.trustedBaselineVersion
+        ? getArtifactBoundManagedSegment({
+          version: context.trustedBaselineVersion,
+          targetRel,
+          catalog: context.officialCatalog
+        })
+        : null;
+      const sourceSegment = artifactSegment && targetBytes
+        ? findArtifactBoundManagedCoreSegment(targetBytes, artifactSegment)
+        : null;
+      if (artifactSegment && sourceSegment) {
+        const replacementCore = Buffer.from(sourceText.trim(), "utf8");
+        const mergedBytes = Buffer.concat([
+          targetBytes.subarray(0, sourceSegment.start),
+          replacementCore,
+          targetBytes.subarray(sourceSegment.end)
+        ]);
+        return {
+          ...base,
+          action: "merge",
+          mergedBytes,
+          managedSegmentRuntimeItem: {
+            disposition: "replace-managed-segment",
+            targetRel,
+            conflictDecision: "artifact-bound-exact-managed-core",
+            preservationKind: "artifact-bound-managed-core",
+            artifactSegment,
+            sourceSegment: {
+              start: sourceSegment.start,
+              end: sourceSegment.end,
+              sha256: sourceSegment.sha256,
+              bytes: sourceSegment.bytes
+            }
+          },
+          reason: "replace only the artifact-bound exact AGENTS core; reconstruct and preserve every surrounding byte"
+        };
+      }
+      if (context.trustedBaselineVersion) {
+        const baselineRecord = getOfficialBaseline({
+          version: context.trustedBaselineVersion,
+          targetRel,
+          catalog: context.officialCatalog
+        });
+        if (baselineRecord?.state === "present") {
+          return {
+            ...base,
+            action: "preserve",
+            preservedRuntimeItem: {
+              disposition: "preserve",
+              targetRel,
+              sourceIdentity: { version: context.trustedBaselineVersion, packageTarget: targetRel },
+              conflictDecision: "non-exact-package-bytes",
+              preservationKind: "whole-file-direct-agents"
+            },
+            reason: "AGENTS.md is not exact official package content; preserve its complete original bytes and direct formal-entry effect in the same transaction acceptance/readback"
+          };
+        }
+      }
+    }
     const health = assessAgentsMdHealth(targetText);
     if (health.state === "conflict") {
       return {
@@ -2497,12 +4477,39 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergeManagedBlock(targetText, sourceText)
     };
   }
+  // Root/version-generated state has no stable catalog raw hash after fresh
+  // init. A normalized or canonical match is evidence for baseline selection,
+  // never byte-for-byte replacement authority. Preserve it whole until its
+  // direct reader/effect has been fresh-read through the shared acceptance.
+  if (command === "upgrade" && directStatefulTargets.has(targetRel) && context.trustedBaselineVersion) {
+    const baselineRecord = getOfficialBaseline({
+      version: context.trustedBaselineVersion,
+      targetRel,
+      catalog: context.officialCatalog
+    });
+    if (baselineRecord?.state === "present") {
+      return {
+        ...base,
+        action: "preserve",
+        preservedRuntimeItem: {
+          disposition: "preserve",
+          targetRel,
+          sourceIdentity: { version: context.trustedBaselineVersion, packageTarget: targetRel },
+          conflictDecision: "non-exact-package-bytes",
+          preservationKind: "whole-file-direct-stateful"
+        },
+        reason: targetRel === "dev/SESSION_LOG.md"
+          ? "dev/SESSION_LOG.md is not exact official package content; preserve its complete original bytes and AGENTS direct formal reader in the same transaction acceptance/readback"
+          : `${targetRel} has no exact historical raw-byte identity after root/version initialization; preserve its complete original bytes and direct formal reader/effect in the same transaction acceptance/readback`
+      };
+    }
+  }
   const officialOrigin = command === "upgrade" ? trustedOfficialOrigin(targetRel, context) : null;
   if (officialOrigin) {
     return {
       ...base,
       action: "merge",
-      reason: `replace unchanged official ${officialOrigin.kind === "exact" ? "historical" : "root-bound historical"} ${targetRel} with the current Kit file`,
+      reason: `replace raw-exact official historical ${targetRel} with the current Kit file`,
       mergedText: sourceText
     };
   }
@@ -2522,6 +4529,28 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   // user-added rows. Missing maintainer rows are merged into the existing table
   // instead of replacing the whole file.
   if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade") {
+    const officialOrigin = trustedOfficialOrigin(targetRel, context);
+    if (!officialOrigin && context.trustedBaselineVersion) {
+      const baselineRecord = getOfficialBaseline({
+        version: context.trustedBaselineVersion,
+        targetRel,
+        catalog: context.officialCatalog
+      });
+      if (baselineRecord?.state === "present") {
+        return {
+          ...base,
+          action: "preserve",
+          preservedRuntimeItem: {
+            disposition: "preserve",
+            targetRel,
+            sourceIdentity: { version: context.trustedBaselineVersion, packageTarget: targetRel },
+            conflictDecision: "non-exact-package-bytes",
+            preservationKind: "whole-file-direct-rule-packs"
+          },
+          reason: "RULE_PACKS.md is not exact official package content; preserve its complete original bytes and AGENTS -> RULE_PACKS reader/effect in the same transaction acceptance/readback"
+        };
+      }
+    }
     const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
     if (!mergedRulePacks) {
       return { ...base, action: "conflict", reason: "RULE_PACKS.md must contain one valid routing table; marked official rows and local rows could not be separated safely" };
@@ -2560,7 +4589,7 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
     if (!migratedHandoff) {
       return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md lacks unique trusted state/opening boundaries; migration stopped without replacing project state" };
     }
-    if (migratedHandoff !== targetText) {
+    if (migratedHandoff.replace(/\r\n/g, "\n") !== targetText.replace(/\r\n/g, "\n")) {
       return { ...base, action: "merge", reason: "update handoff lifecycle/startup contracts while preserving current project state", mergedText: migratedHandoff };
     }
     return { ...base, action: "skip", reason: "SESSION_HANDOFF.md lifecycle and startup contracts current" };
@@ -2582,22 +4611,17 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       catalog: context.officialCatalog
     });
     if (baselineRecord?.state === "present") {
-      if (isKnownV038ContinuityQuickFix(sourceRel, targetText)) {
-        return {
-          ...base,
-          action: "merge",
-          reason: `replace the exact known v0.3.38 continuity quick-fix ${path.basename(targetRel)} with the current official pack`,
-          mergedText: sourceText
-        };
-      }
-      const mergedPack = threeWayPreserveLocalAppendix(baselineRecord.text, targetText, sourceText);
-      if (!mergedPack) {
-        return { ...base, action: "conflict", reason: `${targetRel} differs from its verified official baseline outside a clearly headed local appendix; arbitrary line-level non-overlap is not treated as proof that rule changes are compatible` };
-      }
-      if (mergedPack !== targetText) {
-        return { ...base, action: "merge", reason: `update verified official rules while preserving the clearly headed local ${path.basename(targetRel)} appendix`, mergedText: mergedPack };
-      }
-      return { ...base, action: "skip", reason: `${targetRel} current after verified-baseline preservation check` };
+      return {
+        ...base,
+        action: "preserve",
+        preservedRuntimeItem: {
+          disposition: "preserve",
+          targetRel,
+          sourceIdentity: { version: context.trustedBaselineVersion, packageTarget: targetRel },
+          conflictDecision: "non-exact-package-bytes"
+        },
+        reason: `${targetRel} is not exact official package content; preserve its original bytes in the existing runtime route and include that route in the same transaction acceptance/readback`
+      };
     }
   }
   // Governance bridge v0.3.27+: add the triggered review workflow to the
@@ -2716,7 +4740,7 @@ function mergeOnboardingScenarioALabel(targetText) {
 
 function mergeOnboardingDecisionFirstPolicy(targetText, sourceText) {
   const legacySignalLine = "- equivalent Chinese user phrases such as \"新手\", \"教我用\", \"我剛安裝\", \"點開始\", \"開工\", \"能力\", or \"能做甚麼\"";
-  const currentSignalBoundary = "- equivalent Chinese user phrases such as \"新手\", \"教我用\", \"我剛安裝\", \"點開始\", \"能力\", or \"能做甚麼\"\n\n### Continuity startup boundary\n\n`Start Agent Handoff` / \"開工\" starts continuity and reads the current handoff state; it is not an onboarding signal. If the same message or loaded state contains a concrete objective, infer the working scenario and begin the first safe action. Only when no executable objective remains after state reading should the AI ask one concise question or offer the guided onboarding path. Explicit requests such as \"新手，教我用\" enter onboarding directly.";
+  const currentSignalBoundary = "- equivalent Chinese user phrases such as \"新手\", \"教我用\", \"我剛安裝\", \"點開始\", \"能力\", or \"能做甚麼\"\n\n### Continuity startup boundary\n\n`Start Agent Handoff` / \"開工\" starts continuity and reads the minimum current handoff state; it is not an onboarding signal. A plain startup stops after its status card and recommended next action; a loaded objective alone does not authorize work. A same-message concrete task may begin normally. Only when no executable objective remains after state reading should the AI ask one concise question or offer the guided onboarding path. Explicit requests such as \"新手，教我用\" enter onboarding directly.";
   let working = targetText;
   let startupBoundaryChanged = false;
   if (working.includes(legacySignalLine) && !working.includes("### Continuity startup boundary")) {
@@ -2968,7 +4992,7 @@ function projectDecisionsAnchorPlacement(snippet, text) {
 }
 
 function onboardingAnchorPlacement(snippet, text) {
-  if (snippet === "Continuity startup boundary" || snippet === "starts continuity and reads the current handoff state; it is not an onboarding signal") {
+  if (snippet === "Continuity startup boundary" || snippet === "starts continuity and reads the minimum current handoff state; it is not an onboarding signal") {
     return snippetAppearsBetweenHeadings(text, snippet, "## Load When", "## Discipline");
   }
   if (snippet === "Infer when sufficient; ask only when unresolved") {
@@ -3340,30 +5364,6 @@ function threeWayPreserveLocalChanges(baseText, localText, currentText) {
   return `${merged.join(newline)}${localHadFinalNewline || baseHadFinalNewline ? newline : ""}`;
 }
 
-// Rule packs and other normative Kit files may preserve a clearly separated
-// local appendix, but must not treat arbitrary line-level non-overlap as proof
-// that two rule changes are semantically compatible. Existing-line edits,
-// insertions inside the official body, or a missing local heading are conflicts.
-function threeWayPreserveLocalAppendix(baseText, localText, currentText) {
-  const baseNormalized = baseText.replace(/\r\n/g, "\n").trimEnd();
-  const localNormalized = localText.replace(/\r\n/g, "\n").trimEnd();
-  if (localNormalized === baseNormalized) return currentText;
-  if (!localNormalized.startsWith(`${baseNormalized}\n`)) return null;
-
-  const appendix = localNormalized.slice(baseNormalized.length).trimStart();
-  if (!/^## (?:Local|Project[- ]specific|Project Specific|Custom)(?:\s|$)/i.test(appendix)) return null;
-  const currentNormalized = currentText.replace(/\r\n/g, "\n").trimEnd();
-  if (currentNormalized.includes(appendix)) return localText;
-  const newline = localText.includes("\r\n") ? "\r\n" : "\n";
-  const appendixWithNewlines = appendix.replace(/\n/g, newline);
-  return `${currentText.trimEnd()}${newline}${newline}${appendixWithNewlines}${newline}`;
-}
-
-function isKnownV038ContinuityQuickFix(sourceRel, text) {
-  const expected = knownV038ContinuityQuickFixHashes.get(sourceRel);
-  if (!expected) return false;
-  return sha256(Buffer.from(text.replace(/\r\n/g, "\n"), "utf8")) === expected;
-}
 
 function uniqueH2Section(text, title) {
   const matches = parseMarkdownH2Sections(text).filter((section) => section.title === title);
@@ -3837,7 +5837,9 @@ function mergeHandoffRecommendedNextStepDiscipline(targetText) {
 }
 
 function ensureCurrentHandoffMigrationFields(targetText) {
-  let merged = ensureHandoffPersistenceRoutingField(targetText);
+  let merged = ensureHandoffCloseoutOutcomeFields(targetText);
+  if (!merged) return null;
+  merged = ensureHandoffPersistenceRoutingField(merged);
   if (!merged) return null;
   merged = ensureHandoffRecommendedNextStepField(merged);
   if (!merged) return null;
@@ -4081,7 +6083,7 @@ function knownOfficialLegacyRouteId(row) {
 // and npm latest. Surfaces drift awareness because previous design relied on startup
 // maybePrintUpdateNotice which silently fails when npx auto-fetches latest (CLI version
 // equals npm latest, so the notice never triggers, leaving user root drift invisible).
-async function assessVersionAlignment(root, cliVersion) {
+async function assessVersionAlignment(root, cliVersion, options = {}) {
   const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
   let rootVersion = null;
   try {
@@ -4092,10 +6094,12 @@ async function assessVersionAlignment(root, cliVersion) {
   }
 
   let npmLatest = null;
-  try {
-    npmLatest = await fetchLatestVersion();
-  } catch {
-    // network failure; npmLatest stays null
+  if (!options.skipRegistryLookup && !shouldSkipUpdateCheck()) {
+    try {
+      npmLatest = await fetchLatestVersion();
+    } catch {
+      // network failure; npmLatest stays null
+    }
   }
 
   return { cliVersion, rootVersion, npmLatest };
@@ -4449,7 +6453,6 @@ async function detectMode(root) {
 }
 
 function printPlan(command, root, mode, plan, version, isDryRun = false, installedVersion = null) {
-  printCard(version, "continuity ready", "o.o");
   console.log(`command: ${command}`);
   console.log(`current directory: ${process.cwd()}`);
   console.log(`selected root: ${root}`);
@@ -4461,12 +6464,25 @@ function printPlan(command, root, mode, plan, version, isDryRun = false, install
   const planIntro = planIntroFor(command, mode, isDryRun);
   console.log(planIntro);
   console.log("");
-  for (const action of ["create", "merge", "skip", "conflict"]) {
+  for (const action of ["create", "merge", "preserve", "skip", "conflict"]) {
     const items = plan.filter((item) => item.action === action);
     console.log(`${action}: ${items.length}`);
     for (const item of items) console.log(`  ${item.targetRel}${item.reason ? ` - ${item.reason}` : ""}`);
   }
-  console.log(`\nbackup: ${plan.filter((item) => item.action === "merge").length}`);
+  console.log(`\nbackup: ${plan.filter((item) => item.action === "merge" || item.action === "preserve").length}`);
+}
+
+function ensureHandoffCloseoutOutcomeFields(targetText) {
+  const hasOutcome = targetText.includes("ack:field:closeout-outcome");
+  const hasPersistence = targetText.includes("ack:field:project-required-persistence");
+  if (hasOutcome && hasPersistence) return targetText;
+  const openingMarker = "<!-- ack:field:opening-message-matches-current-state -->";
+  if (!targetText.includes(openingMarker)) return null;
+  const fields = [
+    !hasOutcome ? "<!-- ack:field:closeout-outcome -->\n- Closeout outcome: not_started — added by upgrade; determine it during the next full closeout.\n" : "",
+    !hasPersistence ? "<!-- ack:field:project-required-persistence -->\n- Project-required persistence: not_assessed — added by upgrade; determine whether persistence is not required, complete, or blocked at the next full closeout.\n" : ""
+  ].join("");
+  return targetText.replace(openingMarker, `${fields}${openingMarker}`);
 }
 
 function planIntroFor(command, mode, isDryRun) {
@@ -4498,7 +6514,7 @@ function printInstallSummary(version, command, mode, root, counts) {
   if (counts.conflicts > 0) {
     console.log("🚀 下一步：把這段輸出交給 Kit 開發者或可讀取專案的 AI 核對正式來源及差異；一般使用者毋須裁決技術內容。工具已停手，沒有覆寫 conflict 檔案。");
   } else if (command === "upgrade") {
-    console.log("🚀 下一步：留意下方 migration committed 與 project health 的分開結果。");
+    console.log("🚀 下一步：本次提交已先經同一輪正式 doctor 讀回；請留意下方提交與健康結果。");
   } else if (counts.skipped > 0) {
     console.log("🚀 下一步：先看下方提示。若你原本已有 AGENTS.md 或其他 AI 規則，請先執行 upgrade --dry-run 補入口連接，再執行 doctor。");
   } else {
@@ -4590,7 +6606,12 @@ function migrationStamp() {
 async function readPackageVersion() {
   try {
     const text = await readFile(path.join(packageRoot, "package.json"), "utf8");
-    return JSON.parse(text).version ?? "version unverified";
+    const packagedVersion = JSON.parse(text).version ?? "version unverified";
+    const qaOverride = process.env.AGENT_HANDOFF_KIT_QA_VERSION_OVERRIDE;
+    if (process.env.AGENT_HANDOFF_KIT_QA_ALLOW_VERSION_OVERRIDE === "1" && isStableSemver(qaOverride ?? "")) {
+      return qaOverride;
+    }
+    return packagedVersion;
   } catch {
     return "version unverified";
   }
@@ -4746,21 +6767,21 @@ function printUpgradeNextSteps(root, conflictCount) {
     console.log("============================================================");
     return;
   }
-  console.log("🛠️  Kit migration 已通過離線遷移驗收；下方 doctor 另行回報整體項目健康");
+  console.log("🛠️  Kit migration 已通過離線遷移驗收；已由正式 doctor 的同輪讀回確認提交與健康使用同一狀態");
   console.log("============================================================");
   console.log("📋 如你正在進行中的工作對話已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
   console.log("");
   console.log("💡 版本詳情不在升級流程內展開；如需要，可稍後查看 GitHub Release：");
   console.log("   https://github.com/Adamchanadam/agent-handoff-kit/releases/latest");
   console.log("");
-  console.log("🩺 下方會分開顯示 migration committed 與 project health；doctor 需要處理時，不會改寫已提交的遷移結果。");
+  console.log("🩺 migration committed 與 project health 只會在同一輪 doctor 讀回後顯示；失敗時不會宣稱已提交。");
   console.log("============================================================");
 }
 
 // R-031 v0.3.24+: Upgrade no-op may skip file writes, but it must not skip the
 // single health authority. If the CLI says a latest root can continue, that claim
 // is backed by the same runDoctor() implementation users would invoke manually.
-async function assessUpgradeNoopHealth(root, version) {
+async function assessUpgradeNoopHealth(root, version, options = {}) {
   const originalLog = console.log;
   const originalError = console.error;
   const previousExitCode = process.exitCode;
@@ -4771,7 +6792,11 @@ async function assessUpgradeNoopHealth(root, version) {
     console.log = (...args) => stdout.push(args.join(" "));
     console.error = (...args) => stderr.push(args.join(" "));
     process.exitCode = undefined;
-    const status = await runDoctor(root, version, { silentCard: true, context: "upgrade-noop-health-check" });
+    const status = await runDoctor(root, version, {
+      silentCard: true,
+      context: "upgrade-noop-health-check",
+      skipVersionRegistryLookup: options.skipVersionRegistryLookup === true
+    });
     const doctorExitCode = process.exitCode;
     return {
       ok: status === "passed" && !doctorExitCode,
@@ -4842,11 +6867,13 @@ Usage:
   agent-handoff-kit init [--dry-run] [--yes] [--root <path>]
   agent-handoff-kit upgrade [--dry-run] [--yes] [--root <path>]
   agent-handoff-kit doctor [--root <path>]
+  agent-handoff-kit closeout-status [--root <path>]
 
 Commands:
   init      Plan or install missing core files and rule packs.
   upgrade   Preserve existing files; merge safe core updates or report conflicts.
   doctor    Check required installed files.
+  closeout-status  Render the state-bound closeout card after a full closeout.
 
 中文速讀：
   ✅ 第一次用：先在項目資料夾執行 init。

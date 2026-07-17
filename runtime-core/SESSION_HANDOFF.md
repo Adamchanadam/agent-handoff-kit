@@ -117,6 +117,10 @@ At full closeout, complete this check after updating the state sections above.
 - Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: TBD
 <!-- ack:field:persistence-routing-checked -->
 - Persistence routing checked: TBD
+<!-- ack:field:closeout-outcome -->
+- Closeout outcome: not_started — full closeout has not yet been assessed.
+<!-- ack:field:project-required-persistence -->
+- Project-required persistence: not_assessed — state whether this project's required Git or other persistence completed, is not required, or is blocked.
 <!-- ack:field:recommended-next-step-explicit -->
 - Recommended next step is explicit and reasoned: TBD
 <!-- ack:field:opening-message-matches-current-state -->
@@ -124,9 +128,11 @@ At full closeout, complete this check after updating the state sections above.
 <!-- ack:field:next-ai-can-continue -->
 - Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: TBD
 
-If any answer is no, blocked, or uncertain, fix this handoff before declaring handoff ready.
+If any answer is no, blocked, or uncertain, fix this handoff before declaring handoff ready. `Closeout outcome: complete` is allowed only when required writes, read-backs and project-required persistence are complete. If project-required persistence is blocked, use `Closeout outcome: blocked` and state the blocker; it is not a completed closeout.
 
 Lifecycle consistency rule: compare `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message` as full content, including renamed or paraphrased work. A completed or verified item must not remain as an unresolved next priority, active risk, or startup instruction unless it is explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with the missing evidence or trigger condition stated. Doctor catches only mechanical contradictions and unresolved fields; its green result is not semantic proof. Recommended next-step rule: `Next Priorities` must name the single recommended next action and a short reason before listing additional options, unless the next action is blocked or genuinely requires a user decision. Persistence routing rule: one-time delivery instructions, historical validation evidence, old hashes, old version facts, and incident notes must stay in trace evidence unless they still affect the next action.
+
+Closeout-card rule: `closeout-status` reads only these existing handoff fields plus fresh doctor / mirror results; it does not create another persistence authority. Its `complete` card is the only permitted source for the user-facing `handoff saved` wording. A nonzero / `blocked` result must be shown as blocked, never summarized as completed.
 
 <!-- ack:section:handoff-sufficiency-check -->
 ## Handoff Sufficiency Check
@@ -150,5 +156,5 @@ Work in <absolute project root>. Read AGENTS.md, then dev/SESSION_HANDOFF.md. Tr
 
 If the root does not match the handoff, stop and ask for confirmation. Do not read dev/SESSION_LOG.md during ordinary startup. Read dev/PROJECT_INDEX.md, dev/RULE_PACKS.md, dev/DOC_SYNC_REGISTRY.md, and task packs only when the current task requires them.
 
-Resume the current objective. If my message or the handoff already gives an executable task, begin its first safe action in this response. A fresh install only makes guidance available; it does not force onboarding. Load onboarding only when I explicitly ask for guidance or no executable objective remains after state reading.
+Resume the current objective. A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, writes, network access, or opt-out execution wording. A concrete objective found only in this handoff is not authority to complete the objective. A same-message task may begin normally; an explicit instruction such as `開工，繼續做到下一個 blocker` or `開工，繼續完成目前目標` may continue under the normal task and safety rules. A fresh install only makes guidance available; it does not force onboarding. Load onboarding only when I explicitly ask for guidance or no executable objective remains after state reading.
 ```

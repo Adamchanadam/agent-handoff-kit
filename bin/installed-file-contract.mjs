@@ -1,6 +1,6 @@
-// Single source of truth for every file Agent Handoff Kit installs and upgrades.
-// Runtime migration, fixture generation, catalog validation, and package QA must
-// consume this contract instead of maintaining parallel path lists.
+// Single source of truth for the historical files Agent Handoff Kit installs
+// and upgrades. Fresh-only files are declared separately so their new path
+// cannot silently become legacy ownership or upgrade evidence.
 
 export const INSTALLED_FILE_CONTRACT_SCHEMA = 1;
 
@@ -30,6 +30,35 @@ export const installedFileContracts = Object.freeze([
 
 export const installedMappings = Object.freeze(
   installedFileContracts.map(({ sourceRel, targetRel }) => Object.freeze([sourceRel, targetRel]))
+);
+
+// The router is installed on fresh roots, but is not evidence that an arbitrary
+// legacy or mixed file is Kit-managed. Its upgrade treatment lives in a
+// separate, state-bound transition contract below rather than the historical
+// file catalog.
+export const freshInstallFileContracts = Object.freeze([
+  ...installedFileContracts,
+  contract("runtime-core/USER_RULES.md", "dev/USER_RULES.md", "fresh-user-router")
+]);
+
+export const freshInstallMappings = Object.freeze(
+  freshInstallFileContracts.map(({ sourceRel, targetRel }) => Object.freeze([sourceRel, targetRel]))
+);
+
+// R-034: formal user-rule state is part of an upgrade only when the existing
+// AGENTS.md entry and router form one verifiable formal state. This separate
+// contract deliberately does not reclassify a path, title, or directory as
+// historical Kit ownership.
+export const upgradeStateFileContracts = Object.freeze([
+  contract("runtime-core/USER_RULES.md", "dev/USER_RULES.md", "accepted-user-rules-router")
+]);
+
+export const upgradeStateMappings = Object.freeze(
+  upgradeStateFileContracts.map(({ sourceRel, targetRel }) => Object.freeze([sourceRel, targetRel]))
+);
+
+export const upgradeStateTargets = Object.freeze(
+  upgradeStateFileContracts.map(({ targetRel }) => targetRel)
 );
 
 export const requiredInstalledTargets = Object.freeze(

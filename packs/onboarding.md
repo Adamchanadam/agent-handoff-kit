@@ -24,7 +24,7 @@ Load this pack when the user message contains an onboarding signal such as:
 
 ### Continuity startup boundary
 
-`Start Agent Handoff` / "開工" starts continuity and reads the current handoff state; it is not an onboarding signal. If the same message or loaded state contains a concrete objective, infer the working scenario and begin the first safe action. Only when no executable objective remains after state reading should the AI ask one concise question or offer the guided onboarding path. Explicit requests such as "新手，教我用" enter onboarding directly.
+`Start Agent Handoff` / "開工" starts continuity and reads the minimum current handoff state; it is not an onboarding signal. A plain startup stops after its status card and recommended next action; a loaded objective alone does not authorize work. A same-message concrete task may begin normally. Only when no executable objective remains after state reading should the AI ask one concise question or offer the guided onboarding path. Explicit requests such as "新手，教我用" enter onboarding directly.
 
 ### Implicit signals
 

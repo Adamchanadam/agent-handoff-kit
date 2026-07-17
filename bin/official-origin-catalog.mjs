@@ -41,6 +41,9 @@ export function validateOfficialOriginCatalog(catalog) {
       }
       referenced.add(entry.contentId);
     }
+    for (const targetRel of Object.keys(release.managedSegments ?? {})) {
+      getArtifactBoundManagedSegment({ version, targetRel, catalog });
+    }
   }
 
   for (const [contentId, content] of Object.entries(catalog.contents)) {
@@ -55,22 +58,30 @@ export function validateOfficialOriginCatalog(catalog) {
   return true;
 }
 
-export function identifyOfficialOrigin({ targetRel, text, catalog }) {
+export function identifyOfficialOrigin({ targetRel, text, bytes = null, catalog }) {
   assertCatalogShape(catalog);
-  const normalizedSha256 = sha256(normalizeNewlines(text));
-  const canonicalSha256 = sha256(canonicalizeOfficialText(targetRel, text));
+  const sourceText = String(text);
+  const rawBytes = bytes == null ? Buffer.from(sourceText, "utf8") : Buffer.from(bytes);
+  const rawSha256 = createHash("sha256").update(rawBytes).digest("hex");
+  const normalizedSha256 = sha256(normalizeNewlines(sourceText));
+  const canonicalSha256 = sha256(canonicalizeOfficialText(targetRel, sourceText));
+  const rawExactVersions = [];
   const exactVersions = [];
   const canonicalVersions = [];
 
   for (const [version, release] of Object.entries(catalog.releases)) {
     const entry = release.manifest[targetRel];
     if (!entry || entry.state !== "present") continue;
+    if (entry.rawSha256 === rawSha256) rawExactVersions.push(version);
     if (entry.normalizedSha256 === normalizedSha256) exactVersions.push(version);
     else if (entry.canonicalSha256 === canonicalSha256) canonicalVersions.push(version);
   }
 
   return {
     targetRel,
+    rawSha256,
+    rawExact: rawExactVersions.length > 0,
+    rawExactVersions,
     normalizedSha256,
     canonicalSha256,
     exact: exactVersions.length > 0,
@@ -98,6 +109,45 @@ export function getOfficialBaseline({ version, targetRel, catalog, root = null }
     normalizedSha256: entry.normalizedSha256,
     canonicalSha256: entry.canonicalSha256
   };
+}
+
+// A managed segment is deliberately narrower than a whole-file catalog
+// identity. It exists only when the release is tied to an npm artifact and
+// its raw source plus transformed core bytes are recorded in this catalog.
+// Markers, filenames, headings, and language never grant this authority.
+export function getArtifactBoundManagedSegment({ version, targetRel, catalog }) {
+  assertCatalogShape(catalog);
+  const normalizedVersion = stripVersionPrefix(version);
+  const release = catalog.releases[normalizedVersion];
+  const segment = release?.managedSegments?.[targetRel];
+  if (!segment) return null;
+  const npm = release.source?.npm;
+  if (!npm || typeof npm.spec !== "string" || !/^[a-f0-9]{40}$/.test(npm.shasum)
+    || typeof npm.integrity !== "string" || !npm.integrity.startsWith("sha512-")) {
+    throw new Error(`official origin catalog managed segment has no artifact identity: ${normalizedVersion} ${targetRel}`);
+  }
+  if (!segment || typeof segment !== "object" || Array.isArray(segment)
+    || segment.sourceRel !== "runtime-core/AGENTS.core.md"
+    || segment.transform?.kind !== "utf8-trim-wrapped-managed-core"
+    || typeof segment.transform.beginMarker !== "string" || !segment.transform.beginMarker
+    || typeof segment.transform.endMarker !== "string" || !segment.transform.endMarker
+    || !validSegmentByteIdentity(segment.artifactSource)
+    || !validSegmentByteIdentity(segment.transform.core)) {
+    throw new Error(`official origin catalog managed segment is invalid: ${normalizedVersion} ${targetRel}`);
+  }
+  return Object.freeze({
+    version: normalizedVersion,
+    targetRel,
+    sourceRel: segment.sourceRel,
+    artifact: Object.freeze({ spec: npm.spec, shasum: npm.shasum, integrity: npm.integrity }),
+    artifactSource: Object.freeze({ ...segment.artifactSource }),
+    transform: Object.freeze({
+      kind: segment.transform.kind,
+      beginMarker: segment.transform.beginMarker,
+      endMarker: segment.transform.endMarker,
+      core: Object.freeze({ ...segment.transform.core })
+    })
+  });
 }
 
 export function normalizeNewlines(text) {
@@ -180,6 +230,12 @@ function materializeHandoffOpeningRoot(text, root) {
 
 function stripVersionPrefix(version) {
   return String(version ?? "").replace(/^v/, "");
+}
+
+function validSegmentByteIdentity(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value)
+    && /^[a-f0-9]{64}$/.test(value.sha256)
+    && Number.isInteger(value.bytes) && value.bytes >= 0);
 }
 
 function assertCatalogShape(catalog) {
