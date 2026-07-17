@@ -1,8 +1,8 @@
 # 變更紀錄
 
-## v0.3.42 — release candidate（尚未發佈）
+## v0.3.42 — 2026-07-17
 
-狀態：候選版本；npm 最新公開版仍是 `0.3.41`。本節不是 GitHub Release 或 npm 發佈說明。
+狀態：正式發佈版本。本節保留技術變更；使用者摘要見 GitHub Release 與版本頁。
 
 ### R-034 資料保護根修
 
@@ -20,10 +20,10 @@
 - 完整收工只做一次完整 doctor；關閉狀態內部不再重複查版本。即使停用更新提示，任何 doctor、mirror 或 handoff 失敗仍會令收工失敗。
 - 一般回覆先用清楚日常語言交代結果、實際影響與下一步；需要技術細節時才在後面提供證據與指令。
 
-### 候選驗證範圍
+### 發佈前驗證範圍
 
 - 原五檔 v0.3.40 輸入以既錄 SHA-256 從可信 artifact fixture 重建，驗證原始 bytes、無標題繁中／英文／日文規則效力及 interruption/recovery。
-- 這個候選尚未建立 tag、GitHub Release 或 npm artifact；實際發佈仍需獨立授權。
+- 頂層 release readiness、隔離 UAT 與 npm pack/install smoke 均已在候選 commit 上通過。
 
 ## v0.3.41 — 2026-07-12
 
