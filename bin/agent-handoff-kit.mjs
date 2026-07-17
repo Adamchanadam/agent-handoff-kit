@@ -4312,6 +4312,14 @@ function selectTrustedOfficialBaseline(context) {
   return !contradiction && baselineSupport >= 2 ? version : null;
 }
 
+function isUncatalogedHistoricalBaseline(context) {
+  const version = context.rootTemplateVersion;
+  return isStableSemver(version)
+    && isStableSemver(context.currentVersion)
+    && compareSemver(version, context.currentVersion) < 0
+    && !context.officialCatalog?.releases?.[version];
+}
+
 function trustedOfficialOrigin(targetRel, context) {
   const origin = context.officialOrigins?.get(targetRel);
   if (!origin) return null;
@@ -4437,6 +4445,20 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
           };
         }
       }
+      if (isUncatalogedHistoricalBaseline(context)) {
+        return {
+          ...base,
+          action: "preserve",
+          preservedRuntimeItem: {
+            disposition: "preserve",
+            targetRel,
+            sourceIdentity: { declaredVersion: context.rootTemplateVersion, packageTarget: targetRel, trust: "uncataloged-historical-version-not-replacement-authority" },
+            conflictDecision: "non-exact-package-bytes",
+            preservationKind: "whole-file-direct-agents"
+          },
+          reason: "AGENTS.md is non-exact content from an uncataloged historical version; root metadata is not replacement authority, so preserve complete bytes and direct formal-entry effect"
+        };
+      }
     }
     const health = assessAgentsMdHealth(targetText);
     if (health.state === "conflict") {
@@ -4503,6 +4525,20 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
           : `${targetRel} has no exact historical raw-byte identity after root/version initialization; preserve its complete original bytes and direct formal reader/effect in the same transaction acceptance/readback`
       };
     }
+  }
+  if (command === "upgrade" && directStatefulTargets.has(targetRel) && isUncatalogedHistoricalBaseline(context)) {
+    return {
+      ...base,
+      action: "preserve",
+      preservedRuntimeItem: {
+        disposition: "preserve",
+        targetRel,
+        sourceIdentity: { declaredVersion: context.rootTemplateVersion, packageTarget: targetRel, trust: "uncataloged-historical-version-not-replacement-authority" },
+        conflictDecision: "non-exact-package-bytes",
+        preservationKind: "whole-file-direct-stateful"
+      },
+      reason: `${targetRel} is non-exact historical state with no catalog raw-byte identity; root metadata is not replacement authority, so preserve complete bytes and direct formal reader/effect in the same transaction acceptance/readback`
+    };
   }
   const officialOrigin = command === "upgrade" ? trustedOfficialOrigin(targetRel, context) : null;
   if (officialOrigin) {

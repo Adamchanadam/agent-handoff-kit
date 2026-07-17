@@ -11,6 +11,7 @@
 - upgrade、interruption 與 recovery 只會呈現完整舊狀態或完整新狀態；ordinary entry、doctor、過渡報告與成功畫面讀同一份 fresh current-state witness。
 - 頂層 readiness 現會實跑 official-origin catalog、Gate-5 whole-set closure、artifact-backed vertical 及原五檔 closure；任一 checker 缺失或失敗都不能輸出成功。
 - 對已釘選的 v0.3.38 舊 `AGENTS.md`，只有官方 artifact 能精確證明的 Kit core 才會更新；舊 core 前後的內容會原樣保留並可重建整檔。任何 core bytes 不精確的混合檔仍整檔保留，不會靠標題、語言或位置猜測分段。
+- 若舊專案版本早於候選、但官方 catalog 尚未有該版本的 raw-byte 身分，`AGENTS.md` 與直接讀取的交接狀態只會整檔保留並由同一 acceptance 讀回；版本欄位只可觸發保守保留，不能授權覆寫。
 
 ### 開工與收工
 
