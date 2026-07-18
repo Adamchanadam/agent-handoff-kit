@@ -38,6 +38,7 @@ function main() {
   checkGithubReleaseBodyContract(version);
   checkPublicOnboardingVersion(version);
   checkEnglishPublicSurfaces(version);
+  checkReleaseStateCoherence(version);
   checkChangedBilingualCandidateEvidence(version);
   checkUpgradeSuccessOutputSourceContract(version);
   checkRecommendedNextStepContract();
@@ -621,7 +622,7 @@ function checkPublicOnboardingVersion(version) {
     const visible = stripHtml(text);
     assert(text.includes(currentToken), `${file} missing current visible version ${currentToken}`);
     assert(!text.includes(previousPatchToken), `${file} still contains previous patch version ${previousPatchToken}`);
-    assert(visible.includes("本頁版本可能先於 npm 正式發佈") && visible.includes("@latest 實際取得版本以 npm registry 為準"), `${file} does not distinguish source-page version from npm @latest`);
+    assert(visible.includes(`本頁對齊 ${currentToken}`) && visible.includes("@latest 實際取得版本以 npm registry 為準"), `${file} does not state release-aligned page version and npm @latest boundary`);
   }
   const guide = read("agent-handoff-kit-guide.html");
   const targetCount = requiredInstalledTargets.length;
@@ -1722,18 +1723,22 @@ function checkForbiddenVocabulary(label, text, patterns) {
   console.log(`ok: ${label} forbidden-vocabulary sweep (R-026)`);
 }
 
-function checkForbiddenVocabularyInChangelogLatestSection(text, patterns) {
-  // Bound to the latest version section: from the first "## v" heading to the next "## v"
-  // heading (or end of file). Historical sections are intentionally excluded.
+function latestChangelogSection(text) {
   const latestHeading = text.match(/^## v[\d.]+[^\n]*/m);
   if (!latestHeading) {
-    throw new Error(`CHANGELOG.md missing latest "## v<version>" heading — anchor-bounded grep cannot proceed`);
+    throw new Error(`CHANGELOG.md missing latest "## v<version>" heading — anchor-bounded section read cannot proceed`);
   }
   const startIdx = latestHeading.index;
   const afterStart = text.slice(startIdx + latestHeading[0].length);
   const nextHeadingMatch = afterStart.match(/\n## v[\d.]+/);
   const endIdx = nextHeadingMatch ? startIdx + latestHeading[0].length + nextHeadingMatch.index : text.length;
-  const latestSection = text.slice(startIdx, endIdx);
+  return text.slice(startIdx, endIdx);
+}
+
+function checkForbiddenVocabularyInChangelogLatestSection(text, patterns) {
+  // Bound to the latest version section: from the first "## v" heading to the next "## v"
+  // heading (or end of file). Historical sections are intentionally excluded.
+  const latestSection = latestChangelogSection(text);
   for (const pattern of patterns) {
     const match = latestSection.match(pattern);
     if (match) {
@@ -2089,6 +2094,60 @@ function checkGithubReleaseBodyContract(version) {
     "gh release view vX.Y.Z --json name,body"
   ]);
   console.log("ok: GitHub Release body contract");
+}
+
+function checkReleaseStateCoherence(version) {
+  const current = `v${version}`;
+  const readmeHead = read("README.md").split(/\r?\n/).slice(0, 12).join("\n");
+  const englishReadmeHead = read("README.en.md").split(/\r?\n/).slice(0, 12).join("\n");
+  assert(readmeHead.includes(`目前正式版本：\`${current}\``), "README.md first screen must state the current published release, not a local candidate");
+  assert(englishReadmeHead.includes(`Current published release: \`${current}\``), "README.en.md first screen must state the current published release, not a local candidate");
+
+  const activeSurfaces = [
+    "README.md",
+    "README.en.md",
+    "docs/whatsnew/README.md",
+    "agent-handoff-kit-intro.html",
+    "agent-handoff-kit-intro.en.html",
+    "agent-handoff-kit-guide.html",
+    "agent-handoff-kit-guide.en.html",
+    "agent-handoff-kit-ai-install.html",
+    "agent-handoff-kit-ai-install.en.html"
+  ];
+  const forbidden = [
+    /目前候選版本/u,
+    /候選版本（尚未發佈）/u,
+    /正式可用版本是/u,
+    /Current source candidate/u,
+    /currently published npm release/iu,
+    /v\d+\.\d+\.\d+\s+candidate/iu,
+    /v\d+\.\d+\.\d+\s+候選版/u,
+    /本頁版本可能先於 npm 正式發佈/u,
+    /may describe a candidate before npm publication/iu,
+    /may be ahead of the npm release/iu,
+    /source page can be ahead of the published npm package/iu
+  ];
+  for (const file of activeSurfaces) {
+    const text = read(file);
+    for (const pattern of forbidden) {
+      const match = pattern.exec(text);
+      assert(!match, `${file} still exposes release-state drift: ${match?.[0]}`);
+    }
+    assert(text.includes(current), `${file} does not expose current version ${current}`);
+  }
+
+  const changelog = read("CHANGELOG.md").replace(/\r\n/g, "\n");
+  const heading = changelog.match(/^## v\d+\.\d+\.\d+ — .+$/m);
+  assert(heading?.[0]?.startsWith(`## ${current} — `), `CHANGELOG.md latest heading must be ${current}`);
+  assert(!/## v\d+\.\d+\.\d+ — candidate/im.test(heading[0]), "CHANGELOG.md latest heading must not be a candidate heading");
+  const latestSection = latestChangelogSection(changelog);
+  assert(!/狀態：本地候選|正式可用版本仍是|尚未發佈。正式可用版本/u.test(latestSection), "CHANGELOG.md latest status still describes an unpublished candidate");
+
+  const whatsnewIndex = readAt("docs/whatsnew", "README.md");
+  const publishedIndex = whatsnewIndex.indexOf("目前已發佈版本：");
+  const currentLink = whatsnewIndex.indexOf(`[${current} 版本頁]`);
+  assert(publishedIndex >= 0 && currentLink > publishedIndex, `docs/whatsnew/README.md must list ${current} under published versions`);
+  console.log("ok: release-state coherence across active public surfaces");
 }
 
 function checkUpgradeSuccessOutputSourceContract(version) {

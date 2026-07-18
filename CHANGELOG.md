@@ -1,12 +1,22 @@
 # 變更紀錄
 
-## v0.3.44 — candidate
+## v0.3.45 — 2026-07-18
 
-狀態：本地候選，尚未發佈。正式可用版本仍是 v0.3.43。
+狀態：正式發佈版本。本版是 v0.3.44 後的發佈狀態一致性 hotfix；GitHub Release 與 npm `@latest` 應以 v0.3.45 為準。
+
+### 發佈狀態一致性
+
+- 修正 v0.3.44 發佈後 README、英文 README、CHANGELOG、版本頁索引與公開 HTML 仍顯示 candidate / 尚未發佈 / v0.3.43 latest 的錯誤。
+- 發佈前候選 commit 不再把會進入 npm 或 public main 的 active surface 寫成「尚未發佈」；候選狀態只屬發佈前 QA 報告，不屬使用者入口文案。
+- `check-release-readiness.mjs` 新增 release-state coherence gate，阻擋 active public surfaces 在當前版本中殘留 candidate、unpublished 或上一個 npm latest 狀態。
+
+## v0.3.44 — 2026-07-18
+
+狀態：正式發佈版本；後續由 v0.3.45 修正其公開 surface 發佈狀態文案與 QC 漏檢。
 
 ### 中英文公開說明對齊
 
-- 本候選正逐頁把英文 README、入門、實操指南、AI 安裝頁與本機工作系統案例對齊繁體中文來源；未完成獨立語意及視覺讀回的頁面不可宣稱完成或作為發佈證據。
+- 本版逐頁把英文 README、入門、實操指南、AI 安裝頁與本機工作系統案例對齊繁體中文來源；未完成獨立語意及視覺讀回的頁面不可宣稱完成或作為發佈證據。
 - 雙向語言導航和頁面可用性保留為恆常公開表面檢查；完整翻譯對齊只在該中英文文件對有變動時觸發，不能用字數、emoji 或一段舊 PASS 冒充語意驗收。
 
 ## v0.3.43 — 2026-07-17

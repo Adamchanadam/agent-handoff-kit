@@ -140,7 +140,7 @@ function checkMirrorShape() {
     }
   }
   assert(pathHits.length === 0, formatHits("forbidden public mirror paths", pathHits));
-  assert(files.length === 104, `public mirror file count drifted: expected 104, got ${files.length}`);
+  assert(files.length === 105, `public mirror file count drifted: expected 105, got ${files.length}`);
   console.log("ok: public mirror shape");
 }
 

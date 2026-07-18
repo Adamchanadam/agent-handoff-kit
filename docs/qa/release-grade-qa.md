@@ -2,9 +2,62 @@
 
 狀態：原始碼倉庫驗收計劃。本文件不屬於 npm package，也不會安裝到使用者專案。
 
+## v0.3.45 發佈狀態
+
+- 狀態：本地 release-state hotfix candidate。此候選修正 v0.3.44 發佈後 active public surfaces 仍自稱 candidate／尚未發佈／npm latest v0.3.43 的假綠；正式 push、tag、GitHub Release、npm publish 後仍須以 registry / release / GitHub Pages readback 驗證 v0.3.45。
+- 核心產品行為：不改 R-034 upgrade、資料保護、user-rule reader、transaction/current-state witness 或 recovery；只改公開版本狀態文字、版本號、版本頁、發佈狀態 QC。
+- QC 根因修補：`scripts/check-release-readiness.mjs` 新增 release-state coherence gate。它只檢查 active public surfaces（README、英文 README、whatsnew index、公開 HTML、CHANGELOG 最新狀態），不掃歷史段落，不把「掃描候選文件」等正常產品語義誤判為 release drift。
+- 發佈前／發佈後分界：候選狀態只可存在於本 QA owner 或 full-audit evidence；會進入 npm README、GitHub README、GitHub Pages 或版本索引的 active surface 必須以目前 release 版本呈現，不得再寫「尚未發佈」或上一版 latest。
+
+### Bilingual README semantic gate（v0.3.45，PASS）
+
+- 中文唯一準則：`README.md` SHA-256 `51FF5EE9F6C2396BBCAEB37A7F5C7438C16F358EB6D100E23E3973AF173B33DD`
+- 本次英文讀回：`README.en.md` SHA-256 `109304D1D243AABC7AAF58870699CDF87619573E9828718DA486FD6D1CB93CF4`
+- Verdict: **PASS** — 本輪只改版本狀態行。中英文均由「候選／上一版 latest」改為目前正式版本 v0.3.45，沒有改變 README 的安裝、升級、AI 代安裝、資料保護、startup / closeout 或安全邊界語意。
+
+### Bilingual practical-guide semantic gate（v0.3.45，PASS）
+
+- 中文唯一準則：`agent-handoff-kit-guide.html` SHA-256 `F6963E092EB9529524B0FFFE610D53522A22442B8774F9BAF22320A2B318A7B3`
+- 本次英文讀回：`agent-handoff-kit-guide.en.html` SHA-256 `8B9AE1D443DFABCCC00E261FFF8F672D69DD7A819D33FD3843859847E962B0EF`
+- Verdict: **PASS** — 本輪只改 hero/footer/terminal mock 的 release-state 版本字；A/B/C 案例、emoji、操作流程、外部確認、Notion/Drive、本機 reference、startup/closeout 分界與導航沒有語意改動。
+
+### Bilingual AI-install semantic gate（v0.3.45，PASS）
+
+- 中文唯一準則：`agent-handoff-kit-ai-install.html` SHA-256 `1B54EE2BA5CED25528AE6A635BD525FCB04FDD0C5910A1E74BA5E5CCAA0FD607`
+- 本次英文讀回：`agent-handoff-kit-ai-install.en.html` SHA-256 `BE339F163A52E18EC97E7D85963F74A65CA8BB4B1E0D6BAC7485DC5AD1D355EB`
+- Verdict: **PASS** — 本輪只改頁面版本提示與 kicker。AI 必須先確認資料夾、fresh init / upgrade dry-run / upgrade / doctor / conflict stop / completion report 的流程沒有改動。
+
+### Bilingual introduction semantic gate（v0.3.45，PASS）
+
+- 中文唯一準則：`agent-handoff-kit-intro.html` SHA-256 `1CC6E66DAC158871F5D84292D7C2755651EE14A917C051568FB5DA7FDF381A88`
+- 本次英文讀回：`agent-handoff-kit-intro.en.html` SHA-256 `19C22DE25A9519AE133DBE8E486A90F4E58A32D321DE42F0D55DFF77D230C4A5`
+- Verdict: **PASS** — 本輪只改版本提示與 footer 狀態。60 秒入門、pain grid、magic、modes、governance bridge、safety、tiers、recap 與語氣沒有語意改動。
+
+### Bilingual local-workflow case-study semantic gate（v0.3.45，not changed）
+
+- 中文唯一準則：`local-agentic-ai-workflow-case-study.html` SHA-256 `B96A0EB58F5C3596567FBA75CD41DBA32CEC14FD46F6241900AB48D8F10DF779`
+- 本次英文讀回：`local-agentic-ai-workflow-case-study.en.html` SHA-256 `777C57B67711F4DF145BF8EC40F3BC1B3AE82FFE58FD4DBF2FCF905512B03870`
+- 中文資訊圖：`images/local-agentic-ai-workflow-blueprint.png` SHA-256 `BAC9FB0E4F08BFA7B9954DFD4593825240934FBB67962EFE1220EBE93B57EFE8`
+- 英文資訊圖：`images/local-agentic-ai-workflow-blueprint.en.png` SHA-256 `99FAE71B9AF5698797B81AE87ADFC641FECB4177764CA94BC27F1E676B24E6BA`
+- Verdict: **not changed** — 本輪未改此文件對；保留 v0.3.44 的逐段語意／視覺讀回結論。
+
+### Cross-mind evidence 9-trigger table（v0.3.45）
+
+| Trigger | Hit? | Decision | Evidence |
+|---|---:|---|---|
+| 1. Failure or blocker | yes | iterated | Adam 發現 v0.3.44 發佈後 README 仍寫「尚未發佈／正式可用 v0.3.43」；同類漂移也出現在 README.en、CHANGELOG、whatsnew index 與 HTML 版本提示。 |
+| 2. External side effects | yes | iterated | 本地候選不改外部狀態；正式 push、tag、GitHub Release、npm publish 後必須做 registry / pages readback。 |
+| 3. User-visible output | yes | iterated | Active public surfaces 改為 v0.3.45 release wording；候選狀態只留在 QA evidence，不再進 README / HTML / npm README。 |
+| 4. Complexity or boundary | yes | passed | 不改 R-034、upgrade、reader、transaction 或 package file boundary；只修 release-state surface 與 QC gate。 |
+| 5. Security or data preservation | no | passed | 本輪不改使用者專案資料、不改 migration behavior；既有資料保護 gate 仍由 release readiness 實跑。 |
+| 6. Semantic runtime effect | no | passed | Runtime behavior 不變；仍由既有 release readiness、packed smoke 和 post-publish smoke 承接。 |
+| 7. Historical upgrade path | no | passed | 不新增歷史矩陣；既有 v0.3.41 direct-AGENTS journey 在發佈前後 smoke 中保留。 |
+| 8. Real user journey | yes | iterated | 使用者入口不再同時叫自己 candidate 與 latest release；發佈後可見狀態要與 GitHub Release / npm latest 一致。 |
+| 9. Release statement | yes | iterated | 新 release-state coherence gate 會阻擋 active surface 殘留 `Current source candidate`、`目前候選版本`、`尚未發佈`、`vX candidate` 或上一版 latest。 |
+
 ## v0.3.44 發佈狀態
 
-- 狀態：本地 release-ready candidate；已建立乾淨 Git commit identity，並在 clean checkout 內通過頂層 `scripts/check-release-readiness.mjs`。尚未 push、標籤、建立 GitHub Release 或 npm publish；目前 npm `latest` 仍是 `0.3.43`。
+- 狀態：已發佈，後續由 v0.3.45 修正其 active public surfaces 仍顯示候選／未發佈的狀態漂移。本節以下保留 v0.3.44 發佈前候選證據；不得再用它代表目前最新 public surface 狀態。
 - 英文 README、入門、實操指南、AI 安裝頁及本機工作系統案例以繁體中文來源為唯一內容準則；保留相同的日常開始／工作／收工流程、使用情景、資料安全邊界、AI 安裝路徑、案例與導航。案例頁的英文資訊圖亦須保留同一資訊層級；不是只保留一條語言連結。
 - **Bilingual public docs status：PASS；release readiness：PASS for local candidate。** 先前的整體翻譯 PASS 不能成立；本候選改為逐個變更文件對收口。`README.en.md`、`agent-handoff-kit-intro.en.html`、`agent-handoff-kit-guide.en.html`、`agent-handoff-kit-ai-install.en.html` 與 `local-agentic-ai-workflow-case-study.en.html` 均已完成本輪獨立語意／視覺讀回並記錄新 hash。此 PASS 代表英文公開文件已按中文來源對齊，且 clean checkout 的 release readiness、R-034、official-origin catalog、upgrade safety、packed install/upgrade/doctor 均通過；實際公開發佈尚未執行。
 - 翻譯覆核是**變更觸發**，不是每次發佈的常駐 ritual：只要候選改動中文來源、英文對應頁或對應圖像，該文件對就必須以中文全文重新做獨立語意及視覺讀回；未改動的文件對不需因其他版本重做。hash 只在覆核通過後防止內容漂移，不能取代覆核。
