@@ -2,6 +2,89 @@
 
 狀態：原始碼倉庫驗收計劃。本文件不屬於 npm package，也不會安裝到使用者專案。
 
+## v0.3.44 發佈狀態
+
+- 狀態：本地 release-ready candidate；已建立乾淨 Git commit identity，並在 clean checkout 內通過頂層 `scripts/check-release-readiness.mjs`。尚未 push、標籤、建立 GitHub Release 或 npm publish；目前 npm `latest` 仍是 `0.3.43`。
+- 英文 README、入門、實操指南、AI 安裝頁及本機工作系統案例以繁體中文來源為唯一內容準則；保留相同的日常開始／工作／收工流程、使用情景、資料安全邊界、AI 安裝路徑、案例與導航。案例頁的英文資訊圖亦須保留同一資訊層級；不是只保留一條語言連結。
+- **Bilingual public docs status：PASS；release readiness：PASS for local candidate。** 先前的整體翻譯 PASS 不能成立；本候選改為逐個變更文件對收口。`README.en.md`、`agent-handoff-kit-intro.en.html`、`agent-handoff-kit-guide.en.html`、`agent-handoff-kit-ai-install.en.html` 與 `local-agentic-ai-workflow-case-study.en.html` 均已完成本輪獨立語意／視覺讀回並記錄新 hash。此 PASS 代表英文公開文件已按中文來源對齊，且 clean checkout 的 release readiness、R-034、official-origin catalog、upgrade safety、packed install/upgrade/doctor 均通過；實際公開發佈尚未執行。
+- 翻譯覆核是**變更觸發**，不是每次發佈的常駐 ritual：只要候選改動中文來源、英文對應頁或對應圖像，該文件對就必須以中文全文重新做獨立語意及視覺讀回；未改動的文件對不需因其他版本重做。hash 只在覆核通過後防止內容漂移，不能取代覆核。
+- 本節與 `full-audit-v0.3.44-candidate.md` 同屬 v0.3.44 候選證據；hash evidence 防止已通過的翻譯內容漂移，但不取代語意覆核。候選可稱為本地 release-ready；push、tag、GitHub Release、npm publish 仍是尚未執行的外部寫入步驟。
+
+### Bilingual README semantic gate（v0.3.44，PASS）
+
+- 中文唯一準則：`README.md` SHA-256 `FDD11C8EF04B794742179A9C5376FDDED6F3B557FA5FAB014617E58458FE7FE1`
+- 本次英文讀回：`README.en.md` SHA-256 `57BBBE161FF002C94DCCC90D3EB120C81DFFF247846359BB47D9265D36CD625F`
+- Verdict: **PASS** — 未參與翻譯的 reviewer 確認英文 README 補回中文版關鍵承諾：日常 startup 讀 `dev/SESSION_HANDOFF.md` 且同一資料夾不重讀 `START_NEXT_SESSION_PROMPT.txt` / `dev/SESSION_LOG.md`；Antigravity CLI 的 `AGENTS.md` / `GEMINI.md` 路由；自然語言任務由 AI 自行判斷需讀的 handoff / rules / index，長期規則必須寫入適當項目文件而非只留聊天摘要；system root path、force-push 與 affected refs 的安全護欄；Adam-AI-Instructions 的共同安全底線、非父子真源及不可合併界線。中英文入口連結有對應檔案，未見阻擋項。
+
+### Bilingual practical-guide semantic gate（v0.3.44，PASS）
+
+- 中文唯一準則：`agent-handoff-kit-guide.html` SHA-256 `64479BC21F6FBCEBC37898A3141D080E015E3756190CC175E05F96F964D5E025`
+- 本次英文讀回：`agent-handoff-kit-guide.en.html` SHA-256 `8A840C6BDB0817745DF3F93C41A27381F520D81D2CC8411479663DA4A9B89482`
+- Verdict: **PASS** — 中文來源已同步至 strict bare-start contract：單獨 `Start Agent Handoff`／「開工」只讀最低必要狀態、顯示狀態／風險／建議下一步後等待；同一句或下一句有明確任務才開始工作。guide 亦明示第一次安裝只令新手引導可用，目標清楚就直接開始，仍無目標才提供引導或短問題。英文頁以中文版為唯一來源重建並完成兩輪獨立 targeted reviewer 讀回：21 個 section、A/B/C 案例順序、Case B Step 02/03 的完整 café 任務、30+ Notion reference／本機 `reference/`／`report/`／Drive 分享授權、Step 07 的計劃確認鏈、footer 導航／版本／作者資訊均對齊。機械核對：中英文 section id 無重複、link count 均為 29、`git diff --check` 退出碼 0（只有 CRLF 提示）。
+
+### Bilingual AI-install semantic gate（v0.3.44，PASS）
+
+- 中文唯一準則：`agent-handoff-kit-ai-install.html` SHA-256 `2FFE57FCB34536CCEEF50D4E73CD429D8F2E792C5751884FD0EF76C1B1A52F2E`
+- 本次英文讀回：`agent-handoff-kit-ai-install.en.html` SHA-256 `FCE39CE87DFA8C99BC2A2CE52CF17EF0CFA39DF23731D0C7507C3435B2061E5A`
+- Verdict: **PASS** — 未參與翻譯的 reviewer 確認英文頁保留中文版完整安裝／升級安全旅程：用戶只需貼一條請 AI 讀頁；AI 完成後必須交代結果、絕對路徑、doctor 狀態與 AI 對話下一步；未確認資料夾即零寫入；fresh init、existing state 先 `upgrade --dry-run`、無 conflict 才 `upgrade --yes`、有 conflict 停手核對版本／transaction／diff；doctor fail 停，prompt mirror lag 不重裝；`Start Agent Handoff`／「開工」明確屬 AI 對話而非 terminal。中英文互連、GitHub／README 導航與視覺結構沒有發現誤導性缺失。
+
+### Bilingual introduction semantic gate（v0.3.44，PASS）
+
+- 中文唯一準則：`agent-handoff-kit-intro.html` SHA-256 `01D68048A295AD1C44C2B0DCBDD630F2C5A75785C1F76C727DBBE4A68E8987FC`
+- 本次英文讀回：`agent-handoff-kit-intro.en.html` SHA-256 `30721B65DF965118207A9E2450FCAB9317C7780C8780DEFFEC27E33933B4FB08`
+- Verdict: **PASS** — 中文來源先修正至目前 bare「開工」只讀最低必要狀態、顯示狀態卡後等待下一句指令的產品契約；同一句已交代明確任務或長程指令時，才直接開始第一個安全步驟。英文頁再從該中文 HTML 骨架完整重建。未參與重建的 reviewer 確認 11 個 section、主要 DOM 元件（glyph、五格 pain grid、三個 start／closeout 方塊、八個 mode icon / tag、bridge／how-to 三步、safety、tiers、recap、footer）、操作細節、唯一來源已有的 `🚀` 與視覺語氣均對齊；最後補正 bridge 指令的整句（包括句號）highlight 後讀回 PASS。
+
+### Bilingual local-workflow case-study semantic gate（v0.3.44，PASS）
+
+- 中文唯一準則：`local-agentic-ai-workflow-case-study.html` SHA-256 `B96A0EB58F5C3596567FBA75CD41DBA32CEC14FD46F6241900AB48D8F10DF779`
+- 本次英文讀回：`local-agentic-ai-workflow-case-study.en.html` SHA-256 `777C57B67711F4DF145BF8EC40F3BC1B3AE82FFE58FD4DBF2FCF905512B03870`
+- 中文資訊圖：`images/local-agentic-ai-workflow-blueprint.png` SHA-256 `BAC9FB0E4F08BFA7B9954DFD4593825240934FBB67962EFE1220EBE93B57EFE8`
+- 英文資訊圖：`images/local-agentic-ai-workflow-blueprint.en.png` SHA-256 `99FAE71B9AF5698797B81AE87ADFC641FECB4177764CA94BC27F1E676B24E6BA`
+- Verdict: **PASS** — 未參與翻譯的 reviewer 確認英文頁完整保留中文版 9 個 section 與順序，定位仍是 Kit 在本機 agentic AI 工作系統中的「交接層」，沒有重複變成 README／intro／guide；本機 AI agent 與 web chat 的差別、handoff、memory、source-of-truth、stable delivery、tool loop、beginner minimum、next step 語意完整。英文入口用語已修正為正式 `Start Agent Handoff` 與 `Wrap up Agent Handoff`，而非泛化 `start` / `close`。英文資訊圖保留同一五層結構及主要資訊，所有圖中文字均為英文。
+
+人工語意審閱必須逐段回答四件事：中文向用戶承諾甚麼、英文是否保留同一操作／限制／例子、用戶能否實際照做、若不同會造成甚麼後果。下列 22 個對應項是實操指南重審範圍；本輪 `agent-handoff-kit-guide.en.html` 已按此清單通過，但日後若中文或英文 guide 再變更，必須重做該文件對的語意／視覺讀回：
+
+| 中文段落 | 必須保留的英文語意 |
+|---|---|
+| 工作規則總覽 | task routing、規則落點、只載需要的 packs、把新規則接入既有真源的例子。 |
+| A1 安裝 | AI-chat／terminal 分界、21-file 旅程、三入口、folder confirmation、doctor 的正確時機。 |
+| A2 開工 | 單獨開工只讀最低必要狀態、顯示狀態／風險／建議下一步後停；同句或下一句有明確任務才開始工作。 |
+| A3 bare 開工 | fresh project 無目標時只顯示 startup card 與建議下一步，不出 A–F、不做計劃；下一句 Downloads 任務才收斂為 preview-only + Coding/Safety flow。 |
+| A4 計劃／讀取／改動 | 五類副檔名、年份、collision、shortcut／hidden 排除、1,043-file scan、sample、dry-run。 |
+| A5 安全預演 | dry-run 數字、確認點、正式結果、filter、不可逆命令／force-push 邊界。 |
+| Governance Bridge | 指定／掃描兩入口、read-only 六項 audit、候選先行、不得自動刪改合併。 |
+| A6 收工 | trigger、reconcile-not-append、handoff／log／index、prompt mirror、archive。 |
+| A7 接力／發布 | 新對話先接回狀態；同句或下一句明確要求發佈才載入 Release/Safety；兩次外部確認、GitHub readback、credential boundary。 |
+| B1 資料分工 | Notion schema、本機 source tree、Drive destination、真源與 integration boundary。 |
+| B2 開工 | 單獨開工與任務開工分開；完整報告目標、讀者、30+ Notion reference、本機 `reference/`、`report/`、Drive 分享授權與已連接接口。 |
+| B3 首回應 | startup card、Notion/Drive 可讀寫核實、Research/Knowledge modes、讀取計劃、確認後才進計劃、可達不等於已讀。 |
+| B4 來源對齊 | 32／24 matched + 3 unregistered = 27 available／5 missing、三個處置選項、Notion write/readback、十頁 outline。 |
+| B5 報告／Drive | Writing mode、10.3頁／2,847字／4表／24 citation、暫定結論、docx／viewer／readback／secret boundary。 |
+| B6 收工 | 具體外部狀態、5 pending、verification date、未連接 fallback。 |
+| B7 後續接力 | `Start Agent Handoff` 加新要求、狀態卡、Research/Knowledge/Writing、四步計劃、用戶確認後才寫 3-month pop-up/shared-kitchen；1.4頁／4 citation、保留未解缺項，Drive 替換／新版本另問。 |
+| C 結構說明 | 多月、多對話、用戶與 AI 分工，不是每日 ritual。 |
+| C Day 1 | AI editing assistant：Markdown 校對與風格建議、coding+research、空 decision log 的原因。 |
+| C Day 30 | 需求演進、Slack/Linear、6 turns／4 decisions、long-term trigger。 |
+| C Day 60 | 32→12 active／20 archive、A/B/C trade-off、30 條邊界與影響。 |
+| C Day 90 | current state→decision log→session-log archive 的三層回顧與選 B 理由。 |
+| 結語 | 三案例共同閉環、跨工具／跨日、與 Adam-AI-Instructions 的責任分界及導航出口。 |
+
+此 gate 的 reviewer 不可只報元素數、grep 命中或「大意相同」。若英文新增中文沒有的主段、把操作案例壓成摘要、重複同一內容，或改變 bare-start／外部確認等用戶可見語意，Verdict 必須是 `FAIL`。
+
+### Cross-mind evidence 9-trigger table（v0.3.44）
+
+| Trigger | Hit? | Decision | Evidence |
+|---|---:|---|---|
+| 1. Failure or blocker | yes | iterated | 使用者指出英文頁只像中文頁的短摘要；導航存在並不等於英文使用者能走完同一旅程。 |
+| 2. External side effects | no | passed | 本輪只在隔離本地候選修改和驗證；未做任何公開寫入。 |
+| 3. User-visible output | yes | passed | README 與四個 HTML 英文頁（入門、實操指南、AI 安裝頁、本機工作系統案例）均已完成本輪獨立語意／視覺讀回並轉 PASS；不得再沿用舊 PASS 或用 hash／導航存在代替覆核。 |
+| 4. Complexity or boundary | yes | passed | 只擴充既有公開說明與既有 release checker，不建立新的文件權威或另一套 QA。 |
+| 5. Security or data preservation | yes | passed | R-034 資料保護、升級、recovery 和 current-state 驗證保持在頂層檢查內。 |
+| 6. Semantic runtime effect | yes | passed | 完整關卡已確認說明更新沒有影響 fresh router、legacy direct-AGENTS 和 ordinary doctor/readback。 |
+| 7. Historical upgrade path | yes | passed | 完整關卡已實跑已釘選的舊版升級與 packed install smoke。 |
+| 8. Real user journey | yes | passed | README 與四個 HTML 英文頁已證明可走同一使用旅程；雙向導航只是底線，本輪 PASS 來自逐檔語意／視覺讀回及 reviewer 結論。 |
+| 9. Release statement | yes | passed | v0.3.44 是本地 release-ready candidate；尚未 push、tag、建立 GitHub Release 或 npm publish，不得把「可發佈」寫成「已發佈」。 |
+
 ## 用途
 
 本文件定義 Agent Handoff Kit 發佈前與發佈後必須通過的檢查。可安裝套件必須保持輕量；驗收文件與原始碼倉庫專用腳本除非未來明確改變 `package.json` `files` 白名單，否則不得進入 npm package。

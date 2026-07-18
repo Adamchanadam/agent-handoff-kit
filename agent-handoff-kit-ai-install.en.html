@@ -3,20 +3,71 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Agent Handoff Kit — AI install and upgrade page</title>
-  <meta name="description" content="Instructions for a local AI agent to safely install, upgrade, or check Agent Handoff Kit.">
+  <title>Agent Handoff Kit — AI installation instructions</title>
+  <meta name="description" content="An Agent Handoff Kit installation and upgrade instruction page for agentic AI. The user only needs to ask the AI to read this page; the AI can safely decide whether to initialise, upgrade, or run doctor in the current folder.">
   <link rel="canonical" href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html">
-  <link rel="stylesheet" href="agent-handoff-kit-en.css">
+  <style>
+    :root{--ink:#0A0A0A;--paper:#F7F4EE;--soft:#EFEAE0;--blue:#2E5BFF;--red:#E63946;--yellow:#FFD60A;--green:#06A77D;--line:4px solid var(--ink);--mono:"JetBrains Mono","Cascadia Code",Consolas,monospace;--sans:"Space Grotesk","Inter","Helvetica Neue",Arial,sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.62 var(--sans)}a{color:inherit;font-weight:700;text-underline-offset:3px}.stripe{height:14px;background:linear-gradient(90deg,var(--red) 0 42%,var(--yellow) 42% 63%,var(--blue) 63%)}.wrap{max-width:1180px;margin:auto;padding:0 24px}header{padding:64px 0 48px;border-bottom:var(--line)}h1{font-size:clamp(42px,7vw,78px);line-height:.94;letter-spacing:-.045em;margin:14px 0}h2{font-size:clamp(28px,4vw,46px);line-height:1.04;margin:0 0 14px;letter-spacing:-.025em}h3{font-size:21px;margin:0 0 9px}.kicker{display:inline-block;background:var(--ink);color:var(--paper);font:13px var(--mono);padding:6px 10px}.lead{font-size:20px;max-width:720px}.prompt{border:var(--line);background:var(--yellow);padding:23px;margin-top:26px;box-shadow:7px 7px 0 var(--ink)}.code{background:#111827;color:#f8fafc;padding:18px;font:14px/1.55 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}.prompt .code{margin-top:14px}section{padding:52px 0;border-bottom:var(--line)}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;margin-top:20px}.card{border:var(--line);background:var(--soft);padding:22px;box-shadow:6px 6px 0 var(--ink)}.ok,.stop{margin-top:22px;padding:20px 23px;background:var(--soft);border-left:12px solid var(--green)}.stop{border-left-color:var(--red);background:#fff3f3}li{margin-bottom:10px}footer{padding:34px 0;background:var(--ink);color:var(--paper);font:13px var(--mono)}footer a{color:var(--paper)}@media(max-width:760px){.grid{grid-template-columns:1fr}.wrap{padding:0 18px}}
+  </style>
 </head>
 <body>
-<div class="stripe"><i></i><i></i><i></i></div>
-<nav class="bar" aria-label="Main navigation"><div class="wrap"><a class="brand" href="agent-handoff-kit-intro.en.html">Agent Handoff Kit</a><div class="nav"><a href="#instructions">Instructions</a><a href="#result">Result format</a><a class="language" href="agent-handoff-kit-ai-install.html" lang="zh-Hant">繁體中文</a></div></div></nav>
-<header><div class="wrap"><span class="kicker">AI-readable install page · v0.3.43</span><h1>Install or upgrade safely.</h1><p class="lede">This page is for an AI agent that can read and write the local project folder and run terminal commands. The user should not need to choose a command or diagnose a conflict.</p><p><strong>Version note:</strong> this source page can be ahead of the published npm package; <code>@latest</code> means the version currently available from the npm registry.</p><div class="code">Read https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html and install or upgrade Agent Handoff Kit in this folder.</div></div></header>
-<section id="instructions"><div class="wrap"><h2>Required AI procedure</h2><ol><li><strong>Confirm the root first.</strong> Show the absolute folder path and ask: “Is this the folder where you want Agent Handoff Kit installed or upgraded?” If the user cannot confirm, stop with zero writes.</li><li><strong>Inspect before writing.</strong> Decide whether the folder needs a fresh install, a safe upgrade preview, a confirmed upgrade, a conflict stop, or only a health check.</li><li><strong>Protect user material.</strong> Exact artifact-identified Kit bytes may be updated. Non-exact, mixed, or unclear content must be preserved with a readable effective route, or the operation must stop safely.</li><li><strong>Use the appropriate command only after confirmation.</strong></li></ol><div class="code">npx --yes @adamchanadam/agent-handoff-kit@latest init
-npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
-npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes
-npx --yes @adamchanadam/agent-handoff-kit@latest doctor</div><div class="notice stop"><strong>Never “repair” by overwriting an unclear file.</strong> Do not delete local rules, do not use headings or language as ownership evidence, and do not turn a failed preview into a write.</div></div></section>
-<section><div class="wrap"><h2>What a successful upgrade means</h2><div class="grid"><div class="card"><h3>One accepted state</h3><p>The transaction, ordinary entry, doctor, report, and success message must read the same verified current-state witness.</p></div><div class="card"><h3>Safe recovery</h3><p>An interruption must leave either the complete old state or the complete new state. It must not leave a mixture that claims success.</p></div><div class="card"><h3>Effective rules remain effective</h3><p>After an upgrade, use the ordinary runtime entry to verify that preserved user rules are still reachable and active.</p></div><div class="card"><h3>No false advice</h3><p>If the accepted state already matches the running CLI, doctor must not tell the user to repeat the upgrade merely because retained metadata is older.</p></div></div></div></section>
-<section id="result"><div class="wrap"><h2>Required user-facing result</h2><p>Do not reply only with terminal output or “done”. State the result in plain language:</p><div class="notice safe"><strong>Example:</strong> “✅ Upgrade completed. 📁 Folder: &lt;absolute path&gt;. 🩺 Doctor passed. Your preserved rules are still reachable. Next, return to the AI conversation and say <code>Start Agent Handoff</code>.”</div><ul><li>If doctor fails, say what failed and stop; do not reinstall over the project.</li><li>If a conflict or ownership decision is unclear, preserve the bytes and explain that the operation stopped before writing.</li><li>If the AI is not already operating in the target folder, give the path-bearing startup sentence: <code>Work in &lt;folder&gt;. Read AGENTS.md first, then Start Agent Handoff.</code></li></ul></div></section>
-<footer><div class="wrap"><strong>Agent Handoff Kit · AI install page</strong><p><a href="README.en.md">English README</a> · <a href="agent-handoff-kit-guide.en.html">Practical guide</a> · <a href="agent-handoff-kit-ai-install.html">繁體中文</a></p></div></footer>
-</body></html>
+  <div class="stripe"></div>
+  <header><div class="wrap">
+    <span class="kicker">AI-readable install page · v0.3.44 candidate</span>
+    <p><a href="agent-handoff-kit-ai-install.html" lang="zh-Hant">繁體中文版本</a></p>
+    <h1>Instructions for an AI<br>to install or upgrade safely.</h1>
+    <p class="lead">This page is for an agentic AI that can read and write the local folder and run terminal commands. The user should not have to choose an npm command or diagnose a conflict. Read this page before acting in the folder.</p>
+    <p><strong>Version note:</strong> this source page can be ahead of the published npm package. <code>@latest</code> means the version currently available from the npm registry.</p>
+    <div class="prompt"><h2>The user only needs to paste this</h2><div class="code">Please read https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html, and install or upgrade Agent Handoff Kit in this folder.</div></div>
+    <div class="ok"><h2>The AI must give this report when it finishes</h2><p>Before running any <code>npx</code> command, remember this section. After installation or upgrade, the AI must not say only “completed” or paste only terminal output. It must explain the result and next step to the user in the following format.</p><p><strong>Completion-report template:</strong> ✅ Installation completed. 📁 Current folder: &lt;absolute path&gt;. 🩺 <code>doctor</code> passed. ⚠️ The next step is not a terminal command; in an AI conversation that can read and write this folder, enter <code>Start Agent Handoff</code> or “開工”. Only if the AI has not yet been pointed at this folder, use: <code>Work in &lt;absolute path&gt;. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</code></p></div>
+  </div></header>
+
+  <section><div class="wrap">
+    <h2>The AI must confirm the current folder first</h2>
+    <ol>
+      <li>Show the absolute path of the current working folder.</li>
+      <li>Ask: “Is this the folder where you want Agent Handoff Kit installed or upgraded?”</li>
+      <li>If the user cannot confirm, stop with zero writes. Do not run <code>init</code>, <code>upgrade</code>, or <code>doctor</code>.</li>
+      <li>Only after confirmation, inspect whether the folder already has <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>GEMINI.md</code>, <code>START_NEXT_SESSION_PROMPT.txt</code>, or <code>dev/</code>.</li>
+    </ol>
+    <div class="stop"><strong>Safety boundary:</strong> do not delete files, overwrite conflicts, handle credentials, run git commit, run git push, run git tag, run npm publish, or create a GitHub Release.</div>
+  </div></section>
+
+  <section><div class="wrap">
+    <h2>Decide how to install</h2>
+    <div class="grid">
+      <article class="card"><h3>Case 1: nothing is installed</h3><p>If none of <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>GEMINI.md</code>, <code>START_NEXT_SESSION_PROMPT.txt</code>, or <code>dev/</code> exists, use a fresh install.</p><div class="code">npx --yes @adamchanadam/agent-handoff-kit@latest init --yes --root .</div></article>
+      <article class="card"><h3>Case 2: Kit or AI memory files already exist</h3><p>If any Kit file or existing AI memory file exists, preview the upgrade first. Do not overwrite directly.</p><div class="code">npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run --root .</div></article>
+    </div>
+    <div class="ok"><strong>Only when the preview reports no conflict:</strong> run the confirmed upgrade.<div class="code">npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes --root .</div></div>
+    <div class="stop"><strong>If the preview reports a conflict:</strong> stop and keep zero writes. The AI first checks the actual project version, target version, and current transaction state shown by the CLI, then reads the difference between the conflict file and its formal source. Old migration folders, stages, or rolled-back reports are only historical evidence; they do not represent the current version. Only a formal old file that can be proved unchanged may be automatically migrated by the new version. If the content is genuinely customised or its source is unclear, stop conservatively. Ordinary users do not need to decide technical differences and must not bypass the boundary by reinstalling or replacing the whole file.</div>
+  </div></section>
+
+  <section><div class="wrap">
+    <h2>Verify after completion</h2>
+    <ol>
+      <li>Run the health check:</li>
+    </ol>
+    <div class="code">npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .</div>
+    <ol start="2">
+      <li>If <code>doctor</code> passes, read <code>AGENTS.md</code>, then follow the <code>Start Agent Handoff</code> startup flow to connect this folder.</li>
+      <li>If doctor fails, stop and explain the failed items. Do not reinstall over the project.</li>
+      <li>If <code>doctor</code> only reports that the convenience copy <code>START_NEXT_SESSION_PROMPT.txt</code> is behind, explain that it will be regenerated at formal closeout; do not reinstall because of this.</li>
+    </ol>
+  </div></section>
+
+  <section><div class="wrap">
+    <h2>AI response format</h2>
+    <p>This section is the checklist for the completion-report contract at the top of the page. After acting, the AI must not say only “completed” or paste only terminal output. It must explain the result and next step to the user in short, plain language.</p>
+    <ul>
+      <li>✅ Result: installation completed, upgrade completed, or stopped because of a conflict.</li>
+      <li>📁 Current folder: show the confirmed absolute path.</li>
+      <li>🩺 Health check: say whether <code>doctor</code> passed, failed, or only noted that the convenience copy is behind.</li>
+      <li>⚠️ The next step is not a terminal command: <code>Start Agent Handoff</code> / “開工” must be entered in an AI conversation that can read and write this folder.</li>
+      <li>🚀 Next step: if the AI is already in this folder, ask the user to enter <code>Start Agent Handoff</code> or “開工”; only if the AI has not yet been pointed at the folder, give the path-bearing startup sentence.</li>
+    </ul>
+    <div class="ok"><strong>Completion-report template:</strong><p>✅ Installation completed. 📁 Current folder: &lt;absolute path&gt;. 🩺 <code>doctor</code> passed. Do not remain in the terminal for the next step; in an AI conversation that can read and write this folder, enter <code>Start Agent Handoff</code> or “開工”. Only if the AI has not yet been pointed at the folder, use: <code>Work in &lt;absolute path&gt;. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</code></p></div>
+  </div></section>
+  <footer><div class="wrap">Agent Handoff Kit · <a href="https://github.com/Adamchanadam/agent-handoff-kit">GitHub README</a> · <a href="README.en.md">English README</a> · <a href="agent-handoff-kit-ai-install.html">繁體中文版本</a></div></footer>
+</body>
+</html>

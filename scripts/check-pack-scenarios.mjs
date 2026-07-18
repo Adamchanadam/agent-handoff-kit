@@ -56,7 +56,7 @@ const scenarios = [
     name: "writing",
     route: ["Draft, edit", "dev/rules/writing.md"],
     pack: "writing",
-    snippets: ["audience", "Preserve factual meaning", "terminology consistent", "non-technical readers", "steady written Chinese", "new user journey", "the user states the goal, the AI handles technical work", "one primary user path", "dedicated AI install page", "main README flow"]
+    snippets: ["audience", "Preserve factual meaning", "terminology consistent", "non-technical readers", "steady written Chinese", "new user journey", "the user states the goal, the AI handles technical work", "one primary user path", "dedicated AI install page", "main README flow", "source-language document is the sole content authority", "source-to-target section map", "independent reviewer who did not draft the target", "semantic acceptance, not just mechanical checks", "only when that language pair changed", "Unchanged language pairs do not require a new review"]
   },
   {
     name: "knowledge",
@@ -69,7 +69,7 @@ const scenarios = [
     name: "release",
     route: ["Release, publish", "dev/rules/release.md"],
     pack: "release",
-    snippets: ["Do not publish", "Verify version", "release notes"],
+    snippets: ["Do not publish", "Verify version", "release notes", "changes a public language counterpart", "unchanged pairs"],
     safetyEscalators: ["publish", "deploy", "tag"]
   },
   {

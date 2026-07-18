@@ -766,7 +766,7 @@
   <header class="hero">
     <div class="wrap">
       <div>
-        <span class="kicker">v0.3.43 · 60 秒新手入門</span>
+        <span class="kicker">v0.3.44 候選版 · 60 秒新手入門</span>
         <h1><span class="accent">AI Session</span><br/>之間的<br/><span class="accent2">接力棒</span></h1>
         <p class="lede">AI 每次開新對話都是從零開始,不記得你上次和它做過甚麼,也認不出中途新建的文檔和你引入的參考資料。這套工具的作用,是把進度、下一步、要留神之處,連同一份檔案登記,寫進幾份固定文件;下一次在能讀寫本機專案資料夾的 AI agent 開新對話,只要說 Start Agent Handoff 或「開工」,它就會讀取交接檔案並接上上一棒。普通 web chat AI 若不能讀寫本機資料夾,不屬於支援場景。</p>
         <p><strong>版本提示：</strong>本頁版本可能先於 npm 正式發佈；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
@@ -890,7 +890,7 @@
 
       <div class="magic-aftermath">
 <span class="label">AI 收到開工或收工短語之後會做的事:</span>
-開工 · 讀取 AGENTS.md 與權威 SESSION_HANDOFF；有明確任務便在同一回覆開始第一個安全步驟
+開工 · 讀取 AGENTS.md 與權威 SESSION_HANDOFF，顯示目前狀態、風險與建議下一步後結束本輪回覆；只有同一句同時交代明確任務或長程指令時才開始工作
 收工 01 · 逐段對賬交接文件:更新「當前狀態」、「下一步」、「風險」、「驗收」
 收工 02 · 把本次實際做過的事,寫進工作日誌
 收工 03 · 同步更新 START_NEXT_SESSION_PROMPT.txt,你下次開新對話說「開工」就能接續
@@ -1028,11 +1028,11 @@
 <span class="hl">開工</span></pre>
           <p style="margin-top:12px;">若 AI 還未指向你的專案資料夾,才使用帶路徑啟動句:</p>
           <pre>Work in <span class="hl">&lt;你的資料夾&gt;</span>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</pre>
-          <p style="margin-top:12px;">AI 會依 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code> 讀取權威 <code style="font-family:var(--font-mono);font-size:13px;">dev/SESSION_HANDOFF.md</code>。第一次安裝只令新手引導可用;有明確任務便直接開始。<code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code> 只供尚未指向資料夾的 AI 接入。</p>
+          <p style="margin-top:12px;">AI 會依 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code> 讀取權威 <code style="font-family:var(--font-mono);font-size:13px;">dev/SESSION_HANDOFF.md</code>。單獨輸入「開工」只會讀取最小狀態、顯示目前目標／風險／建議下一步，然後等待你的下一句指令；只有同一句同時交代明確任務或長程指令時才會直接開始第一個安全步驟。第一次安裝只令新手引導可用。<code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code> 只供尚未指向資料夾的 AI 接入。</p>
           <p style="margin-top:12px;">「開工,繼續 &lt;任務&gt;」與「&lt;項目&gt; 開工」直接接力;只有語句可能指現實世界的開業、輪班或無關事件時才確認。</p>
           <ol style="margin-top:12px;padding-left:22px;font-size:14px;line-height:1.65;">
-            <li>先讀你已提供的目標、資料夾與現有內容。</li>
-            <li>資料足夠時自行判斷工作情境,直接開始第一個安全步驟。</li>
+            <li>只讀取最低必要的目前交接狀態。</li>
+            <li>顯示目前目標、風險與建議下一步，然後等待你的下一句工作指令。</li>
             <li>只有目標仍含糊或你要求逐步引導時,才顯示情境選單。</li>
             <li>只追問真正缺少而且會影響結果的資料。</li>
             <li>涉及刪除、外部寫入或其他高風險操作時,仍等你確認後才動手。</li>
@@ -1057,7 +1057,7 @@
 
       <div style="margin-top: 40px; padding: 28px; background: var(--paper); border: 3px solid var(--ink); border-left: 12px solid var(--blue);">
         <h3 style="margin: 0 0 12px; font-size: 20px; text-transform: uppercase; letter-spacing: 0.04em;">🚀 第一次用?最簡單版本</h3>
-        <p style="margin: 0; font-size: 16px; max-width: none;">未安裝或不確定是否要升級時,先在目標資料夾打開 AI agent,請它讀 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">agent-handoff-kit-ai-install.html</code> 並在這個資料夾安裝或升級。安裝後在同一個 AI agent 輸入 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">Start Agent Handoff</code> 或「開工」。AI 只讀權威 handoff 接續狀態;你已講清目標時直接開始安全工作,只有目標仍含糊或你要求教學時才載入新手引導。本介紹頁不需要先讀完。</p>
+        <p style="margin: 0; font-size: 16px; max-width: none;">未安裝或不確定是否要升級時,先在目標資料夾打開 AI agent,請它讀 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">agent-handoff-kit-ai-install.html</code> 並在這個資料夾安裝或升級。安裝後在同一個 AI agent 輸入 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">Start Agent Handoff</code> 或「開工」。單獨輸入時，AI 只讀權威 handoff 並顯示目前狀態與建議下一步；你在同一句講清目標時才直接開始第一個安全步驟，只有目標仍含糊或你要求教學時才載入新手引導。本介紹頁不需要先讀完。</p>
       </div>
     </div>
   </section>
@@ -1210,7 +1210,7 @@
         </p>
       </div>
       <div class="meta">
-        v0.3.43 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a>為準。
+        v0.3.44 candidate · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a>為準。
       </div>
     </div>
   </footer>

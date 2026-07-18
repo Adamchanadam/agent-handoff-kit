@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Handoff Kit — My local agentic AI work system</title>
+  <meta name="description" content="An architecture-level case study showing how a local AI agent fits into a work system of tools, sources of truth, handoff, memory, and acceptance." />
+  <link rel="canonical" href="https://adamchanadam.github.io/agent-handoff-kit/local-agentic-ai-workflow-case-study.en.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="My local agentic AI work system" />
+  <meta property="og:description" content="How tools, sources of truth, handoff, memory, and acceptance compose a continuous local AI-agent workflow." />
+  <meta property="og:url" content="https://adamchanadam.github.io/agent-handoff-kit/local-agentic-ai-workflow-case-study.en.html" />
+  <meta property="og:site_name" content="Agent Handoff Kit" />
+  <meta property="og:image" content="https://adamchanadam.github.io/agent-handoff-kit/images/local-agentic-ai-workflow-social-preview.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Local AI-agent workflow blueprint for Agent Handoff Kit: tools, sources of truth, handoff, and acceptance." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="My local agentic AI work system" />
+  <meta name="twitter:description" content="How tools, sources of truth, handoff, memory, and acceptance compose a continuous local AI-agent workflow." />
+  <meta name="twitter:image" content="https://adamchanadam.github.io/agent-handoff-kit/images/local-agentic-ai-workflow-social-preview.png" />
+  <style>
+    :root {
+      --red: #E63946;
+      --yellow: #FFD60A;
+      --blue: #2E5BFF;
+      --ink: #111111;
+      --muted: #66615a;
+      --paper: #faf8f3;
+      --paper-soft: #f0ebe2;
+      --line: #d8d0c3;
+      --accent: #164c96;
+      --max: 1120px;
+      --article: 760px;
+      --sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+      --serif: Georgia, "Times New Roman", "Noto Serif", serif;
+      --mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 92px;
+    }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 18px;
+      line-height: 1.78;
+      letter-spacing: 0;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    p {
+      margin: 0 0 1.05em;
+      max-width: var(--article);
+    }
+
+    strong { font-weight: 760; }
+
+    .top-banner {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.5fr;
+      height: 14px;
+      border-bottom: 3px solid var(--ink);
+    }
+
+    .top-banner > div:nth-child(1) { background: var(--red); }
+    .top-banner > div:nth-child(2) { background: var(--yellow); }
+    .top-banner > div:nth-child(3) { background: var(--blue); }
+
+    .focus {
+      max-width: var(--article);
+      margin: 1.35em 0;
+      padding-left: 18px;
+      border-left: 5px solid var(--blue);
+      font-weight: 760;
+      color: var(--ink);
+    }
+
+    .focus.red { border-left-color: var(--red); }
+    .focus.yellow { border-left-color: var(--yellow); }
+
+    .focus strong {
+      color: var(--ink);
+    }
+
+    .wrap {
+      width: min(var(--max), calc(100% - 44px));
+      margin: 0 auto;
+    }
+
+    nav.bar {
+      border-bottom: 3px solid var(--ink);
+      background: rgba(250, 248, 243, .96);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    nav.bar .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 14px 0;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      display: inline-block;
+      object-fit: contain;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: flex-end;
+      font-size: 14px;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+    }
+
+    .nav-links a:hover { color: var(--ink); }
+
+    header {
+      padding: 58px 0 34px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kicker {
+      display: block;
+      margin-bottom: 16px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h1 {
+      max-width: 920px;
+      margin: 0 0 20px;
+      font-size: clamp(42px, 6vw, 76px);
+      line-height: 1.03;
+      letter-spacing: 0;
+    }
+
+    .lede {
+      max-width: 820px;
+      color: #2c2925;
+      font-size: clamp(20px, 2.2vw, 25px);
+      line-height: 1.6;
+    }
+
+    .hero-image {
+      margin: 34px 0 0;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .hero-image img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .hero-image figcaption {
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    main {
+      padding: 22px 0 0;
+    }
+
+    section {
+      padding: 46px 0;
+      border-bottom: 1px solid var(--line);
+      scroll-margin-top: 92px;
+    }
+
+    .section-inner {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 58px;
+      align-items: start;
+    }
+
+    .section-label {
+      position: sticky;
+      top: 18px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h2 {
+      max-width: 780px;
+      margin: 0 0 22px;
+      font-size: clamp(28px, 3.5vw, 44px);
+      line-height: 1.16;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      max-width: var(--article);
+      margin: 32px 0 10px;
+      font-size: 22px;
+      line-height: 1.3;
+      letter-spacing: 0;
+    }
+
+    ul, ol {
+      max-width: var(--article);
+      margin: 0 0 1.2em;
+      padding-left: 1.3em;
+    }
+
+    li { margin: .38em 0; }
+
+    .mark {
+      padding: 1px 5px;
+      font-weight: 760;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .mark.blue { color: var(--blue); }
+    .mark.red { color: var(--red); }
+    .mark.yellow {
+      color: var(--ink);
+      background: rgba(255, 214, 10, .42);
+      box-shadow: inset 0 -2px 0 var(--yellow);
+    }
+
+    code.cmd {
+      padding: 2px 6px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--blue);
+      font-family: var(--mono);
+      font-size: .88em;
+      font-weight: 700;
+      white-space: normal;
+    }
+
+    .quiet-note {
+      max-width: var(--article);
+      margin: 24px 0;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.58;
+    }
+
+    .toc {
+      max-width: var(--article);
+      margin: 28px 0 0;
+      padding: 0;
+      list-style: none;
+      border-top: 1px solid var(--line);
+    }
+
+    .toc li {
+      margin: 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .toc a {
+      display: flex;
+      gap: 14px;
+      padding: 11px 0;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .toc span {
+      min-width: 38px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    blockquote {
+      max-width: 860px;
+      margin: 0;
+      padding: 0 0 0 24px;
+      border-left: 5px solid var(--red);
+      font-family: var(--serif);
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.26;
+    }
+
+    .cta {
+      background: #111111;
+      color: var(--paper);
+      border-bottom: none;
+    }
+
+    .cta p { color: #e8e1d6; }
+
+    .cta a { color: #ffffff; }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 11px 16px;
+      border: 1px solid #ffffff;
+      color: #ffffff;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    footer {
+      padding: 44px 0 34px;
+      background: #111111;
+      color: #d8d0c3;
+      font-size: 13px;
+      line-height: 1.55;
+      border-top: 1px solid #38332d;
+      font-family: var(--mono);
+    }
+
+    footer .wrap {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    footer strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--paper);
+      font-family: var(--sans);
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    footer p {
+      max-width: 50ch;
+      margin: 0;
+      opacity: .88;
+    }
+
+    footer a {
+      color: var(--paper);
+    }
+
+    @media (max-width: 860px) {
+      .wrap { width: min(100% - 28px, var(--max)); }
+      nav.bar .wrap { align-items: flex-start; flex-direction: column; }
+      .nav-links { justify-content: flex-start; }
+      header { padding-top: 42px; }
+      .section-inner { grid-template-columns: 1fr; gap: 14px; }
+      .section-label { position: static; }
+      section { padding: 38px 0; }
+      footer .wrap { grid-template-columns: 1fr; gap: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-banner"><div></div><div></div><div></div></div>
+
+  <nav class="bar">
+    <div class="wrap">
+      <div class="logo">
+        <img class="logo-mark" src="images/agent-handoff-kit-logo2-256.png" alt="Agent Handoff Kit logo" width="36" height="36" />
+        <span>Agent Handoff Kit · Methodology case study</span>
+      </div>
+      <div class="nav-links">
+        <a href="#why">Why read this</a>
+        <a href="#system">Work system</a>
+        <a href="#handoff">Handoff layer</a>
+        <a href="#minimum">Minimum version</a>
+        <a href="local-agentic-ai-workflow-case-study.html" lang="zh-Hant">Traditional Chinese</a>
+      </div>
+    </div>
+  </nav>
+
+  <header>
+    <div class="wrap">
+      <span class="kicker">METHODOLOGY CASE STUDY · LOCAL AI-AGENT WORK SYSTEM</span>
+      <h1>My local agentic AI work system</h1>
+      <p class="lede">This article captures the practice I use when working with local agentic AI. The focus is not a specific model, and it is not about treating AI as a fancier chat box. The point is to place AI inside a work system that can read data, use tools, preserve state, hand over context, and deliver work that is inspectable.</p>
+
+      <figure class="hero-image">
+        <img src="images/local-agentic-ai-workflow-blueprint.en.png" alt="Agentic AI work-system blueprint" />
+        <figcaption>This diagram shows, in one page, how local AI agents connect to handoff, memory, knowledge collaboration, and acceptance.</figcaption>
+      </figure>
+    </div>
+  </header>
+
+  <main>
+    <section id="why">
+      <div class="wrap section-inner">
+        <div class="section-label">01 / VALUE OF THIS ARTICLE</div>
+        <article>
+          <h2>The README teaches you how to use the Kit; this article explains the layer where Kit should sit.</h2>
+          <p>If all you need is installation, startup, and closeout, then README, the 60-second intro, and the practical guide are enough. This article should not repeat those.</p>
+          <p>This article fills a missing architecture-level gap: when you start using local AI agents like Claude Code, OpenAI Codex, Google Antigravity CLI, or Tencent WorkBuddy, how should the whole method be layered so each new conversation does not become a fresh onboarding cycle full of re-explanations and ambiguity?</p>
+          <p class="focus">So Agent Handoff Kit is not the hero here, not a platform, not a memory database, and not a sync tool for Notion or Google Drive. It is the continuity-and-handoff layer in a complete local agentic AI work system: startup entry, current-state record, next step, risks, source-of-truth registry, rule entry points, safety boundaries, and closeout prompts are placed in project files. It is clear because it stays scoped to this layer only.</p>
+
+          <ul class="toc">
+            <li><a href="#system"><span>02</span>From chat boxes to work systems</a></li>
+            <li><a href="#local-agent"><span>03</span>Local AI-agent entry</a></li>
+            <li><a href="#handoff"><span>04</span>Agent Handoff Kit as the handoff layer</a></li>
+            <li><a href="#memory"><span>05</span>Memory and source-of-truth boundaries</a></li>
+            <li><a href="#delivery"><span>06</span>Stable delivery principles</a></li>
+            <li><a href="#tools-loop"><span>07</span>Tool access and work loop</a></li>
+            <li><a href="#minimum"><span>08</span>Minimum version for beginners</a></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="system">
+      <div class="wrap section-inner">
+        <div class="section-label">02 / WORK SYSTEM</div>
+        <article>
+          <h2>Agentic AI is a work system, not a chat mode.</h2>
+          <p>When I first started using AI, I naturally treated it as a Q&amp;A tool: type a question and wait for an answer. That is useful for lookup, sentence edits, and short tasks. Problems appear when work grows longer.</p>
+          <p>New conversations forget previous context. File versions drift. AI does not know which materials are source of truth, or which actions should be confirmed with me first. This is not only an efficiency issue; it is a real workflow risk.</p>
+          <p>So my current approach is to build an agentic AI work system first, then run AI inside that system.</p>
+          <p class="focus red"><strong>Model, context, tools, rule/permission setup, memory, handoff, and acceptance together make a usable AI-agent workflow.</strong> The model is only one part. What truly stabilizes work is whether AI can proceed within the right data, tools, and boundaries while preserving a handover state for the next round.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="local-agent">
+      <div class="wrap section-inner">
+        <div class="section-label">03 / LOCAL ENTRY</div>
+        <article>
+          <h2>Chat AI answers questions. Local AI-agent enters the project.</h2>
+          <p>I prioritise AI agents that can read and write local folders, instead of only taking chat prompts in a web interface. Those tools may be Claude Code, OpenAI Codex, Google Antigravity CLI, or Tencent WorkBuddy. Tool names change, but I care about three shared abilities:</p>
+          <ul>
+            <li>Read and write the project folder.</li>
+            <li>Call tools, such as search, file read, file edits, and checks.</li>
+            <li>Deliver inspectable work, not just produce plausible text.</li>
+          </ul>
+          <p>This is the core difference between chat AI and local AI agents. Chat AI mostly answers inside the thread; a local AI agent enters a directory and understands files, specs, and project state.</p>
+          <p>Beginners do not need to begin with the most complex automation. A clear project folder where the AI always works can significantly reduce chaos immediately.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="handoff">
+      <div class="wrap section-inner">
+        <div class="section-label">04 / HANDOFF LAYER</div>
+        <article>
+          <h2>One practical AI problem: every new conversation forgets context.</h2>
+          <p>In the previous round you may spend a lot of time explaining goals, files, rules, and preferences. In the next round, AI starts as if rejoining from scratch, asks the same questions, and sometimes repeats work. It wastes time and makes formal output unstable.</p>
+          <p>So I put Agent Handoff Kit in the center of the process. It is not replacing AI. It lets different local AI agents attach to one shared project state.</p>
+          <ul>
+            <li>Startup entry: AGENTS, CLAUDE, GEMINI and START_NEXT_SESSION_PROMPT let different local AI tools find the same entry point.</li>
+            <li>Current state: handoff docs keep what was done, next actions, risks, and check results.</li>
+            <li>Source-of-truth registry: important files, external sources, sync responsibilities, and document roles are all registered clearly to avoid creating orphan files.</li>
+            <li>Rule entry: load only task-relevant work rules, such as writing, research, knowledge synthesis, release, or safety operations.</li>
+            <li>Trace and long-term decisions: short-term progress, long-term evolution, architecture tradeoffs, and important learnings no longer live only in chat history.</li>
+            <li>Safety guardrails: deletion, overwrite, release, permission, cost, and external write operations are blocked for explicit confirmation first.</li>
+            <li>Closeout handoff: at the end of each round, handoff files and next-start prompts are updated so the next AI tool can continue.</li>
+          </ul>
+          <p>In practice, my habit is simple: say <code>Start Agent Handoff</code> at the beginning, and <code>Wrap up Agent Handoff</code> when ending the work round. Once an item is finalized—for example an official image, article, spec, or workflow—I ask AI to register it into Agent Handoff Kit.</p>
+          <p>Then the next AI does not rely on memory alone. It reads current state, index, rules, and handoff prompts directly from project files.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="memory">
+      <div class="wrap section-inner">
+        <div class="section-label">05 / MEMORY &amp; SOURCE OF TRUTH</div>
+        <article>
+          <h2>Memory is useful, but it does not replace source-of-truth.</h2>
+          <p>Memory is necessary, but I do not treat it as truth. In general agentic AI, memory can be thought of in three layers: short-term memory for current work state and recent actions, long-term memory for preferences and repeated rules, and retrieval memory to confirm from files, databases, knowledge bases, or official sources when needed.</p>
+          <p>There is no need to bind this to one framework. A beginner should first separate three things: what the current conversation is handling, what is already confirmed in project files, and what exists in long-term knowledge. With those separated, AI is less likely to mix temporary assumptions, confirmed facts, and long-term preferences.</p>
+          <p class="focus yellow"><strong>My principle is clear: memory supports judgment, but files, databases, official docs, and confirmed data remain the source of truth.</strong></p>
+          <p>When AI says “I remember your preference,” treat it only as a prompt. For formal output, go back to source-of-truth checks.</p>
+
+          <h3>Knowledge and collaboration layers should be separated</h3>
+          <p>I split knowledge collaboration into three categories: Google Drive for references, attachments, mirrors and backup; Notion for index, decisions, knowledge base, and project dashboards; and local folders for source work files, code, specs, images, and outputs.</p>
+          <p>Do not mix these three. Local folders are best for active source-of-truth work because AI can read and write them directly for validation. Notion is best for human-readable indexing and knowledge accumulation. Google Drive is best for references, attachments, and cross-device retention.</p>
+          <p>AI should connect to external resources and tools where permission and boundaries allow. But connectability does not equal open-write. External platform writes, deletion, release, permissions, and cost changes always require confirmation.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="delivery">
+      <div class="wrap section-inner">
+        <div class="section-label">06 / STABLE DELIVERY</div>
+        <article>
+          <h2>I do not treat “AI answered” as delivery.</h2>
+          <p>In my workflow, each task ends in output validation. I check: is it inspectable, does the file exist, can the source be traced, and can the next round continue?</p>
+
+          <h3>Define success first</h3>
+          <p>Before starting, define goals, scope, and acceptance criteria clearly. Avoid “please help me organise this.” Better is: “Turn this into a beginner-friendly article, keep my voice, but make the method general and checkable.” AI needs a destination, otherwise it produces output that looks good but cannot be accepted.</p>
+
+          <h3>Read source of truth first</h3>
+          <p>If files exist, read them; if official docs exist, read them; if there is a dashboard, query it first. Do not guess when unread. If not verifiable, state that explicitly. The biggest AI risk is not not being able to write. It is writing fluently without verification.</p>
+
+          <h3>Confirm high-risk actions first</h3>
+          <p>Deletion, overwrite, release, permission, cost, and external write actions must all be confirmed first. The local AI agent is powerful because it can act. That is why guardrails are required.</p>
+
+          <h3>Each round should leave an acceptance point</h3>
+          <p class="focus">Every round should produce a checkable result: file created, image correct, content placed in the designated path, handoff state updated, and next action documented. Only then is work done in a real system rather than only in conversation.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="tools-loop">
+      <div class="wrap section-inner">
+        <div class="section-label">07 / TOOL ACCESS &amp; WORK LOOP</div>
+        <article>
+          <h2>Connector, plugin, skill, and MCP are tool-access layers, not the core product definition.</h2>
+          <p>Local AI agents usually need tool access, data connections, and reusable methods. A connector connects external services. A plugin brings in a capability set. A skill saves reusable practice. MCP provides a standard interface for AI tool/resource usage. They are important, but they are not Agent Handoff Kit’s product identity.</p>
+          <p class="focus yellow"><strong>My division is this:</strong> tools enable actions, governance enables stable actions, and Agent Handoff Kit keeps state, source-of-truth, rules, safety boundaries, and next-start guidance in project files.</p>
+          <p>So those elements belong to a tool and permission layer: what can be read, what tools can run, what needs confirmation, and what results must be written back to source-of-truth. Do not merge external tools, memory, sync, and handoff into one simply because AI can call tools.</p>
+
+          <h3>Make each task a loop</h3>
+          <p>I treat one AI task as a loop: define scope, read source-of-truth, act with tools, inspect outcomes, accept, then hand over next steps. That is loop engineering: not requiring a one-shot perfect answer but creating a system that supports repeated observation, correction, and acceptance.</p>
+          <p>Current harness-oriented thinking follows the same direction: do not look only at model quality. Look at how model, tools, permissions, memory, observation, failure attribution, human intervention, and acceptance combine in a working system. For individuals, you do not need a big platform first; a clean folder setup, source-of-truth registry, tool permissions, handoff, acceptance criteria, and high-risk confirmation are enough.</p>
+
+          <h3>Acceptance should be multidimensional</h3>
+          <p>Smooth text does not equal completion. Before formal delivery, I check target fit, source-of-truth reads, file and link presence, visual usability, and high-risk confirmation. The next step is not a delivery detail alone; it is the continuity information that must remain at closeout.</p>
+          <p class="quiet-note">This is not a corporate slogan. It is day-to-day operational scope: what AI can read, what AI can modify, what AI can call, when it must stop, how acceptance is done, and how state is handed to the next session.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="minimum">
+      <div class="wrap section-inner">
+        <div class="section-label">08 / MINIMUM FOR BEGINNERS</div>
+        <article>
+          <h2>At the beginning, you do not need a complex system.</h2>
+          <p>You can start with this minimum setup:</p>
+          <ol>
+            <li>Create one dedicated work folder.</li>
+            <li>Put references, images, drafts, and outputs into the same folder.</li>
+            <li><span class="mark blue">Install Agent Handoff Kit</span>. Beginners can first read the <a href="agent-handoff-kit-ai-install.en.html">installation prompt</a>, then ask AI to <span class="mark blue">install or upgrade</span> in the current folder.</li>
+            <li>When starting a task, say <span class="mark blue">Start Agent Handoff</span>.</li>
+            <li>When finishing an important work round, say <span class="mark blue">Wrap up Agent Handoff</span>.</li>
+            <li>Register official deliverables as source-of-truth, for example: <span class="mark yellow">Bring <code class="cmd">docs/xxxx.md</code> into Agent Handoff Kit</span>.</li>
+            <li>If you are not sure which important files are not yet integrated, say: <span class="mark yellow">Scan for important documents not integrated with Agent Handoff Kit</span>. This helps when adding many files, before changing AI, before release, or when cleaning old work.</li>
+            <li>Ask AI to read source-of-truth before touching files: <span class="mark yellow">Read README, HTML, Markdown, and Notion DB first; propose a plan only after reading, not by guessing.</span> If you are unsure of sources, ask: “Tell me what you plan to read first, then start only after it is read.”</li>
+            <li><span class="mark blue">Publish, delete, and external write actions require explicit confirmation</span>, including impact scope, rollback plan, and acceptance method.</li>
+          </ol>
+          <p>Once this is in place, AI is no longer only a chat utility; it is an assistant that can carry work from session to session.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <blockquote>Stable AI work is not built on one brilliant response. It is built on tools, context, memory, source-of-truth, guardrails, and handoff working together.</blockquote>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-inner">
+        <div class="section-label">09 / WORK REMINDERS</div>
+        <article>
+          <h2>These are the reminders I keep using.</h2>
+          <ul>
+            <li>Set up environment and tools before asking AI to act.</li>
+            <li>Read sources of truth first; do not rely on impressions.</li>
+            <li>Memory is support, not truth.</li>
+            <li>Connector, plugin, skill, and MCP are the tool-access layer, not the handoff layer.</li>
+            <li>Perform multidimensional acceptance each round: text, sources, links, files, visuals, safety.</li>
+            <li>Pause before high-risk operations and list impact, recovery plan, and required confirmation.</li>
+            <li>Each closeout should leave a clear next step: what to read first, what to do next, which risks remain.</li>
+            <li>The output should be directly usable by the next AI.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="next" class="cta">
+      <div class="wrap section-inner">
+        <div class="section-label">10 / NEXT STEP</div>
+        <article>
+          <h2>Understand the method first, then move back to tools.</h2>
+          <p>This article explains why a local AI-agent workflow needs folder structure, source-of-truth, handoff, memory boundaries, and acceptance when you use local AI seriously. To use Agent Handoff Kit in practice, return to intro, guide, and GitHub README.</p>
+          <div class="buttons">
+            <a class="button" href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html">Read the practical guide</a>
+            <a class="button" href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html">Read the 60-second intro</a>
+            <a class="button" href="https://github.com/Adamchanadam/agent-handoff-kit">Read the GitHub README</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div>
+        <strong>Agent Handoff Kit · Methodology case study</strong>
+        <p>This page explains where the Agent Handoff Kit sits in a local agentic AI work system. README, intro, and guide remain the official product entry paths.</p>
+      </div>
+      <div>
+        <strong>Main documents</strong>
+        <p>
+          <a href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html">Beginner intro</a><br/>
+          <a href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html">Practical guide</a><br/>
+          <a href="https://github.com/Adamchanadam/agent-handoff-kit">README on GitHub</a>
+        </p>
+      </div>
+      <div>
+        <strong>Content position</strong>
+        <p>This is an architecture-level methodology article. It does not replace README, intro, or guide.</p>
+      </div>
+      <div>
+        <strong>Author</strong>
+        <p>Adam Chan</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

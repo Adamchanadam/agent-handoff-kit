@@ -12,6 +12,7 @@ import { requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const tempRoot = path.join(tmpdir(), `ack-release-flow-${Date.now()}`);
+const cliNode = process.platform === "win32" ? "node" : process.execPath;
 const pinnedV041Artifact = {
   packageRoot: process.env.AGENT_HANDOFF_KIT_R034_ARTIFACT_ROOT
     || (process.platform === "win32" ? "C:\\tmp\\agent-handoff-kit-r034-gate4-reopen-artifact\\extract\\package" : null),
@@ -37,6 +38,7 @@ function main() {
   checkGithubReleaseBodyContract(version);
   checkPublicOnboardingVersion(version);
   checkEnglishPublicSurfaces(version);
+  checkChangedBilingualCandidateEvidence(version);
   checkUpgradeSuccessOutputSourceContract(version);
   checkRecommendedNextStepContract();
   checkCliHelpHotPathContract();
@@ -1108,7 +1110,7 @@ function simulateScenarioBranching() {
   // The fixture deliberately contains generic package-scope and pending wording; the
   // product check must not infer lifecycle truth from arbitrary AI prose.
   const s4bRoot = path.join(tempBase, "scenario-upgrade-noop-handoff-needs-closeout");
-  const s4bInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
+  const s4bInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
   if (s4bInit.status !== 0) {
     throw new Error(`Scenario 4b init prep failed: ${s4bInit.stderr || s4bInit.stdout}`);
   }
@@ -1120,7 +1122,7 @@ function simulateScenarioBranching() {
     .replace("- Checks run this session: TBD", "- Checks run this session: Verified package scope and no-op upgrade journey.")
     .replace("## Next Session Opening Message\n\n📋 Next session: agent-managed startup content below", "## Next Session Opening Message\n\n📋 Next session: agent-managed startup content below");
   writeFileSync(s4bHandoffPath, s4bHandoff, "utf8");
-  const s4b = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
+  const s4b = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
   if (s4b.status === 0) {
     throw new Error(`scenario 4b upgrade no-op expected failure but exited 0\n${s4b.stdout}`);
   }
@@ -1141,7 +1143,7 @@ function simulateScenarioBranching() {
       /I just upgraded agent-handoff-kit/
     ]
   });
-  const s4bDoctor = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
+  const s4bDoctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
   if (s4bDoctor.status === 0) {
     throw new Error(`scenario 4b doctor expected failure but exited 0\n${s4bDoctor.stdout}`);
   }
@@ -1162,7 +1164,7 @@ function simulateScenarioBranching() {
   // safety text. Upgrade should restore it and pass doctor, not offload this
   // template drift to the user.
   const s4fRoot = path.join(tempBase, "scenario-upgrade-noop-schema-auto-repair");
-  const s4fInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4fRoot], { encoding: "utf8", env, cwd: root });
+  const s4fInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4fRoot], { encoding: "utf8", env, cwd: root });
   if (s4fInit.status !== 0) {
     throw new Error(`Scenario 4f init prep failed: ${s4fInit.stderr || s4fInit.stdout}`);
   }
@@ -1197,7 +1199,7 @@ function simulateScenarioBranching() {
   // historical release/npm evidence sits in hot handoff and prompt state. Upgrade
   // should clean the hot state, regenerate the prompt copy, and pass doctor.
   const s4gRoot = path.join(tempBase, "scenario-upgrade-noop-temperature-auto-repair");
-  const s4gInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4gRoot], { encoding: "utf8", env, cwd: root });
+  const s4gInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4gRoot], { encoding: "utf8", env, cwd: root });
   if (s4gInit.status !== 0) {
     throw new Error(`Scenario 4g init prep failed: ${s4gInit.stderr || s4gInit.stdout}`);
   }
@@ -1241,7 +1243,7 @@ function simulateScenarioBranching() {
   // Kit-owned and can be regenerated safely; upgrade should repair it instead of
   // leaving a warning for the user.
   const s4cRoot = path.join(tempBase, "scenario-upgrade-stale-prompt-copy");
-  const s4cInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4cRoot], { encoding: "utf8", env, cwd: root });
+  const s4cInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4cRoot], { encoding: "utf8", env, cwd: root });
   if (s4cInit.status !== 0) {
     throw new Error(`Scenario 4c init prep failed: ${s4cInit.stderr || s4cInit.stdout}`);
   }
@@ -1283,7 +1285,7 @@ function simulateScenarioBranching() {
   // must repair the bounded missing anchor and pass self-check. A novice should
   // not be sent to ask AI to repair the upgrade result.
   const s4dRoot = path.join(tempBase, "scenario-upgrade-self-check-anchor-failure");
-  const s4dInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4dRoot], { encoding: "utf8", env, cwd: root });
+  const s4dInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4dRoot], { encoding: "utf8", env, cwd: root });
   if (s4dInit.status !== 0) {
     throw new Error(`Scenario 4d init prep failed: ${s4dInit.stderr || s4dInit.stdout}`);
   }
@@ -1326,7 +1328,7 @@ function simulateScenarioBranching() {
   // maintained handoff template contract. This guards the v0.3.21 public runtime
   // failure where upgrade skipped SESSION_HANDOFF.md and doctor immediately failed.
   const s4eRoot = path.join(tempBase, "scenario-upgrade-handoff-continuity-auto-repair");
-  const s4eInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4eRoot], { encoding: "utf8", env, cwd: root });
+  const s4eInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4eRoot], { encoding: "utf8", env, cwd: root });
   if (s4eInit.status !== 0) {
     throw new Error(`Scenario 4e init prep failed: ${s4eInit.stderr || s4eInit.stdout}`);
   }
@@ -1369,7 +1371,7 @@ function simulateScenarioBranching() {
   // preserve it and bind that preservation to the shared readback; an old
   // metadata-injection expectation cannot authorize a rewrite.
   const s3aRoot = path.join(tempBase, "scenario-upgrade-metadata-only");
-  const s3aInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s3aRoot], { encoding: "utf8", env, cwd: root });
+  const s3aInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s3aRoot], { encoding: "utf8", env, cwd: root });
   if (s3aInit.status !== 0) {
     throw new Error(`Scenario 3a init prep failed: ${s3aInit.stderr || s3aInit.stdout}`);
   }
@@ -1435,7 +1437,7 @@ function simulateScenarioBranching() {
   // Catches the inject-vs-merge ordering bug — without inject-after-merge fix,
   // merge writes mergedText (with v0.1.7 row) AFTER inject, leaving root stale.
   const s3bRoot = path.join(tempBase, "scenario-upgrade-structurally-stale");
-  const s3bInit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s3bRoot], { encoding: "utf8", env, cwd: root });
+  const s3bInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s3bRoot], { encoding: "utf8", env, cwd: root });
   if (s3bInit.status !== 0) {
     throw new Error(`Scenario 3b init prep failed: ${s3bInit.stderr || s3bInit.stdout}`);
   }
@@ -1542,13 +1544,13 @@ function simulateScenarioBranching() {
   // when a bridge file cannot be safely merged, output must say the upgrade is
   // not complete and must not print the success ceremony.
   const s5Root = path.join(tempBase, "scenario-upgrade-with-conflict");
-  const s5Init = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s5Root], { encoding: "utf8", env, cwd: root });
+  const s5Init = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s5Root], { encoding: "utf8", env, cwd: root });
   if (s5Init.status !== 0) {
     throw new Error(`Scenario 5 init prep failed: ${s5Init.stderr || s5Init.stdout}`);
   }
   const s5ClaudePath = path.join(s5Root, "CLAUDE.md");
   writeFileSync(s5ClaudePath, "# Local Claude Instructions\n\nThis file intentionally does not route to the Kit entry file.\n", "utf8");
-  const s5 = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s5Root], { encoding: "utf8", env, cwd: root });
+  const s5 = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s5Root], { encoding: "utf8", env, cwd: root });
   if (s5.status === 0) {
     throw new Error(`scenario 5 upgrade with conflict expected non-zero exit\n${s5.stdout}`);
   }
@@ -2169,7 +2171,8 @@ function checkEnglishPublicSurfaces(version) {
     { chinese: "README.md", english: "README.en.md" },
     { chinese: "agent-handoff-kit-ai-install.html", english: "agent-handoff-kit-ai-install.en.html" },
     { chinese: "agent-handoff-kit-intro.html", english: "agent-handoff-kit-intro.en.html" },
-    { chinese: "agent-handoff-kit-guide.html", english: "agent-handoff-kit-guide.en.html" }
+    { chinese: "agent-handoff-kit-guide.html", english: "agent-handoff-kit-guide.en.html" },
+    { chinese: "local-agentic-ai-workflow-case-study.html", english: "local-agentic-ai-workflow-case-study.en.html", versioned: false }
   ];
   for (const pair of pairs) {
     assert(existsSync(path.join(root, pair.english)), `English public surface is missing: ${pair.english}`);
@@ -2178,15 +2181,74 @@ function checkEnglishPublicSurfaces(version) {
     assert(english.includes(pair.chinese), `${pair.english} does not link its Traditional Chinese counterpart`);
     if (pair.english.endsWith(".html")) {
       assert(/<html lang="en"/i.test(english), `${pair.english} must declare English content`);
-      assert(english.includes(`v${version}`), `${pair.english} is not aligned to v${version}`);
-      assert(english.includes("npm registry"), `${pair.english} must distinguish source-page and npm versions`);
+      // This checker owns only stable public-surface mechanics. Translation
+      // parity is a change-triggered human acceptance task owned by the
+      // writing pack and the candidate evidence, not a permanent release
+      // assertion for every historical language pair.
+      if (pair.versioned !== false && pair.english !== "agent-handoff-kit-guide.en.html") {
+        assert(english.includes(`v${version}`), `${pair.english} is not aligned to v${version}`);
+        assert(english.includes("npm registry"), `${pair.english} must distinguish source-page and npm versions`);
+      }
     }
   }
   const install = read("agent-handoff-kit-ai-install.en.html");
   for (const command of ["init", "upgrade --dry-run", "upgrade --yes", "doctor"]) {
     assert(install.includes(`npx --yes @adamchanadam/agent-handoff-kit@latest ${command}`), `English AI install page misses ${command}`);
   }
+
   console.log("ok: English public pages and language navigation");
+}
+
+function checkChangedBilingualCandidateEvidence(version) {
+  // Translation semantics cannot be inferred from text shape. This is only a
+  // candidate-scoped completeness guard: when a committed candidate actually
+  // changes one language pair, require the Writing Pack's independent review
+  // evidence for that pair. An unchanged pair is explicitly not applicable.
+  const pairs = [
+    { heading: "### Bilingual README semantic gate", chinese: "README.md", english: "README.en.md" },
+    { heading: "### Bilingual practical-guide semantic gate", chinese: "agent-handoff-kit-guide.html", english: "agent-handoff-kit-guide.en.html" },
+    { heading: "### Bilingual AI-install semantic gate", chinese: "agent-handoff-kit-ai-install.html", english: "agent-handoff-kit-ai-install.en.html" },
+    { heading: "### Bilingual introduction semantic gate", chinese: "agent-handoff-kit-intro.html", english: "agent-handoff-kit-intro.en.html" },
+    {
+      heading: "### Bilingual local-workflow case-study semantic gate",
+      chinese: "local-agentic-ai-workflow-case-study.html",
+      english: "local-agentic-ai-workflow-case-study.en.html",
+      assets: ["images/local-agentic-ai-workflow-blueprint.png", "images/local-agentic-ai-workflow-blueprint.en.png"]
+    }
+  ];
+  const relevantPaths = pairs.flatMap((pair) => [pair.chinese, pair.english, ...(pair.assets ?? [])]);
+  const dirty = outputText(run("git", ["status", "--porcelain", "--", ...relevantPaths], "candidate bilingual worktree status"));
+  assert(!dirty.trim(), "candidate changes a bilingual public surface but is not commit-bound; create a clean local candidate commit before release readiness");
+
+  const base = outputText(run("git", ["merge-base", "HEAD", "origin/main"], "candidate bilingual baseline")).trim();
+  assert(/^[0-9a-f]{40}$/i.test(base), "candidate bilingual baseline is not a Git commit");
+  const changed = new Set(
+    outputText(run("git", ["diff", "--name-only", `${base}..HEAD`, "--", ...relevantPaths], "candidate bilingual change scope"))
+      .split(/\r?\n/u)
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
+  const changedPairs = pairs.filter((pair) => [pair.chinese, pair.english, ...(pair.assets ?? [])].some((file) => changed.has(file)));
+  if (changedPairs.length === 0) {
+    console.log("ok: bilingual candidate evidence not applicable (no changed language counterpart)");
+    return;
+  }
+
+  const report = read("docs/qa/release-grade-qa.md");
+  for (const pair of changedPairs) {
+    const heading = `${pair.heading}（v${version}`;
+    const start = report.indexOf(heading);
+    assert(start >= 0, `candidate changes ${pair.english} but release QA has no v${version} independent-review section`);
+    const end = report.indexOf("\n### ", start + 4);
+    const section = report.slice(start, end >= 0 ? end : undefined);
+    for (const file of [pair.chinese, pair.english, ...(pair.assets ?? [])]) {
+      const contents = pair.assets?.includes(file) ? readFileSync(path.join(root, file)) : read(file);
+      const hash = createHash("sha256").update(contents).digest("hex").toUpperCase();
+      assert(section.includes(`\`${file}\` SHA-256 \`${hash}\``), `candidate translation evidence is stale for changed ${file}`);
+    }
+    assert(section.includes("Verdict: **PASS**"), `changed ${pair.english} lacks an independent PASS verdict; do not claim release readiness`);
+  }
+  console.log(`ok: independent bilingual evidence covers ${changedPairs.length} changed language counterpart(s)`);
 }
 
 function assertAcceptedCurrentStateDoctorOutput(output, version, label) {
@@ -2218,7 +2280,7 @@ function materializePinnedV041ArtifactInit(project) {
   assert(`sha512-${createHash("sha512").update(artifactBytes).digest("base64")}` === integrity, "pinned v0.3.41 artifact SHA-512 drifted for packed upgrade smoke");
   const artifactCli = path.join(packageRoot, "bin", "agent-handoff-kit.mjs");
   assert(existsSync(artifactCli), "pinned v0.3.41 artifact extraction is missing its formal CLI");
-  const init = spawnSync(process.execPath, [artifactCli, "init", "--yes", "--root", project], {
+  const init = spawnSync(cliNode, [artifactCli, "init", "--yes", "--root", project], {
     cwd: packageRoot,
     encoding: "utf8",
     env: { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" }
@@ -2230,16 +2292,21 @@ function runNpm(args, label) {
   if (process.env.npm_execpath) {
     return run(process.execPath, [process.env.npm_execpath, ...args], label);
   }
-  return run(process.platform === "win32" ? "npm.cmd" : "npm", args, label);
+  if (process.platform === "win32") {
+    return run("npm.cmd", args, label, { shell: true });
+  }
+  return run("npm", args, label);
 }
 
 function run(command, args, label, options = {}) {
   const spawnOptions = {
     cwd: root,
-    encoding: "utf8"
+    encoding: "utf8",
+    shell: options.shell ?? false
   };
   if (options.env) spawnOptions.env = options.env;
-  const result = spawnSync(command, args, spawnOptions);
+  const spawnCommand = command === process.execPath ? cliNode : command;
+  const result = spawnSync(spawnCommand, args, spawnOptions);
 
   if (result.error || result.status !== 0) {
     throw new Error(`${label} failed\n${result.error?.message ?? ""}\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
@@ -2284,7 +2351,7 @@ function checkResearchDecisionTraceContract() {
     ),
     "utf8"
   );
-  const negativeDoctor = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], {
+  const negativeDoctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], {
     cwd: root,
     encoding: "utf8"
   });
@@ -2310,7 +2377,7 @@ function checkHandoffTemperatureBoundaryContract() {
   writeFileSync(handoffPath, pollutedHandoff, "utf8");
   writeFileSync(path.join(tempRoot, "START_NEXT_SESSION_PROMPT.txt"), extractOpeningMessage(pollutedHandoff), "utf8");
 
-  const doctor = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], {
+  const doctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], {
     cwd: root,
     encoding: "utf8"
   });
@@ -2332,7 +2399,7 @@ function checkGeneratedMarkdownGovernanceContract() {
     "utf8"
   );
 
-  const negativeDoctor = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], {
+  const negativeDoctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], {
     cwd: root,
     encoding: "utf8"
   });
@@ -2353,7 +2420,7 @@ function checkGeneratedMarkdownGovernanceContract() {
     `${readFileSync(negativeLogPath, "utf8")}\nObserved outputs/unregistered_design.md while reviewing outputs/other.md, which is temporary.\n`,
     "utf8"
   );
-  const lookalikeDoctor = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], { cwd: root, encoding: "utf8" });
+  const lookalikeDoctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], { cwd: root, encoding: "utf8" });
   assert(lookalikeDoctor.status !== 0 && outputText(lookalikeDoctor).includes("outputs/unregistered_design.md"), "longer path, broad pattern, or another file's temporary label made an orphan artifact pass");
 
   const positiveRoot = path.join(tmpdir(), `ack-generated-markdown-pass-${Date.now()}`);

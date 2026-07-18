@@ -1,0 +1,5 @@
+.gitattributes text eol=lf
+bin/migration-baselines/official-origin-catalog.json text eol=lf
+test-fixtures/** text eol=lf
+test-fixtures/**/AGENTS.md -text
+test-fixtures/**/dev/PROJECT_INDEX.md -text
