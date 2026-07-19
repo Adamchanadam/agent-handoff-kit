@@ -212,7 +212,7 @@ function readNpmPublishedMetadata(version) {
   const parsed = JSON.parse(result.stdout);
   return {
     version: parsed.version,
-    latest: parsed["dist-tags"]?.latest,
+    latest: parsed["dist-tags"]?.latest ?? parsed["dist-tags.latest"],
     tarball: parsed.dist?.tarball ?? parsed["dist.tarball"],
     shasum: parsed.dist?.shasum ?? parsed["dist.shasum"],
     integrity: parsed.dist?.integrity ?? parsed["dist.integrity"]
