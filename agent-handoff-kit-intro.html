@@ -428,6 +428,78 @@
       display: block;
       margin-bottom: 10px;
     }
+    .handoff-flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      margin-top: 24px;
+      border: 3px solid var(--paper);
+      background: var(--paper);
+      color: var(--ink);
+    }
+    .flow-step {
+      min-height: 112px;
+      padding: 18px 16px;
+      border-right: 2px solid var(--ink);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .flow-step:last-child { border-right: none; }
+    .flow-step .num {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+    }
+    .flow-step strong {
+      display: block;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+    .flow-step span {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .flow-step.f1 { background: var(--yellow); }
+    .flow-step.f2 { background: var(--red); color: var(--paper); }
+    .flow-step.f3 { background: var(--paper); }
+    .flow-step.f4 { background: var(--blue); color: var(--paper); }
+    .flow-step.f5 { background: var(--green); }
+    .status-legend {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .status-card {
+      border: 3px solid var(--paper);
+      padding: 18px;
+      background: rgba(255,255,255,0.06);
+      color: var(--paper);
+      min-height: 148px;
+    }
+    .status-card .face {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--yellow);
+      margin-bottom: 10px;
+    }
+    .status-card h3 {
+      margin: 0 0 8px;
+      color: var(--paper);
+      font-size: 18px;
+    }
+    .status-card p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--paper);
+      opacity: 0.9;
+    }
 
     /* ───── 工作模式 8 格 ───── */
     .modes-grid {
@@ -688,6 +760,9 @@
       .mode-cell:nth-last-child(-n+4) { border-bottom: var(--rule); }
       .mode-cell:nth-last-child(-n+2) { border-bottom: none; }
       .magic-row { grid-template-columns: 1fr; }
+      .handoff-flow, .status-legend { grid-template-columns: 1fr; }
+      .flow-step { border-right: none; border-bottom: 2px solid var(--ink); min-height: 92px; }
+      .flow-step:last-child { border-bottom: none; }
       .steps { grid-template-columns: 1fr; }
       .safety-grid { grid-template-columns: 1fr; }
       .safety-text { border-right: none; border-bottom: var(--rule); }
@@ -894,6 +969,32 @@
 收工 01 · 逐段對賬交接文件:更新「當前狀態」、「下一步」、「風險」、「驗收」
 收工 02 · 把本次實際做過的事,寫進工作日誌
 收工 03 · 同步更新 START_NEXT_SESSION_PROMPT.txt,你下次開新對話說「開工」就能接續
+      </div>
+
+      <div class="handoff-flow" aria-label="開工收工循環">
+        <div class="flow-step f1"><span class="num">01</span><strong>安裝完成</strong><span>AI 已放好接力文件</span></div>
+        <div class="flow-step f2"><span class="num">02</span><strong>說「開工」</strong><span>讀取上一輪狀態</span></div>
+        <div class="flow-step f3"><span class="num">03</span><strong>AI 繼續做事</strong><span>按任務載入規則</span></div>
+        <div class="flow-step f4"><span class="num">04</span><strong>說「收工」</strong><span>保存交接與驗收</span></div>
+        <div class="flow-step f5"><span class="num">05</span><strong>下次再說「開工」</strong><span>新對話接回同一棒</span></div>
+      </div>
+
+      <div class="status-legend" aria-label="貓貓狀態圖例">
+        <div class="status-card">
+          <div class="face">( o.o )</div>
+          <h3>continuity ready</h3>
+          <p>可以接力。AI 已讀到交接狀態,可按目前目標繼續。</p>
+        </div>
+        <div class="status-card">
+          <div class="face">( -.- )</div>
+          <h3>handoff saved</h3>
+          <p>已收工保存。下次在同一專案說「開工」即可接續。</p>
+        </div>
+        <div class="status-card">
+          <div class="face">( x.x )</div>
+          <h3>handoff blocked</h3>
+          <p>不是壞了,而是仍有未保存、未提交、未驗證或待處理事項。先照 Blocker 行處理,不要當作已完成交接。</p>
+        </div>
       </div>
     </div>
   </section>

@@ -226,6 +226,76 @@
       font-size: 17px;
       line-height: 1.65;
     }
+    .quick-cycle {
+      background: var(--paper);
+      border-bottom: var(--rule);
+      padding: 30px 0;
+    }
+    .cycle-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border: 3px solid var(--ink);
+      margin-bottom: 18px;
+    }
+    .cycle-step {
+      min-height: 108px;
+      padding: 16px 14px;
+      border-right: 2px solid var(--ink);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .cycle-step:last-child { border-right: none; }
+    .cycle-step .num {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    .cycle-step strong {
+      font-size: 17px;
+      line-height: 1.2;
+    }
+    .cycle-step span {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .cycle-step.c1 { background: var(--yellow); }
+    .cycle-step.c2 { background: var(--red); color: var(--paper); }
+    .cycle-step.c3 { background: var(--paper-2); }
+    .cycle-step.c4 { background: var(--blue); color: var(--paper); }
+    .cycle-step.c5 { background: var(--green); }
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .status-tile {
+      border: 3px solid var(--ink);
+      padding: 16px;
+      background: var(--paper-2);
+      min-height: 140px;
+    }
+    .status-tile .face {
+      font-family: var(--font-mono);
+      font-size: 21px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .status-tile h2 {
+      font-size: 18px;
+      margin: 0 0 8px;
+      line-height: 1.2;
+      max-width: none;
+    }
+    .status-tile p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: none;
+    }
 
     .block { border: 3px solid var(--ink); margin: 24px 0; }
     .block-header {
@@ -433,6 +503,9 @@
       .case-tab:last-child { border-bottom: none; }
       .step-rail-inner { grid-template-columns: repeat(2, 1fr); }
       .step-pill { border-right: none; border-bottom: 2px solid var(--ink); }
+      .cycle-grid, .status-grid { grid-template-columns: 1fr; }
+      .cycle-step { border-right: none; border-bottom: 2px solid var(--ink); min-height: 88px; }
+      .cycle-step:last-child { border-bottom: none; }
       footer .wrap { grid-template-columns: 1fr; gap: 24px; }
       .chat-bubble { max-width: 100%; }
     }
@@ -491,6 +564,36 @@
     </div>
   </div>
 </div>
+
+<section class="quick-cycle" aria-label="開工收工一屏流程與貓貓狀態圖例">
+  <div class="wrap">
+    <div class="cycle-grid">
+      <div class="cycle-step c1"><span class="num">01</span><strong>安裝完成</strong><span>AI 已放好接力文件</span></div>
+      <div class="cycle-step c2"><span class="num">02</span><strong>說「開工」</strong><span>讀取上一輪狀態</span></div>
+      <div class="cycle-step c3"><span class="num">03</span><strong>AI 繼續做事</strong><span>按任務載入規則</span></div>
+      <div class="cycle-step c4"><span class="num">04</span><strong>說「收工」</strong><span>保存交接與驗收</span></div>
+      <div class="cycle-step c5"><span class="num">05</span><strong>下次再說「開工」</strong><span>新對話接回同一棒</span></div>
+    </div>
+
+    <div class="status-grid">
+      <div class="status-tile">
+        <div class="face">( o.o )</div>
+        <h2>continuity ready</h2>
+        <p>可以接力。AI 已讀到交接狀態,可按目前目標繼續。</p>
+      </div>
+      <div class="status-tile">
+        <div class="face">( -.- )</div>
+        <h2>handoff saved</h2>
+        <p>已收工保存。下次在同一專案說「開工」即可接續。</p>
+      </div>
+      <div class="status-tile">
+        <div class="face">( x.x )</div>
+        <h2>handoff blocked</h2>
+        <p>不是壞了,而是仍有未保存、未提交、未驗證或待處理事項。先照 Blocker 行處理,不要把本輪當作已完成交接。</p>
+      </div>
+    </div>
+  </div>
+</section>
 
 <div style="background: var(--paper-2); border-bottom: var(--rule); padding: 24px 0;">
   <div class="wrap">

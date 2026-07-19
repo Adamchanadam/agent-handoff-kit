@@ -17,9 +17,9 @@
 
 ### Bilingual practical-guide semantic gate（v0.3.45，PASS）
 
-- 中文唯一準則：`agent-handoff-kit-guide.html` SHA-256 `F6963E092EB9529524B0FFFE610D53522A22442B8774F9BAF22320A2B318A7B3`
-- 本次英文讀回：`agent-handoff-kit-guide.en.html` SHA-256 `8B9AE1D443DFABCCC00E261FFF8F672D69DD7A819D33FD3843859847E962B0EF`
-- Verdict: **PASS** — 本輪只改 hero/footer/terminal mock 的 release-state 版本字；A/B/C 案例、emoji、操作流程、外部確認、Notion/Drive、本機 reference、startup/closeout 分界與導航沒有語意改動。
+- 中文唯一準則：`agent-handoff-kit-guide.html` SHA-256 `B4275D047200DBA04210E96F7656E6457F553DD4B4B15069F567C35BB1946A16`
+- 本次英文讀回：`agent-handoff-kit-guide.en.html` SHA-256 `63308E0F49303E6564E679010510C061DCB328B6C97238D58073891B27FC5CCA`
+- Verdict: **PASS** — 本輪在中英文 practical guide 頂部加入同等的新手一屏循環：安裝完成 / Install complete → 開工 / Start → AI 繼續做事 / continues work → 收工 / Closeout → 下次再開工 / Next time say Start；並集中列明 `( o.o ) continuity ready`、`( -.- ) handoff saved`、`( x.x ) handoff blocked`。blocked 文案均說明這不是壞了，而是仍有未保存、未提交、未驗證或待處理事項，要先照 Blocker 行處理。A/B/C 案例正文、外部確認、Notion/Drive、本機 reference、startup/closeout 分界與導航沒有語意改動。
 
 ### Bilingual AI-install semantic gate（v0.3.45，PASS）
 
@@ -29,9 +29,9 @@
 
 ### Bilingual introduction semantic gate（v0.3.45，PASS）
 
-- 中文唯一準則：`agent-handoff-kit-intro.html` SHA-256 `1CC6E66DAC158871F5D84292D7C2755651EE14A917C051568FB5DA7FDF381A88`
-- 本次英文讀回：`agent-handoff-kit-intro.en.html` SHA-256 `19C22DE25A9519AE133DBE8E486A90F4E58A32D321DE42F0D55DFF77D230C4A5`
-- Verdict: **PASS** — 本輪只改版本提示與 footer 狀態。60 秒入門、pain grid、magic、modes、governance bridge、safety、tiers、recap 與語氣沒有語意改動。
+- 中文唯一準則：`agent-handoff-kit-intro.html` SHA-256 `398B9A1DCF5CEF3BF59EC2D9B0BD41A44494A6F30AAA6F65647FABC2EED130B2`
+- 本次英文讀回：`agent-handoff-kit-intro.en.html` SHA-256 `D76A0CCCFE221A91A776391AF1AD316DDBD528174C7D9C5B3574DC018A329719`
+- Verdict: **PASS** — 本輪在中英文 60 秒入門的開工 / 收工段加入同等的新手一屏循環與貓貓狀態圖例：`continuity ready` 代表可以接力，`handoff saved` 代表已收工保存，`handoff blocked` 代表仍有未保存、未提交、未驗證或待處理事項，先照 Blocker 行處理，不應當作已完成交接。pain grid、modes、governance bridge、safety、tiers、recap 與 footer 導航沒有語意改動。
 
 ### Bilingual local-workflow case-study semantic gate（v0.3.45，not changed）
 
