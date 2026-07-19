@@ -2,7 +2,7 @@
 
 English: [README.en.md](README.en.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-目前正式版本：`v0.3.45`（GitHub Release 與 npm `@latest`）。
+目前正式版本：`v0.3.46`（GitHub Release 與 npm `@latest`）。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
@@ -34,6 +34,14 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 已裝過舊版，或資料夾裡已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 等 AI 記憶文件，也用同一句交給 AI 判斷。AI 會先檢查，不會靜默覆寫。
 
 想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html)。想看完整操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)。想了解它在本機 Agentic AI 工作系統中的位置，可看 [`local-agentic-ai-workflow-case-study.html`](https://adamchanadam.github.io/agent-handoff-kit/local-agentic-ai-workflow-case-study.html)。
+
+## 🐱 狀態卡怎樣讀
+
+| 狀態 | 意思 |
+|---|---|
+| `( o.o ) continuity ready` | 可以接力，AI 已讀到可繼續的狀態。 |
+| `( -.- ) handoff saved` | 已收工保存，下次可以再說「開工」。 |
+| `( x.x ) handoff blocked` | 不是壞了；只是仍有未保存、未提交、未驗證或需要處理的事。先照 Blocker 行處理，不要把本輪當作已完成交接。 |
 
 ## 🧭 這個 repo 怎樣讀
 

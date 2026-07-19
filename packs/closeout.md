@@ -67,7 +67,7 @@ status: complete
 ⚠️ Boundary: <important boundary or none>
 ```
 
-For `status: blocked`, the command instead says `handoff blocked`; retain that status and reason, then give the short local-root entry `Start Agent Handoff` / `開工` and the path-bearing fallback for an agent not yet pointed at the root. Do not hand-compose a third stateful prompt in the final response.
+For `status: blocked`, the command instead says `handoff blocked`; retain that status, blocker reason, and human explanation: `這不是失敗；只是還有事未保存、未提交、未驗證或需要處理。先照 Blocker 行處理，不要把本輪當作已完成交接。` Then give the short local-root entry `Start Agent Handoff` / `開工` and the path-bearing fallback for an agent not yet pointed at the root. Do not hand-compose a third stateful prompt in the final response.
 
 ## Stop Conditions
 

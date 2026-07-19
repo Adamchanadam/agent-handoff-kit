@@ -654,6 +654,7 @@ function printCloseoutStatusCard(version, result) {
   console.log("");
   console.log("status: blocked");
   console.log(`⚠️ Blocker: ${result.findings.join("; ")}`);
+  console.log("💬 說明：這不是失敗；只是還有事未保存、未提交、未驗證或需要處理。先照 Blocker 行處理，不要把本輪當作已完成交接。");
   console.log("📌 Handoff: keep the current state resumable; do not call this closeout complete");
 }
 

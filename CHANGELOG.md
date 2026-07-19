@@ -1,5 +1,16 @@
 # 變更紀錄
 
+## v0.3.46 — 2026-07-19
+
+狀態：正式發佈版本。本版把新手狀態卡修補由 GitHub Pages 補到實際安裝套件，GitHub Release 與 npm `@latest` 應以 v0.3.46 為準。
+
+### 安裝後也看得到的阻塞提示
+
+- `closeout-status` 在 `handoff blocked` 時加入人話說明：這不是失敗，而是仍有未保存、未提交、未驗證或需要處理的事，使用者應先照 Blocker 行處理。
+- `packs/closeout.md` 要求 AI 保留 blocked 卡的人話說明，不可把 blocked 總結成已完成交接。
+- README 與英文 README 加入同一套貓貓狀態圖例，令 npm 內附說明與 GitHub Pages 入門頁一致。
+- 收工卡合約檢查新增回歸保護；日後 blocked 人話提示消失時，發佈檢查會攔截。
+
 ## v0.3.45 — 2026-07-18
 
 狀態：正式發佈版本。本版是 v0.3.44 後的發佈狀態一致性 hotfix；GitHub Release 與 npm `@latest` 應以 v0.3.45 為準。

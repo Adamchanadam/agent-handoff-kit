@@ -38,6 +38,10 @@ try {
   assert(!rejected.error && rejected.status !== 0, "blocked project-required persistence produced a successful closeout card");
   assert(rejected.stdout.includes("handoff blocked"), "blocked closeout card did not identify the blocked state");
   assert(rejected.stdout.includes("status: blocked"), "blocked closeout card omitted machine-readable blocked state");
+  assert(
+    rejected.stdout.includes("這不是失敗；只是還有事未保存、未提交、未驗證或需要處理"),
+    "blocked closeout card omitted the human next-step explanation"
+  );
   assert(!rejected.stdout.includes("handoff saved"), "blocked closeout card falsely claimed handoff saved");
 
   console.log("ok: closeout card is bound to persistence outcome");

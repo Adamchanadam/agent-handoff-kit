@@ -2,7 +2,7 @@
 
 [繁體中文](README.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-Current published release: `v0.3.45` (GitHub Release and npm `@latest`).
+Current published release: `v0.3.46` (GitHub Release and npm `@latest`).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit overview animation" width="720">
@@ -35,6 +35,14 @@ If the folder already contains older Kit files or AI memory files such as `AGENT
 
 For a non-technical introduction, open the [English introduction](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html). For complete walkthroughs, open the [English practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html).
 To see how Agent Handoff Kit sits in a local agentic AI workflow, open [`local-agentic-ai-workflow-case-study.en.html`](https://adamchanadam.github.io/agent-handoff-kit/local-agentic-ai-workflow-case-study.en.html).
+
+## 🐱 How to read the status card
+
+| Status | Meaning |
+|---|---|
+| `( o.o ) continuity ready` | Ready to continue; the AI has loaded resumable state. |
+| `( -.- ) handoff saved` | Closeout has been saved; next time you can say `Start Agent Handoff` or `開工`. |
+| `( x.x ) handoff blocked` | Not broken; something still needs to be saved, committed, verified, or handled. Follow the Blocker line first and do not treat this session as handed off. |
 
 ## 🧭 How to read this repository
 
