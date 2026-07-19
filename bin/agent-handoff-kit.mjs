@@ -2,7 +2,7 @@
 
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { chmod, copyFile, link, lstat, mkdir, open, readFile, readdir, realpath, stat, unlink, writeFile } from "node:fs/promises";
+import { chmod, copyFile, link, lstat, mkdir, open, readFile, readdir, realpath, rename, rmdir, stat, unlink, writeFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import path from "node:path";
@@ -930,20 +930,25 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
   // transaction already has a runtime acceptance, bind the pre-transaction
   // root-source witness into the same current-state digest before the journal
   // directory itself is created.
+  const archiveMigrations = command === "upgrade"
+    ? await prepareArchiveCasingMigrations(root)
+    : [];
   const sourceConservation = command === "upgrade" && resolveRuntimeAcceptance(outputs)
-    ? await createSourceConservation(root, outputs)
+    ? await createSourceConservation(root, outputs, archiveMigrations)
     : null;
   // A repair may restore the exact bytes of a prior committed state.  Keep the
   // causal replacement relation inside the existing sealed journal so ordinary
   // doctor can select the freshly read-back transaction without falling back
   // to mtime or a separate current-state registry.
   const supersedesCurrentStateDigests = command === "upgrade"
-    ? await findRestoredCurrentStateDigests(root, outputs)
+    ? await findRestoredCurrentStateDigests(root, outputs, archiveMigrations)
     : [];
-  const transaction = await prepareTransaction(root, command, version, outputs, mode, plan, sourceConservation, supersedesCurrentStateDigests);
+  const transaction = await prepareTransaction(root, command, version, outputs, mode, plan, sourceConservation, supersedesCurrentStateDigests, archiveMigrations);
   try {
     transaction.journal.state = "committing";
     await writeSecureJson(transaction.journalPath, transaction.journal);
+
+    await applyArchiveCasingMigrations(root, transaction);
 
     let committedCount = 0;
     const qaFailAfterCommit = Number.parseInt(process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_COMMIT ?? "", 10);
@@ -1043,7 +1048,13 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
       console.log("✅ project health: passed");
     }
   } catch (error) {
-    if (["ACK_QA_INTERRUPT_AFTER_REPLACE", "ACK_QA_INTERRUPT_AFTER_JOURNAL_COMMIT"].includes(error?.code)) throw error;
+    if ([
+      "ACK_QA_INTERRUPT_AFTER_REPLACE",
+      "ACK_QA_INTERRUPT_AFTER_JOURNAL_COMMIT",
+      "ACK_QA_INTERRUPT_AFTER_ARCHIVE_RELOCATE_BEFORE_STAGE",
+      "ACK_QA_INTERRUPT_AFTER_ARCHIVE_STAGE",
+      "ACK_QA_INTERRUPT_AFTER_ARCHIVE_MATERIALIZE_BEFORE_JOURNAL"
+    ].includes(error?.code)) throw error;
     if (isNoClobberConflict(error)) {
       transaction.journal.state = "manual-recovery-required";
       transaction.journal.committedVersion = null;
@@ -1269,18 +1280,20 @@ function createFormalUserRulesWitness(entries, state, acceptanceDigest) {
   });
 }
 
-async function prepareTransaction(root, command, version, outputs, mode, plan, sourceConservation = null, supersedesCurrentStateDigests = []) {
+async function prepareTransaction(root, command, version, outputs, mode, plan, sourceConservation = null, supersedesCurrentStateDigests = [], archiveMigrations = []) {
   const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   const migrationDir = path.join(migrationsRoot, id);
   const backupDir = path.join(migrationDir, "backup");
   const stageDir = path.join(migrationDir, "stage");
   const escrowDir = path.join(migrationDir, "no-clobber-escrow");
+  const archiveBackupDir = path.join(migrationDir, "archive-backup");
   const journalPath = path.join(migrationDir, "transaction.json");
   const lockPath = path.join(migrationsRoot, ".upgrade.lock");
   await mkdir(backupDir, { recursive: true });
   await mkdir(stageDir, { recursive: true });
   await mkdir(escrowDir, { recursive: true });
+  await mkdir(archiveBackupDir, { recursive: true });
   await tightenPermissions(migrationsRoot, 0o700);
   await tightenPermissions(migrationDir, 0o700);
   const lock = await open(lockPath, "wx", 0o600).catch((error) => {
@@ -1321,6 +1334,11 @@ async function prepareTransaction(root, command, version, outputs, mode, plan, s
     runtimeAcceptance: resolveRuntimeAcceptance(outputs),
     runtimeAcceptanceReadback: null,
     sourceConservation,
+    archiveMigrations: archiveMigrations.map((migration, index) => ({
+      ...migration,
+      stageRel: `archive-backup/${index}`,
+      state: "prepared"
+    })),
     ...(supersedesCurrentStateDigests.length > 0 ? { supersedesCurrentStateDigests } : {}),
     currentStateWitness: null,
     currentStateReadback: null
@@ -1330,7 +1348,280 @@ async function prepareTransaction(root, command, version, outputs, mode, plan, s
   // independently authorise doctor/report/success.
   journal.currentStateWitness = createCurrentStateWitness(journal);
   await writeSecureJson(journalPath, journal);
-  return { id, migrationDir, backupDir, stageDir, escrowDir, journalPath, lockPath, journal };
+  return { id, migrationDir, backupDir, stageDir, escrowDir, archiveBackupDir, journalPath, lockPath, journal };
+}
+
+async function prepareArchiveCasingMigrations(root) {
+  const devDir = path.join(root, "dev");
+  let entries;
+  try {
+    entries = await readdir(devDir, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === "ENOENT") return [];
+    throw error;
+  }
+  const matches = entries
+    .filter((entry) => entry.isDirectory() && entry.name.toLowerCase() === "session_log_archive")
+    .map((entry) => entry.name)
+    .sort((left, right) => left.localeCompare(right));
+  if (matches.length === 0 || (matches.length === 1 && matches[0] === "SESSION_LOG_archive")) return [];
+  if (matches.includes("SESSION_LOG_archive") || matches.length !== 1) {
+    throw new Error(`archive casing migration is ambiguous: ${matches.map((name) => `dev/${name}`).join(", ")}`);
+  }
+  const originalRel = `dev/${matches[0]}`;
+  return [{
+    schemaVersion: 1,
+    originalRel,
+    canonicalRel: "dev/SESSION_LOG_archive",
+    snapshot: await snapshotDirectoryTree(root, originalRel)
+  }];
+}
+
+async function applyArchiveCasingMigrations(root, transaction) {
+  for (const migration of transaction.journal.archiveMigrations ?? []) {
+    const migrationDir = transaction.migrationDir;
+    const originalAbs = path.join(root, migration.originalRel);
+    const canonicalAbs = path.join(root, migration.canonicalRel);
+    const stageAbs = path.join(migrationDir, migration.stageRel);
+    if (migration.state === "prepared") {
+      await assertExactDirectorySnapshot(root, migration.originalRel, migration.snapshot, "archive migration source changed before transaction commit");
+      await assertExactProjectDirectoryAbsent(root, migration.canonicalRel, "canonical archive path appeared before transaction commit");
+      if (await pathExists(stageAbs)) throw noClobberConflict(`${migration.originalRel}: transaction archive backup already exists; recovery lock retained`);
+      await mkdir(path.dirname(stageAbs), { recursive: true });
+      migration.state = "relocating";
+      await writeSecureJson(transaction.journalPath, transaction.journal);
+    }
+    if (migration.state === "relocating") {
+      await rename(originalAbs, stageAbs);
+      await assertExactProjectDirectoryAbsent(root, migration.originalRel, "archive source remains after relocation");
+      await assertDirectorySnapshotAtPath(stageAbs, migration.snapshot, "archive backup differs after relocation");
+      if (process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_ARCHIVE_RELOCATE_BEFORE_STAGE === "1") {
+        const interruption = new Error("QA interruption after archive relocation before staged journal");
+        interruption.code = "ACK_QA_INTERRUPT_AFTER_ARCHIVE_RELOCATE_BEFORE_STAGE";
+        throw interruption;
+      }
+      migration.state = "staged";
+      await writeSecureJson(transaction.journalPath, transaction.journal);
+      if (process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_ARCHIVE_STAGE === "1") {
+        const interruption = new Error("QA interruption after archive relocation");
+        interruption.code = "ACK_QA_INTERRUPT_AFTER_ARCHIVE_STAGE";
+        throw interruption;
+      }
+    }
+    if (migration.state === "staged") {
+      migration.state = "materializing";
+      await writeSecureJson(transaction.journalPath, transaction.journal);
+    }
+    if (migration.state === "materializing") {
+      await materializeArchiveCanonicalPath(root, migration, stageAbs);
+      if (process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_ARCHIVE_MATERIALIZE_BEFORE_JOURNAL === "1") {
+        const interruption = new Error("QA interruption after archive canonical materialization before materialized journal");
+        interruption.code = "ACK_QA_INTERRUPT_AFTER_ARCHIVE_MATERIALIZE_BEFORE_JOURNAL";
+        throw interruption;
+      }
+      migration.state = "materialized";
+      await writeSecureJson(transaction.journalPath, transaction.journal);
+      if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_ARCHIVE_MATERIALIZE === "1") {
+        throw new Error("QA fault injection after archive canonical materialization");
+      }
+    }
+    if (migration.state !== "materialized") throw new Error("archive migration journal state is invalid during commit");
+  }
+}
+
+async function materializeArchiveCanonicalPath(root, migration, stageAbs) {
+  await assertDirectorySnapshotAtPath(stageAbs, migration.snapshot, "archive backup changed before canonical materialization");
+  await assertExactProjectDirectoryAbsent(root, migration.canonicalRel, "canonical archive path appeared during transaction");
+  const canonicalAbs = path.join(root, migration.canonicalRel);
+  try {
+    await mkdir(canonicalAbs);
+  } catch (error) {
+    if (error?.code === "EEXIST") throw noClobberConflict(`${migration.canonicalRel}: canonical archive path appeared during transaction; recovery lock retained`);
+    throw error;
+  }
+  for (const directory of migration.snapshot.directories.filter((item) => item).sort((left, right) => left.localeCompare(right))) {
+    try {
+      await mkdir(path.join(canonicalAbs, directory));
+    } catch (error) {
+      if (error?.code === "EEXIST") throw noClobberConflict(`${migration.canonicalRel}/${directory}: archive directory appeared during transaction; recovery lock retained`);
+      throw error;
+    }
+  }
+  for (const file of migration.snapshot.files) {
+    const source = path.join(stageAbs, file.path);
+    const target = path.join(canonicalAbs, file.path);
+    const sourceBytes = await readFile(source);
+    if (sourceBytes.length !== file.bytes || sha256(sourceBytes) !== file.sha256) {
+      throw new Error(`${migration.originalRel}/${file.path}: archive backup bytes changed before canonical materialization`);
+    }
+    try {
+      await writeFile(target, sourceBytes, { mode: 0o600, flag: "wx" });
+    } catch (error) {
+      if (error?.code === "EEXIST") throw noClobberConflict(`${migration.canonicalRel}/${file.path}: archive file appeared during transaction; recovery lock retained`);
+      throw error;
+    }
+  }
+  await assertExactDirectorySnapshot(root, migration.canonicalRel, migration.snapshot, "canonical archive materialization did not retain source bytes");
+}
+
+async function snapshotDirectoryTree(root, relative) {
+  const absolute = path.join(root, relative);
+  return snapshotDirectoryTreeAtPath(absolute);
+}
+
+async function snapshotDirectoryTreeAtPath(absolute) {
+  const rootStats = await lstat(absolute).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error));
+  if (!rootStats?.isDirectory() || rootStats.isSymbolicLink()) throw new Error("archive migration directory is missing or unsafe");
+  const directories = [""];
+  const files = [];
+  async function visit(current, relative) {
+    const entries = await readdir(current, { withFileTypes: true });
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
+      const child = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        const stats = await lstat(child);
+        if (stats.isSymbolicLink()) throw new Error(`${childRelative}: archive migration does not accept symbolic links or junctions`);
+        directories.push(childRelative);
+        await visit(child, childRelative);
+      } else if (entry.isFile()) {
+        const stats = await lstat(child);
+        if (stats.isSymbolicLink()) throw new Error(`${childRelative}: archive migration does not accept symbolic links`);
+        const bytes = await readFile(child);
+        files.push({ path: childRelative, sha256: sha256(bytes), bytes: bytes.length });
+      } else {
+        throw new Error(`${childRelative}: archive migration accepts only regular files and directories`);
+      }
+    }
+  }
+  await visit(absolute, "");
+  directories.sort((left, right) => left.localeCompare(right));
+  files.sort((left, right) => left.path.localeCompare(right.path));
+  const body = { schemaVersion: 1, directories, files };
+  return { ...body, manifestSha256: sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8")) };
+}
+
+function validateArchiveSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)
+    || snapshot.schemaVersion !== 1
+    || !Array.isArray(snapshot.directories) || snapshot.directories[0] !== ""
+    || !Array.isArray(snapshot.files)
+    || typeof snapshot.manifestSha256 !== "string" || !/^[a-f0-9]{64}$/.test(snapshot.manifestSha256)) {
+    throw new Error("archive migration snapshot is invalid; no recovery writes attempted");
+  }
+  const seenDirectories = new Set();
+  let previousDirectory = null;
+  for (const directory of snapshot.directories) {
+    if (typeof directory !== "string" || (directory && !isSafeProjectRelative(directory)) || seenDirectories.has(directory)
+      || (previousDirectory != null && previousDirectory.localeCompare(directory) >= 0)) {
+      throw new Error("archive migration directory snapshot is invalid; no recovery writes attempted");
+    }
+    seenDirectories.add(directory);
+    previousDirectory = directory;
+  }
+  const seenFiles = new Set();
+  let previousFile = null;
+  for (const file of snapshot.files) {
+    if (!file || typeof file !== "object" || Array.isArray(file)
+      || !isSafeProjectRelative(file.path) || seenFiles.has(file.path)
+      || !Number.isInteger(file.bytes) || file.bytes < 0
+      || typeof file.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(file.sha256)
+      || (previousFile != null && previousFile.localeCompare(file.path) >= 0)) {
+      throw new Error("archive migration file snapshot is invalid; no recovery writes attempted");
+    }
+    seenFiles.add(file.path);
+    previousFile = file.path;
+  }
+  const body = { schemaVersion: snapshot.schemaVersion, directories: snapshot.directories, files: snapshot.files };
+  if (sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8")) !== snapshot.manifestSha256) {
+    throw new Error("archive migration snapshot digest is invalid; no recovery writes attempted");
+  }
+  return snapshot;
+}
+
+function archiveMigrationWitness(migration) {
+  return {
+    schemaVersion: migration.schemaVersion,
+    originalRel: migration.originalRel,
+    canonicalRel: migration.canonicalRel,
+    snapshot: migration.snapshot
+  };
+}
+
+function validateArchiveMigrations(value, { requireMaterialized = false } = {}) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("archive migration journal is missing or invalid; no recovery writes attempted");
+  }
+  const seenOriginal = new Set();
+  const seenCanonical = new Set();
+  let previous = null;
+  for (const migration of value) {
+    if (!migration || typeof migration !== "object" || Array.isArray(migration)
+      || migration.schemaVersion !== 1
+      || !isSafeProjectRelative(migration.originalRel) || !migration.originalRel.startsWith("dev/")
+      || migration.canonicalRel !== "dev/SESSION_LOG_archive"
+      || seenOriginal.has(migration.originalRel) || seenCanonical.has(migration.canonicalRel)
+      || (previous != null && previous.localeCompare(migration.originalRel) >= 0)) {
+      throw new Error("archive migration journal entry is invalid; no recovery writes attempted");
+    }
+    if (migration.stageRel !== undefined && (!isSafeProjectRelative(migration.stageRel) || !migration.stageRel.startsWith("archive-backup/"))) {
+      throw new Error("archive migration backup path is invalid; no recovery writes attempted");
+    }
+    if (migration.state !== undefined && !["prepared", "relocating", "staged", "materializing", "materialized"].includes(migration.state)) {
+      throw new Error("archive migration state is invalid; no recovery writes attempted");
+    }
+    if (requireMaterialized && migration.state !== undefined && migration.state !== "materialized") {
+      throw new Error("committed archive migration is not materialized; no recovery writes attempted");
+    }
+    validateArchiveSnapshot(migration.snapshot);
+    seenOriginal.add(migration.originalRel);
+    seenCanonical.add(migration.canonicalRel);
+    previous = migration.originalRel;
+  }
+  return value;
+}
+
+async function assertDirectorySnapshotAtPath(absolute, expected, reason) {
+  const actual = await snapshotDirectoryTreeAtPath(absolute);
+  if (actual.manifestSha256 !== expected.manifestSha256) throw new Error(reason);
+}
+
+async function assertExactDirectorySnapshot(root, relative, expected, reason) {
+  const exact = await findExactProjectPath(root, relative);
+  if (!exact) throw new Error(reason);
+  await assertDirectorySnapshotAtPath(exact, expected, reason);
+}
+
+async function assertExactProjectDirectoryAbsent(root, relative, reason) {
+  if (await findExactProjectPath(root, relative)) throw noClobberConflict(reason);
+}
+
+async function findExactProjectPath(root, relative) {
+  if (!isSafeProjectRelative(relative)) throw new Error("archive migration path is unsafe");
+  let current = root;
+  for (const segment of relative.split("/")) {
+    let entries;
+    try {
+      entries = await readdir(current, { withFileTypes: true });
+    } catch (error) {
+      if (error?.code === "ENOENT") return null;
+      throw error;
+    }
+    const match = entries.find((entry) => entry.name === segment);
+    if (!match) return null;
+    current = path.join(current, match.name);
+  }
+  return current;
+}
+
+async function pathExists(filePath) {
+  try {
+    await lstat(filePath);
+    return true;
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw error;
+  }
 }
 
 async function validateTransactionRoot(root, plan, { createMissingRoot = true } = {}) {
@@ -1595,21 +1886,33 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   const seen = new Set();
   const formalWitness = validateFormalUserRulesWitness(journal.formalUserRules);
   const runtimeAcceptance = validateRuntimeAcceptance(journal.runtimeAcceptance);
+  const hasArchiveMigrationField = journal.archiveMigrations !== undefined;
+  const requiresArchiveBackup = journal.command === "upgrade" && hasArchiveMigrationField;
+  if (journal.archiveMigrations != null && !Array.isArray(journal.archiveMigrations)) throw new Error("upgrade journal archive migrations are invalid; no recovery writes attempted");
+  const archiveMigrations = (journal.archiveMigrations ?? []).length > 0
+    ? validateArchiveMigrations(journal.archiveMigrations, { requireMaterialized: journal.state === "committed" })
+    : [];
+  if (requiresArchiveBackup && archiveMigrations.some((migration) => !migration.stageRel || migration.state === undefined)) {
+    throw new Error("upgrade journal archive migration recovery fields are missing; no recovery writes attempted");
+  }
   const rootStats = await lstat(root);
   if (!rootStats.isDirectory() || rootStats.isSymbolicLink()) throw new Error("selected recovery root is not a safe directory; no recovery writes attempted");
   const rootReal = await realpath(root);
   const backupRoot = path.join(migrationDir, "backup");
   const stageRoot = path.join(migrationDir, "stage");
+  const archiveBackupRoot = path.join(migrationDir, "archive-backup");
   const migrationsStats = await lstat(migrationsRoot).catch(() => null);
   const migrationStats = await lstat(migrationDir).catch(() => null);
   const journalStats = await lstat(journalPath).catch(() => null);
   const backupStats = await lstat(backupRoot).catch(() => null);
   const stageStats = await lstat(stageRoot).catch(() => null);
+  const archiveBackupStats = requiresArchiveBackup ? await lstat(archiveBackupRoot).catch(() => null) : null;
   if (!migrationsStats?.isDirectory() || migrationsStats.isSymbolicLink()
     || !migrationStats?.isDirectory() || migrationStats.isSymbolicLink()
     || !journalStats?.isFile() || journalStats.isSymbolicLink()
     || !backupStats?.isDirectory() || backupStats.isSymbolicLink()
-    || !stageStats?.isDirectory() || stageStats.isSymbolicLink()) {
+    || !stageStats?.isDirectory() || stageStats.isSymbolicLink()
+    || (requiresArchiveBackup && (!archiveBackupStats?.isDirectory() || archiveBackupStats.isSymbolicLink()))) {
     throw new Error("upgrade transaction directories or journal are missing or unsafe; no recovery writes attempted");
   }
   const migrationsReal = await realpath(migrationsRoot);
@@ -1617,10 +1920,12 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   const journalReal = await realpath(journalPath);
   const backupRealRoot = await realpath(backupRoot);
   const stageRealRoot = await realpath(stageRoot);
+  const archiveBackupRealRoot = requiresArchiveBackup ? await realpath(archiveBackupRoot) : null;
   if (!isInside(rootReal, migrationsReal) || !isInside(migrationsReal, migrationReal)
     || !isInside(migrationReal, journalReal) || !isInside(migrationReal, backupRealRoot) || !isInside(migrationReal, stageRealRoot)
     || !samePath(path.dirname(migrationReal), migrationsReal)
-    || !samePath(path.dirname(backupRealRoot), migrationReal) || !samePath(path.dirname(stageRealRoot), migrationReal)) {
+    || !samePath(path.dirname(backupRealRoot), migrationReal) || !samePath(path.dirname(stageRealRoot), migrationReal)
+    || (requiresArchiveBackup && !samePath(path.dirname(archiveBackupRealRoot), migrationReal))) {
     throw new Error("upgrade transaction paths resolve outside the selected root or transaction; no recovery writes attempted");
   }
   const validated = [];
@@ -1676,6 +1981,19 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   if (journal.state === "committed" && validated.some(({ entry }) => !entry.committed)) {
     throw new Error("committed upgrade journal contains an uncommitted entry; no recovery writes attempted");
   }
+  if (requiresArchiveBackup) {
+    for (const migration of archiveMigrations) {
+      const stageAbs = path.resolve(migrationDir, migration.stageRel);
+      if (!isInside(archiveBackupRoot, stageAbs)) throw new Error("upgrade archive migration backup escapes this transaction; no recovery writes attempted");
+      const stageStats = await lstat(stageAbs).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error));
+      if (stageStats) {
+        if (!stageStats.isDirectory() || stageStats.isSymbolicLink()) throw new Error("upgrade archive migration backup is unsafe; no recovery writes attempted");
+        const stageReal = await realpath(stageAbs);
+        if (!isInside(archiveBackupRealRoot, stageReal)) throw new Error("upgrade archive migration backup resolves outside this transaction; no recovery writes attempted");
+        await assertDirectorySnapshotAtPath(stageAbs, migration.snapshot, "upgrade archive migration backup hash does not match the recorded input; no recovery writes attempted");
+      }
+    }
+  }
   if (runtimeAcceptance) {
     for (const accepted of runtimeAcceptance.entries) {
       const transactionEntry = validated.find(({ entry }) => entry.targetRel === accepted.targetRel)?.entry;
@@ -1697,6 +2015,7 @@ async function rollbackTransaction(root, journal, journalPath, lockId = null) {
   const validated = await validateRecoveryJournal(root, journal, journalPath, lockId);
   const conflicts = [];
   const operations = [];
+  const archiveRollbackPlans = [];
   // Do not trust the committed flag: the process can stop after replacement
   // but before the journal flag is persisted. Inspect every target hash first.
   for (const item of [...validated].reverse()) {
@@ -1708,6 +2027,13 @@ async function rollbackTransaction(root, journal, journalPath, lockId = null) {
       continue;
     }
     operations.push(item);
+  }
+  for (const migration of [...(journal.archiveMigrations ?? [])].reverse()) {
+    try {
+      archiveRollbackPlans.push(await planArchiveRollback(root, path.dirname(journalPath), migration));
+    } catch (error) {
+      conflicts.push(safeErrorLabel(error));
+    }
   }
   if (conflicts.length > 0) {
     journal.state = "manual-recovery-required";
@@ -1738,12 +2064,94 @@ async function rollbackTransaction(root, journal, journalPath, lockId = null) {
     const restoredHash = restored ? sha256(restored) : null;
     if (restoredHash !== entry.beforeHash) throw new Error(`${entry.targetRel}: rollback verification failed; recovery lock retained`);
   }
+  for (const plan of archiveRollbackPlans) {
+    try {
+      await executeArchiveRollback(root, journal, plan, rollbackEscrowDir);
+    } catch (error) {
+      if (!isNoClobberConflict(error)) throw error;
+      conflicts.push(safeErrorLabel(error));
+      journal.state = "manual-recovery-required";
+      journal.committedVersion = null;
+      journal.recoveryConflicts = conflicts;
+      await writeSecureJson(journalPath, journal);
+      return { ok: false, conflicts };
+    }
+  }
   journal.state = "rolled-back";
   journal.committedVersion = null;
   journal.rollbackAt = new Date().toISOString();
   journal.recoveryConflicts = [];
   await writeSecureJson(journalPath, journal);
   return { ok: true, conflicts: [] };
+}
+
+async function planArchiveRollback(root, migrationDir, migration) {
+  const original = await findExactProjectPath(root, migration.originalRel);
+  const canonical = await findExactProjectPath(root, migration.canonicalRel);
+  const stage = path.join(migrationDir, migration.stageRel);
+  const stageExists = await pathExists(stage);
+  if (original) {
+    await assertDirectorySnapshotAtPath(original, migration.snapshot, `${migration.originalRel}: original archive has concurrent bytes; recovery lock retained`);
+    if (canonical) throw noClobberConflict(`${migration.canonicalRel}: both archive paths exist during rollback; recovery lock retained`);
+    if (stageExists) throw noClobberConflict(`${migration.originalRel}: both original and backup archive paths exist during rollback; recovery lock retained`);
+    return { migration, original, canonical: null, stage: null, restore: false };
+  }
+  if (!stageExists) throw noClobberConflict(`${migration.originalRel}: transaction archive backup is missing; recovery lock retained`);
+  await assertDirectorySnapshotAtPath(stage, migration.snapshot, `${migration.originalRel}: transaction archive backup has concurrent bytes; recovery lock retained`);
+  if (canonical) await assertDirectorySnapshotSubsetAtPath(canonical, migration.snapshot, `${migration.canonicalRel}: canonical archive has concurrent bytes; recovery lock retained`);
+  return { migration, original: null, canonical, stage, restore: true };
+}
+
+async function executeArchiveRollback(root, journal, plan, rollbackEscrowDir) {
+  if (!plan.restore) return;
+  if (plan.canonical) {
+    await removeArchiveSubsetNoClobber(root, plan.migration, plan.canonical, rollbackEscrowDir, journal.id);
+    await assertExactProjectDirectoryAbsent(root, plan.migration.canonicalRel, `${plan.migration.canonicalRel}: canonical archive remains after rollback cleanup`);
+  }
+  await assertExactProjectDirectoryAbsent(root, plan.migration.originalRel, `${plan.migration.originalRel}: original archive appeared during rollback; recovery lock retained`);
+  await rename(plan.stage, path.join(root, plan.migration.originalRel));
+  await assertExactDirectorySnapshot(root, plan.migration.originalRel, plan.migration.snapshot, `${plan.migration.originalRel}: rollback did not restore original archive bytes`);
+}
+
+async function assertDirectorySnapshotSubsetAtPath(absolute, expected, reason) {
+  const actual = await snapshotDirectoryTreeAtPath(absolute);
+  const expectedFiles = new Map(expected.files.map((file) => [file.path, file]));
+  const expectedDirectories = new Set(expected.directories);
+  if (actual.directories.some((directory) => !expectedDirectories.has(directory))
+    || actual.files.some((file) => {
+      const source = expectedFiles.get(file.path);
+      return !source || source.bytes !== file.bytes || source.sha256 !== file.sha256;
+    })) {
+    throw noClobberConflict(reason);
+  }
+}
+
+async function removeArchiveSubsetNoClobber(root, migration, canonicalAbs, escrowDir, id) {
+  const actual = await snapshotDirectoryTreeAtPath(canonicalAbs);
+  const expectedFiles = new Map(migration.snapshot.files.map((file) => [file.path, file]));
+  for (const file of [...actual.files].reverse()) {
+    const expected = expectedFiles.get(file.path);
+    if (!expected || expected.sha256 !== file.sha256 || expected.bytes !== file.bytes) {
+      throw noClobberConflict(`${migration.canonicalRel}/${file.path}: canonical archive has concurrent bytes; recovery lock retained`);
+    }
+    await atomicReplaceFromBuffer(root, path.join(canonicalAbs, file.path), null, `${id}-archive-rollback`, file.sha256, {
+      targetRel: `${migration.canonicalRel}/${file.path}`,
+      escrowDir,
+      phase: "archive-rollback"
+    });
+  }
+  for (const directory of [...actual.directories].sort((left, right) => right.localeCompare(left))) {
+    const target = directory ? path.join(canonicalAbs, directory) : canonicalAbs;
+    try {
+      await rmdir(target);
+    } catch (error) {
+      if (error?.code === "ENOENT") continue;
+      if (error?.code === "ENOTEMPTY" || error?.code === "EEXIST") {
+        throw noClobberConflict(`${migration.canonicalRel}${directory ? `/${directory}` : ""}: archive directory changed during rollback; recovery lock retained`, error);
+      }
+      throw error;
+    }
+  }
 }
 
 async function recoverInterruptedTransaction(root) {
@@ -2390,7 +2798,7 @@ function resolveRuntimeAcceptance(outputs) {
   return validateRuntimeAcceptance(witnesses[0]);
 }
 
-async function createSourceConservation(root, outputs) {
+async function createSourceConservation(root, outputs, archiveMigrations = []) {
   // `freezeGate5Set` is an existing read-only discovery witness.  Reuse it
   // here rather than creating a registry, pointer, or component authority.
   // Its ordered source records become one component of the journal's existing
@@ -2398,13 +2806,23 @@ async function createSourceConservation(root, outputs) {
   const frozen = await freezeGate5Set({ root });
   assertGate5FrozenSet(frozen);
   const outputByTarget = new Map(outputs.map((item) => [item.targetRel, item]));
+  const pathRebindings = archiveMigrations.map((migration) => ({
+    sourcePrefix: `${migration.originalRel}/`,
+    targetPrefix: `${migration.canonicalRel}/`
+  }));
   const entries = frozen.items.map((item) => {
     const output = outputByTarget.get(item.sourcePath) ?? null;
+    const rebind = pathRebindings.find((candidate) => item.sourcePath.startsWith(candidate.sourcePrefix)) ?? null;
+    const sourcePath = rebind
+      ? `${rebind.targetPrefix}${item.sourcePath.slice(rebind.sourcePrefix.length)}`
+      : item.sourcePath;
     const sourceWitness = Object.freeze({ sha256: item.sourceIdentity.sha256, bytes: item.sourceIdentity.bytes });
     const accepted = output
       ? Object.freeze({ sha256: output.afterHash, bytes: output.after.length })
       : sourceWitness;
-    const disposition = output?.preservedRuntimeItem
+    const disposition = rebind
+      ? "canonical-path-migration"
+      : output?.preservedRuntimeItem
       ? "preserve"
       : output
         ? "transaction-output"
@@ -2414,7 +2832,8 @@ async function createSourceConservation(root, outputs) {
             ? "outside-known-kit-reachability"
             : "unchanged-source";
     return Object.freeze({
-      sourcePath: item.sourcePath,
+      sourcePath,
+      ...(rebind ? { sourceOriginPath: item.sourcePath } : {}),
       sourceWitness,
       accepted,
       // A single exact whole-file range proves the source itself was not
@@ -2428,7 +2847,7 @@ async function createSourceConservation(root, outputs) {
     });
   });
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: archiveMigrations.length > 0 ? 2 : 1,
     frozenSetSha256: frozen.frozenSetSha256,
     entries: Object.freeze(entries)
   });
@@ -2444,8 +2863,9 @@ function currentStateWitnessBody(journal) {
   if (Array.isArray(journal.supersedesCurrentStateDigests) && journal.supersedesCurrentStateDigests.length > 0) {
     transaction.supersedesCurrentStateDigests = journal.supersedesCurrentStateDigests;
   }
+  const hasArchiveMigrations = Array.isArray(journal.archiveMigrations) && journal.archiveMigrations.length > 0;
   const body = {
-    schemaVersion: journal.sourceConservation ? 2 : 1,
+    schemaVersion: hasArchiveMigrations ? 3 : journal.sourceConservation ? 2 : 1,
     transaction,
     // `committed` changes while the transaction runs.  The ordered target
     // identities below do not, so they are safe to seal before the first
@@ -2461,6 +2881,7 @@ function currentStateWitnessBody(journal) {
     runtimeAcceptance: journal.runtimeAcceptance ?? null
   };
   if (journal.sourceConservation) body.sourceConservation = journal.sourceConservation;
+  if (hasArchiveMigrations) body.archiveMigrations = journal.archiveMigrations.map(archiveMigrationWitness);
   return body;
 }
 
@@ -2474,7 +2895,7 @@ function createCurrentStateWitness(journal) {
 
 function validateCurrentStateWitnessValue(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)
-    || ![1, 2].includes(value.schemaVersion)
+    || ![1, 2, 3].includes(value.schemaVersion)
     || !value.transaction || typeof value.transaction !== "object" || Array.isArray(value.transaction)
     || typeof value.transaction.id !== "string" || !value.transaction.id
     || !["init", "upgrade", "finalize-closeout"].includes(value.transaction.command)
@@ -2497,7 +2918,13 @@ function validateCurrentStateWitnessValue(value) {
   if (value.schemaVersion === 1 && value.sourceConservation != null) {
     throw new Error("legacy shared current-state witness cannot contain source conservation; no recovery writes attempted");
   }
-  const sourceConservation = validateSourceConservation(value.sourceConservation, { required: value.schemaVersion === 2 });
+  const sourceConservation = validateSourceConservation(value.sourceConservation, { required: value.schemaVersion >= 2 });
+  if (value.schemaVersion < 3 && value.archiveMigrations != null) {
+    throw new Error("legacy shared current-state witness cannot contain archive migrations; no recovery writes attempted");
+  }
+  const archiveMigrations = value.schemaVersion === 3
+    ? validateArchiveMigrations(value.archiveMigrations, { requireMaterialized: true })
+    : [];
   const knownTargets = new Set([
     ...requiredTargets,
     ...upgradeStateTargets,
@@ -2531,6 +2958,12 @@ function validateCurrentStateWitnessValue(value) {
       }
     }
   }
+  for (const migration of archiveMigrations) {
+    const migrated = sourceConservation?.entries.filter((entry) => entry.sourceOriginPath?.startsWith(`${migration.originalRel}/`) && entry.sourcePath.startsWith(`${migration.canonicalRel}/`)) ?? [];
+    if (migrated.length !== migration.snapshot.files.length) {
+      throw new Error("archive migration is detached from the rebound source witness; no recovery writes attempted");
+    }
+  }
   const body = {
     schemaVersion: value.schemaVersion,
     transaction: value.transaction,
@@ -2539,6 +2972,10 @@ function validateCurrentStateWitnessValue(value) {
     runtimeAcceptance: value.runtimeAcceptance ?? null
   };
   if (value.schemaVersion === 2) body.sourceConservation = value.sourceConservation;
+  if (value.schemaVersion === 3) {
+    body.sourceConservation = value.sourceConservation;
+    body.archiveMigrations = value.archiveMigrations;
+  }
   if (sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8")) !== value.currentStateDigest) {
     throw new Error("shared current-state witness digest does not match its ordered components; no recovery writes attempted");
   }
@@ -2551,7 +2988,7 @@ function validateSourceConservation(value, { required = false } = {}) {
     return null;
   }
   if (!value || typeof value !== "object" || Array.isArray(value)
-    || value.schemaVersion !== 1
+    || ![1, 2].includes(value.schemaVersion)
     || typeof value.frozenSetSha256 !== "string" || !/^[a-f0-9]{64}$/.test(value.frozenSetSha256)
     || !Array.isArray(value.entries) || value.entries.length === 0) {
     throw new Error("shared current-state source conservation is invalid; no recovery writes attempted");
@@ -2565,13 +3002,22 @@ function validateSourceConservation(value, { required = false } = {}) {
       || !Array.isArray(entry.sourceByteRanges) || entry.sourceByteRanges.length !== 1
       || entry.sourceByteRanges[0]?.start !== 0 || entry.sourceByteRanges[0]?.end !== entry.sourceWitness.bytes
       || entry.sourceByteRanges[0]?.sha256 !== entry.sourceWitness.sha256
-      || !["preserve", "transaction-output", "unchanged-source", "retained-historical-state", "outside-known-kit-reachability", "closeout-state-finalize"].includes(entry.disposition)
+      || !["preserve", "transaction-output", "unchanged-source", "retained-historical-state", "outside-known-kit-reachability", "closeout-state-finalize", "canonical-path-migration", "canonical-path-migration-closeout"].includes(entry.disposition)
       || !Array.isArray(entry.existingReaders)
       || entry.existingReaders.some((reader) => !reader || typeof reader !== "object" || Array.isArray(reader) || typeof reader.reader !== "string" || !reader.reader || typeof reader.via !== "string" || !reader.via)
       || typeof entry.priorityRelation !== "string" || !entry.priorityRelation
       || typeof entry.effectDecision !== "string" || !entry.effectDecision
       || !Array.isArray(entry.classifications) || entry.classifications.length === 0 || entry.classifications.some((classification) => typeof classification !== "string" || !classification)) {
       throw new Error("shared current-state source conservation entry is invalid; no recovery writes attempted");
+    }
+    if (["canonical-path-migration", "canonical-path-migration-closeout"].includes(entry.disposition)) {
+      if (value.schemaVersion !== 2 || !isSafeProjectRelative(entry.sourceOriginPath)
+        || entry.sourceOriginPath === entry.sourcePath
+        || !entry.sourceOriginPath.startsWith("dev/") || !entry.sourcePath.startsWith("dev/SESSION_LOG_archive/")) {
+        throw new Error("archive source-path rebinding is invalid; no recovery writes attempted");
+      }
+    } else if (entry.sourceOriginPath !== undefined) {
+      throw new Error("unexpected source-origin binding is invalid; no recovery writes attempted");
     }
     if (prior != null && prior.localeCompare(entry.sourcePath) >= 0) {
       throw new Error("shared current-state source conservation entries are not in source-path order; no recovery writes attempted");
@@ -2598,7 +3044,8 @@ function validateCurrentStateWitness(journal) {
     formalUserRules: witness.formalUserRules ?? null,
     runtimeAcceptance: witness.runtimeAcceptance ?? null
   };
-  if (witness.schemaVersion === 2) actual.sourceConservation = witness.sourceConservation;
+  if (witness.schemaVersion >= 2) actual.sourceConservation = witness.sourceConservation;
+  if (witness.schemaVersion === 3) actual.archiveMigrations = witness.archiveMigrations;
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error("shared current-state witness is detached from its transaction components; no recovery writes attempted");
   }
@@ -3334,7 +3781,7 @@ async function loadCommittedCurrentStateWitness(root) {
   return validateCurrentStateWitness(currentCandidates[0].journal);
 }
 
-async function findRestoredCurrentStateDigests(root, outputs) {
+async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations = []) {
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   let names;
   try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return []; throw error; }
@@ -3349,7 +3796,8 @@ async function findRestoredCurrentStateDigests(root, outputs) {
       const journal = JSON.parse(await readFile(journalPath, "utf8"));
       if (journal.state !== "committed" || !journal.currentStateWitness) continue;
       await validateRecoveryJournal(root, journal, journalPath);
-      if (await journalIsRestoredByOutputs(root, journal, outputWitnesses)) {
+      if (await journalMatchesCurrentState(root, journal)
+        || await journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations)) {
         restored.push(journal.currentStateWitness.currentStateDigest);
       }
     } catch (error) {
@@ -3359,8 +3807,19 @@ async function findRestoredCurrentStateDigests(root, outputs) {
   return [...new Set(restored)].sort((left, right) => left.localeCompare(right));
 }
 
-async function journalIsRestoredByOutputs(root, journal, outputWitnesses) {
+async function journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations = []) {
   const witness = validateCurrentStateWitness(journal);
+  const archiveRebindings = new Map();
+  for (const migration of archiveMigrations) {
+    for (const file of migration.snapshot.files) {
+      archiveRebindings.set(`${migration.originalRel}/${file.path}`, {
+        sourcePath: `${migration.originalRel}/${file.path}`,
+        reboundPath: `${migration.canonicalRel}/${file.path}`,
+        sha256: file.sha256,
+        bytes: file.bytes
+      });
+    }
+  }
   for (const entry of journal.entries) {
     const replacement = outputWitnesses.get(entry.targetRel);
     if (replacement) {
@@ -3374,6 +3833,11 @@ async function journalIsRestoredByOutputs(root, journal, outputWitnesses) {
     const replacement = outputWitnesses.get(entry.sourcePath);
     if (replacement) {
       if (replacement.sha256 !== entry.accepted.sha256 || replacement.bytes !== entry.accepted.bytes) return false;
+      continue;
+    }
+    const archiveRebinding = archiveRebindings.get(entry.sourcePath);
+    if (archiveRebinding) {
+      if (archiveRebinding.sha256 !== entry.accepted.sha256 || archiveRebinding.bytes !== entry.accepted.bytes) return false;
       continue;
     }
     const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
@@ -3557,11 +4021,14 @@ async function writeCloseoutFinalizeJournal(root, version, prior) {
             const changed = currentWitness.sha256 !== sourceWitness.sha256 || currentWitness.bytes !== sourceWitness.bytes;
             return {
               sourcePath: item.sourcePath,
+              ...(entry?.sourceOriginPath ? { sourceOriginPath: entry.sourceOriginPath } : {}),
               sourceWitness,
               accepted: currentWitness,
               sourceByteRanges: [{ start: 0, end: sourceWitness.bytes, sha256: sourceWitness.sha256 }],
               disposition: isCloseoutFinalizeTarget(item.sourcePath) && changed
-                ? "closeout-state-finalize"
+                ? entry?.sourceOriginPath
+                  ? "canonical-path-migration-closeout"
+                  : "closeout-state-finalize"
                 : entry?.disposition ?? (item.classifications.includes("transaction-state") ? "retained-historical-state" : "unchanged-source"),
               existingReaders: entry?.existingReaders ?? item.existingReaders.map((reader) => ({ reader: reader.reader, via: reader.via })),
               priorityRelation: entry?.priorityRelation ?? item.priorityConflict.relation,
@@ -3590,6 +4057,7 @@ async function writeCloseoutFinalizeJournal(root, version, prior) {
       runtimeAcceptance: null,
       runtimeAcceptanceReadback: null,
       sourceConservation,
+      archiveMigrations: oldWitness.archiveMigrations ?? [],
       supersedesCurrentStateDigests: [oldWitness.currentStateDigest],
       currentStateWitness: null,
       currentStateReadback: null

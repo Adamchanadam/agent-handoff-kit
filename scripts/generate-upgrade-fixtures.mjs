@@ -35,6 +35,7 @@ function main() {
   const remoteTags = readRemoteTags();
   const releases = readGithubReleases();
   assertSameFormalInventory(npmVersions, remoteTags, releases);
+  const previousCatalog = readPreviousCatalog();
 
   const workspace = path.join(tmpdir(), `agent-handoff-kit-official-catalog-${process.pid}-${Date.now()}`);
   const downloadsDir = path.join(workspace, "downloads");
@@ -52,7 +53,7 @@ function main() {
 
   try {
     for (const version of npmVersions) {
-      generateVersion({ version, workspace, downloadsDir, remoteTags, releases, catalog });
+      generateVersion({ version, workspace, downloadsDir, remoteTags, releases, catalog, previousCatalog });
     }
   } finally {
     rmSync(workspace, { recursive: true, force: true });
@@ -68,7 +69,7 @@ function main() {
   console.log(`catalog: ${path.relative(root, catalogPath)}`);
 }
 
-function generateVersion({ version, workspace, downloadsDir, remoteTags, releases, catalog }) {
+function generateVersion({ version, workspace, downloadsDir, remoteTags, releases, catalog, previousCatalog }) {
   const versionKey = `v${version}`;
   const extractDir = path.join(workspace, "extract", versionKey);
   const initRoot = path.join(workspace, "init", versionKey);
@@ -161,8 +162,33 @@ function generateVersion({ version, workspace, downloadsDir, remoteTags, release
     installedTargets: manifest
   };
   writeFileSync(path.join(fixtureDir, "fixture-manifest.json"), `${JSON.stringify(fixtureManifest, null, 2)}\n`, "utf8");
-  catalog.releases[version] = { source, manifest };
+  const priorManagedSegments = reusableManagedSegments(previousCatalog, version, source);
+  catalog.releases[version] = priorManagedSegments
+    ? { source, manifest, managedSegments: priorManagedSegments }
+    : { source, manifest };
   console.log(`ok: ${versionKey} (${Object.values(manifest).filter((item) => item.state === "present").length} installed files)`);
+}
+
+function readPreviousCatalog() {
+  if (!existsSync(catalogPath)) return null;
+  try {
+    return JSON.parse(readFileSync(catalogPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function reusableManagedSegments(previousCatalog, version, source) {
+  const previous = previousCatalog?.releases?.[version];
+  if (!previous?.managedSegments) return null;
+  const previousNpm = previous.source?.npm;
+  if (!previousNpm
+    || previousNpm.spec !== source.npm.spec
+    || previousNpm.shasum !== source.npm.shasum
+    || previousNpm.integrity !== source.npm.integrity) {
+    return null;
+  }
+  return previous.managedSegments;
 }
 
 function readNpmVersions() {

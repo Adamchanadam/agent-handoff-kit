@@ -5,6 +5,10 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const defaultCatalogPath = path.join(__dirname, "migration-baselines", "official-origin-catalog.json");
+const requiredArtifactBoundManagedSegments = Object.freeze([
+  Object.freeze({ version: "0.3.38", targetRel: "AGENTS.md" }),
+  Object.freeze({ version: "0.3.41", targetRel: "AGENTS.md" })
+]);
 
 export const OFFICIAL_ORIGIN_CATALOG_SCHEMA = 1;
 
@@ -43,6 +47,11 @@ export function validateOfficialOriginCatalog(catalog) {
     }
     for (const targetRel of Object.keys(release.managedSegments ?? {})) {
       getArtifactBoundManagedSegment({ version, targetRel, catalog });
+    }
+  }
+  for (const required of requiredArtifactBoundManagedSegments) {
+    if (!getArtifactBoundManagedSegment({ ...required, catalog })) {
+      throw new Error(`official origin catalog missing required managed segment: ${required.version} ${required.targetRel}`);
     }
   }
 

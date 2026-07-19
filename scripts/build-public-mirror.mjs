@@ -5,6 +5,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, wri
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { PUBLIC_MIRROR_CONTRACT, RELEASE_PACKAGE_CONTRACT } from "./qa-assurance-manifest.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sourceRoot = path.resolve(__dirname, "..");
@@ -140,7 +141,7 @@ function checkMirrorShape() {
     }
   }
   assert(pathHits.length === 0, formatHits("forbidden public mirror paths", pathHits));
-  assert(files.length === 107, `public mirror file count drifted: expected 107, got ${files.length}`);
+  assert(files.length === PUBLIC_MIRROR_CONTRACT.expectedFileCount, `public mirror file count drifted: expected ${PUBLIC_MIRROR_CONTRACT.expectedFileCount}, got ${files.length}`);
   console.log("ok: public mirror shape");
 }
 
@@ -174,7 +175,7 @@ function checkNpmDryRun() {
   const result = runNpm(["pack", "--dry-run", "--json"], "public mirror npm dry-run", outRoot);
   const pack = parseNpmJson(result.stdout, "npm dry-run");
   const files = pack.files.map((entry) => entry.path);
-  assert(files.length === 35, `public mirror npm package file count drifted: expected 35, got ${files.length}`);
+  assert(files.length === RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount, `public mirror npm package file count drifted: expected ${RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount}, got ${files.length}`);
   assert(files.includes("README.en.md"), "English README is missing from the public npm package");
   assert(!files.some((file) => /docs\/qa|test-fixtures|scripts\//i.test(file)), "internal files entered public mirror npm package");
 }
@@ -217,7 +218,7 @@ function checkTarballInstall() {
   runNpm(["install", "--no-audit", "--no-fund", "--cache", cacheDir, tarballPath], "public mirror local tarball install", consumerDir);
   const installedRoot = path.join(consumerDir, "node_modules", "@adamchanadam", "agent-handoff-kit");
   const installedFiles = walk(installedRoot).map((file) => slash(path.relative(installedRoot, file)));
-  assert(installedFiles.length === 35, `installed package file count drifted: expected 35, got ${installedFiles.length}`);
+  assert(installedFiles.length === RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount, `installed package file count drifted: expected ${RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount}, got ${installedFiles.length}`);
   assert(installedFiles.includes("README.en.md"), "installed package is missing the English README");
   assert(!installedFiles.some((file) => /docs\/qa|test-fixtures|scripts\/|MAINTAINERS/i.test(file)), "installed package contains internal files");
   run(process.execPath, [path.join(installedRoot, "bin", "agent-handoff-kit.mjs"), "--help"], "installed tarball CLI help", consumerDir);

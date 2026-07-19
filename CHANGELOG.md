@@ -1,5 +1,23 @@
 # 變更紀錄
 
+## v0.3.48 — 2026-07-19
+
+狀態：source package version。本版修補 v0.3.47 發佈後發現的合法升級阻塞：舊 runtime 已接受的 `dev/session_log_archive` lowercase archive witness，現在可在同一 upgrade transaction 內遷移到 canonical `dev/SESSION_LOG_archive`。正式發布狀態由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+### Legacy archive casing 升級閉環
+
+- `upgrade` 會在 transaction journal 內登記 archive casing migration，先保存 lowercase legacy archive 的原始 bytes，再 materialize canonical archive。
+- rollback 會回復精確 legacy bytes；若 staging 後中斷，下一次 upgrade 會 recovery 後在同一 transaction 邊界重試，不留下半修狀態。
+- `doctor` 仍保持嚴格：canonical casing 之外的 ambiguous archive layout 會停手，不把多路徑或不明狀態自動合併。
+- `finalize-closeout` 保持原有邊界，不把非收工漂移收進 witness；新版只補合法 archive casing 遷移，不放寬漂移判斷。
+
+### QA/QC 分層收口
+
+- 新增 manifest-owned QA entry point：`scripts/qa-assurance-manifest.mjs` 集中定義 quick / full / postpublish claim membership 與 release-readiness full-suite inventory，避免 release gate 條件分散硬編。
+- `scripts/qa.mjs` 按 manifest 執行；`docs/qa/release-grade-qa.md` 只鏡像命令契約，不再作為可執行 claim owner。
+- post-upgrade closeout finalize QA 改用 packed candidate tarball，並新增 published v0.3.41 -> published v0.3.45 產生的 accepted current-state witness + legacy lowercase archive 真實相鄰狀態組合。
+- release readiness 會先檢查 QA manifest wiring，再跑 R-034、upgrade safety、post-upgrade closeout finalize、package smoke 等既有閘門。
+
 ## v0.3.47 — 2026-07-19
 
 狀態：正式發佈版本。本版修補升級後正常收工會被 Gate 5 witness 擋住的真實路徑缺口，GitHub Release 與 npm `@latest` 應以 v0.3.47 為準。

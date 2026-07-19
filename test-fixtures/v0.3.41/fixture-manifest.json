@@ -7,22 +7,22 @@
       "shasum": "8b9238287485ef15208c4c339e8cdfe283ce1c23",
       "integrity": "sha512-2DQjMXhLigpW30vE0bb1aa7F5h1YYW5kXSfruzwg6IltyclvV9EBYPLUTOj49p6QIwmPWcetvJIB8zK0LZFH5Q==",
       "entryCount": 29,
-      "gitHead": null
+      "gitHead": "659faa93a97c545d6c31222375b09197aa4fff7b"
     },
     "git": {
       "tag": "v0.3.41",
       "directObject": "c3195a85567c27588ee3085fc0638864b0dad4ca",
-      "peeledCommit": null,
-      "commit": "c3195a85567c27588ee3085fc0638864b0dad4ca"
+      "peeledCommit": "edaec74d61df90c0a090dd2b47159fd41136d5ef",
+      "commit": "edaec74d61df90c0a090dd2b47159fd41136d5ef"
     },
     "githubRelease": {
       "tag": "v0.3.41",
       "publishedAt": "2026-07-13T07:26:46Z"
     },
     "sourceDivergence": {
-      "status": "npm-gitHead-unavailable",
-      "npmGitHead": null,
-      "remoteTagCommit": "c3195a85567c27588ee3085fc0638864b0dad4ca"
+      "status": "different-commit",
+      "npmGitHead": "659faa93a97c545d6c31222375b09197aa4fff7b",
+      "remoteTagCommit": "edaec74d61df90c0a090dd2b47159fd41136d5ef"
     }
   },
   "installedTargets": {
@@ -50,15 +50,15 @@
     "START_NEXT_SESSION_PROMPT.txt": {
       "state": "present",
       "contentId": "7da46e6c8a5955acec2c23e9dcedda2cd37341c66db361b1ebfe1f906d2f152a",
-      "rawSha256": "a9ffe5e76399f36bf58fcb190021b607d32af95f537df3f6836ac3923d87cb16",
-      "normalizedSha256": "a9ffe5e76399f36bf58fcb190021b607d32af95f537df3f6836ac3923d87cb16",
+      "rawSha256": "5c0c9cc3e3f5026fecc7219adf76b0637ee738c211d6e83cf43acf10ae4e5813",
+      "normalizedSha256": "5c0c9cc3e3f5026fecc7219adf76b0637ee738c211d6e83cf43acf10ae4e5813",
       "canonicalSha256": "6b0af3cff9bb98f65b41100dc2a4b3b38e641a38ad1b35c496c1bad55962ef3f"
     },
     "dev/SESSION_HANDOFF.md": {
       "state": "present",
       "contentId": "989ded633a9f5ce7101b6af7f7fd9a151ffdb5531d48a46c72c72656eb555d67",
-      "rawSha256": "83bc172e6858b2b8a41c83a8dbaf2b9b0250733ab0ba4487eabb8405d1877489",
-      "normalizedSha256": "83bc172e6858b2b8a41c83a8dbaf2b9b0250733ab0ba4487eabb8405d1877489",
+      "rawSha256": "4bb9a2d759f378409d9f8a97330cb468a884ef15d7a40ac88cfee0d3fa4c16ad",
+      "normalizedSha256": "4bb9a2d759f378409d9f8a97330cb468a884ef15d7a40ac88cfee0d3fa4c16ad",
       "canonicalSha256": "52afa64c4bc785a19f9122cbae4b0fac28e131c9b08ec76a47df003db26f182e"
     },
     "dev/SESSION_LOG.md": {

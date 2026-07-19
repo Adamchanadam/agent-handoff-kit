@@ -12,7 +12,8 @@ import {
   identifyOfficialOrigin,
   loadOfficialOriginCatalog,
   normalizeNewlines,
-  sha256
+  sha256,
+  validateOfficialOriginCatalog
 } from "../bin/official-origin-catalog.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +35,8 @@ const credentialValuePatterns = [
 ];
 
 const catalog = await loadOfficialOriginCatalog(catalogPath);
+const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
+const latestPublishedVersion = previousPatch(packageVersion);
 assert(catalog.schemaVersion === OFFICIAL_ORIGIN_CATALOG_SCHEMA, "catalog schema mismatch");
 assert(catalog.packageName === "@adamchanadam/agent-handoff-kit", "catalog package name mismatch");
 
@@ -41,8 +44,8 @@ const expectedTargets = installedFileContracts.map(({ targetRel, strategy }) => 
 assert(JSON.stringify(catalog.installedTargets) === JSON.stringify(expectedTargets), "installed target contract drifted");
 
 const versions = Object.keys(catalog.releases);
-assert(versions.length === 55, `expected 55 formal releases, found ${versions.length}`);
-assert(versions[0] === "0.1.0" && versions.at(-1) === "0.3.41", "formal release range drifted");
+assert(versions.length >= 55, `expected at least 55 formal releases, found ${versions.length}`);
+assert(versions[0] === "0.1.0" && versions.at(-1) === latestPublishedVersion, `formal release range must end at latest published v${latestPublishedVersion}`);
 
 let presentCount = 0;
 let absentCount = 0;
@@ -126,6 +129,7 @@ delete digestCopy.catalogDigestSha256;
 assert(catalog.catalogDigestSha256 === sha256(`${JSON.stringify(digestCopy)}\n`), "catalog integrity digest mismatch");
 
 checkCanonicalizationBoundaries();
+checkRequiredManagedSegmentInvariant();
 assert(catalog.releases["0.3.35"].source.sourceDivergence.status === "different-commit", "v0.3.35 npm/tag divergence was not recorded");
 assert(catalog.releases["0.3.38"].source.sourceDivergence.status === "different-commit", "v0.3.38 npm/tag divergence was not recorded");
 assert(catalog.releases["0.3.35"].source.npm.shasum === "c299f48882d358be3dfbb2461d04cacc5f0a5fdb", "v0.3.35 npm shasum drifted");
@@ -134,6 +138,8 @@ assert(catalog.releases["0.3.38"].source.npm.shasum === "48236321bd3ff28dfbd58f4
 assert(catalog.releases["0.3.38"].source.npm.integrity === "sha512-ZVfmT+zXBpm5L8uDbkpf5foYA6PgqxVn5AEVi3lfjaOyzxwdUih8aVDAdtRJ1PNXs/8DBi5O2O1d3rSfMPocdQ==", "v0.3.38 npm integrity drifted");
 assert(catalog.releases["0.3.41"].source.npm.shasum === "8b9238287485ef15208c4c339e8cdfe283ce1c23", "v0.3.41 npm shasum drifted");
 assert(catalog.releases["0.3.41"].source.npm.integrity === "sha512-2DQjMXhLigpW30vE0bb1aa7F5h1YYW5kXSfruzwg6IltyclvV9EBYPLUTOj49p6QIwmPWcetvJIB8zK0LZFH5Q==", "v0.3.41 npm integrity drifted");
+assert(catalog.releases["0.3.45"].source.npm.shasum === "5ef03d41180676344c3c14872a4a86ccdef5e7bd", "v0.3.45 npm shasum drifted");
+assert(catalog.releases["0.3.45"].source.npm.integrity === "sha512-eEUi3maroqLlnSHcrBJyJ5P1a27iDcr6ATYVOKSbx8gW/1fvuJWdvBzB+HU0ri6PlvFhJCvb2eea67iFjyd4Zg==", "v0.3.45 npm integrity drifted");
 
 console.log(`ok: official origin catalog schema/integrity (${versions.length} releases, ${Object.keys(catalog.contents).length} deduplicated contents)`);
 console.log(`ok: complete installed manifests (${presentCount} present, ${absentCount} absent)`);
@@ -162,6 +168,37 @@ function checkCanonicalizationBoundaries() {
   assert(handoffCanonical.includes("Work in <ROOT>. Read AGENTS.md"), "handoff authoritative opening root was not normalized");
 }
 
+function checkRequiredManagedSegmentInvariant() {
+  for (const version of ["0.3.38", "0.3.41"]) {
+    assert(catalog.releases[version].managedSegments?.["AGENTS.md"], `${version}: AGENTS.md managed segment missing`);
+    const mutated = JSON.parse(JSON.stringify(catalog));
+    delete mutated.releases[version].managedSegments;
+    const digestCopy = { ...mutated };
+    delete digestCopy.catalogDigestSha256;
+    mutated.catalogDigestSha256 = sha256(`${JSON.stringify(digestCopy)}\n`);
+    assertThrows(
+      () => validateOfficialOriginCatalog(mutated),
+      `${version}: catalog validator accepted missing required AGENTS.md managed segment`
+    );
+  }
+}
+
+function previousPatch(version) {
+  const parts = version.split(".").map(Number);
+  assert(parts.length === 3 && parts.every(Number.isInteger) && parts[2] > 0, `cannot derive previous patch from ${version}`);
+  parts[2] -= 1;
+  return parts.join(".");
+}
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function assertThrows(fn, message) {
+  try {
+    fn();
+  } catch {
+    return;
+  }
+  throw new Error(message);
 }

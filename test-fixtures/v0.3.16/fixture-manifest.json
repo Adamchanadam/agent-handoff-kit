@@ -50,15 +50,15 @@
     "START_NEXT_SESSION_PROMPT.txt": {
       "state": "present",
       "contentId": "487ea696707ccbce1e2b1a3781ea25fc63fdd14c914471bd44b19e2d3bd42007",
-      "rawSha256": "8f1d7f600dd4406164da65edf56690127c496431279e4a66e8a4b876ef120117",
-      "normalizedSha256": "8f1d7f600dd4406164da65edf56690127c496431279e4a66e8a4b876ef120117",
+      "rawSha256": "2e83648d6777fa412dcf5c46a8cfffa726398fb0fb35cedfa4fb9a066bac8213",
+      "normalizedSha256": "2e83648d6777fa412dcf5c46a8cfffa726398fb0fb35cedfa4fb9a066bac8213",
       "canonicalSha256": "b0d9be2b8a5fe7050ecef924f776b75dd033c877031dd371c02f0a56bd422cc1"
     },
     "dev/SESSION_HANDOFF.md": {
       "state": "present",
       "contentId": "5fa0b3d2598aec9714b4562748295dd93e8d8b1d2ea0154a006f6c27a0ee99b1",
-      "rawSha256": "aaf683fa0336904ffe3074c785975820f84567c8924649e0128f0ac5863f7d9f",
-      "normalizedSha256": "880fcfdd877cd9ac110b98b9b94c1a7f49372c8f01fe70912e55ee996e8bba9b",
+      "rawSha256": "e04340513cce69ebe80aa55158188ab00960675fd35e73b53af8d8ea9575c7c1",
+      "normalizedSha256": "b70faf5849546280c8e57cc59e410ca6b95541394b6225e18228fda402649c8a",
       "canonicalSha256": "9e072c6f7521bd089a6a60e5945fd24aacfc8a32b62b1a96cca8d721b52b03f7"
     },
     "dev/SESSION_LOG.md": {

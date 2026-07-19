@@ -63,13 +63,14 @@ const committedRecoveryVersion = "0.3.45";
 const raceVersion = "0.3.46";
 const rollbackRaceVersion = "0.3.47";
 
-(process.env.AGENT_HANDOFF_KIT_QA_INCLUDE_HYBRID_FUTURE_ROUTER === "1"
-  ? mainHybrid()
-  : import("./check-r034-v041-direct-agents.mjs")
-).catch((error) => {
+try {
+  if (process.env.AGENT_HANDOFF_KIT_QA_INCLUDE_HYBRID_FUTURE_ROUTER === "1") await mainHybrid();
+  else await import("./check-r034-v041-direct-agents.mjs");
+  console.log("ok: R-034 vertical QA");
+} catch (error) {
   console.error(error.message);
   process.exitCode = 1;
-});
+}
 
 // v0.3.41 never shipped the v0.3.42 USER_RULES router.  Its real upgrade
 // journey is checked by the direct-AGENTS fixture above.  Keep the former

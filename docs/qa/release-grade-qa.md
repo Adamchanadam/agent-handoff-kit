@@ -1,6 +1,66 @@
 # 發佈級驗收計劃
 
-狀態：原始碼倉庫驗收計劃。本文件不屬於 npm package，也不會安裝到使用者專案。
+狀態：原始碼倉庫的候選／已發佈 evidence index。本文件不屬於 npm package，也不會安裝到使用者專案；QC 方法的唯一 owner 是 WORK `docs/QA_STRATEGY.md`，可執行 command、claim membership、release-readiness full-suite inventory 與 failure propagation 的唯一 owner 是 `scripts/qa-assurance-manifest.mjs`。
+
+## Current QA command contract
+
+<!-- qa-assurance-command:block:start -->
+```text
+node scripts/qa.mjs quick
+node scripts/qa.mjs full --candidate <version> --evidence <candidate-evidence.json>
+node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evidence.json>
+```
+<!-- qa-assurance-command:block:end -->
+
+`quick` is an engineering signal only. `full` requires clean HEAD, package.json version binding, fresh candidate tarball SHA-256, required manual verdicts all passed, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help for the claimed version. Historical release records below are evidence, not the current QA command contract.
+
+## v0.3.48 發佈狀態
+
+- 狀態：candidate source prepared。本版修補 v0.3.47 發佈後發現的 legacy lowercase archive path 升級阻塞，並把 QA/QC claim membership 與 release-readiness full-suite inventory 收斂到 manifest owner。GitHub Release 與 npm `@latest` 只能由發佈後讀回確認，不能由 source 文案預先宣稱。
+- 範圍：upgrade transaction 內的 archive casing migration、rollback / recovery / retry、packed-candidate post-upgrade closeout finalize QA、QA manifest entry point；不放寬 rule pack conflict、不把非收工漂移納入 finalize、不改外部工具 cleanup 承諾。
+- 第一段限制：本節是 candidate-prep evidence；pre-release Terra audit、clean-HEAD full readiness、tag、GitHub Release、npm publish 與 postpublish readback 仍 pending。
+
+### Bilingual README semantic gate（v0.3.48，PASS）
+
+- `README.md` SHA-256 `40039B625D44B311165A88CD3364F1E5AE6516080607110E200810D22CDCC047`
+- `README.en.md` SHA-256 `D27CA72E180F3E3D073AF24F73D0EE427E7CDEF6A5A5901BA9850EF8C0DD9947`
+- Verdict: **PASS** — 中英文 README 只同步 source package version 為 v0.3.48，並保留 npm / GitHub 狀態要靠 postpublish readback；新手三步、AI 代判斷 install / upgrade / doctor、狀態卡與安全邊界沒有語意改動。
+
+### Bilingual practical-guide semantic gate（v0.3.48，PASS）
+
+- `agent-handoff-kit-guide.html` SHA-256 `1F0E4EE12BD722E9ADB5A1DA0617A85E1EF07A530FE3573A9A1A3409DD3F42E3`
+- `agent-handoff-kit-guide.en.html` SHA-256 `C615BED6F197D01ACE8EEFA10D17CBDC0C8A3B08AB014A5A6DF68AA7418632A6`
+- Verdict: **PASS** — 中英文 practical guide 只同步可見版本與示例輸出為 v0.3.48；三個日常情景、新手一屏循環、blocked 人話說明與治理打通說法沒有新增分歧。
+
+### Bilingual AI-install semantic gate（v0.3.48，PASS）
+
+- `agent-handoff-kit-ai-install.html` SHA-256 `1C23E299BA3105F498C74B7233EC729FA1E6BB4427284512717C25C540F18AAF`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `CF98793E6286B0AD1A559EEA812AEBCDAA0043A6FD457BF28C077B0AAA802E44`
+- Verdict: **PASS** — 中英文 AI-install 頁只同步可見版本為 v0.3.48；確認資料夾、fresh init / upgrade dry-run / upgrade / doctor / conflict stop / completion report 的路徑未改。
+
+### Bilingual introduction semantic gate（v0.3.48，PASS）
+
+- `agent-handoff-kit-intro.html` SHA-256 `4A5FF9F99B42AD72DFCE859876F0E195A5B26B786C48D8BF81592B2101406E56`
+- `agent-handoff-kit-intro.en.html` SHA-256 `1FDD1208D4EB21FDA6C2DB9649B25BD4C5A7EE9E341E69CEE9BF4818E925E559`
+- Verdict: **PASS** — 中英文 60 秒入門只同步目前版本為 v0.3.48；貓貓狀態圖例、一屏開工 / 收工循環、普通 web chat 不適用邊界與安全提示沒有語意改動。
+
+### Bilingual local-workflow case-study semantic gate（v0.3.48，not changed）
+
+- Verdict: **not changed** — 本輪未改此文件對；它不是 legacy archive casing migration root-fix 的入口。
+
+### Cross-mind evidence 9-trigger table（v0.3.48）
+
+| Trigger | Applied? | Outcome | Evidence |
+|---|---:|---|---|
+| 1. Failure or blocker | yes | iterated | 真實 v0.3.45 runtime 升級到 v0.3.47 時，dry-run conflict 0，但正式 upgrade 在 post-transaction doctor 因 `dev/session_log_archive` / `dev/SESSION_LOG_archive` casing mismatch rollback。 |
+| 2. User correction | yes | iterated | Adam 指出上版分析、判斷、QC 分層和相鄰缺口覆蓋不足；本版退一步修補底層 QC 分層和 upgrade transaction。 |
+| 3. User-visible output | yes | iterated | 成功升級後仍維持既有 concise upgrade output；ambiguous archive layout 和 rule conflict 仍 safe stop。 |
+| 4. Runtime/package behavior | yes | iterated | `bin/agent-handoff-kit.mjs` 在 upgrade transaction 內準備、套用、rollback、recover archive casing migration。 |
+| 5. Documentation drift | yes | iterated | README、README.en、HTML active pages、whatsnew、CHANGELOG 與 release QA 均同步到 v0.3.48，且不再把 source version 預宣稱為 GitHub / npm 已發佈狀態。 |
+| 6. Test gap | yes | iterated | 新增 manifest-owned QA entry point，並把 official-catalog-pinned published v0.3.41 -> published v0.3.45 產生的 accepted current-state witness + nested legacy lowercase archive 相鄰組合接入 post-upgrade closeout finalize QA。 |
+| 7. External-tool cleanup boundary | yes | passed | 本版不重開 AI 自動 terminate Node / MCP / browser 等承諾；仍只處理 Kit 自身檔案 transaction。 |
+| 8. Adjacent workflow coverage | yes | iterated | 覆蓋 packed candidate、published-lineage prior state、legacy archive casing、nested archive tree、rollback、pre-durable interruption recovery 和 idempotent re-upgrade。 |
+| 9. Release statement | yes | pending | v0.3.48 仍需 clean-HEAD full readiness、Terra pre-release audit、正式 publish 後 npm / GitHub / npx readback。 |
 
 ## v0.3.47 發佈狀態
 
@@ -234,7 +294,7 @@
 
 ## 用途
 
-本文件定義 Agent Handoff Kit 發佈前與發佈後必須通過的檢查。可安裝套件必須保持輕量；驗收文件與原始碼倉庫專用腳本除非未來明確改變 `package.json` `files` 白名單，否則不得進入 npm package。
+本節及其後的版本段落保留當時候選／發佈的 evidence、範圍和已知限制，不再定義現行 QC 方法或 command membership。可安裝套件必須保持輕量；驗收文件與原始碼倉庫專用腳本除非未來明確改變 `package.json` `files` 白名單，否則不得進入 npm package。
 
 ## v0.3.43 發佈狀態
 

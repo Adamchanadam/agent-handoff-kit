@@ -8,24 +8,36 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractOpeningMessage, normalizePrompt } from "../bin/prompt-mirror-core.mjs";
 import { requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
+import {
+  commandDocumentation,
+  QA_RELEASE_READINESS_INVENTORY,
+  QA_RELEASE_READINESS_INVENTORY_DIGEST,
+  R034_ARTIFACT_CONTRACT,
+  RELEASE_PACKAGE_CONTRACT,
+  RELEASE_STATE_CONTRACT
+} from "./qa-assurance-manifest.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const tempRoot = path.join(tmpdir(), `ack-release-flow-${Date.now()}`);
 const cliNode = process.platform === "win32" ? "node" : process.execPath;
 const pinnedV041Artifact = {
-  packageRoot: process.env.AGENT_HANDOFF_KIT_R034_ARTIFACT_ROOT
-    || (process.platform === "win32" ? "C:\\tmp\\agent-handoff-kit-r034-gate4-reopen-artifact\\extract\\package" : null),
-  tarballPath: process.env.AGENT_HANDOFF_KIT_R034_ARTIFACT_TGZ
-    || (process.platform === "win32" ? "C:\\tmp\\agent-handoff-kit-r034-gate4-reopen-artifact\\adamchanadam-agent-handoff-kit-0.3.41.tgz" : null),
-  sha1: "8b9238287485ef15208c4c339e8cdfe283ce1c23",
-  integrity: "sha512-2DQjMXhLigpW30vE0bb1aa7F5h1YYW5kXSfruzwg6IltyclvV9EBYPLUTOj49p6QIwmPWcetvJIB8zK0LZFH5Q=="
+  packageRoot: process.env[R034_ARTIFACT_CONTRACT.packageRootEnv]
+    || (process.platform === "win32" ? R034_ARTIFACT_CONTRACT.windowsDefaultPackageRoot : null),
+  tarballPath: process.env[R034_ARTIFACT_CONTRACT.tarballPathEnv]
+    || (process.platform === "win32" ? R034_ARTIFACT_CONTRACT.windowsDefaultTarballPath : null),
+  sha1: R034_ARTIFACT_CONTRACT.sha1,
+  integrity: R034_ARTIFACT_CONTRACT.integrity
 };
 const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, writes, network access, or opt-out execution wording.";
 
 main();
 
 function main() {
+  if (process.argv.includes("--qa-inventory-self-test")) {
+    checkReleaseReadinessInventorySelfTest();
+    return;
+  }
   const packageJson = JSON.parse(read("package.json"));
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
   const version = packageJson.version;
@@ -39,24 +51,17 @@ function main() {
   checkPublicOnboardingVersion(version);
   checkEnglishPublicSurfaces(version);
   checkReleaseStateCoherence(version);
+  checkCandidateWorktreeIsClean();
   checkChangedBilingualCandidateEvidence(version);
   checkUpgradeSuccessOutputSourceContract(version);
   checkRecommendedNextStepContract();
   checkCliHelpHotPathContract();
 
-  runQaScript("check-public-prototype.mjs", "prototype QA");
-  runQaScript("check-closeout-card-contract.mjs", "closeout card contract QA");
-  runQaScript("build-public-mirror.mjs", "public mirror QA");
-  runQaScript("check-pack-scenarios.mjs", "pack scenario QA");
-  runQaScript("check-r034-inventory.mjs", "R-034 inventory QA");
-  runQaScript("check-r034-semantic-candidate.mjs", "R-034 semantic candidate QA");
-  runQaScript("check-official-origin-catalog.mjs", "official-origin catalog QA");
-  runQaScript("check-r034-gate5-closure.mjs", "R-034 Gate 5 whole-set closure QA");
-  runQaScript("check-r034-vertical.mjs", "artifact-backed R-034 vertical QA");
-  runQaScript("check-r034-final-closure.mjs", "R-034 Phase-0 five-file final closure QA");
-  runQaScript("check-upgrade-safety.mjs", "upgrade safety QA");
-  runQaScript("check-post-upgrade-closeout-finalize.mjs", "post-upgrade closeout finalize QA");
-  runQaScript("check-prompt-mirror.mjs", "prompt mirror checker");
+  const executedQaIds = [];
+  for (const qaCheck of QA_RELEASE_READINESS_INVENTORY) {
+    runManifestQaScript(qaCheck, executedQaIds);
+  }
+  assertReleaseReadinessInventoryComplete(executedQaIds);
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
   const packText = outputText(pack);
@@ -129,78 +134,7 @@ function main() {
     "Installer hardening 仍未完成"
   ]);
 
-  assertIncludes("docs/qa/release-grade-qa.md", [
-    "`npm run qa:release`",
-    "用戶流程驗收",
-    "任務入口",
-    "不屬於 npm package",
-    `v${version} 發佈狀態`,
-    "v0.1.2 發佈狀態",
-    "v0.1.7 發佈狀態",
-    "v0.1.6 發佈狀態",
-    "npm latest",
-    "v0.1.5 發佈狀態",
-    "v0.1.4 發佈狀態",
-    "v0.1.3 發佈狀態",
-    "v0.1.1 發佈狀態",
-    "v0.1.0 已發佈狀態",
-    "發佈後仍需驗證",
-    "不得因 `v0.1.0` 已發佈而宣稱",
-    "安裝後指示驗收",
-    "AI 代安裝頁驗收",
-    "agent-handoff-kit-ai-install.html",
-    "AI-assisted install page",
-    "不是在終端機繼續輸入",
-    "治理 QA 缺口矩陣",
-    "產品級發佈前全面檢",
-    "Product Journey Matrix",
-    "Task evidence → closeout disposition → next session startup",
-    "current-state evidence boundary",
-    "Evidence disposition field",
-    "Persistence routing checked field",
-    "QC Gap Backflow",
-    "收工三面同源驗收",
-    "GitHub Release body 固定結構驗收",
-    "vX.Y.Z - <用戶可理解的價值短句>",
-    "gh release view vX.Y.Z --json name,body",
-    "Rule Pack Routing And Durable-home Scope Sweep",
-    "Natural-language task → rule pack → durable home",
-    "Long-term governance routing / 長期治理入庫",
-    "Governance bridge / 治理打通",
-    "治理打通",
-    "接入 Agent Handoff Kit",
-    "掃描未接入 Agent Handoff Kit 的重要文件",
-    "scan for unbridged governance documents",
-    "Rules / packs 路由與入庫範圍",
-    "產品旅程矩陣",
-    "執行落差",
-    "技能／子代理流程仲裁驗收",
-    "技能流程覆蓋",
-    "PROJECT_DECISIONS 結構驗收",
-    "Project Decisions Discipline Sweep",
-    "research-derived decision trace",
-    "Evidence chain: Source=source:<id>",
-    "Release Artifact Vocabulary Sweep",
-    "R-028 project narrative discipline",
-    "Onboarding Pack 結構驗收 (R-029)",
-    "Onboarding Pack Discipline Sweep（R-029",
-    "Onboarding UX discipline（R-029）",
-    "Cross-surface wording consistency 驗收 (R-029.1",
-    "Cross-surface Wording Consistency Sweep",
-    "Cross-surface wording alignment（R-029.1",
-    "Routing table propagation discipline（R-029.2",
-    "CLI 場景分流（scenario branching）一致性（R-031.1",
-    "CLI Scenario Branching Coverage Sweep（R-031.1",
-    "v0.3.1 發佈狀態",
-    "v0.3.2 發佈狀態",
-    "v0.3.5 發佈狀態",
-    "v0.3.4 發佈狀態",
-    "交接生命週期一致性",
-    "Handoff Lifecycle Consistency Sweep",
-    "Cross-mind evidence 9-trigger table",
-    "v0.3.3 發佈狀態"
-  ]);
-  assertLatestCrossMindTableComplete(version);
+  checkQaCommandDocumentation();
   checkRulePackRoutingDurableHomeAudit();
   checkGovernanceBridgeContract();
   checkTaskPersistenceGateContract();
@@ -2037,8 +1971,28 @@ function extractSectionText(text, markerId, headingTitle) {
   return text.slice(start, nextHeading ? start + nextHeading.index : text.length);
 }
 
-function runQaScript(scriptName, label) {
+function runManifestQaScript(qaCheck, executedQaIds) {
+  executedQaIds.push(qaCheck.id);
+  executeQaScript(qaCheck.script, qaCheck.label);
+}
+
+function executeQaScript(scriptName, label) {
   run(process.execPath, [path.join("scripts", scriptName)], label);
+}
+
+function assertReleaseReadinessInventoryComplete(executedQaIds) {
+  const expected = QA_RELEASE_READINESS_INVENTORY.map((qaCheck) => qaCheck.id);
+  assert(JSON.stringify(executedQaIds) === JSON.stringify(expected), `release-readiness QA inventory drifted from manifest (${QA_RELEASE_READINESS_INVENTORY_DIGEST})`);
+}
+
+function checkReleaseReadinessInventorySelfTest() {
+  assert(process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1", "--qa-inventory-self-test is test-only");
+  assertReleaseReadinessInventoryComplete(QA_RELEASE_READINESS_INVENTORY.map((qaCheck) => qaCheck.id));
+  const omitted = QA_RELEASE_READINESS_INVENTORY.slice(1).map((qaCheck) => qaCheck.id);
+  assertThrows(() => assertReleaseReadinessInventoryComplete(omitted), "omitted release-readiness manifest member was not detected");
+  const extra = [...QA_RELEASE_READINESS_INVENTORY.map((qaCheck) => qaCheck.id), "undeclared-hidden-check"];
+  assertThrows(() => assertReleaseReadinessInventoryComplete(extra), "undeclared release-readiness member was not detected");
+  console.log(`ok: release-readiness inventory self-test (${QA_RELEASE_READINESS_INVENTORY_DIGEST})`);
 }
 
 function checkWhatsnewSchema(version) {
@@ -2101,33 +2055,13 @@ function checkReleaseStateCoherence(version) {
   const current = `v${version}`;
   const readmeHead = read("README.md").split(/\r?\n/).slice(0, 12).join("\n");
   const englishReadmeHead = read("README.en.md").split(/\r?\n/).slice(0, 12).join("\n");
-  assert(readmeHead.includes(`目前正式版本：\`${current}\``), "README.md first screen must state the current published release, not a local candidate");
-  assert(englishReadmeHead.includes(`Current published release: \`${current}\``), "README.en.md first screen must state the current published release, not a local candidate");
+  assert(readmeHead.includes(`原始碼套件版本：\`${current}\``), "README.md first screen must state the source package version without claiming it is already published");
+  assert(readmeHead.includes("npm `@latest` 與 GitHub Release 以發佈後讀回為準"), "README.md first screen must keep npm/GitHub release state as an external readback boundary");
+  assert(englishReadmeHead.includes(`Source package version: \`${current}\``), "README.en.md first screen must state the source package version without claiming it is already published");
+  assert(englishReadmeHead.includes("npm `@latest` and GitHub Release are verified by post-publish readback"), "README.en.md first screen must keep npm/GitHub release state as an external readback boundary");
 
-  const activeSurfaces = [
-    "README.md",
-    "README.en.md",
-    "docs/whatsnew/README.md",
-    "agent-handoff-kit-intro.html",
-    "agent-handoff-kit-intro.en.html",
-    "agent-handoff-kit-guide.html",
-    "agent-handoff-kit-guide.en.html",
-    "agent-handoff-kit-ai-install.html",
-    "agent-handoff-kit-ai-install.en.html"
-  ];
-  const forbidden = [
-    /目前候選版本/u,
-    /候選版本（尚未發佈）/u,
-    /正式可用版本是/u,
-    /Current source candidate/u,
-    /currently published npm release/iu,
-    /v\d+\.\d+\.\d+\s+candidate/iu,
-    /v\d+\.\d+\.\d+\s+候選版/u,
-    /本頁版本可能先於 npm 正式發佈/u,
-    /may describe a candidate before npm publication/iu,
-    /may be ahead of the npm release/iu,
-    /source page can be ahead of the published npm package/iu
-  ];
+  const activeSurfaces = RELEASE_STATE_CONTRACT.surfaces.map((surface) => materializeVersionedPath(surface.path, version));
+  const forbidden = RELEASE_STATE_CONTRACT.forbiddenPatterns.map((pattern) => new RegExp(pattern.source, pattern.flags));
   for (const file of activeSurfaces) {
     const text = read(file);
     for (const pattern of forbidden) {
@@ -2142,13 +2076,27 @@ function checkReleaseStateCoherence(version) {
   assert(heading?.[0]?.startsWith(`## ${current} — `), `CHANGELOG.md latest heading must be ${current}`);
   assert(!/## v\d+\.\d+\.\d+ — candidate/im.test(heading[0]), "CHANGELOG.md latest heading must not be a candidate heading");
   const latestSection = latestChangelogSection(changelog);
-  assert(!/狀態：本地候選|正式可用版本仍是|尚未發佈。正式可用版本/u.test(latestSection), "CHANGELOG.md latest status still describes an unpublished candidate");
+  assert(!/狀態：本地候選|狀態：正式發佈版本|正式可用版本仍是|尚未發佈。正式可用版本|GitHub Release 與 npm `@latest` 應以/u.test(latestSection), "CHANGELOG.md latest status must not claim pre-publish or post-publish state from source text");
 
   const whatsnewIndex = readAt("docs/whatsnew", "README.md");
-  const publishedIndex = whatsnewIndex.indexOf("目前已發佈版本：");
+  assert(!whatsnewIndex.includes("目前已發佈版本："), "docs/whatsnew/README.md must not declare source version pages as already published");
+  const publishedIndex = whatsnewIndex.indexOf("目前版本頁：");
   const currentLink = whatsnewIndex.indexOf(`[${current} 版本頁]`);
-  assert(publishedIndex >= 0 && currentLink > publishedIndex, `docs/whatsnew/README.md must list ${current} under published versions`);
-  console.log("ok: release-state coherence across active public surfaces");
+  assert(publishedIndex >= 0 && currentLink > publishedIndex, `docs/whatsnew/README.md must list ${current} under source version pages`);
+  console.log("ok: source release-state boundary across active public surfaces");
+}
+
+function checkCandidateWorktreeIsClean() {
+  const dirty = outputText(run("git", ["status", "--porcelain"], "candidate worktree status"));
+  assert(!dirty.trim(), "release readiness requires a clean local candidate commit; dirty or untracked files cannot be accepted as release evidence");
+  console.log("ok: release-readiness candidate is clean and commit-bound");
+}
+
+function checkQaCommandDocumentation() {
+  const text = read("docs/qa/release-grade-qa.md");
+  assert(text.includes(commandDocumentation()), "public QA command block drifted from the assurance manifest");
+  assert(text.includes("Historical release records below are evidence, not the current QA command contract."), "public QA document does not distinguish historical evidence from current commands");
+  console.log("ok: public QA command documentation is manifest-owned");
 }
 
 function checkUpgradeSuccessOutputSourceContract(version) {
@@ -2164,7 +2112,7 @@ function checkUpgradeSuccessOutputSourceContract(version) {
 }
 
 function expectedPackageFileCount() {
-  return 35;
+  return RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount;
 }
 
 function checkPackedPackageUpgradeSmoke(version) {
@@ -2820,6 +2768,10 @@ function readAt(baseDir, relativePath) {
   return readFileSync(path.join(baseDir, relativePath), "utf8");
 }
 
+function materializeVersionedPath(relativePath, version) {
+  return relativePath.replace(/\$\{version\}/g, version);
+}
+
 function stripHtml(value) {
   return value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
 }
@@ -2838,4 +2790,13 @@ function count(text, needle) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function assertThrows(fn, message) {
+  try {
+    fn();
+  } catch {
+    return;
+  }
+  throw new Error(message);
 }

@@ -1,0 +1,334 @@
+#!/usr/bin/env node
+
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  CANDIDATE_EVIDENCE_CONTRACT,
+  QA_ASSURANCE_MANIFEST,
+  QA_ASSURANCE_MANIFEST_DIGEST,
+  QA_RELEASE_READINESS_INVENTORY,
+  QA_RELEASE_READINESS_INVENTORY_DIGEST
+} from "./qa-assurance-manifest.mjs";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const evidenceContractSelfTest = process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1"
+  && process.env.AGENT_HANDOFF_KIT_QA_EVIDENCE_CONTRACT_SELF_TEST === "1";
+
+try {
+  main();
+} catch (error) {
+  console.error(`QA assurance failed: ${error.message}`);
+  process.exitCode = 1;
+}
+
+function main() {
+  const options = parseArgs(process.argv.slice(2));
+  if (options.list) {
+    console.log(JSON.stringify({
+      schemaVersion: QA_ASSURANCE_MANIFEST.schemaVersion,
+      digest: QA_ASSURANCE_MANIFEST_DIGEST,
+      layers: QA_ASSURANCE_MANIFEST.layers,
+      claims: QA_ASSURANCE_MANIFEST.claims,
+      releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+      releaseReadinessInventory: QA_RELEASE_READINESS_INVENTORY
+    }, null, 2));
+    return;
+  }
+
+  const layer = options.layer;
+  assert(layer && QA_ASSURANCE_MANIFEST.layers[layer], "usage: node scripts/qa.mjs <quick|full|postpublish> [options]");
+  const claims = QA_ASSURANCE_MANIFEST.claims.filter((claim) => claim.layer === layer);
+  assert(claims.length > 0, `manifest has no claims for ${layer}`);
+
+  if (options.testFailClaim) {
+    assert(process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1", "--test-fail-claim is test-only");
+    assert(claims.some((claim) => claim.id === options.testFailClaim), `test failure claim is not required by ${layer}: ${options.testFailClaim}`);
+    throw new Error(`controlled executor failure: ${options.testFailClaim}`);
+  }
+
+  if (layer === "full") validateCandidateEvidence(options);
+  if (layer === "postpublish") validatePostpublishEvidence(options);
+  if (options.validateOnly) {
+    console.log(`ok: ${layer} evidence contract (${QA_ASSURANCE_MANIFEST_DIGEST})`);
+    return;
+  }
+
+  for (const claim of claims) runClaim(claim);
+  console.log(`Agent Handoff Kit ${layer} QA passed (${QA_ASSURANCE_MANIFEST_DIGEST})`);
+}
+
+function parseArgs(args) {
+  const options = { layer: null, list: false, validateOnly: false, candidate: null, version: null, evidence: null, testFailClaim: null };
+  for (let index = 0; index < args.length; index += 1) {
+    const value = args[index];
+    if (value === "--list") options.list = true;
+    else if (value === "--validate-only") options.validateOnly = true;
+    else if (value === "--candidate") options.candidate = requireValue(args, ++index, value);
+    else if (value === "--version") options.version = requireValue(args, ++index, value);
+    else if (value === "--evidence") options.evidence = requireValue(args, ++index, value);
+    else if (value === "--test-fail-claim") options.testFailClaim = requireValue(args, ++index, value);
+    else if (!options.layer) options.layer = value;
+    else throw new Error(`unknown argument: ${value}`);
+  }
+  return options;
+}
+
+function validateCandidateEvidence(options) {
+  assert(options.candidate, "full requires --candidate <version>");
+  const evidence = readEvidence(options.evidence, "full requires --evidence <candidate-evidence.json>");
+  const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+  assert(packageJson.version === options.candidate, "full candidate version does not match package.json");
+  const status = candidateGitStatus();
+  assert(status.stdout.trim() === "", "full requires a clean worktree before candidate evidence can be accepted");
+  const head = candidateGitHead();
+  assert(evidence.kind === "candidate-assurance" && evidence.schemaVersion === 1, "candidate evidence has the wrong schema");
+  assert(evidence.manifestDigest === QA_ASSURANCE_MANIFEST_DIGEST, "candidate evidence manifest digest does not match this source");
+  assert(evidence.releaseReadinessInventoryDigest === QA_RELEASE_READINESS_INVENTORY_DIGEST, "candidate evidence release-readiness inventory digest does not match this source");
+  assert(evidence.candidate?.version === options.candidate, "candidate evidence version does not match --candidate");
+  assert(evidence.candidate?.packageJsonVersion === packageJson.version, "candidate evidence packageJsonVersion does not match package.json");
+  assert(evidence.candidate?.commit === head, "candidate evidence commit does not match clean HEAD");
+  assert(isSha256(evidence.candidate?.tarballSha256, 64), "candidate evidence requires tarballSha256");
+  assert(freshCandidateTarballSha256() === evidence.candidate.tarballSha256.toLowerCase(), "candidate evidence tarballSha256 does not match a freshly packed candidate");
+  assert(validManualVerdicts(evidence.manualVerdicts), "candidate evidence requires governanceHealth, productJourney, userJourney, and qcBackflow verdicts to be passed");
+  validateEvidenceRecords(evidence.evidence);
+}
+
+function validatePostpublishEvidence(options) {
+  assert(options.version, "postpublish requires --version <version>");
+  const evidence = readEvidence(options.evidence, "postpublish requires --evidence <postpublish-evidence.json>");
+  assert(evidence.kind === "postpublish-assurance" && evidence.schemaVersion === 1, "postpublish evidence has the wrong schema");
+  assert(evidence.manifestDigest === QA_ASSURANCE_MANIFEST_DIGEST, "postpublish evidence manifest digest does not match this source");
+  assert(evidence.releaseReadinessInventoryDigest === QA_RELEASE_READINESS_INVENTORY_DIGEST, "postpublish evidence release-readiness inventory digest does not match this source");
+  assert(evidence.published?.version === options.version, "postpublish evidence version does not match --version");
+  assert(evidence.published?.npmPackage === `@adamchanadam/agent-handoff-kit@${options.version}`, "postpublish evidence requires the exact published npm package identity");
+  assert(isSha256(evidence.published?.tarballSha256, 64), "postpublish evidence requires tarballSha256");
+  assert(isSha256(evidence.published?.gitCommit, 40), "postpublish evidence requires the exact published git commit");
+  assert(typeof evidence.published?.githubReleaseUrl === "string" && evidence.published.githubReleaseUrl === `https://github.com/Adamchanadam/agent-handoff-kit/releases/tag/v${options.version}`, "postpublish evidence requires the exact GitHub Release URL");
+
+  const npmView = readNpmPublishedMetadata(options.version);
+  assert(evidence.readbacks?.npm?.version === npmView.version, "postpublish npm evidence version does not match registry readback");
+  assert(evidence.readbacks?.npm?.latest === options.version && npmView.latest === options.version, "postpublish npm latest readback does not match the published version");
+  assert(evidence.readbacks?.npm?.tarball === npmView.tarball, "postpublish npm tarball URL does not match registry readback");
+  assert(evidence.readbacks?.npm?.shasum === npmView.shasum, "postpublish npm shasum does not match registry readback");
+  assert(evidence.readbacks?.npm?.integrity === npmView.integrity, "postpublish npm integrity does not match registry readback");
+
+  const packedSha256 = packPublishedTarballSha256(options.version);
+  assert(evidence.published.tarballSha256.toLowerCase() === packedSha256, "postpublish published tarballSha256 does not match npm pack readback");
+  assert(evidence.readbacks?.npmPack?.tarballSha256 === packedSha256, "postpublish npm pack readback does not match published tarballSha256");
+
+  const release = readGithubRelease(options.version);
+  assert(evidence.readbacks?.githubRelease?.tagName === release.tagName, "postpublish GitHub tag evidence does not match release readback");
+  assert(evidence.readbacks.githubRelease.url === release.url, "postpublish GitHub URL evidence does not match release readback");
+  assert(evidence.readbacks.githubRelease.targetCommitish === release.targetCommitish, "postpublish GitHub targetCommitish evidence does not match release readback");
+  assert(evidence.readbacks.githubRelease.isDraft === false && release.isDraft === false, "postpublish GitHub Release is draft");
+  assert(evidence.readbacks.githubRelease.isPrerelease === false && release.isPrerelease === false, "postpublish GitHub Release is prerelease");
+
+  const tagCommit = readRemoteTagCommit(options.version);
+  assert(evidence.published.gitCommit.toLowerCase() === tagCommit, "postpublish published git commit does not match remote tag readback");
+  assert(evidence.readbacks?.gitTag?.commit === tagCommit, "postpublish git tag evidence does not match remote tag readback");
+
+  const helpSha256 = npxHelpSha256(options.version);
+  assert(evidence.readbacks?.npxHelp?.sha256 === helpSha256, "postpublish npx help evidence does not match ordinary consumer readback");
+}
+
+function runClaim(claim) {
+  if (claim.executor.kind !== "node-script") return;
+  const script = claim.executor.script;
+  assert(existsSync(path.join(root, script)), `manifest executor is missing: ${script}`);
+  const result = spawnSync(process.execPath, [script], { cwd: root, encoding: "utf8", env: process.env });
+  if (result.error || result.status !== 0) {
+    throw new Error(`${claim.id} failed\n${result.error?.message ?? ""}\n${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim());
+  }
+}
+
+function readEvidence(file, requiredMessage) {
+  assert(file, requiredMessage);
+  const absolute = path.resolve(file);
+  assert(existsSync(absolute), `evidence file does not exist: ${absolute}`);
+  try {
+    return JSON.parse(readFileSync(absolute, "utf8"));
+  } catch (error) {
+    throw new Error(`invalid evidence JSON: ${error.message}`);
+  }
+}
+
+function validManualVerdicts(value) {
+  return ["governanceHealth", "productJourney", "userJourney", "qcBackflow"].every((key) => value?.[key] === "passed");
+}
+
+function isSha256(value, exactLength = null) {
+  const lengths = exactLength ? [exactLength] : [40, 64];
+  return typeof value === "string" && lengths.includes(value.length) && /^[a-f0-9]+$/i.test(value);
+}
+
+function validateEvidenceRecords(records) {
+  assert(Array.isArray(records) && records.length > 0, "candidate evidence requires at least one evidence record");
+  const claimIds = new Set(QA_ASSURANCE_MANIFEST.claims.filter((claim) => claim.layer === "full").map((claim) => claim.id));
+  for (const record of records) {
+    assert(record && typeof record === "object" && !Array.isArray(record), "candidate evidence record must be an object");
+    assert(claimIds.has(record.claimId), `candidate evidence record has unknown full claimId: ${record.claimId}`);
+    const contract = CANDIDATE_EVIDENCE_CONTRACT.records[record.claimId];
+    assert(contract, `candidate evidence record has no manifest-owned contract: ${record.claimId}`);
+    assert(contract.allowedPaths.includes(record.path), `candidate evidence record path is not allowed for ${record.claimId}: ${record.path}`);
+    assert(typeof record.path === "string" && record.path && !path.isAbsolute(record.path), "candidate evidence record path must be repo-relative");
+    const absolute = path.resolve(root, record.path);
+    assert(isInside(root, absolute), `candidate evidence record escapes the source tree: ${record.path}`);
+    assert(existsSync(absolute), `candidate evidence record path does not exist: ${record.path}`);
+    assert(isSha256(record.sha256, 64), `candidate evidence record has invalid sha256: ${record.path}`);
+    assert(sha256(readFileSync(absolute)) === record.sha256.toLowerCase(), `candidate evidence record hash does not match file bytes: ${record.path}`);
+    assert(typeof record.readback === "string" && record.readback, `candidate evidence record lacks readback: ${record.path}`);
+    for (const snippet of contract.requiredReadbackSnippets) {
+      assert(record.readback.includes(snippet), `candidate evidence record readback for ${record.claimId} lacks required snippet: ${snippet}`);
+    }
+  }
+}
+
+function freshCandidateTarballSha256() {
+  if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_CANDIDATE_TARBALL_SHA256");
+  const packDir = mkdtempSync(path.join(tmpdir(), "ahk-candidate-pack-"));
+  try {
+    const result = runNpm(["pack", "--pack-destination", packDir, "--json"], "npm pack candidate");
+    const parsed = JSON.parse(result.stdout);
+    assert(Array.isArray(parsed) && parsed.length === 1, "npm pack candidate returned an unexpected response");
+    const tarball = path.join(packDir, parsed[0].filename);
+    assert(existsSync(tarball), "npm pack candidate did not create the expected tarball");
+    return sha256(readFileSync(tarball));
+  } finally {
+    rmSync(packDir, { recursive: true, force: true });
+  }
+}
+
+function readNpmPublishedMetadata(version) {
+  if (evidenceContractSelfTest) {
+    const parsed = readSelfTestJson("AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_METADATA");
+    assert(parsed.version === version, "self-test npm metadata version drifted");
+    return parsed;
+  }
+  const result = runNpm(["view", `@adamchanadam/agent-handoff-kit@${version}`, "version", "dist-tags.latest", "dist.tarball", "dist.shasum", "dist.integrity", "--json"], "npm published metadata");
+  const parsed = JSON.parse(result.stdout);
+  return {
+    version: parsed.version,
+    latest: parsed["dist-tags"]?.latest,
+    tarball: parsed.dist?.tarball ?? parsed["dist.tarball"],
+    shasum: parsed.dist?.shasum ?? parsed["dist.shasum"],
+    integrity: parsed.dist?.integrity ?? parsed["dist.integrity"]
+  };
+}
+
+function packPublishedTarballSha256(version) {
+  if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_PUBLISHED_TARBALL_SHA256");
+  const packDir = mkdtempSync(path.join(tmpdir(), "ahk-published-pack-"));
+  try {
+    const result = runNpm(["pack", `@adamchanadam/agent-handoff-kit@${version}`, "--pack-destination", packDir, "--json"], "npm pack published");
+    const parsed = JSON.parse(result.stdout);
+    assert(Array.isArray(parsed) && parsed.length === 1, "npm pack published returned an unexpected response");
+    const tarball = path.join(packDir, parsed[0].filename);
+    assert(existsSync(tarball), "npm pack published did not create the expected tarball");
+    return sha256(readFileSync(tarball));
+  } finally {
+    rmSync(packDir, { recursive: true, force: true });
+  }
+}
+
+function readGithubRelease(version) {
+  if (evidenceContractSelfTest) {
+    const parsed = readSelfTestJson("AGENT_HANDOFF_KIT_QA_SELF_TEST_GITHUB_RELEASE");
+    assert(parsed.tagName === `v${version}`, "self-test GitHub Release tag drifted");
+    return parsed;
+  }
+  const result = runCommand("gh", ["release", "view", `v${version}`, "--json", "tagName,url,targetCommitish,isDraft,isPrerelease"], "GitHub Release readback");
+  return JSON.parse(result.stdout);
+}
+
+function readRemoteTagCommit(version) {
+  if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_TAG_COMMIT").toLowerCase();
+  const result = runCommand("git", ["ls-remote", "--tags", "origin", `v${version}`], "Git tag readback");
+  const lines = result.stdout.trim().split(/\r?\n/u).filter(Boolean);
+  const direct = lines.find((line) => line.endsWith(`refs/tags/v${version}`))?.split(/\s+/u)[0];
+  const peeled = lines.find((line) => line.endsWith(`refs/tags/v${version}^{}`))?.split(/\s+/u)[0];
+  const commit = peeled ?? direct;
+  assert(isSha256(commit, 40), "Git tag readback did not return a commit");
+  return commit.toLowerCase();
+}
+
+function npxHelpSha256(version) {
+  if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_NPX_HELP_SHA256");
+  const cache = mkdtempSync(path.join(tmpdir(), "ahk-postpublish-npx-cache-"));
+  try {
+    const result = runCommand("npx", ["--cache", cache, "--yes", `@adamchanadam/agent-handoff-kit@${version}`, "--help"], "npx published help");
+    const text = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+    assert(text.includes(`v${version}`), "npx help readback does not contain the published version");
+    return sha256(Buffer.from(text, "utf8"));
+  } finally {
+    rmSync(cache, { recursive: true, force: true });
+  }
+}
+
+function runGit(args, label) {
+  return runCommand("git", args, label);
+}
+
+function candidateGitStatus() {
+  if (evidenceContractSelfTest) return { stdout: "" };
+  return runGit(["status", "--porcelain"], "git status");
+}
+
+function candidateGitHead() {
+  return runGit(["rev-parse", "HEAD"], "git HEAD").stdout.trim();
+}
+
+function runNpm(args, label) {
+  const env = { ...process.env, NPM_CONFIG_UPDATE_NOTIFIER: "false" };
+  if (process.env.npm_execpath) {
+    return runCommand(process.execPath, [process.env.npm_execpath, ...args], label, { env });
+  }
+  if (process.platform === "win32") {
+    return runCommand("npm.cmd", args, label, { env, shell: true });
+  }
+  return runCommand("npm", args, label, { env });
+}
+
+function runCommand(command, args, label, options = {}) {
+  const result = spawnSync(command, args, { cwd: root, encoding: "utf8", env: options.env ?? process.env, shell: options.shell ?? false });
+  if (result.error || result.status !== 0) {
+    throw new Error(`${label} failed\n${result.error?.message ?? ""}\n${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim());
+  }
+  return result;
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function requiredSelfTestValue(name) {
+  const value = process.env[name];
+  assert(typeof value === "string" && value, `${name} is required for QA evidence contract self-test`);
+  return value;
+}
+
+function readSelfTestJson(name) {
+  try {
+    return JSON.parse(requiredSelfTestValue(name));
+  } catch (error) {
+    throw new Error(`${name} is invalid JSON: ${error.message}`);
+  }
+}
+
+function isInside(parent, child) {
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function requireValue(args, index, flag) {
+  const value = args[index];
+  assert(value && !value.startsWith("--"), `${flag} requires a value`);
+  return value;
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
