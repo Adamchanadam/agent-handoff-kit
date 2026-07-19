@@ -1,5 +1,17 @@
 # 變更紀錄
 
+## v0.3.47 — 2026-07-19
+
+狀態：正式發佈版本。本版修補升級後正常收工會被 Gate 5 witness 擋住的真實路徑缺口，GitHub Release 與 npm `@latest` 應以 v0.3.47 為準。
+
+### 升級後收工補綁
+
+- 新增 `finalize-closeout` 命令：只在升級後已有 current-state witness、且後續變動限於合法收工檔案時，重新綁定交接、日誌、下次開工提示等狀態。
+- `doctor` 保持嚴格：未補綁的 post-upgrade closeout 仍會報 `unbound success state`；補綁後才會重新通過。
+- `finalize-closeout` 會拒絕非收工檔案漂移，避免把普通修改誤收進健康狀態。
+- `doctor` 新增 `dev/SESSION_LOG_archive` canonical 大小寫檢查，阻止 Windows 上 legacy lowercase archive 路徑混入。
+- `check-release-readiness.mjs` 加入相鄰版本升級後收工測試，覆蓋「升級當下健康，但之後正常收工變壞」這類相鄰流程缺口。
+
 ## v0.3.46 — 2026-07-19
 
 狀態：正式發佈版本。本版把新手狀態卡修補由 GitHub Pages 補到實際安裝套件，GitHub Release 與 npm `@latest` 應以 v0.3.46 為準。

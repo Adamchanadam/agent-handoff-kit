@@ -2,6 +2,53 @@
 
 狀態：原始碼倉庫驗收計劃。本文件不屬於 npm package，也不會安裝到使用者專案。
 
+## v0.3.47 發佈狀態
+
+- 狀態：正式發佈版本。本版補上 upgrade 後正常 closeout 的合法補綁路徑，避免「升級當下健康，但之後正常收工必然撞 Gate 5 witness」的流程缺口。GitHub Release 與 npm `@latest` 應以 v0.3.47 為準。
+- 範圍：runtime closeout-state witness root-fix、archive path casing guard、release gate 相鄰流程覆蓋；不重開外部工具自動 terminate / cleanup，不放寬普通非收工檔案漂移。
+
+### Bilingual README semantic gate（v0.3.47，PASS）
+
+- `README.md` SHA-256 `F6EF2AE0D3C65A32BC2AEC2A8723A476431DA67A3B9D124FFF6CD9BB14F14BD3`
+- `README.en.md` SHA-256 `EF9170389C3FBA2EF4110E139097C5FD565D71DFCA8713740CF07DB3E59755F7`
+- Verdict: **PASS** — 中英文 README 只同步目前正式版本為 v0.3.47；新手狀態圖例、日常開工 / 收工、AI 代判斷 install / upgrade / doctor、資料保護與外部工具邊界沒有語意改動。
+
+### Bilingual practical-guide semantic gate（v0.3.47，PASS）
+
+- `agent-handoff-kit-guide.html` SHA-256 `56B7D7DD7B77B0590CFA42FCE5A363D0EE25D674277FF828DA67B4798511E759`
+- `agent-handoff-kit-guide.en.html` SHA-256 `8F3FA3D92587905499971DDC767BDD05DFD378ED7984AEE92C1272B0E85D60B1`
+- Verdict: **PASS** — 中英文 practical guide 只同步頁面可見版本與示例輸出為 v0.3.47；三個日常情景、新手一屏循環、blocked 人話說明與治理打通說法沒有新增分歧。
+
+### Bilingual AI-install semantic gate（v0.3.47，PASS）
+
+- `agent-handoff-kit-ai-install.html` SHA-256 `4AA8D6EC52CED069726D4A7D1C71EC978A6A55A53326F01629BBF76E5AD2D0C5`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `948E08451C5AD8036BDCC135F327225DE4D7C0198B508DB03CD394C76C3BAF24`
+- Verdict: **PASS** — 中英文 AI-install 頁只同步可見版本為 v0.3.47；確認資料夾、fresh init / upgrade dry-run / upgrade / doctor / conflict stop / completion report 的路徑未改。
+
+### Bilingual introduction semantic gate（v0.3.47，PASS）
+
+- `agent-handoff-kit-intro.html` SHA-256 `53F1687F8F1FB130C1EF8BBFDF57EEC0B77EF10220CDCC4C993B4311E70FC69C`
+- `agent-handoff-kit-intro.en.html` SHA-256 `8E4585BAC28A524690850418228762E97AD458C49D5A80A4DD425EF7C78ABE92`
+- Verdict: **PASS** — 中英文 60 秒入門只同步目前版本為 v0.3.47；貓貓狀態圖例、一屏開工 / 收工循環、普通 web chat 不適用邊界與安全提示沒有語意改動。
+
+### Bilingual local-workflow case-study semantic gate（v0.3.47，not changed）
+
+- Verdict: **not changed** — 本輪未改此文件對；它不是 post-upgrade closeout finalize root-fix 的入口。
+
+### Cross-mind evidence 9-trigger table（v0.3.47）
+
+| Trigger | Applied? | Outcome | Evidence |
+|---|---:|---|---|
+| 1. Failure or blocker | yes | iterated | 真實 v0.3.45 升級流程指出：upgrade seal current-state bytes 後，正常 closeout 修改 handoff / log / prompt 會令 Gate 5 witness mismatch。 |
+| 2. User correction | yes | iterated | Adam 要求先紅測試、後 runtime 修補、完整 QA、再 patch release；本版按此順序處理。 |
+| 3. User-visible output | yes | iterated | CLI help 新增 `finalize-closeout`；blocked 狀態仍不被誤報為完成。 |
+| 4. Runtime/package behavior | yes | iterated | `bin/agent-handoff-kit.mjs` 新增合法 closeout-state finalize path，會進入 npm package。 |
+| 5. Documentation drift | yes | iterated | README、README.en、HTML active pages、whatsnew、CHANGELOG 與 release QA 均同步到 v0.3.47。 |
+| 6. Test gap | yes | iterated | 新增 `check-post-upgrade-closeout-finalize.mjs`，並接入 `check-release-readiness.mjs`。 |
+| 7. External-tool cleanup boundary | yes | passed | 本版不重開 AI 自動 terminate Node / MCP / browser 等承諾，只處理 Kit 自身 closeout witness。 |
+| 8. Adjacent workflow coverage | yes | iterated | 測試由已發布上一版 init，升到當前版本，模擬正常 closeout，要求 finalize 後 doctor / closeout-status 通過。 |
+| 9. Release statement | yes | iterated | v0.3.47 應以 commit / tag / GitHub Release / npm publish 後讀回為準；本節記錄發佈前 root-fix 證據。 |
+
 ## v0.3.46 發佈狀態
 
 - 狀態：正式發佈版本。本版把 v0.3.45 已完成的 GitHub Pages 新手狀態 UX 補到實際安裝套件：`closeout-status` blocked 卡、`packs/closeout.md`、README / README.en 與發佈檢查同時對齊。GitHub Release 與 npm `@latest` 應以 v0.3.46 為準。

@@ -17,6 +17,7 @@ const formalEntryTargets = Object.freeze([
 
 const dynamicDirectories = Object.freeze([
   { relative: "dev/governance_migrations", classification: "transaction-state" },
+  { relative: "dev/SESSION_LOG_archive", classification: "session-log-archive" },
   { relative: "dev/session_log_archive", classification: "legacy-session-log-archive" }
 ]);
 
@@ -160,6 +161,7 @@ export async function buildUpgradeInventory({ root, contracts = installedFileCon
       addBlocker(String(relativeDirectory), "dynamic directory escapes the selected project root");
       return;
     }
+    if (!(await hasExactProjectPath(rootPath, normalized))) return;
     const absolute = path.resolve(rootPath, normalized);
     const stats = await lstat(absolute).catch((error) => {
       if (error?.code === "ENOENT") return null;
@@ -182,6 +184,22 @@ export async function buildUpgradeInventory({ root, contracts = installedFileCon
       else addBlocker(child, "dynamic inventory source is not a regular file or directory");
     }
   }
+}
+
+async function hasExactProjectPath(rootPath, normalized) {
+  const parts = normalized.split("/");
+  let current = rootPath;
+  for (const part of parts) {
+    const entries = await readdir(current, { withFileTypes: true }).catch((error) => {
+      if (error?.code === "ENOENT") return null;
+      throw error;
+    });
+    if (!entries) return false;
+    const exact = entries.find((entry) => entry.name === part);
+    if (!exact) return false;
+    current = path.join(current, exact.name);
+  }
+  return true;
 }
 
 /**

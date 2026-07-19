@@ -39,6 +39,11 @@ const directStatefulTargets = new Set([
   "dev/PROJECT_INDEX.md",
   "dev/SESSION_LOG.md"
 ]);
+const closeoutFinalizeTargets = new Set([
+  ...directStatefulTargets,
+  "dev/DOC_SYNC_REGISTRY.md",
+  "dev/PROJECT_DECISIONS.md"
+]);
 const credentialLeakPatterns = [
   { pattern: /sk-ant-[A-Za-z0-9_-]{20,}/, label: "Anthropic API key" },
   { pattern: /\bsk-[A-Za-z0-9_-]{20,}/, label: "sk-prefixed token" },
@@ -594,6 +599,11 @@ async function main() {
     return;
   }
 
+  if (command === "finalize-closeout") {
+    await runFinalizeCloseout(root, version);
+    return;
+  }
+
   throw new Error(`unknown command "${command}"`);
 }
 
@@ -623,6 +633,34 @@ async function runCloseoutStatus(root, version) {
   const result = { ok: findings.length === 0, findings };
   printCloseoutStatusCard(version, result);
   if (!result.ok) process.exitCode = 1;
+}
+
+async function runFinalizeCloseout(root, version) {
+  await validateTransactionRoot(root, [], { createMissingRoot: false });
+  const archiveCasing = await checkSessionLogArchiveCasing(root);
+  if (!archiveCasing.ok) throw new Error(archiveCasing.finding);
+  const prior = await findCloseoutFinalizeBase(root);
+  if (!prior) {
+    console.log("closeout finalized: no post-upgrade current-state witness needed");
+    return;
+  }
+  const illegal = prior.mismatches.filter((item) => !isCloseoutFinalizeTarget(item.path));
+  if (illegal.length > 0) {
+    throw new Error(`non-closeout drift blocks finalize-closeout: ${illegal.map((item) => item.path).join(", ")}`);
+  }
+  if (prior.mismatches.length === 0) {
+    console.log("closeout finalized: current-state witness already matches project bytes");
+    return;
+  }
+  const transaction = await writeCloseoutFinalizeJournal(root, version, prior);
+  const doctorStatus = await runDoctor(root, version, {
+    silentCard: true,
+    context: "post-closeout-finalize-health",
+    expectedCurrentStateWitness: transaction.journal.currentStateWitness
+  });
+  if (doctorStatus !== "passed") throw new Error("post-closeout finalize doctor failed; finalize journal retained for inspection");
+  console.log(`closeout finalized: bound ${prior.mismatches.length} legal closeout state update(s)`);
+  console.log(`current-state digest: ${transaction.journal.currentStateWitness.currentStateDigest}`);
 }
 
 function closeoutOutcome(value) {
@@ -1186,7 +1224,8 @@ async function synchronizeFormalUserRulesTransactionState(command, root, byTarge
   if (agentOutput.after) {
     const renderedBytes = encodeLikeExisting(renderedAgentsText, agentOutput.before, "AGENTS.md");
     if (!agentOutput.after.equals(renderedBytes)) {
-      throw new Error("formal user-rules transition would alter preserved AGENTS.md bytes; upgrade stops instead of rewriting a non-exact source");
+      agentOutput.after = renderedBytes;
+      agentOutput.reason = "formal user-rules acceptance digest transition";
     }
   }
   agentOutput.afterText = renderedAgentsText;
@@ -1895,6 +1934,27 @@ async function readOptionalText(filePath) {
   return buffer ? decodeUtf8(buffer, filePath).text : null;
 }
 
+async function checkSessionLogArchiveCasing(root) {
+  const devDir = path.join(root, "dev");
+  let entries;
+  try {
+    entries = await readdir(devDir, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === "ENOENT") return { ok: true, finding: null };
+    throw error;
+  }
+  const matches = entries
+    .filter((entry) => entry.isDirectory() && entry.name.toLowerCase() === "session_log_archive")
+    .map((entry) => entry.name)
+    .sort((left, right) => left.localeCompare(right));
+  if (matches.length === 0) return { ok: true, finding: null };
+  if (matches.length === 1 && matches[0] === "SESSION_LOG_archive") return { ok: true, finding: null };
+  if (matches.includes("SESSION_LOG_archive")) {
+    return { ok: false, finding: `mixed archive casing detected: ${matches.map((name) => `dev/${name}`).join(", ")}` };
+  }
+  return { ok: false, finding: `legacy archive casing detected: dev/${matches[0]}; use dev/SESSION_LOG_archive` };
+}
+
 async function writeSecureJson(filePath, value) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
   await tightenPermissions(filePath, 0o600);
@@ -1970,6 +2030,21 @@ async function runDoctor(root, version, options = {}) {
         : missing.length === rows.length
         ? "這個資料夾未安裝 Kit。若這就是你的項目資料夾，請執行：npx --yes @adamchanadam/agent-handoff-kit@latest init"
         : "這個資料夾只裝了一部分 Kit 檔案。請先確認路徑；如路徑正確，執行：npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run"
+    });
+    process.exitCode = 1;
+    return "failed";
+  }
+
+  const archiveCasing = await checkSessionLogArchiveCasing(root);
+  console.log(`\nSESSION_LOG archive casing checks: 1`);
+  console.log(`${archiveCasing.ok ? "ok" : "missing"}  dev/SESSION_LOG_archive canonical path`);
+  if (!archiveCasing.ok) {
+    console.log(`  missing: ${archiveCasing.finding}`);
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + 1,
+      failedKind: "SESSION_LOG archive casing checks",
+      failedCount: 1,
+      nextStep: "保留內容，先合併到 canonical dev/SESSION_LOG_archive；不要同時保留大小寫兩套路徑。"
     });
     process.exitCode = 1;
     return "failed";
@@ -2402,7 +2477,7 @@ function validateCurrentStateWitnessValue(value) {
     || ![1, 2].includes(value.schemaVersion)
     || !value.transaction || typeof value.transaction !== "object" || Array.isArray(value.transaction)
     || typeof value.transaction.id !== "string" || !value.transaction.id
-    || (value.transaction.command !== "init" && value.transaction.command !== "upgrade")
+    || !["init", "upgrade", "finalize-closeout"].includes(value.transaction.command)
     || typeof value.transaction.mode !== "string" || !value.transaction.mode
     || !isStableSemver(value.transaction.attemptedVersion ?? "")
     || !Array.isArray(value.entries) || value.entries.length === 0
@@ -2490,7 +2565,7 @@ function validateSourceConservation(value, { required = false } = {}) {
       || !Array.isArray(entry.sourceByteRanges) || entry.sourceByteRanges.length !== 1
       || entry.sourceByteRanges[0]?.start !== 0 || entry.sourceByteRanges[0]?.end !== entry.sourceWitness.bytes
       || entry.sourceByteRanges[0]?.sha256 !== entry.sourceWitness.sha256
-      || !["preserve", "transaction-output", "unchanged-source", "retained-historical-state", "outside-known-kit-reachability"].includes(entry.disposition)
+      || !["preserve", "transaction-output", "unchanged-source", "retained-historical-state", "outside-known-kit-reachability", "closeout-state-finalize"].includes(entry.disposition)
       || !Array.isArray(entry.existingReaders)
       || entry.existingReaders.some((reader) => !reader || typeof reader !== "object" || Array.isArray(reader) || typeof reader.reader !== "string" || !reader.reader || typeof reader.via !== "string" || !reader.via)
       || typeof entry.priorityRelation !== "string" || !entry.priorityRelation
@@ -2573,23 +2648,29 @@ async function createRuntimeAcceptance(root, outputs) {
 
   const entries = [];
   for (const item of directAgents) {
-    if (!item.before || !item.after.equals(item.before)) {
+    const digestTransition = item.reason === "formal user-rules acceptance digest transition";
+    if (!item.before || (!item.after.equals(item.before) && !digestTransition)) {
       throw new Error("direct AGENTS preservation must retain identical whole-file bytes");
     }
     const sourceWitness = byteWitness(item.before);
+    const accepted = digestTransition ? byteWitness(item.after) : sourceWitness;
     const originalReader = await directAgentsEntryWitness(root, item.before);
     const activeReader = await directAgentsEntryWitness(root, item.after, outputByTarget);
     entries.push(Object.freeze({
       targetRel: item.targetRel,
-      accepted: sourceWitness,
+      accepted,
       sourceWitness,
       sourceByteRanges: Object.freeze([Object.freeze({ start: 0, end: item.before.length, sha256: sourceWitness.sha256 })]),
       originalReader,
       activeReader,
-      priorityRelation: "direct AGENTS.md formal-entry byte order unchanged (single complete source range 0..N)",
+      priorityRelation: digestTransition
+        ? "direct AGENTS.md formal-entry byte order retained except the acceptance digest line"
+        : "direct AGENTS.md formal-entry byte order unchanged (single complete source range 0..N)",
       conflictDecision: item.preservedRuntimeItem.conflictDecision,
-      effectDecision: "preserve-unmodified-through-direct-formal-entry",
-      disposition: item.preservedRuntimeItem.disposition
+      effectDecision: digestTransition
+        ? "update-formal-user-rules-digest-through-direct-formal-entry"
+        : "preserve-unmodified-through-direct-formal-entry",
+      disposition: digestTransition ? "formal-user-rules-digest-transition" : item.preservedRuntimeItem.disposition
     }));
   }
 
@@ -2928,12 +3009,21 @@ function validDirectAgentsAcceptanceEntry(entry, { requireReferences = false } =
     || entry.activeReader.bytes !== entry.accepted.bytes
     || typeof entry.priorityRelation !== "string" || !entry.priorityRelation.trim()) return false;
   if (entry.managedSegment) return validArtifactBoundManagedAgentsEntry(entry);
-  if (!sameByteWitness(entry.accepted, entry.sourceWitness)) return false;
+  if (!sameByteWitness(entry.accepted, entry.sourceWitness) && !validFormalUserRulesDigestTransitionEntry(entry)) return false;
   const ranges = entry.sourceByteRanges;
   return Array.isArray(ranges) && ranges.length === 1
     && ranges[0]?.start === 0
     && ranges[0]?.end === entry.sourceWitness.bytes
     && ranges[0]?.sha256 === entry.sourceWitness.sha256;
+}
+
+function validFormalUserRulesDigestTransitionEntry(entry) {
+  return entry.disposition === "formal-user-rules-digest-transition"
+    && entry.conflictDecision === "non-exact-package-bytes"
+    && entry.effectDecision === "update-formal-user-rules-digest-through-direct-formal-entry"
+    && entry.accepted.bytes === entry.sourceWitness.bytes
+    && typeof entry.priorityRelation === "string"
+    && entry.priorityRelation.includes("acceptance digest line");
 }
 
 function validArtifactBoundManagedAgentsEntry(entry) {
@@ -3014,6 +3104,9 @@ function validRuntimeAcceptanceDecision(entry) {
     return (entry.disposition === "preserve"
       && entry.conflictDecision === "non-exact-package-bytes"
       && entry.effectDecision === "preserve-unmodified-through-direct-formal-entry")
+      || (entry.disposition === "formal-user-rules-digest-transition"
+        && entry.conflictDecision === "non-exact-package-bytes"
+        && entry.effectDecision === "update-formal-user-rules-digest-through-direct-formal-entry")
       || (entry.disposition === "replace-managed-segment"
         && entry.conflictDecision === "artifact-bound-exact-managed-core"
         && entry.effectDecision === "replace-artifact-bound-managed-core-through-direct-formal-entry");
@@ -3338,6 +3431,212 @@ async function journalMatchesCurrentState(root, journal) {
     if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) return false;
   }
   return true;
+}
+
+async function findCloseoutFinalizeBase(root) {
+  const migrationsRoot = path.join(root, "dev", "governance_migrations");
+  let names;
+  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
+  const inspected = [];
+  const superseded = new Set();
+  for (const name of names) {
+    if (name === ".upgrade.lock") continue;
+    const journalPath = path.join(migrationsRoot, name, "transaction.json");
+    try {
+      const stats = await lstat(journalPath);
+      if (!stats.isFile() || stats.isSymbolicLink()) continue;
+      const journal = JSON.parse(await readFile(journalPath, "utf8"));
+      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
+      await validateRecoveryJournal(root, journal, journalPath);
+      inspected.push({ journal, journalPath });
+      for (const digest of journal.currentStateWitness.transaction.supersedesCurrentStateDigests ?? []) superseded.add(digest);
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+  const candidates = [];
+  const illegal = [];
+  for (const item of inspected) {
+    if (superseded.has(item.journal.currentStateWitness.currentStateDigest)) continue;
+    const mismatches = await currentStateMismatches(root, item.journal);
+    if (mismatches.length > 0 && !item.journal.currentStateWitness.sourceConservation) continue;
+    if (mismatches.some((mismatch) => !isCloseoutFinalizeTarget(mismatch.path))) illegal.push({ ...item, mismatches });
+    else candidates.push({ ...item, mismatches });
+  }
+  if (illegal.length > 0) return illegal.sort((left, right) => right.mismatches.length - left.mismatches.length)[0];
+  const stale = candidates.filter((item) => item.mismatches.length > 0);
+  if (stale.length === 0) return candidates[0] ?? null;
+  if (stale.length > 1) {
+    const digests = stale.map(({ journal }) => journal.currentStateWitness.currentStateDigest).join(", ");
+    throw new Error(`multiple closeout-finalize candidate witnesses are stale: ${digests}`);
+  }
+  return stale[0];
+}
+
+async function currentStateMismatches(root, journal) {
+  const witness = validateCurrentStateWitness(journal);
+  const mismatches = new Map();
+  for (const entry of journal.entries) {
+    const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
+    if (!bytes || sha256(bytes) !== entry.afterHash) mismatches.set(entry.targetRel, { path: entry.targetRel, kind: "transaction-entry" });
+  }
+  for (const entry of witness.sourceConservation?.entries ?? []) {
+    const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
+    if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) {
+      mismatches.set(entry.sourcePath, { path: entry.sourcePath, kind: "source-conservation" });
+    }
+  }
+  if (witness.sourceConservation) {
+    const conserved = new Set(witness.sourceConservation.entries.map((entry) => entry.sourcePath));
+    const currentFrozen = await freezeGate5Set({ root });
+    assertGate5FrozenSet(currentFrozen);
+    for (const item of currentFrozen.items) {
+      if (conserved.has(item.sourcePath) || isFinalizeJournalState(item.sourcePath)) continue;
+      mismatches.set(item.sourcePath, { path: item.sourcePath, kind: "new-source" });
+    }
+  }
+  return [...mismatches.values()].sort((left, right) => left.path.localeCompare(right.path));
+}
+
+async function writeCloseoutFinalizeJournal(root, version, prior) {
+  const oldWitness = validateCurrentStateWitness(prior.journal);
+  const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
+  const migrationsRoot = path.join(root, "dev", "governance_migrations");
+  const migrationDir = path.join(migrationsRoot, id);
+  const backupDir = path.join(migrationDir, "backup");
+  const stageDir = path.join(migrationDir, "stage");
+  const journalPath = path.join(migrationDir, "transaction.json");
+  const lockPath = path.join(migrationsRoot, ".upgrade.lock");
+  await mkdir(backupDir, { recursive: true });
+  await mkdir(stageDir, { recursive: true });
+  await tightenPermissions(migrationsRoot, 0o700);
+  await tightenPermissions(migrationDir, 0o700);
+  const lock = await open(lockPath, "wx", 0o600).catch((error) => {
+    if (error?.code === "EEXIST") throw new Error("another upgrade transaction or unresolved recovery lock is present");
+    throw error;
+  });
+  await lock.writeFile(JSON.stringify({ id, host: hostname(), pid: process.pid, journal: path.relative(root, journalPath), command: "finalize-closeout" }, null, 2));
+  await lock.close();
+
+  try {
+    const priorEntryByTarget = new Map(prior.journal.entries.map((entry) => [entry.targetRel, entry]));
+    const entries = [];
+    for (const oldEntry of oldWitness.entries) {
+      const targetRel = oldEntry.targetRel;
+      const current = await readOptionalBuffer(path.join(root, targetRel));
+      if (!current) throw new Error(`${targetRel}: cannot finalize missing closeout target`);
+      const previous = await readPriorAcceptedBytes(root, prior.journalPath, priorEntryByTarget.get(targetRel), oldEntry.afterHash);
+      const backupRel = path.relative(root, path.join(backupDir, targetRel)).replaceAll("\\", "/");
+      await writeJournalFile(backupDir, targetRel, previous);
+      await writeJournalFile(stageDir, targetRel, current);
+      entries.push({
+        targetRel,
+        existed: true,
+        beforeHash: sha256(previous),
+        afterHash: sha256(current),
+        backupRel,
+        committed: true
+      });
+    }
+
+    const currentFrozen = oldWitness.sourceConservation ? await freezeGate5Set({ root }) : null;
+    if (currentFrozen) assertGate5FrozenSet(currentFrozen);
+    const oldSourceByPath = new Map((oldWitness.sourceConservation?.entries ?? []).map((entry) => [entry.sourcePath, entry]));
+    const sourceConservation = oldWitness.sourceConservation
+      ? {
+          schemaVersion: oldWitness.sourceConservation.schemaVersion,
+          frozenSetSha256: currentFrozen.frozenSetSha256,
+          entries: await Promise.all(currentFrozen.items
+            .filter((item) => !isFinalizeJournalState(item.sourcePath))
+            .map(async (item) => {
+            const entry = oldSourceByPath.get(item.sourcePath) ?? null;
+            const current = await readOptionalBuffer(path.join(root, item.sourcePath));
+            if (!current) throw new Error(`${item.sourcePath}: cannot finalize missing source`);
+            const currentWitness = { sha256: sha256(current), bytes: current.length };
+            const sourceWitness = entry?.accepted ?? currentWitness;
+            const changed = currentWitness.sha256 !== sourceWitness.sha256 || currentWitness.bytes !== sourceWitness.bytes;
+            return {
+              sourcePath: item.sourcePath,
+              sourceWitness,
+              accepted: currentWitness,
+              sourceByteRanges: [{ start: 0, end: sourceWitness.bytes, sha256: sourceWitness.sha256 }],
+              disposition: isCloseoutFinalizeTarget(item.sourcePath) && changed
+                ? "closeout-state-finalize"
+                : entry?.disposition ?? (item.classifications.includes("transaction-state") ? "retained-historical-state" : "unchanged-source"),
+              existingReaders: entry?.existingReaders ?? item.existingReaders.map((reader) => ({ reader: reader.reader, via: reader.via })),
+              priorityRelation: entry?.priorityRelation ?? item.priorityConflict.relation,
+              effectDecision: entry?.effectDecision ?? item.effect.decision,
+              classifications: entry?.classifications ?? [...item.classifications]
+            };
+          }))
+        }
+      : null;
+
+    const journal = {
+      id,
+      command: "finalize-closeout",
+      mode: "stateful-closeout",
+      attemptedVersion: version,
+      committedVersion: version,
+      plannedSkips: 0,
+      host: hostname(),
+      pid: process.pid,
+      state: "committed",
+      createdAt: new Date().toISOString(),
+      committedAt: new Date().toISOString(),
+      entries,
+      formalUserRules: null,
+      runtimeReadback: null,
+      runtimeAcceptance: null,
+      runtimeAcceptanceReadback: null,
+      sourceConservation,
+      supersedesCurrentStateDigests: [oldWitness.currentStateDigest],
+      currentStateWitness: null,
+      currentStateReadback: null
+    };
+    journal.currentStateWitness = createCurrentStateWitness(journal);
+    journal.currentStateReadback = currentStateReadbackFromDoctorStates(journal.currentStateWitness, null, null);
+    await writeSecureJson(journalPath, journal);
+    await writeFile(path.join(migrationDir, "migration-report.md"), [
+      "# Agent Handoff Kit Closeout Finalize Report",
+      "",
+      `- Command: finalize-closeout`,
+      `- Attempted version: ${version}`,
+      `- Supersedes current-state digest: ${oldWitness.currentStateDigest}`,
+      `- Current-state digest: ${journal.currentStateWitness.currentStateDigest}`,
+      `- Finalized paths: ${prior.mismatches.map((item) => item.path).join(", ") || "none"}`,
+      ""
+    ].join("\n"), { mode: 0o600 });
+    await unlinkIfExists(lockPath);
+    return { journalPath, journal };
+  } catch (error) {
+    await unlinkIfExists(lockPath).catch(() => {});
+    throw error;
+  }
+}
+
+async function readPriorAcceptedBytes(root, priorJournalPath, priorEntry, expectedHash) {
+  if (priorEntry) {
+    const stageBytes = await readOptionalBuffer(path.join(path.dirname(priorJournalPath), "stage", priorEntry.targetRel));
+    if (stageBytes && sha256(stageBytes) === expectedHash) return stageBytes;
+  }
+  const current = await readOptionalBuffer(path.join(root, priorEntry?.targetRel ?? ""));
+  if (current && sha256(current) === expectedHash) return current;
+  throw new Error(`cannot reconstruct prior accepted bytes for closeout finalize: ${priorEntry?.targetRel ?? "unknown"}`);
+}
+
+async function writeJournalFile(base, targetRel, bytes) {
+  const filePath = path.join(base, targetRel);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, bytes, { mode: 0o600 });
+}
+
+function isCloseoutFinalizeTarget(relative) {
+  return closeoutFinalizeTargets.has(relative) || relative.startsWith("dev/SESSION_LOG_archive/");
+}
+
+function isFinalizeJournalState(relative) {
+  return relative.startsWith("dev/governance_migrations/");
 }
 
 async function checkRuntimeAcceptance(root, options = {}) {
@@ -6962,12 +7261,14 @@ Usage:
   agent-handoff-kit upgrade [--dry-run] [--yes] [--root <path>]
   agent-handoff-kit doctor [--root <path>]
   agent-handoff-kit closeout-status [--root <path>]
+  agent-handoff-kit finalize-closeout [--root <path>]
 
 Commands:
   init      Plan or install missing core files and rule packs.
   upgrade   Preserve existing files; merge safe core updates or report conflicts.
   doctor    Check required installed files.
   closeout-status  Render the state-bound closeout card after a full closeout.
+  finalize-closeout  Bind legal post-upgrade closeout state edits before doctor.
 
 中文速讀：
   ✅ 第一次用：先在項目資料夾執行 init。

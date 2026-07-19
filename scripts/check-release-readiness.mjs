@@ -55,6 +55,7 @@ function main() {
   runQaScript("check-r034-vertical.mjs", "artifact-backed R-034 vertical QA");
   runQaScript("check-r034-final-closure.mjs", "R-034 Phase-0 five-file final closure QA");
   runQaScript("check-upgrade-safety.mjs", "upgrade safety QA");
+  runQaScript("check-post-upgrade-closeout-finalize.mjs", "post-upgrade closeout finalize QA");
   runQaScript("check-prompt-mirror.mjs", "prompt mirror checker");
 
   const pack = runNpm(["pack", "--dry-run"], "npm package release dry-run");
@@ -2647,6 +2648,13 @@ function checkGovernanceBridgeContract() {
     "governance bridge RULE_PACKS marker migration",
     "official governance bridge marked route was not restored",
     "unmarked local RULE_PACKS row was not preserved"
+  ]);
+
+  assertIncludes("scripts/check-post-upgrade-closeout-finalize.mjs", [
+    "doctor after normal closeout before finalize",
+    "finalize-closeout",
+    "non-closeout drift",
+    "SESSION_LOG_archive"
   ]);
 
   assertIncludes("scripts/check-pack-scenarios.mjs", [
