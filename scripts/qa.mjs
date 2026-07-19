@@ -258,13 +258,15 @@ function readRemoteTagCommit(version) {
 function npxHelpSha256(version) {
   if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_NPX_HELP_SHA256");
   const cache = mkdtempSync(path.join(tmpdir(), "ahk-postpublish-npx-cache-"));
+  const cwd = mkdtempSync(path.join(tmpdir(), "ahk-postpublish-npx-cwd-"));
   try {
-    const result = runCommand("npx", ["--cache", cache, "--yes", `@adamchanadam/agent-handoff-kit@${version}`, "--help"], "npx published help");
+    const result = runNpx(["--cache", cache, "--yes", `@adamchanadam/agent-handoff-kit@${version}`, "--help"], "npx published help", cwd);
     const text = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
     assert(text.includes(`v${version}`), "npx help readback does not contain the published version");
     return sha256(Buffer.from(text, "utf8"));
   } finally {
     rmSync(cache, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
   }
 }
 
@@ -292,8 +294,20 @@ function runNpm(args, label) {
   return runCommand("npm", args, label, { env });
 }
 
+function runNpx(args, label, cwd) {
+  const env = { ...process.env, NPM_CONFIG_UPDATE_NOTIFIER: "false" };
+  const candidates = [
+    process.env.npm_execpath ? path.join(path.dirname(process.env.npm_execpath), "npx-cli.js") : null,
+    path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npx-cli.js")
+  ].filter(Boolean);
+  const npxCli = candidates.find((candidate) => existsSync(candidate));
+  if (npxCli) return runCommand(process.execPath, [npxCli, ...args], label, { env, cwd });
+  if (process.platform === "win32") return runCommand("npx.cmd", args, label, { env, cwd, shell: true });
+  return runCommand("npx", args, label, { env, cwd });
+}
+
 function runCommand(command, args, label, options = {}) {
-  const result = spawnSync(command, args, { cwd: root, encoding: "utf8", env: options.env ?? process.env, shell: options.shell ?? false });
+  const result = spawnSync(command, args, { cwd: options.cwd ?? root, encoding: "utf8", env: options.env ?? process.env, shell: options.shell ?? false });
   if (result.error || result.status !== 0) {
     throw new Error(`${label} failed\n${result.error?.message ?? ""}\n${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim());
   }
