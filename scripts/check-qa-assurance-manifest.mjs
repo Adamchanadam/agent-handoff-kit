@@ -100,6 +100,16 @@ function validateCandidateEvidenceContract() {
     "WAITING_INDEPENDENT_REVIEW",
     "REVIEW_ACCEPTED"
   ]), "full gate accepted path drifted");
+  assert(JSON.stringify(roleIsolation.reviewSubjectPath) === JSON.stringify([
+    "PLAN_FROZEN",
+    "BASELINE_VERIFIED",
+    "GOVERNANCE_CONTRACT_IMPLEMENTED",
+    "EXECUTABLE_CONTRACT_IMPLEMENTED",
+    "WRITER_QC_PASSED",
+    "CANDIDATE_FROZEN",
+    "REVIEW_BUNDLE_READY",
+    "WAITING_INDEPENDENT_REVIEW"
+  ]), "review subject path drifted");
   for (const binding of ["candidate.commit", "candidate.tarballSha256", "manifestDigest", "releaseReadinessInventoryDigest", "reviewBundle.sha256", "reviewSubjectDigest", "manualVerdicts"]) {
     assert(roleIsolation.reviewReceiptBindings.includes(binding), `review receipt binding missing: ${binding}`);
   }
@@ -206,6 +216,7 @@ function validateEvidenceContracts() {
     rulesPacksRouting: "passed"
   };
   const roleStateHistory = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.fullGateAcceptedPath;
+  const reviewSubjectStateHistory = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath;
   const reviewSubject = {
     version,
     candidateCommit: head,
@@ -214,14 +225,14 @@ function validateEvidenceContracts() {
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
     releaseQa: { path: releaseQaPath, sha256: releaseQaSha256 },
     manualVerdicts,
-    stateHistory: roleStateHistory
+    stateHistory: reviewSubjectStateHistory
   };
   const reviewSubjectDigest = sha256(JSON.stringify(reviewSubject));
   writeEvidence(reviewBundle, {
     schemaVersion: 1,
     kind: "role-isolation-review-bundle",
-    state: "REVIEW_ACCEPTED",
-    stateHistory: roleStateHistory,
+    state: "WAITING_INDEPENDENT_REVIEW",
+    stateHistory: reviewSubjectStateHistory,
     candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
@@ -269,6 +280,7 @@ function validateEvidenceContracts() {
     roleIsolation: {
       provenanceBoundary: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.provenanceBoundary,
       stateHistory: roleStateHistory,
+      reviewSubjectStateHistory,
       reviewSubjectDigest,
       reviewBundle: { path: reviewBundle, sha256: reviewBundleSha256 }
     },
@@ -332,8 +344,8 @@ function validateEvidenceContracts() {
   writeEvidence(reviewBundle, {
     schemaVersion: 1,
     kind: "role-isolation-review-bundle",
-    state: "REVIEW_ACCEPTED",
-    stateHistory: roleStateHistory,
+    state: "WAITING_INDEPENDENT_REVIEW",
+    stateHistory: reviewSubjectStateHistory,
     candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
@@ -355,8 +367,8 @@ function validateEvidenceContracts() {
   writeEvidence(reviewBundle, {
     schemaVersion: 1,
     kind: "role-isolation-review-bundle",
-    state: "REVIEW_ACCEPTED",
-    stateHistory: roleStateHistory,
+    state: "WAITING_INDEPENDENT_REVIEW",
+    stateHistory: reviewSubjectStateHistory,
     candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
@@ -383,8 +395,8 @@ function validateEvidenceContracts() {
   writeEvidence(reviewBundle, {
     schemaVersion: 1,
     kind: "role-isolation-review-bundle",
-    state: "REVIEW_ACCEPTED",
-    stateHistory: roleStateHistory,
+    state: "WAITING_INDEPENDENT_REVIEW",
+    stateHistory: reviewSubjectStateHistory,
     candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,

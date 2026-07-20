@@ -150,6 +150,16 @@ export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
       "WAITING_INDEPENDENT_REVIEW",
       "REVIEW_ACCEPTED"
     ]),
+    reviewSubjectPath: Object.freeze([
+      "PLAN_FROZEN",
+      "BASELINE_VERIFIED",
+      "GOVERNANCE_CONTRACT_IMPLEMENTED",
+      "EXECUTABLE_CONTRACT_IMPLEMENTED",
+      "WRITER_QC_PASSED",
+      "CANDIDATE_FROZEN",
+      "REVIEW_BUNDLE_READY",
+      "WAITING_INDEPENDENT_REVIEW"
+    ]),
     reviewReceiptBindings: Object.freeze([
       "candidate.commit",
       "candidate.tarballSha256",

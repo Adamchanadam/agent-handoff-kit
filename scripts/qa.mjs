@@ -170,6 +170,7 @@ function validateRoleIsolationEvidence(evidence, head) {
   assert(typeof evidence.writerProvenance?.provenanceId === "string" && evidence.writerProvenance.provenanceId, "candidate evidence writer provenanceId is required");
   assert(isSha256(evidence.roleIsolation?.reviewSubjectDigest, 64), "candidate evidence requires reviewSubjectDigest");
   assertValidStateHistory(evidence.roleIsolation?.stateHistory, contract.fullGateAcceptedPath);
+  assertValidStateHistory(evidence.roleIsolation?.reviewSubjectStateHistory, contract.reviewSubjectPath);
   const bundle = validateReviewBundle(evidence.roleIsolation?.reviewBundle, evidence, head);
 
   const receipt = evidence.reviewReceipt;
@@ -216,7 +217,7 @@ function validateReviewBundle(bundle, evidence, head) {
   assert(parsed.manifestDigest === evidence.manifestDigest, "review bundle manifestDigest does not match evidence");
   assert(parsed.releaseReadinessInventoryDigest === evidence.releaseReadinessInventoryDigest, "review bundle release-readiness inventory digest does not match evidence");
   assert(Array.isArray(parsed.stateHistory), "review bundle requires stateHistory");
-  assert(JSON.stringify(parsed.stateHistory) === JSON.stringify(evidence.roleIsolation.stateHistory), "review bundle stateHistory does not match evidence");
+  assert(JSON.stringify(parsed.stateHistory) === JSON.stringify(evidence.roleIsolation.reviewSubjectStateHistory), "review bundle stateHistory does not match evidence review subject state");
   assert(validBundleConclusions(parsed, evidence.manualVerdicts), "review bundle five conclusions do not match candidate evidence");
   assert(parsed.reviewSubject && typeof parsed.reviewSubject === "object" && !Array.isArray(parsed.reviewSubject), "review bundle requires reviewSubject");
   const computedSubjectDigest = sha256(Buffer.from(JSON.stringify(parsed.reviewSubject), "utf8"));
@@ -227,7 +228,7 @@ function validateReviewBundle(bundle, evidence, head) {
   assert(parsed.reviewSubject?.manifestDigest === evidence.manifestDigest, "reviewSubject manifestDigest does not match evidence");
   assert(parsed.reviewSubject?.releaseReadinessInventoryDigest === evidence.releaseReadinessInventoryDigest, "reviewSubject release-readiness inventory digest does not match evidence");
   assert(JSON.stringify(parsed.reviewSubject?.manualVerdicts) === JSON.stringify(evidence.manualVerdicts), "reviewSubject manualVerdicts do not match evidence");
-  assert(JSON.stringify(parsed.reviewSubject?.stateHistory) === JSON.stringify(evidence.roleIsolation.stateHistory), "reviewSubject stateHistory does not match evidence");
+  assert(JSON.stringify(parsed.reviewSubject?.stateHistory) === JSON.stringify(evidence.roleIsolation.reviewSubjectStateHistory), "reviewSubject stateHistory does not match evidence review subject state");
   return { path: absolute, sha256: actualSha256, value: parsed };
 }
 
