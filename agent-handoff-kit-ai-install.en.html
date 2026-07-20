@@ -13,11 +13,11 @@
 <body>
   <div class="stripe"></div>
   <header><div class="wrap">
-    <span class="kicker">AI-readable install page · v0.3.48</span>
+    <span class="kicker">AI-readable install page · v0.3.49</span>
     <p><a href="agent-handoff-kit-ai-install.html" lang="zh-Hant">繁體中文版本</a></p>
     <h1>Instructions for an AI<br>to install or upgrade safely.</h1>
     <p class="lead">This page is for an agentic AI that can read and write the local folder and run terminal commands. The user should not have to choose an npm command or diagnose a conflict. Read this page before acting in the folder.</p>
-    <p><strong>Version note:</strong> this page is aligned with v0.3.48. <code>@latest</code> means the version currently available from the npm registry.</p>
+    <p><strong>Version note:</strong> this page is aligned with v0.3.49. <code>@latest</code> means the version currently available from the npm registry.</p>
     <div class="prompt"><h2>The user only needs to paste this</h2><div class="code">Please read https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html, and install or upgrade Agent Handoff Kit in this folder.</div></div>
     <div class="ok"><h2>The AI must give this report when it finishes</h2><p>Before running any <code>npx</code> command, remember this section. After installation or upgrade, the AI must not say only “completed” or paste only terminal output. It must explain the result and next step to the user in the following format.</p><p><strong>Completion-report template:</strong> ✅ Installation completed. 📁 Current folder: &lt;absolute path&gt;. 🩺 <code>doctor</code> passed. ⚠️ The next step is not a terminal command; in an AI conversation that can read and write this folder, enter <code>Start Agent Handoff</code> or “開工”. Only if the AI has not yet been pointed at this folder, use: <code>Work in &lt;absolute path&gt;. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</code></p></div>
   </div></header>
@@ -40,7 +40,7 @@
       <article class="card"><h3>Case 2: Kit or AI memory files already exist</h3><p>If any Kit file or existing AI memory file exists, preview the upgrade first. Do not overwrite directly.</p><div class="code">npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run --root .</div></article>
     </div>
     <div class="ok"><strong>Only when the preview reports no conflict:</strong> run the confirmed upgrade.<div class="code">npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes --root .</div></div>
-    <div class="stop"><strong>If the preview reports a conflict:</strong> stop and keep zero writes. The AI first checks the actual project version, target version, and current transaction state shown by the CLI, then reads the difference between the conflict file and its formal source. Old migration folders, stages, or rolled-back reports are only historical evidence; they do not represent the current version. Only a formal old file that can be proved unchanged may be automatically migrated by the new version. If the content is genuinely customised or its source is unclear, stop conservatively. Ordinary users do not need to decide technical differences and must not bypass the boundary by reinstalling or replacing the whole file.</div>
+    <div class="stop"><strong>If the preview reports a conflict:</strong> stop and keep zero writes. The user does not need to judge technical differences or choose an npm command. The AI that can read and write this folder must read the CLI output, the conflicting files, and the formal sources, ask the user before making repair writes, then merge the project-specific content with the new Kit requirements. An unknown local hash is only evidence that the content exists and was not swapped; it is not permission for Kit to understand or overwrite it. After the merge, rerun <code>upgrade --dry-run</code>, then validate with <code>doctor</code> and hash/readback evidence. Report to the Kit maintainer only if the evidence shows Kit misclassified an unchanged formal old file. Do not reinstall or replace whole files to bypass the conflict.</div>
   </div></section>
 
   <section><div class="wrap">

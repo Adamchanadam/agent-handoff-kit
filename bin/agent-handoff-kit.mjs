@@ -876,7 +876,8 @@ async function runInstall(command, root, options, version) {
   if (plan.some((item) => item.action === "conflict")) {
     console.log("");
     console.log("⛔ 升級預檢發現 conflict；治理目標檔、版本與 migration artifact 均沒有寫入。");
-    console.log("📋 下一步：由 Kit 開發者或可讀取檔案的 AI 核對來源、差異與安全合併路徑；一般使用者毋須判斷技術差異。不要把歷史 stage、舊報告或版本列當作目前交易。");
+    console.log("📌 舊 migration stage、已回滾報告或版本列只屬證據，不代表目前交易。");
+    console.log(conflictRepairNextStepLine());
     process.exitCode = 1;
     return;
   }
@@ -7360,6 +7361,11 @@ function planIntroFor(command, mode, isDryRun) {
   return `${prefix} create 代表建立缺少檔案；merge 代表先備份再合併；skip 代表保留既有檔案；conflict 代表工具零寫入停手並提供技術證據。`;
 }
 
+function conflictRepairNextStepLine(icon = "📋", suffix = "") {
+  const suffixText = suffix ? ` ${suffix}` : "";
+  return `${icon} 下一步：你不用判斷技術差異，也不要重裝或整檔覆寫。請回到能讀寫這個資料夾的 AI，讓 AI 依這段輸出、本地檔案與正式來源做授權合併；合併後重新執行 upgrade --dry-run，再用 doctor 與 hash 讀回驗收。未知本地 hash 只作內容 witness，不代表 Kit 可以理解或覆寫。只有能證明這是 Kit 誤判未改動的正式舊檔時，才把版本、來源與 hash 證據回報 Kit maintainer。${suffixText}`;
+}
+
 // R-026 CLI Output Contract: install/upgrade 完成必含四項（版本／模式／剛完成／下一步）。
 function printInstallSummary(version, command, mode, root, counts) {
   console.log(`\n✅ created: ${counts.created}`);
@@ -7373,7 +7379,7 @@ function printInstallSummary(version, command, mode, root, counts) {
   console.log(`🛠️  模式：${mode}`);
   console.log(`🔎 剛完成：${command} 命令；create ${counts.created} / merge ${counts.merged} / skip ${counts.skipped} / conflict ${counts.conflicts}。`);
   if (counts.conflicts > 0) {
-    console.log("🚀 下一步：把這段輸出交給 Kit 開發者或可讀取專案的 AI 核對正式來源及差異；一般使用者毋須裁決技術內容。工具已停手，沒有覆寫 conflict 檔案。");
+    console.log(conflictRepairNextStepLine("🚀", "工具已停手，沒有覆寫 conflict 檔案。"));
   } else if (command === "upgrade") {
     console.log("🚀 下一步：本次提交已先經同一輪正式 doctor 讀回；請留意下方提交與健康結果。");
   } else if (counts.skipped > 0) {
@@ -7402,7 +7408,7 @@ function printDryRunExplanation(command, mode, plan) {
   }
   console.log(`⚠️  技術核對未完成：有 ${conflicts.length} 個既有檔案，工具目前不能證明可安全合併。`);
   console.log("⚠️  這不是檔案壞掉，也沒有覆寫你的檔案。");
-  console.log("📋 下一步：把這段輸出交給 Kit 開發者或可讀取專案的 AI，由它核對正式來源及差異；一般使用者毋須閱讀或裁決檔案內容。");
+  console.log(conflictRepairNextStepLine());
 }
 
 async function confirmWrite() {
@@ -7581,7 +7587,7 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
   if (conflictCount > 0) {
     console.log("⚠️  狀態：有既有檔案未能證明可安全合併。");
     console.log("⚠️  這不是檔案壞掉；工具已停手，沒有覆寫 conflict 檔案。");
-    console.log("📋 下一步：把這段輸出交給 Kit 開發者或可讀取專案的 AI 核對來源與差異；一般使用者毋須判斷檔案內容。");
+    console.log(conflictRepairNextStepLine());
     console.log("");
   }
   if (skippedCount > 0) {
@@ -7624,7 +7630,7 @@ function printUpgradeNextSteps(root, conflictCount) {
     console.log("============================================================");
     console.log("⚠️  狀態：工具已保守停手，沒有建立目前交易或覆寫檔案。");
     console.log("⚠️  這不是檔案壞掉；工具已停手，沒有覆寫 conflict 檔案。");
-    console.log("📋 下一步：把這段輸出交給 Kit 開發者或可讀取專案的 AI 核對正式來源及差異；一般使用者毋須裁決技術內容。");
+    console.log(conflictRepairNextStepLine());
     console.log("============================================================");
     return;
   }

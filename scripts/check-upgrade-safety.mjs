@@ -118,6 +118,14 @@ function checkConflictZeroWrite() {
   writeFileSync(path.join(project, "CLAUDE.md"), claude, "utf8");
   const result = cli(["upgrade", "--yes", "--root", project], "formal conflict", { allowFailure: true });
   assert(result.status !== 0 && output(result).includes("升級預檢發現 conflict"), "formal conflict was not blocked");
+  assert(output(result).includes("你不用判斷技術差異"), "formal conflict did not keep technical judgement away from users");
+  assert(output(result).includes("能讀寫這個資料夾的 AI"), "formal conflict did not route repair to the project AI");
+  assert(output(result).includes("授權合併"), "formal conflict did not require authorized semantic repair");
+  assert(output(result).includes("doctor 與 hash 讀回驗收"), "formal conflict did not require doctor plus hash/readback validation");
+  assert(output(result).includes("未知本地 hash 只作內容 witness"), "formal conflict did not classify unknown hash as witness only");
+  for (const forbidden of ["Kit 開發者", "可讀取專案的 AI", "可讀取檔案的 AI", "support local hash", "支援本地 hash", "maintainer local-hash"]) {
+    assert(!output(result).includes(forbidden), `formal conflict retained stale repair route: ${forbidden}`);
+  }
   assert(read(path.join(project, "CLAUDE.md")) === claude, "formal conflict overwrote the custom bridge");
   assert(!existsSync(path.join(project, "dev")), "formal conflict wrote governance targets or migration artifacts");
   console.log("ok: formal conflict has zero governance writes");

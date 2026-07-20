@@ -90,7 +90,7 @@ function validateReleasePackageContract() {
 
 function validatePublicMirrorContract() {
   assert(PUBLIC_MIRROR_CONTRACT.schemaVersion === 1, "unexpected public mirror contract schema version");
-  assert(PUBLIC_MIRROR_CONTRACT.expectedFileCount === 108, "public mirror file count contract drifted");
+  assert(PUBLIC_MIRROR_CONTRACT.expectedFileCount === 109, "public mirror file count contract drifted");
 }
 
 function validateR034ArtifactContract() {
@@ -135,7 +135,7 @@ function validateReleaseReadinessInventory() {
 }
 
 function validateCommandDocumentation() {
-  const publicQa = readFileSync(path.join(root, "docs", "qa", "release-grade-qa.md"), "utf8");
+  const publicQa = readFileSync(path.join(root, "docs", "qa", "release-grade-qa.md"), "utf8").replace(/\r\n/g, "\n");
   assert(publicQa.includes(commandDocumentation()), "public QA command block does not match the manifest");
 }
 

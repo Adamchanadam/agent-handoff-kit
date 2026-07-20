@@ -1,5 +1,15 @@
 # 變更紀錄
 
+## v0.3.49 — 2026-07-20
+
+狀態：source package version。本版修正 conflict / blocker 出現時的產品路徑：未知本地 hash 只作 witness；用戶只確認需求和授權；能讀寫該專案的 AI 負責語意合併；Kit 以 dry-run、doctor 與 hash / readback 驗收。正式發布狀態由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+### Conflict 升級指引收口
+
+- CLI conflict 輸出不再把一般用戶推去做技術裁決，也不把維護者收納用戶本地內容當成產品路徑。
+- AI 安裝頁中英文版本同步說明：不要重裝或整檔覆寫；先由能讀寫資料夾的 AI 在用戶授權下合併，再驗收。
+- `release-readiness` 與 `upgrade-safety` 檢查加入 conflict-role wording guard，防止舊錯誤路線回流。
+
 ## v0.3.48 — 2026-07-19
 
 狀態：source package version。本版修補 v0.3.47 發佈後發現的合法升級阻塞：舊 runtime 已接受的 `dev/session_log_archive` lowercase archive witness，現在可在同一 upgrade transaction 內遷移到 canonical `dev/SESSION_LOG_archive`。正式發布狀態由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
@@ -112,7 +122,7 @@
 - 21 個安裝檔路徑及遷移策略集中到單一契約；歷史內容按 hash 去重，取代只保存 `AGENTS.md`／`PROJECT_INDEX.md` 兩檔的假完整測試及 v0.3.38 專用基線。
 - 精確正式檔辨識不依賴版本列；涉及自訂內容的合併則要求版本列與多個正式檔案指紋一致。版本列偽造、缺失或與檔案世代矛盾時不猜基線。
 - 規則包只自動保留清楚標題分隔的本地附錄；任意改寫官方規則即使行數不重疊，也會零寫入停手，避免把機械合併誤當語意安全。
-- CLI 明示實際項目版本、目標版本及目前交易狀態；舊 migration stage／已回滾報告只屬歷史證據。衝突技術核對由 Kit 開發者或可讀檔的 AI 負責，不再要求一般使用者閱讀檔案後裁決。
+- CLI 明示實際項目版本、目標版本及目前交易狀態；舊 migration stage／已回滾報告只屬歷史證據。現行衝突路徑是由能讀寫該專案的 AI 在用戶授權下核對與合併，再由 Kit 以 dry-run、doctor 與 hash 讀回驗收；只有能證明未改動正式舊檔被 Kit 誤判時才回報 baseline bug，不把一般使用者或維護者收納用戶本地內容當產品路徑。
 - 退役以 `## Architecture` 等常見字串猜測「舊官方 bridge」的過寬捷徑；只有 catalog 可精確證明的正式舊 bridge 才會自動收斂，自訂 `CLAUDE.md`／`GEMINI.md` 會保留或在交易前停手。
 - `dry-run` 與正式升級共用同一套候選內容、機密及完整結構驗收；驗收不通過時，在建立 lock、stage、backup、journal 或 migration 目錄前停手。
 - 交易恢復不再只信任 journal 的 `committed` 旗標：每個目標、stage 及 backup 都要核對路徑、真實位置與雜湊；替換後但 journal 尚未更新的中斷窗可正確辨識。損壞、越界、第三種內容或 junction 一律保留 lock 並在改動目標前停手。

@@ -191,11 +191,11 @@
 
   <header>
     <div class="wrap">
-      <span class="kicker">AI-readable install page · v0.3.48</span>
+      <span class="kicker">AI-readable install page · v0.3.49</span>
       <p style="margin:0 0 18px;"><a href="agent-handoff-kit-ai-install.en.html" lang="en">English version</a></p>
       <h1>給 AI 讀的<br/>安裝與升級指令</h1>
       <p class="lead">本頁給能讀寫本機資料夾、可執行終端機命令的 agentic AI 使用。用戶不用先理解 npm 或選擇指令；AI 讀完本頁後，應在目前資料夾安全判斷要安裝、升級或停止。</p>
-      <p><strong>版本提示：</strong>本頁對齊 v0.3.48；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
+      <p><strong>版本提示：</strong>本頁對齊 v0.3.49；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
 
       <div class="prompt-box">
         <h2>用戶只需貼這一句</h2>
@@ -250,7 +250,7 @@
 
       <div class="stop">
         <strong>預演有 conflict 時：</strong>
-        停止並保持零寫入。AI 先核對 CLI 顯示的實際項目版本、目標版本及目前交易狀態，再讀衝突檔與正式來源的差異；舊 migration 資料夾、stage 或已回滾報告只屬歷史證據，不代表目前版本。可證明為未改動的正式舊檔才交由新版自動遷移；真正自訂或來源不明便保守停手。一般使用者毋須判斷技術差異，也不應以重裝或整檔覆寫繞過。
+        停止並保持零寫入。用戶不用判斷技術差異，也不用選 npm 指令；能讀寫此資料夾的 AI 要讀 CLI 輸出、衝突檔與正式來源，先取得用戶授權，再把本地有價值的內容與新版 Kit 要求合併。未知本地 hash 只證明內容存在且未被偷換，不代表 Kit 可以理解或覆寫。合併後重新跑 `upgrade --dry-run`，再用 `doctor` 與 hash 讀回驗收；只有能證明是 Kit 誤判未改動的正式舊檔時，才把版本、來源與 hash 證據回報 Kit maintainer。不要用重裝或整檔覆寫繞過 conflict。
       </div>
     </div>
   </section>

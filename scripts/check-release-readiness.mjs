@@ -691,8 +691,12 @@ function checkAiInstallPageContract(version) {
     "npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .",
     "預演有 conflict 時",
     "停止並保持零寫入",
-    "舊 migration 資料夾、stage 或已回滾報告只屬歷史證據",
-    "一般使用者毋須判斷技術差異",
+    "用戶不用判斷技術差異，也不用選 npm 指令",
+    "能讀寫此資料夾的 AI",
+    "先取得用戶授權",
+    "未知本地 hash 只證明內容存在且未被偷換",
+    "`doctor` 與 hash 讀回驗收",
+    "不要用重裝或整檔覆寫繞過 conflict",
     "Start Agent Handoff",
     "AI 完成後必須回覆這份報告",
     "執行任何 `npx` 命令前，先記住本段",
@@ -731,6 +735,16 @@ function checkAiInstallPageContract(version) {
     assert(plain.includes(action), `AI install page must explicitly forbid or mention safe boundary for: ${action}`);
   }
   assert(plain.includes("不刪除") && plain.includes("不覆寫衝突"), "AI install page must forbid deletion and conflict overwrite");
+  for (const forbidden of [
+    "Kit 開發者",
+    "可讀取專案的 AI",
+    "可讀取檔案的 AI",
+    "支援本地 hash",
+    "maintainer local-hash",
+    "舊 migration 資料夾、stage 或已回滾報告只屬歷史證據"
+  ]) {
+    assert(!plain.includes(forbidden), `AI install page retained stale conflict route: ${forbidden}`);
+  }
   assert(!read("package.json").includes("agent-handoff-kit-ai-install.html"), "AI install page must remain outside npm files whitelist");
   console.log("ok: AI install page contract");
 }
@@ -1494,13 +1508,24 @@ function simulateScenarioBranching() {
     mustHave: [
       /conflict: 1/,
       /升級預檢發現 conflict/,
-      /治理目標檔、版本與 migration artifact 均沒有寫入/
+      /治理目標檔、版本與 migration artifact 均沒有寫入/,
+      /你不用判斷技術差異/,
+      /能讀寫這個資料夾的 AI/,
+      /授權合併/,
+      /doctor 與 hash 讀回驗收/,
+      /未知本地 hash 只作內容 witness/
     ],
     mustNotHave: [
       /✅ 升級完成：/,
       /migration report:/,
       /升級後自動檢查/,
-      /I just upgraded agent-handoff-kit/
+      /I just upgraded agent-handoff-kit/,
+      /Kit 開發者/,
+      /可讀取專案的 AI/,
+      /可讀取檔案的 AI/,
+      /support local hash/,
+      /支援本地 hash/,
+      /maintainer local-hash/
     ]
   });
   const s5ClaudePost = readFileSync(s5ClaudePath, "utf8");
@@ -2093,7 +2118,7 @@ function checkCandidateWorktreeIsClean() {
 }
 
 function checkQaCommandDocumentation() {
-  const text = read("docs/qa/release-grade-qa.md");
+  const text = read("docs/qa/release-grade-qa.md").replace(/\r\n/g, "\n");
   assert(text.includes(commandDocumentation()), "public QA command block drifted from the assurance manifest");
   assert(text.includes("Historical release records below are evidence, not the current QA command contract."), "public QA document does not distinguish historical evidence from current commands");
   console.log("ok: public QA command documentation is manifest-owned");

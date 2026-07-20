@@ -97,7 +97,7 @@ export const RELEASE_PACKAGE_CONTRACT = Object.freeze({
 
 export const PUBLIC_MIRROR_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  expectedFileCount: 108
+  expectedFileCount: 109
 });
 
 export const R034_ARTIFACT_CONTRACT = Object.freeze({

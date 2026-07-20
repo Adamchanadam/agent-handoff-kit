@@ -53,6 +53,7 @@ function main() {
 
   try {
     for (const version of npmVersions) {
+      if (reusePreviousVersion({ version, remoteTags, releases, catalog, previousCatalog })) continue;
       generateVersion({ version, workspace, downloadsDir, remoteTags, releases, catalog, previousCatalog });
     }
   } finally {
@@ -167,6 +168,45 @@ function generateVersion({ version, workspace, downloadsDir, remoteTags, release
     ? { source, manifest, managedSegments: priorManagedSegments }
     : { source, manifest };
   console.log(`ok: ${versionKey} (${Object.values(manifest).filter((item) => item.state === "present").length} installed files)`);
+}
+
+function reusePreviousVersion({ version, remoteTags, releases, catalog, previousCatalog }) {
+  const previous = previousCatalog?.releases?.[version];
+  if (!previous) return false;
+  const remoteTag = remoteTags.get(version);
+  const githubRelease = releases.get(version);
+  const expectedTargets = installedFileContracts.map(({ targetRel }) => targetRel);
+  if (JSON.stringify(Object.keys(previous.manifest ?? {})) !== JSON.stringify(expectedTargets)) return false;
+  if (JSON.stringify(previous.source?.git) !== JSON.stringify({
+    tag: `v${version}`,
+    directObject: remoteTag?.directObject,
+    peeledCommit: remoteTag?.peeledCommit,
+    commit: remoteTag?.commit
+  })) return false;
+  if (JSON.stringify(previous.source?.githubRelease) !== JSON.stringify({
+    tag: `v${version}`,
+    publishedAt: githubRelease?.publishedAt
+  })) return false;
+
+  const fixtureManifestPath = path.join(fixturesDir, `v${version}`, "fixture-manifest.json");
+  if (!existsSync(fixtureManifestPath)) return false;
+  const fixtureManifest = JSON.parse(readFileSync(fixtureManifestPath, "utf8"));
+  if (JSON.stringify(fixtureManifest.source) !== JSON.stringify(previous.source)) return false;
+  if (JSON.stringify(fixtureManifest.installedTargets) !== JSON.stringify(previous.manifest)) return false;
+
+  copyReferencedContents(previous, catalog, previousCatalog);
+  catalog.releases[version] = previous;
+  console.log(`ok: v${version} (reused official fixture)`);
+  return true;
+}
+
+function copyReferencedContents(release, catalog, previousCatalog) {
+  for (const entry of Object.values(release.manifest)) {
+    if (entry.state !== "present") continue;
+    const content = previousCatalog.contents?.[entry.contentId];
+    if (!content) throw new Error(`previous catalog content missing: ${entry.contentId}`);
+    catalog.contents[entry.contentId] = content;
+  }
 }
 
 function readPreviousCatalog() {
