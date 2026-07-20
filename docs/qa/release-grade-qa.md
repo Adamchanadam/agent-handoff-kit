@@ -20,8 +20,9 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 ### Full-check role isolation（v0.3.49）
 
-- 狀態：WAITING_INDEPENDENT_REVIEW。writer 已完成 five-conclusion writer assessment；正式 `full` gate 必須等 clean commit、獨立 read-only reviewer receipt、candidate commit、tarball SHA-256、manifest digest、review subject digest 和五項結論全部綁定後才可通過。
+- 狀態：WAITING_INDEPENDENT_REVIEW。writer 已完成 five-conclusion writer assessment；正式 `full` gate 必須等 clean commit、獨立 read-only reviewer receipt、candidate commit、tarball SHA-256、manifest digest、review bundle SHA-256、review subject digest 和五項結論全部綁定後才可通過。
 - 邊界：thread / role 欄位只作 audit provenance，不是密碼學身份證明，也不是 CLI 資料操作信任根。候選凍結後如 tracked candidate 改動，原 review receipt 自動失效。
+- Runner 綁定：`full` 會讀取 review bundle JSON，重算 `sha256(JSON.stringify(bundle.reviewSubject))`，並核對 bundle、evidence、receipt 與 clean HEAD 的 candidate、tarball、manifest、inventory、state history 和五項結論一致；bundle + evidence 一起被替換但沿用舊 receipt 時必須 hard fail。
 - 五項 writer assessment：governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting 均為 writer-observed passed；這不是 independent review verdict，也不是 release-ready statement。
 
 ### Bilingual README semantic gate（v0.3.49，PASS）

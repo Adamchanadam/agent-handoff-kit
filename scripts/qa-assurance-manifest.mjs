@@ -155,6 +155,7 @@ export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
       "candidate.tarballSha256",
       "manifestDigest",
       "releaseReadinessInventoryDigest",
+      "reviewBundle.sha256",
       "reviewSubjectDigest",
       "manualVerdicts"
     ])

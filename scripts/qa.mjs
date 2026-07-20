@@ -170,7 +170,7 @@ function validateRoleIsolationEvidence(evidence, head) {
   assert(typeof evidence.writerProvenance?.provenanceId === "string" && evidence.writerProvenance.provenanceId, "candidate evidence writer provenanceId is required");
   assert(isSha256(evidence.roleIsolation?.reviewSubjectDigest, 64), "candidate evidence requires reviewSubjectDigest");
   assertValidStateHistory(evidence.roleIsolation?.stateHistory, contract.fullGateAcceptedPath);
-  validateReviewBundle(evidence.roleIsolation?.reviewBundle);
+  const bundle = validateReviewBundle(evidence.roleIsolation?.reviewBundle, evidence, head);
 
   const receipt = evidence.reviewReceipt;
   assert(receipt && typeof receipt === "object" && !Array.isArray(receipt), "full gate requires an independent review receipt");
@@ -184,6 +184,7 @@ function validateRoleIsolationEvidence(evidence, head) {
   assert(receipt.candidate?.tarballSha256 === evidence.candidate.tarballSha256, "review receipt tarballSha256 does not match evidence");
   assert(receipt.manifestDigest === evidence.manifestDigest, "review receipt manifestDigest does not match evidence");
   assert(receipt.releaseReadinessInventoryDigest === evidence.releaseReadinessInventoryDigest, "review receipt release-readiness inventory digest does not match evidence");
+  assert(receipt.reviewBundleSha256 === bundle.sha256, "review receipt reviewBundleSha256 does not match current review bundle");
   assert(receipt.reviewSubjectDigest === evidence.roleIsolation.reviewSubjectDigest, "review receipt reviewSubjectDigest does not match evidence");
   assert(validManualVerdicts(receipt.fiveConclusions), "review receipt must carry the same five passed full-check conclusions");
   assert(JSON.stringify(receipt.fiveConclusions) === JSON.stringify(evidence.manualVerdicts), "review receipt five conclusions do not match candidate evidence");
@@ -197,13 +198,51 @@ function assertValidStateHistory(history, requiredPath) {
   assert(JSON.stringify(actual) === JSON.stringify(requiredPath), `full gate requires exact accepted state path: ${requiredPath.join(" -> ")}`);
 }
 
-function validateReviewBundle(bundle) {
+function validateReviewBundle(bundle, evidence, head) {
   assert(bundle && typeof bundle === "object" && !Array.isArray(bundle), "candidate evidence requires reviewBundle binding");
   assert(typeof bundle.path === "string" && bundle.path, "reviewBundle.path is required");
   assert(isSha256(bundle.sha256, 64), "reviewBundle.sha256 is required");
   const absolute = path.resolve(bundle.path);
   assert(existsSync(absolute), `review bundle does not exist: ${absolute}`);
-  assert(sha256(readFileSync(absolute)) === bundle.sha256.toLowerCase(), "review bundle sha256 does not match file bytes");
+  const bytes = readFileSync(absolute);
+  const actualSha256 = sha256(bytes);
+  assert(actualSha256 === bundle.sha256.toLowerCase(), "review bundle sha256 does not match file bytes");
+  const parsed = parseReviewBundle(bytes, absolute);
+  assert(parsed.kind === "role-isolation-review-bundle" && parsed.schemaVersion === 1, "review bundle has the wrong schema");
+  assert(parsed.state === "WAITING_INDEPENDENT_REVIEW" || parsed.state === "REVIEW_ACCEPTED", "review bundle state must be waiting or accepted for full evidence");
+  assert(parsed.candidate?.version === evidence.candidate.version, "review bundle candidate version does not match evidence");
+  assert(parsed.candidate?.commit === evidence.candidate.commit && parsed.candidate.commit === head, "review bundle candidate commit does not match clean HEAD");
+  assert(parsed.candidate?.tarballSha256 === evidence.candidate.tarballSha256, "review bundle tarballSha256 does not match evidence");
+  assert(parsed.manifestDigest === evidence.manifestDigest, "review bundle manifestDigest does not match evidence");
+  assert(parsed.releaseReadinessInventoryDigest === evidence.releaseReadinessInventoryDigest, "review bundle release-readiness inventory digest does not match evidence");
+  assert(Array.isArray(parsed.stateHistory), "review bundle requires stateHistory");
+  assert(JSON.stringify(parsed.stateHistory) === JSON.stringify(evidence.roleIsolation.stateHistory), "review bundle stateHistory does not match evidence");
+  assert(validBundleConclusions(parsed, evidence.manualVerdicts), "review bundle five conclusions do not match candidate evidence");
+  assert(parsed.reviewSubject && typeof parsed.reviewSubject === "object" && !Array.isArray(parsed.reviewSubject), "review bundle requires reviewSubject");
+  const computedSubjectDigest = sha256(Buffer.from(JSON.stringify(parsed.reviewSubject), "utf8"));
+  assert(parsed.reviewSubjectDigest === computedSubjectDigest, "review bundle reviewSubjectDigest does not match reviewSubject bytes");
+  assert(parsed.reviewSubjectDigest === evidence.roleIsolation.reviewSubjectDigest, "review bundle reviewSubjectDigest does not match evidence");
+  assert(parsed.reviewSubject?.candidateCommit === evidence.candidate.commit, "reviewSubject candidateCommit does not match evidence");
+  assert(parsed.reviewSubject?.tarballSha256 === evidence.candidate.tarballSha256, "reviewSubject tarballSha256 does not match evidence");
+  assert(parsed.reviewSubject?.manifestDigest === evidence.manifestDigest, "reviewSubject manifestDigest does not match evidence");
+  assert(parsed.reviewSubject?.releaseReadinessInventoryDigest === evidence.releaseReadinessInventoryDigest, "reviewSubject release-readiness inventory digest does not match evidence");
+  assert(JSON.stringify(parsed.reviewSubject?.manualVerdicts) === JSON.stringify(evidence.manualVerdicts), "reviewSubject manualVerdicts do not match evidence");
+  assert(JSON.stringify(parsed.reviewSubject?.stateHistory) === JSON.stringify(evidence.roleIsolation.stateHistory), "reviewSubject stateHistory does not match evidence");
+  return { path: absolute, sha256: actualSha256, value: parsed };
+}
+
+function parseReviewBundle(bytes, absolute) {
+  try {
+    return JSON.parse(bytes.toString("utf8"));
+  } catch (error) {
+    throw new Error(`invalid review bundle JSON (${absolute}): ${error.message}`);
+  }
+}
+
+function validBundleConclusions(bundle, manualVerdicts) {
+  if (JSON.stringify(bundle.fiveConclusions) === JSON.stringify(manualVerdicts)) return true;
+  const assessment = bundle.writerAssessment;
+  return CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.every((key) => assessment?.[key]?.verdict === manualVerdicts?.[key]);
 }
 
 function validateCandidateReportSection(version) {

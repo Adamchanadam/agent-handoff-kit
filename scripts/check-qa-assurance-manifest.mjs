@@ -100,7 +100,7 @@ function validateCandidateEvidenceContract() {
     "WAITING_INDEPENDENT_REVIEW",
     "REVIEW_ACCEPTED"
   ]), "full gate accepted path drifted");
-  for (const binding of ["candidate.commit", "candidate.tarballSha256", "manifestDigest", "releaseReadinessInventoryDigest", "reviewSubjectDigest", "manualVerdicts"]) {
+  for (const binding of ["candidate.commit", "candidate.tarballSha256", "manifestDigest", "releaseReadinessInventoryDigest", "reviewBundle.sha256", "reviewSubjectDigest", "manualVerdicts"]) {
     assert(roleIsolation.reviewReceiptBindings.includes(binding), `review receipt binding missing: ${binding}`);
   }
   const releaseReadiness = CANDIDATE_EVIDENCE_CONTRACT.records["release-readiness"];
@@ -206,20 +206,28 @@ function validateEvidenceContracts() {
     rulesPacksRouting: "passed"
   };
   const roleStateHistory = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.fullGateAcceptedPath;
-  const reviewSubjectDigest = sha256(JSON.stringify({
+  const reviewSubject = {
     version,
-    head,
-    releaseQaSha256,
+    candidateCommit: head,
+    tarballSha256: candidateTarballSha256,
+    manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    releaseQa: { path: releaseQaPath, sha256: releaseQaSha256 },
     manualVerdicts,
-    roleStateHistory
-  }));
+    stateHistory: roleStateHistory
+  };
+  const reviewSubjectDigest = sha256(JSON.stringify(reviewSubject));
   writeEvidence(reviewBundle, {
     schemaVersion: 1,
     kind: "role-isolation-review-bundle",
+    state: "REVIEW_ACCEPTED",
+    stateHistory: roleStateHistory,
     candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
-    reviewSubjectDigest
+    fiveConclusions: manualVerdicts,
+    reviewSubjectDigest,
+    reviewSubject
   });
   const reviewBundleSha256 = sha256(readFileSync(reviewBundle));
   const publishedTarballSha256 = "b".repeat(64);
@@ -272,6 +280,7 @@ function validateEvidenceContracts() {
       candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
       manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
       releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+      reviewBundleSha256,
       reviewSubjectDigest,
       fiveConclusions: manualVerdicts,
       receivedAt: "2026-07-20T00:00:00.000Z"
@@ -317,6 +326,72 @@ function validateEvidenceContracts() {
 
   writeEvidence(candidate, { ...validCandidate, roleIsolation: { ...validCandidate.roleIsolation, reviewBundle: { path: reviewBundle, sha256: "0".repeat(64) } } });
   invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "review bundle digest drift", { env: selfTestEnv });
+
+  const replacedReviewSubject = { ...reviewSubject, postReviewSubstitution: true };
+  const replacedReviewSubjectDigest = sha256(JSON.stringify(replacedReviewSubject));
+  writeEvidence(reviewBundle, {
+    schemaVersion: 1,
+    kind: "role-isolation-review-bundle",
+    state: "REVIEW_ACCEPTED",
+    stateHistory: roleStateHistory,
+    candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
+    manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    fiveConclusions: manualVerdicts,
+    reviewSubjectDigest: replacedReviewSubjectDigest,
+    reviewSubject: replacedReviewSubject
+  });
+  const replacedReviewBundleSha256 = sha256(readFileSync(reviewBundle));
+  writeEvidence(candidate, {
+    ...validCandidate,
+    roleIsolation: {
+      ...validCandidate.roleIsolation,
+      reviewSubjectDigest: replacedReviewSubjectDigest,
+      reviewBundle: { path: reviewBundle, sha256: replacedReviewBundleSha256 }
+    }
+  });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "post-review bundle substitution with old receipt", { env: selfTestEnv });
+
+  writeEvidence(reviewBundle, {
+    schemaVersion: 1,
+    kind: "role-isolation-review-bundle",
+    state: "REVIEW_ACCEPTED",
+    stateHistory: roleStateHistory,
+    candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
+    manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    fiveConclusions: manualVerdicts,
+    reviewSubjectDigest: "8".repeat(64),
+    reviewSubject
+  });
+  const arbitraryDigestBundleSha256 = sha256(readFileSync(reviewBundle));
+  writeEvidence(candidate, {
+    ...validCandidate,
+    roleIsolation: {
+      ...validCandidate.roleIsolation,
+      reviewSubjectDigest: "8".repeat(64),
+      reviewBundle: { path: reviewBundle, sha256: arbitraryDigestBundleSha256 }
+    },
+    reviewReceipt: {
+      ...validCandidate.reviewReceipt,
+      reviewBundleSha256: arbitraryDigestBundleSha256,
+      reviewSubjectDigest: "8".repeat(64)
+    }
+  });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "arbitrary reviewSubjectDigest not backed by bundle subject", { env: selfTestEnv });
+
+  writeEvidence(reviewBundle, {
+    schemaVersion: 1,
+    kind: "role-isolation-review-bundle",
+    state: "REVIEW_ACCEPTED",
+    stateHistory: roleStateHistory,
+    candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
+    manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    fiveConclusions: manualVerdicts,
+    reviewSubjectDigest,
+    reviewSubject
+  });
 
   writeEvidence(candidate, { ...validCandidate, manifestDigest: "1".repeat(64) });
   invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "candidate manifest digest drift", { env: selfTestEnv });
