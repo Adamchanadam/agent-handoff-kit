@@ -75,10 +75,38 @@ function validateReleaseStateContract() {
 
 function validateCandidateEvidenceContract() {
   assert(CANDIDATE_EVIDENCE_CONTRACT.schemaVersion === 1, "unexpected candidate evidence contract schema version");
+  assert(JSON.stringify(CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys) === JSON.stringify([
+    "governanceHealth",
+    "productJourney",
+    "userJourney",
+    "qcBackflow",
+    "rulesPacksRouting"
+  ]), "candidate evidence manual verdict contract drifted");
+  const roleIsolation = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation;
+  assert(roleIsolation.writerRole === "workspace-writer", "writer role contract drifted");
+  assert(roleIsolation.reviewerRole === "independent-readonly-reviewer", "reviewer role contract drifted");
+  assert(roleIsolation.provenanceBoundary.includes("audit provenance only"), "role provenance boundary must not become an identity trust root");
+  assert(roleIsolation.provenanceBoundary.includes("never authorize CLI data operations"), "role provenance boundary must not become a CLI data-operation trust root");
+  assert(roleIsolation.stateMachine.includes("WAITING_INDEPENDENT_REVIEW"), "role-isolation state machine missing waiting state");
+  assert(roleIsolation.stateMachine.includes("REVIEW_REJECTED"), "role-isolation state machine missing rejected branch");
+  assert(JSON.stringify(roleIsolation.fullGateAcceptedPath) === JSON.stringify([
+    "PLAN_FROZEN",
+    "BASELINE_VERIFIED",
+    "GOVERNANCE_CONTRACT_IMPLEMENTED",
+    "EXECUTABLE_CONTRACT_IMPLEMENTED",
+    "WRITER_QC_PASSED",
+    "CANDIDATE_FROZEN",
+    "REVIEW_BUNDLE_READY",
+    "WAITING_INDEPENDENT_REVIEW",
+    "REVIEW_ACCEPTED"
+  ]), "full gate accepted path drifted");
+  for (const binding of ["candidate.commit", "candidate.tarballSha256", "manifestDigest", "releaseReadinessInventoryDigest", "reviewSubjectDigest", "manualVerdicts"]) {
+    assert(roleIsolation.reviewReceiptBindings.includes(binding), `review receipt binding missing: ${binding}`);
+  }
   const releaseReadiness = CANDIDATE_EVIDENCE_CONTRACT.records["release-readiness"];
   assert(releaseReadiness, "release-readiness evidence contract is missing");
   assert(JSON.stringify(releaseReadiness.allowedPaths) === JSON.stringify(["docs/qa/release-grade-qa.md"]), "release-readiness evidence path contract drifted");
-  for (const snippet of ["pre-release final audit", "full 必須等 clean commit", "Verdict: **PASS**"]) {
+  for (const snippet of ["pre-release final audit", "full 必須等 clean commit", "Full-check role isolation", "five-conclusion writer assessment"]) {
     assert(releaseReadiness.requiredReadbackSnippets.includes(snippet), `release-readiness evidence readback snippet missing: ${snippet}`);
   }
 }
@@ -169,6 +197,31 @@ function validateEvidenceContracts() {
   const releaseQaPath = "docs/qa/release-grade-qa.md";
   const releaseQaSha256 = sha256(readFileSync(path.join(root, releaseQaPath)));
   const candidateTarballSha256 = "a".repeat(64);
+  const reviewBundle = path.join(fixtureRoot, "review-bundle.json");
+  const manualVerdicts = {
+    governanceHealth: "passed",
+    productJourney: "passed",
+    userJourney: "passed",
+    qcBackflow: "passed",
+    rulesPacksRouting: "passed"
+  };
+  const roleStateHistory = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.fullGateAcceptedPath;
+  const reviewSubjectDigest = sha256(JSON.stringify({
+    version,
+    head,
+    releaseQaSha256,
+    manualVerdicts,
+    roleStateHistory
+  }));
+  writeEvidence(reviewBundle, {
+    schemaVersion: 1,
+    kind: "role-isolation-review-bundle",
+    candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
+    manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    reviewSubjectDigest
+  });
+  const reviewBundleSha256 = sha256(readFileSync(reviewBundle));
   const publishedTarballSha256 = "b".repeat(64);
   const npxHelpSha256 = "c".repeat(64);
   const gitCommit = "4".repeat(40);
@@ -202,13 +255,32 @@ function validateEvidenceContracts() {
     kind: "candidate-assurance",
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
-    candidate: { version, packageJsonVersion: version, commit: head, tarballSha256: candidateTarballSha256 },
-    manualVerdicts: { governanceHealth: "passed", productJourney: "passed", userJourney: "passed", qcBackflow: "passed" },
+    candidate: { version, packageJsonVersion: version, commit: head, cleanWorktree: true, tarballSha256: candidateTarballSha256 },
+    writerProvenance: { role: "workspace-writer", provenanceId: "self-test-writer-thread" },
+    manualVerdicts,
+    roleIsolation: {
+      provenanceBoundary: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.provenanceBoundary,
+      stateHistory: roleStateHistory,
+      reviewSubjectDigest,
+      reviewBundle: { path: reviewBundle, sha256: reviewBundleSha256 }
+    },
+    reviewReceipt: {
+      schemaVersion: 1,
+      verdict: "accepted",
+      provenanceBoundary: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.provenanceBoundary,
+      reviewer: { role: "independent-readonly-reviewer", provenanceId: "self-test-reviewer-thread" },
+      candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
+      manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+      releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+      reviewSubjectDigest,
+      fiveConclusions: manualVerdicts,
+      receivedAt: "2026-07-20T00:00:00.000Z"
+    },
     evidence: [{
       claimId: "release-readiness",
       path: releaseQaPath,
       sha256: releaseQaSha256,
-      readback: "self-test pre-release final audit readback; full 必須等 clean commit; Verdict: **PASS**"
+      readback: "self-test pre-release final audit readback; full 必須等 clean commit; Full-check role isolation; five-conclusion writer assessment"
     }]
   };
   const candidate = path.join(fixtureRoot, "candidate.json");
@@ -220,6 +292,59 @@ function validateEvidenceContracts() {
 
   writeEvidence(candidate, { ...validCandidate, evidence: [{ ...validCandidate.evidence[0], sha256: "0".repeat(64) }] });
   invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "candidate evidence file hash mismatch", { env: selfTestEnv });
+
+  writeEvidence(candidate, { ...validCandidate, reviewReceipt: undefined });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "writer self-filled verdict without reviewer receipt", { env: selfTestEnv });
+
+  writeEvidence(candidate, {
+    ...validCandidate,
+    reviewReceipt: {
+      ...validCandidate.reviewReceipt,
+      reviewer: { role: "independent-readonly-reviewer", provenanceId: validCandidate.writerProvenance.provenanceId }
+    }
+  });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "writer self-review rejected", { env: selfTestEnv });
+
+  const fourVerdicts = { governanceHealth: "passed", productJourney: "passed", userJourney: "passed", qcBackflow: "passed" };
+  writeEvidence(candidate, { ...validCandidate, manualVerdicts: fourVerdicts, reviewReceipt: { ...validCandidate.reviewReceipt, fiveConclusions: fourVerdicts } });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "missing fifth full-check conclusion", { env: selfTestEnv });
+
+  writeEvidence(candidate, {
+    ...validCandidate,
+    roleIsolation: { ...validCandidate.roleIsolation, stateHistory: roleStateHistory.filter((state) => state !== "BASELINE_VERIFIED") }
+  });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "role isolation skipped state", { env: selfTestEnv });
+
+  writeEvidence(candidate, { ...validCandidate, roleIsolation: { ...validCandidate.roleIsolation, reviewBundle: { path: reviewBundle, sha256: "0".repeat(64) } } });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "review bundle digest drift", { env: selfTestEnv });
+
+  writeEvidence(candidate, { ...validCandidate, manifestDigest: "1".repeat(64) });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "candidate manifest digest drift", { env: selfTestEnv });
+
+  writeEvidence(candidate, { ...validCandidate, candidate: { ...validCandidate.candidate, commit: "9".repeat(40) } });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "review after tracked candidate commit drift", { env: selfTestEnv });
+
+  writeEvidence(candidate, {
+    ...validCandidate,
+    evidence: [{
+      ...validCandidate.evidence[0],
+      readback: "self-test pre-release final audit readback; full 必須等 clean commit; Full-check role isolation; five-conclusion writer assessment\n| Trigger | Applies | Status | Notes |\n|---|---|---|---|\n| 6. Semantic runtime effect | yes | pending | self-test false green |"
+    }]
+  });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "pending or blocked status cannot be filled as PASS", { env: selfTestEnv });
+
+  writeEvidence(candidate, {
+    ...validCandidate,
+    roleIsolation: {
+      ...validCandidate.roleIsolation,
+      stateHistory: roleStateHistory.slice(0, roleStateHistory.indexOf("WAITING_INDEPENDENT_REVIEW") + 1)
+    },
+    reviewReceipt: undefined
+  });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "full gate before independent review accepted", { env: selfTestEnv });
+
+  writeEvidence(candidate, { ...validCandidate, candidate: { ...validCandidate.candidate, cleanWorktree: false } });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "dirty or concurrent candidate rejected", { env: selfTestEnv });
 
   const validPostpublish = {
     schemaVersion: 1,

@@ -12,11 +12,17 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 ```
 <!-- qa-assurance-command:block:end -->
 
-`quick` is an engineering signal only. `full` requires clean HEAD, package.json version binding, fresh candidate tarball SHA-256, required manual verdicts all passed, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help for the claimed version. Historical release records below are evidence, not the current QA command contract.
+`quick` is an engineering signal only. `full` requires clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
 ## v0.3.49 candidate status
 
 - 狀態：本地 source candidate，尚未發布。目標是把 conflict / blocker 的用戶路徑收口：unknown local hash 只作 witness；用戶只確認需求與授權；能讀寫資料夾的 AI 做語意合併；Kit 以 `upgrade --dry-run`、`doctor` 與 hash / readback 驗收。正式 push、tag、GitHub Release、npm publish 後仍須以 registry / release / npx readback 驗證。
+
+### Full-check role isolation（v0.3.49）
+
+- 狀態：WAITING_INDEPENDENT_REVIEW。writer 已完成 five-conclusion writer assessment；正式 `full` gate 必須等 clean commit、獨立 read-only reviewer receipt、candidate commit、tarball SHA-256、manifest digest、review subject digest 和五項結論全部綁定後才可通過。
+- 邊界：thread / role 欄位只作 audit provenance，不是密碼學身份證明，也不是 CLI 資料操作信任根。候選凍結後如 tracked candidate 改動，原 review receipt 自動失效。
+- 五項 writer assessment：governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting 均為 writer-observed passed；這不是 independent review verdict，也不是 release-ready statement。
 
 ### Bilingual README semantic gate（v0.3.49，PASS）
 
@@ -51,14 +57,14 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 | Trigger | Applies | Status | Notes |
 |---|---|---|---|
 | 1. Failure or blocker | yes | iterated | Real user conflict case showed maintainer local-content support is the wrong product route. |
-| 2. External side effects | yes | pending | No push, tag, GitHub Release, npm publish, Pages deployment, or real user-project write has been performed. |
+| 2. External side effects | yes | deferred | No push, tag, GitHub Release, npm publish, Pages deployment, or real user-project write has been performed. |
 | 3. User-visible output | yes | iterated | CLI and AI-install pages now tell users not to judge technical differences, reinstall, or overwrite whole files. |
 | 4. Complexity or boundary | yes | iterated | Hash / doctor / semantic understanding are separated; maintainer involvement is only baseline misclassification evidence. |
 | 5. Documentation drift | yes | iterated | README, active HTML, whatsnew, CHANGELOG and release QA have v0.3.49 source-version surfaces. |
-| 6. Semantic runtime effect | yes | pending | `qa:upgrade` passed in the prior local tree; clean-candidate full readiness still pending. |
+| 6. Semantic runtime effect | yes | iterated | `qa:upgrade`, release-readiness inventory and packed smoke remain under clean-candidate writer QC; independent reviewer receipt is still separate. |
 | 7. Cross-agent / role boundary | yes | iterated | User / project AI / Kit / maintainer roles are separated; future validation should keep writer and reviewer roles isolated. |
 | 8. Real user journey | yes | iterated | Nontechnical user authorizes repair; project AI merges; Kit validates by dry-run, doctor, and hash / readback. |
-| 9. Release statement | yes | pending | Candidate is not publishable until clean-HEAD full readiness and postpublish readback pass. |
+| 9. Release statement | yes | deferred | Candidate has not been pushed, tagged, released, published, or postpublish-read back. |
 
 ## v0.3.48 發佈狀態
 

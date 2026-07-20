@@ -113,13 +113,60 @@ export const R034_ARTIFACT_CONTRACT = Object.freeze({
 
 export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
   schemaVersion: 1,
+  manualVerdictKeys: Object.freeze([
+    "governanceHealth",
+    "productJourney",
+    "userJourney",
+    "qcBackflow",
+    "rulesPacksRouting"
+  ]),
+  roleIsolation: Object.freeze({
+    provenanceBoundary: "role and thread fields are audit provenance only; they are not cryptographic identity proof and never authorize CLI data operations",
+    writerRole: "workspace-writer",
+    reviewerRole: "independent-readonly-reviewer",
+    stateMachine: Object.freeze([
+      "PLAN_FROZEN",
+      "BASELINE_VERIFIED",
+      "GOVERNANCE_CONTRACT_IMPLEMENTED",
+      "EXECUTABLE_CONTRACT_IMPLEMENTED",
+      "WRITER_QC_PASSED",
+      "CANDIDATE_FROZEN",
+      "REVIEW_BUNDLE_READY",
+      "WAITING_INDEPENDENT_REVIEW",
+      "REVIEW_REJECTED",
+      "REVIEW_ACCEPTED",
+      "FULL_GATE_PASSED",
+      "WORK_STATE_SYNCED",
+      "PREPUBLISH_DONE"
+    ]),
+    fullGateAcceptedPath: Object.freeze([
+      "PLAN_FROZEN",
+      "BASELINE_VERIFIED",
+      "GOVERNANCE_CONTRACT_IMPLEMENTED",
+      "EXECUTABLE_CONTRACT_IMPLEMENTED",
+      "WRITER_QC_PASSED",
+      "CANDIDATE_FROZEN",
+      "REVIEW_BUNDLE_READY",
+      "WAITING_INDEPENDENT_REVIEW",
+      "REVIEW_ACCEPTED"
+    ]),
+    reviewReceiptBindings: Object.freeze([
+      "candidate.commit",
+      "candidate.tarballSha256",
+      "manifestDigest",
+      "releaseReadinessInventoryDigest",
+      "reviewSubjectDigest",
+      "manualVerdicts"
+    ])
+  }),
   records: Object.freeze({
     "release-readiness": Object.freeze({
       allowedPaths: Object.freeze(["docs/qa/release-grade-qa.md"]),
       requiredReadbackSnippets: Object.freeze([
         "pre-release final audit",
         "full 必須等 clean commit",
-        "Verdict: **PASS**"
+        "Full-check role isolation",
+        "five-conclusion writer assessment"
       ])
     })
   })

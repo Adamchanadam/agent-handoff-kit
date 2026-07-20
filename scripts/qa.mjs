@@ -91,9 +91,12 @@ function validateCandidateEvidence(options) {
   assert(evidence.candidate?.version === options.candidate, "candidate evidence version does not match --candidate");
   assert(evidence.candidate?.packageJsonVersion === packageJson.version, "candidate evidence packageJsonVersion does not match package.json");
   assert(evidence.candidate?.commit === head, "candidate evidence commit does not match clean HEAD");
+  assert(evidence.candidate?.cleanWorktree === true, "candidate evidence must record cleanWorktree: true");
   assert(isSha256(evidence.candidate?.tarballSha256, 64), "candidate evidence requires tarballSha256");
   assert(freshCandidateTarballSha256() === evidence.candidate.tarballSha256.toLowerCase(), "candidate evidence tarballSha256 does not match a freshly packed candidate");
-  assert(validManualVerdicts(evidence.manualVerdicts), "candidate evidence requires governanceHealth, productJourney, userJourney, and qcBackflow verdicts to be passed");
+  assert(validManualVerdicts(evidence.manualVerdicts), `candidate evidence requires all five full-check verdicts to be passed: ${CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.join(", ")}`);
+  validateRoleIsolationEvidence(evidence, head);
+  validateCandidateReportSection(options.candidate);
   validateEvidenceRecords(evidence.evidence);
 }
 
@@ -157,7 +160,61 @@ function readEvidence(file, requiredMessage) {
 }
 
 function validManualVerdicts(value) {
-  return ["governanceHealth", "productJourney", "userJourney", "qcBackflow"].every((key) => value?.[key] === "passed");
+  return CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.every((key) => value?.[key] === "passed");
+}
+
+function validateRoleIsolationEvidence(evidence, head) {
+  const contract = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation;
+  assert(evidence.roleIsolation?.provenanceBoundary === contract.provenanceBoundary, "role provenance boundary is missing or drifted");
+  assert(evidence.writerProvenance?.role === contract.writerRole, "candidate evidence writer provenance must be workspace-writer");
+  assert(typeof evidence.writerProvenance?.provenanceId === "string" && evidence.writerProvenance.provenanceId, "candidate evidence writer provenanceId is required");
+  assert(isSha256(evidence.roleIsolation?.reviewSubjectDigest, 64), "candidate evidence requires reviewSubjectDigest");
+  assertValidStateHistory(evidence.roleIsolation?.stateHistory, contract.fullGateAcceptedPath);
+  validateReviewBundle(evidence.roleIsolation?.reviewBundle);
+
+  const receipt = evidence.reviewReceipt;
+  assert(receipt && typeof receipt === "object" && !Array.isArray(receipt), "full gate requires an independent review receipt");
+  assert(receipt.verdict === "accepted", "full gate requires an accepted independent review receipt");
+  assert(receipt.provenanceBoundary === contract.provenanceBoundary, "review receipt provenance boundary is missing or drifted");
+  assert(receipt.reviewer?.role === contract.reviewerRole, "review receipt reviewer must be independent-readonly-reviewer");
+  assert(typeof receipt.reviewer?.provenanceId === "string" && receipt.reviewer.provenanceId, "review receipt reviewer provenanceId is required");
+  assert(receipt.reviewer.provenanceId !== evidence.writerProvenance.provenanceId, "writer self-review cannot satisfy independent review");
+  assert(receipt.candidate?.version === evidence.candidate.version, "review receipt candidate version does not match evidence");
+  assert(receipt.candidate?.commit === evidence.candidate.commit && receipt.candidate.commit === head, "review receipt candidate commit does not match clean HEAD");
+  assert(receipt.candidate?.tarballSha256 === evidence.candidate.tarballSha256, "review receipt tarballSha256 does not match evidence");
+  assert(receipt.manifestDigest === evidence.manifestDigest, "review receipt manifestDigest does not match evidence");
+  assert(receipt.releaseReadinessInventoryDigest === evidence.releaseReadinessInventoryDigest, "review receipt release-readiness inventory digest does not match evidence");
+  assert(receipt.reviewSubjectDigest === evidence.roleIsolation.reviewSubjectDigest, "review receipt reviewSubjectDigest does not match evidence");
+  assert(validManualVerdicts(receipt.fiveConclusions), "review receipt must carry the same five passed full-check conclusions");
+  assert(JSON.stringify(receipt.fiveConclusions) === JSON.stringify(evidence.manualVerdicts), "review receipt five conclusions do not match candidate evidence");
+  assert(typeof receipt.receivedAt === "string" && receipt.receivedAt, "review receipt receivedAt is required");
+}
+
+function assertValidStateHistory(history, requiredPath) {
+  assert(Array.isArray(history) && history.length > 0, "candidate evidence requires roleIsolation.stateHistory");
+  const actual = history.map((entry) => typeof entry === "string" ? entry : entry?.state);
+  assert(actual.every((state) => typeof state === "string" && state), "roleIsolation.stateHistory entries must be states");
+  assert(JSON.stringify(actual) === JSON.stringify(requiredPath), `full gate requires exact accepted state path: ${requiredPath.join(" -> ")}`);
+}
+
+function validateReviewBundle(bundle) {
+  assert(bundle && typeof bundle === "object" && !Array.isArray(bundle), "candidate evidence requires reviewBundle binding");
+  assert(typeof bundle.path === "string" && bundle.path, "reviewBundle.path is required");
+  assert(isSha256(bundle.sha256, 64), "reviewBundle.sha256 is required");
+  const absolute = path.resolve(bundle.path);
+  assert(existsSync(absolute), `review bundle does not exist: ${absolute}`);
+  assert(sha256(readFileSync(absolute)) === bundle.sha256.toLowerCase(), "review bundle sha256 does not match file bytes");
+}
+
+function validateCandidateReportSection(version) {
+  const reportPath = path.join(root, "docs", "qa", "release-grade-qa.md");
+  const report = readFileSync(reportPath, "utf8").replace(/\r\n/g, "\n");
+  const heading = `## v${version} candidate status`;
+  const start = report.indexOf(heading);
+  assert(start >= 0, `candidate report section is missing: ${heading}`);
+  const next = report.indexOf("\n## v", start + heading.length);
+  const section = report.slice(start, next >= 0 ? next : undefined);
+  assert(!/\|\s*[^|\n]+\|\s*(?:yes|no)\s*\|\s*(?:pending|blocked)\s*\|/iu.test(section), "candidate report still contains pending or blocked current-trigger rows");
 }
 
 function isSha256(value, exactLength = null) {
@@ -181,6 +238,7 @@ function validateEvidenceRecords(records) {
     assert(isSha256(record.sha256, 64), `candidate evidence record has invalid sha256: ${record.path}`);
     assert(sha256(readFileSync(absolute)) === record.sha256.toLowerCase(), `candidate evidence record hash does not match file bytes: ${record.path}`);
     assert(typeof record.readback === "string" && record.readback, `candidate evidence record lacks readback: ${record.path}`);
+    assert(!/\|\s*[^|\n]+\|\s*(?:yes|no)\s*\|\s*(?:pending|blocked)\s*\|/iu.test(record.readback), `candidate evidence record readback contains pending or blocked status: ${record.claimId}`);
     for (const snippet of contract.requiredReadbackSnippets) {
       assert(record.readback.includes(snippet), `candidate evidence record readback for ${record.claimId} lacks required snippet: ${snippet}`);
     }
