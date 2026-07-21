@@ -223,9 +223,24 @@ export const POST_UPGRADE_STATE_COMPOSITIONS = Object.freeze([
     requiredTriples: [
       "transaction phase x ownership delta x post-upgrade action",
       "published lineage x packed candidate artifact x closeout/finalize",
-      "filesystem semantics x path/casing migration x recovery"
+      "filesystem semantics x path/casing migration x recovery",
+      "archive migration history x later source-conservation rebind x doctor authority"
     ],
-    expected: "dry-run is non-mutating; transaction canonicalizes nested archive bytes without clobber; rollback and pre-durable crash recovery retry; closeout/finalize/restart remain healthy"
+    expected: "dry-run is non-mutating; transaction canonicalizes nested archive bytes without clobber; a later real upgrade without a new archive migration can retire the schema 3 witness through fresh source-conservation rebind; rollback and pre-durable crash recovery retry; closeout/finalize/restart remain healthy"
+  }),
+  composition("schema2-state-only-supersession-closeout", {
+    baseline: "published v0.3.41 npm artifact upgraded by published v0.3.45 npm artifact and packed candidate",
+    ownershipDelta: "source-conservation schema 2 witness followed by a multi-hop state-only schema 1 supersession chain",
+    transactionPhase: "committed upgrade plus committed state-only witness chain",
+    filesystemSemantics: "normal closeout changes only closeout-finalize state paths",
+    postUpgradeAction: "doctor blocks before finalize, finalize rebinds through the stronger witness, doctor and closeout-status pass after finalize",
+    deliveryArtifact: "packed candidate tarball",
+    requiredTriples: [
+      "witness schema x supersession x closeout/finalize",
+      "published lineage x packed candidate artifact x stale witness bridge",
+      "failure semantics x ambiguous witness x non-closeout drift"
+    ],
+    expected: "schema 1 cannot become doctor authority over an unretired stronger witness; existing multi-hop downgraded closeout-only roots get a hash-bound transitive finalize bridge; non-closeout drift fails before writes until an authorized repair lets upgrade create a fresh strong rebind; branching, missing links, invalid cycles, ambiguity, and non-closeout drift remain fail-closed"
   })
 ]);
 

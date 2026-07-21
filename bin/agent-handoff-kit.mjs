@@ -763,7 +763,12 @@ async function runInstall(command, root, options, version) {
   // witness, freshly revalidated against every accepted byte, reader, route,
   // priority, and effect by both loaders below.
   if (command === "upgrade") {
-    const acceptedCurrentState = await loadCommittedCurrentStateWitness(root);
+    let acceptedCurrentState = null;
+    try {
+      acceptedCurrentState = await loadCommittedCurrentStateWitness(root);
+    } catch (error) {
+      if (!String(error?.message ?? error).includes("doctor refuses an unbound success state")) throw error;
+    }
     if (acceptedCurrentState?.transaction?.command === "upgrade"
       && acceptedCurrentState.transaction.attemptedVersion === version) {
       const noOpHealth = await assessUpgradeNoopHealth(root, version);
@@ -934,7 +939,10 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
   const archiveMigrations = command === "upgrade"
     ? await prepareArchiveCasingMigrations(root)
     : [];
-  const sourceConservation = command === "upgrade" && resolveRuntimeAcceptance(outputs)
+  const runtimeAcceptance = command === "upgrade" ? resolveRuntimeAcceptance(outputs) : null;
+  const sourceConservation = command === "upgrade" && (
+    runtimeAcceptance || await hasCommittedSourceConservationAuthority(root)
+  )
     ? await createSourceConservation(root, outputs, archiveMigrations)
     : null;
   // A repair may restore the exact bytes of a prior committed state.  Keep the
@@ -942,7 +950,7 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
   // doctor can select the freshly read-back transaction without falling back
   // to mtime or a separate current-state registry.
   const supersedesCurrentStateDigests = command === "upgrade"
-    ? await findRestoredCurrentStateDigests(root, outputs, archiveMigrations)
+    ? await findRestoredCurrentStateDigests(root, outputs, archiveMigrations, { sourceConservation, archiveMigrations })
     : [];
   const transaction = await prepareTransaction(root, command, version, outputs, mode, plan, sourceConservation, supersedesCurrentStateDigests, archiveMigrations);
   try {
@@ -3748,8 +3756,7 @@ async function loadCommittedCurrentStateWitness(root) {
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   let names;
   try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
-  const candidates = [];
-  const staleSourceConservation = [];
+  const records = [];
   for (const name of names) {
     if (name === ".upgrade.lock") continue;
     const journalPath = path.join(migrationsRoot, name, "transaction.json");
@@ -3759,30 +3766,68 @@ async function loadCommittedCurrentStateWitness(root) {
       const journal = JSON.parse(await readFile(journalPath, "utf8"));
       if (journal.state !== "committed" || !journal.currentStateWitness) continue;
       await validateRecoveryJournal(root, journal, journalPath);
-      if (await journalMatchesCurrentState(root, journal)) candidates.push({ journal, journalPath });
-      else if (journal.currentStateWitness.sourceConservation) staleSourceConservation.push(journalPath);
+      const witness = validateCurrentStateWitness(journal);
+      records.push({ journal, journalPath, witness, matches: await journalMatchesCurrentState(root, journal) });
     } catch (error) {
       if (error?.code !== "ENOENT") throw error;
     }
   }
-  if (candidates.length === 0 && staleSourceConservation.length > 0) {
+  const superseded = effectiveCurrentStateSupersededDigests(records);
+  const staleSourceConservation = records.filter((record) => (
+    !record.matches
+    && record.witness.sourceConservation
+    && !superseded.has(record.witness.currentStateDigest)
+  ));
+  if (staleSourceConservation.length > 0) {
     throw new Error("committed Gate 5 current-state source witness no longer matches project bytes; doctor refuses an unbound success state");
   }
+  const candidates = records.filter((record) => record.matches);
   if (candidates.length === 0) return null;
   // A later repair can deliberately restore the exact bytes of an earlier
   // state. Its sealed supersession link is the only permitted tie-breaker:
   // filesystem timestamps remain untrusted and an unlinked tie stays fatal.
-  const superseded = new Set(candidates.flatMap(({ journal }) => (
-    journal.currentStateWitness.transaction.supersedesCurrentStateDigests ?? []
-  )));
-  const currentCandidates = candidates.filter(({ journal }) => !superseded.has(journal.currentStateWitness.currentStateDigest));
+  const currentCandidates = candidates.filter(({ witness }) => !superseded.has(witness.currentStateDigest));
   if (currentCandidates.length !== 1) {
     throw new Error("multiple committed journals match the current filesystem state; doctor refuses ambiguous current-state authority");
   }
   return validateCurrentStateWitness(currentCandidates[0].journal);
 }
 
-async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations = []) {
+function effectiveCurrentStateSupersededDigests(records) {
+  const byDigest = new Map(records.map((record) => [record.witness.currentStateDigest, record]));
+  const superseded = new Set();
+  for (const record of records) {
+    for (const digest of record.witness.transaction.supersedesCurrentStateDigests ?? []) {
+      const prior = byDigest.get(digest);
+      if (!prior) continue;
+      if (canSupersedeCurrentStateWitness(record.witness, prior.witness)) superseded.add(digest);
+    }
+  }
+  return superseded;
+}
+
+async function hasCommittedSourceConservationAuthority(root) {
+  const migrationsRoot = path.join(root, "dev", "governance_migrations");
+  let names;
+  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return false; throw error; }
+  for (const name of names) {
+    if (name === ".upgrade.lock") continue;
+    const journalPath = path.join(migrationsRoot, name, "transaction.json");
+    try {
+      const stats = await lstat(journalPath);
+      if (!stats.isFile() || stats.isSymbolicLink()) continue;
+      const journal = JSON.parse(await readFile(journalPath, "utf8"));
+      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
+      await validateRecoveryJournal(root, journal, journalPath);
+      if (validateCurrentStateWitness(journal).sourceConservation) return true;
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+  return false;
+}
+
+async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations = [], replacement = {}) {
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   let names;
   try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return []; throw error; }
@@ -3797,8 +3842,11 @@ async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations 
       const journal = JSON.parse(await readFile(journalPath, "utf8"));
       if (journal.state !== "committed" || !journal.currentStateWitness) continue;
       await validateRecoveryJournal(root, journal, journalPath);
+      const priorWitness = validateCurrentStateWitness(journal);
       if (await journalMatchesCurrentState(root, journal)
-        || await journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations)) {
+        || await journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations)
+        || sourceConservationRebindsPrior(priorWitness, replacement.sourceConservation)) {
+        if (!canSupersedeCurrentStateWitness(replacement, priorWitness)) continue;
         restored.push(journal.currentStateWitness.currentStateDigest);
       }
     } catch (error) {
@@ -3806,6 +3854,62 @@ async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations 
     }
   }
   return [...new Set(restored)].sort((left, right) => left.localeCompare(right));
+}
+
+function currentStateWitnessCapability(value = {}) {
+  return {
+    sourceConservation: Boolean(value.sourceConservation),
+    archiveMigrations: Array.isArray(value.archiveMigrations) && value.archiveMigrations.length > 0
+  };
+}
+
+function canSupersedeCurrentStateWitness(replacement, priorWitness) {
+  const replacementCapability = currentStateWitnessCapability(replacement);
+  if (priorWitness.sourceConservation && !replacementCapability.sourceConservation) return false;
+  if (Array.isArray(priorWitness.archiveMigrations) && priorWitness.archiveMigrations.length > 0
+    && !replacementCapability.archiveMigrations
+    && !archiveMigrationHistoryIsRebound(priorWitness, replacement.sourceConservation)) {
+    return false;
+  }
+  return true;
+}
+
+function sourceConservationRebindsPrior(priorWitness, replacementSourceConservation) {
+  if (!replacementSourceConservation) return false;
+  const replacementByPath = new Map(replacementSourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
+  const coversTransactionEntries = priorWitness.entries.every((entry) => {
+    const replacement = replacementByPath.get(entry.targetRel);
+    return replacement
+      && replacement.accepted
+      && typeof replacement.accepted.sha256 === "string"
+      && Number.isInteger(replacement.accepted.bytes);
+  });
+  if (!coversTransactionEntries) return false;
+  if (!priorWitness.sourceConservation) return true;
+  return priorWitness.sourceConservation.entries.every((entry) => {
+    const replacement = replacementByPath.get(entry.sourcePath);
+    return replacement
+      && replacement.accepted
+      && typeof replacement.accepted.sha256 === "string"
+      && Number.isInteger(replacement.accepted.bytes);
+  });
+}
+
+function archiveMigrationHistoryIsRebound(priorWitness, replacementSourceConservation) {
+  if (!replacementSourceConservation || !Array.isArray(priorWitness.archiveMigrations) || priorWitness.archiveMigrations.length === 0) return false;
+  const replacementByPath = new Map(replacementSourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
+  for (const migration of priorWitness.archiveMigrations) {
+    for (const file of migration.snapshot.files ?? []) {
+      const conserved = replacementByPath.get(`${migration.canonicalRel}/${file.path}`);
+      if (!conserved
+        || !conserved.accepted
+        || conserved.accepted.sha256 !== file.sha256
+        || conserved.accepted.bytes !== file.bytes) {
+        return false;
+      }
+    }
+  }
+  return sourceConservationRebindsPrior(priorWitness, replacementSourceConservation);
 }
 
 async function journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations = []) {
@@ -3919,23 +4023,123 @@ async function findCloseoutFinalizeBase(root) {
       if (error?.code !== "ENOENT") throw error;
     }
   }
-  const candidates = [];
-  const illegal = [];
+  const records = [];
   for (const item of inspected) {
-    if (superseded.has(item.journal.currentStateWitness.currentStateDigest)) continue;
+    const witness = validateCurrentStateWitness(item.journal);
     const mismatches = await currentStateMismatches(root, item.journal);
-    if (mismatches.length > 0 && !item.journal.currentStateWitness.sourceConservation) continue;
-    if (mismatches.some((mismatch) => !isCloseoutFinalizeTarget(mismatch.path))) illegal.push({ ...item, mismatches });
-    else candidates.push({ ...item, mismatches });
+    const closeoutOnly = mismatches.every((mismatch) => isCloseoutFinalizeTarget(mismatch.path));
+    records.push({
+      ...item,
+      witness,
+      mismatches,
+      closeoutOnly,
+      isSuperseded: superseded.has(witness.currentStateDigest),
+      additionalSupersedes: []
+    });
   }
+  const current = records.filter((item) => !item.isSuperseded);
+  const illegal = current.filter((item) => item.mismatches.length > 0 && !item.closeoutOnly);
   if (illegal.length > 0) return illegal.sort((left, right) => right.mismatches.length - left.mismatches.length)[0];
-  const stale = candidates.filter((item) => item.mismatches.length > 0);
-  if (stale.length === 0) return candidates[0] ?? null;
-  if (stale.length > 1) {
-    const digests = stale.map(({ journal }) => journal.currentStateWitness.currentStateDigest).join(", ");
+
+  const staleStrong = current.filter((item) => item.mismatches.length > 0 && item.closeoutOnly && item.witness.sourceConservation);
+  const unsupportedStale = current.filter((item) => item.mismatches.length > 0 && item.closeoutOnly && !item.witness.sourceConservation);
+  if (staleStrong.length > 0 && unsupportedStale.length > 0) {
+    const digests = [...staleStrong, ...unsupportedStale].map(({ witness }) => witness.currentStateDigest).join(", ");
+    throw new Error(`multiple closeout-finalize stale witness authorities exist: ${digests}`);
+  }
+  if (staleStrong.length > 1) {
+    const digests = staleStrong.map(({ witness }) => witness.currentStateDigest).join(", ");
     throw new Error(`multiple closeout-finalize candidate witnesses are stale: ${digests}`);
   }
-  return stale[0];
+  if (staleStrong.length === 1) {
+    return withAdditionalCloseoutSupersedes(staleStrong[0], current);
+  }
+
+  if (unsupportedStale.length > 0) {
+    if (unsupportedStale.length > 1) {
+      const digests = unsupportedStale.map(({ witness }) => witness.currentStateDigest).join(", ");
+      throw new Error(`multiple closeout-finalize unsupported stale witnesses exist: ${digests}`);
+    }
+    const bridged = closeoutFinalizeBridgeCandidates(records, unsupportedStale);
+    if (bridged.length === 1) return withAdditionalCloseoutSupersedes(bridged[0], current);
+    if (bridged.length > 1) {
+      const digests = bridged.map(({ witness }) => witness.currentStateDigest).join(", ");
+      throw new Error(`multiple closeout-finalize source-conservation bridge witnesses are stale: ${digests}`);
+    }
+    const digests = unsupportedStale.map(({ witness }) => witness.currentStateDigest).join(", ");
+    throw new Error(`post-upgrade current-state witness is stale but lacks source-conservation evidence for closeout finalize: ${digests}`);
+  }
+
+  const matching = current.filter((item) => item.mismatches.length === 0);
+  if (matching.length > 1) {
+    const digests = matching.map(({ witness }) => witness.currentStateDigest).join(", ");
+    throw new Error(`multiple committed journals match the current filesystem state; finalize-closeout refuses ambiguous current-state authority: ${digests}`);
+  }
+  return matching[0] ?? null;
+}
+
+function closeoutFinalizeBridgeCandidates(records, unsupportedStale) {
+  const byDigest = new Map(records.map((item) => [item.witness.currentStateDigest, item]));
+  const candidates = new Map();
+  for (const unsupported of unsupportedStale) {
+    const traced = traceCloseoutFinalizeBridge(unsupported, byDigest);
+    for (const candidate of traced) {
+      const existing = candidates.get(candidate.strong.witness.currentStateDigest) ?? { ...candidate.strong, additionalSupersedes: [] };
+      existing.additionalSupersedes.push(...candidate.weakChain);
+      candidates.set(candidate.strong.witness.currentStateDigest, existing);
+    }
+  }
+  return [...candidates.values()];
+}
+
+function traceCloseoutFinalizeBridge(start, byDigest) {
+  const candidates = new Map();
+  const visit = (record, weakChain, pathStack) => {
+    const digest = record.witness.currentStateDigest;
+    if (pathStack.includes(digest)) {
+      throw new Error(`cycle in closeout-finalize supersession chain: ${[...pathStack, digest].join(", ")}`);
+    }
+    if (record.mismatches.length > 0 && !record.closeoutOnly) {
+      throw new Error(`non-closeout drift in closeout-finalize supersession chain: ${record.mismatches.map((item) => item.path).join(", ")}`);
+    }
+    if (record.witness.sourceConservation) {
+      if (record.mismatches.length === 0) {
+        throw new Error(`closeout-finalize source-conservation bridge is not stale: ${digest}`);
+      }
+      candidates.set(digest, { strong: record, weakChain });
+      return;
+    }
+    const supersedes = record.witness.transaction.supersedesCurrentStateDigests ?? [];
+    if (supersedes.length === 0) {
+      throw new Error(`post-upgrade current-state witness is stale but has no source-conservation bridge: ${digest}`);
+    }
+    if (supersedes.length > 1) {
+      throw new Error(`branching closeout-finalize supersession chain: ${digest} -> ${supersedes.join(", ")}`);
+    }
+    for (const supersededDigest of supersedes) {
+      const next = byDigest.get(supersededDigest);
+      if (!next) {
+        throw new Error(`missing closeout-finalize supersession link: ${digest} -> ${supersededDigest}`);
+      }
+      visit(next, [...weakChain, digest], [...pathStack, digest]);
+    }
+  };
+  visit(start, [], []);
+  return [...candidates.values()];
+}
+
+function withAdditionalCloseoutSupersedes(base, current) {
+  const additional = current
+    .filter((item) => item.witness.currentStateDigest !== base.witness.currentStateDigest)
+    .filter((item) => !item.witness.sourceConservation)
+    .filter((item) => item.mismatches.length === 0 || item.closeoutOnly)
+    .map((item) => item.witness.currentStateDigest);
+  return {
+    ...base,
+    additionalSupersedes: [...new Set([...(base.additionalSupersedes ?? []), ...additional])]
+      .filter((digest) => digest !== base.witness.currentStateDigest)
+      .sort((left, right) => left.localeCompare(right))
+  };
 }
 
 async function currentStateMismatches(root, journal) {
@@ -3965,6 +4169,10 @@ async function currentStateMismatches(root, journal) {
 
 async function writeCloseoutFinalizeJournal(root, version, prior) {
   const oldWitness = validateCurrentStateWitness(prior.journal);
+  const supersedesCurrentStateDigests = [...new Set([
+    oldWitness.currentStateDigest,
+    ...(prior.additionalSupersedes ?? [])
+  ])].sort((left, right) => left.localeCompare(right));
   const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   const migrationDir = path.join(migrationsRoot, id);
@@ -4059,7 +4267,7 @@ async function writeCloseoutFinalizeJournal(root, version, prior) {
       runtimeAcceptanceReadback: null,
       sourceConservation,
       archiveMigrations: oldWitness.archiveMigrations ?? [],
-      supersedesCurrentStateDigests: [oldWitness.currentStateDigest],
+      supersedesCurrentStateDigests,
       currentStateWitness: null,
       currentStateReadback: null
     };
@@ -4071,7 +4279,7 @@ async function writeCloseoutFinalizeJournal(root, version, prior) {
       "",
       `- Command: finalize-closeout`,
       `- Attempted version: ${version}`,
-      `- Supersedes current-state digest: ${oldWitness.currentStateDigest}`,
+      `- Supersedes current-state digest: ${supersedesCurrentStateDigests.join(", ")}`,
       `- Current-state digest: ${journal.currentStateWitness.currentStateDigest}`,
       `- Finalized paths: ${prior.mismatches.map((item) => item.path).join(", ") || "none"}`,
       ""
