@@ -768,6 +768,7 @@ async function runInstall(command, root, options, version) {
       acceptedCurrentState = await loadCommittedCurrentStateWitness(root);
     } catch (error) {
       if (!String(error?.message ?? error).includes("doctor refuses an unbound success state")) throw error;
+      await assertUnboundCurrentStateMayAttemptUpgradeRebind(root, error);
     }
     if (acceptedCurrentState?.transaction?.command === "upgrade"
       && acceptedCurrentState.transaction.attemptedVersion === version) {
@@ -3825,6 +3826,34 @@ async function hasCommittedSourceConservationAuthority(root) {
     }
   }
   return false;
+}
+
+async function assertUnboundCurrentStateMayAttemptUpgradeRebind(root, cause) {
+  const migrationsRoot = path.join(root, "dev", "governance_migrations");
+  let names;
+  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") throw cause; throw error; }
+  const records = [];
+  for (const name of names) {
+    if (name === ".upgrade.lock") continue;
+    const journalPath = path.join(migrationsRoot, name, "transaction.json");
+    try {
+      const stats = await lstat(journalPath);
+      if (!stats.isFile() || stats.isSymbolicLink()) continue;
+      const journal = JSON.parse(await readFile(journalPath, "utf8"));
+      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
+      await validateRecoveryJournal(root, journal, journalPath);
+      records.push({ journal, journalPath, witness: validateCurrentStateWitness(journal), matches: await journalMatchesCurrentState(root, journal) });
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+  const superseded = effectiveCurrentStateSupersededDigests(records);
+  for (const record of records) {
+    if (record.matches || !record.witness.sourceConservation || superseded.has(record.witness.currentStateDigest)) continue;
+    const mismatches = await currentStateMismatches(root, record.journal);
+    const managedCore = mismatches.filter((mismatch) => installedFileContract(mismatch.path)?.strategy === "managed-core");
+    if (managedCore.length > 0) throw cause;
+  }
 }
 
 async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations = [], replacement = {}) {
