@@ -234,7 +234,10 @@ function checkHistoricalSingleHopFixtures() {
     const versionNumber = version.replace(/^v/, "");
     materializeOfficialInstall(versionNumber, project);
     const result = cli(["upgrade", "--yes", "--root", project], `single-hop ${version}`);
-    assert(result.stdout.includes("status: passed"), `${version} single-hop doctor did not pass\n${output(result)}`);
+    const doctor = cli(["doctor", "--root", project], `single-hop ${version} doctor`, {
+      env: { AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" }
+    });
+    assert(doctor.stdout.includes("status: passed"), `${version} single-hop doctor did not pass\nupgrade output:\n${output(result)}\ndoctor output:\n${output(doctor)}`);
     assert(count(read(path.join(project, "AGENTS.md")), "BEGIN Agent Handoff Kit managed core") === 1, `${version} did not end with one managed core`);
   }
   console.log(`ok: ${versions.length} committed historical fixtures single-hop upgrade`);

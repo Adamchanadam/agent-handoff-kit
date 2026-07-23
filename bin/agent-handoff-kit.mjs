@@ -656,6 +656,7 @@ async function runFinalizeCloseout(root, version) {
   const doctorStatus = await runDoctor(root, version, {
     silentCard: true,
     context: "post-closeout-finalize-health",
+    skipVersionRegistryLookup: true,
     expectedCurrentStateWitness: transaction.journal.currentStateWitness
   });
   if (doctorStatus !== "passed") throw new Error("post-closeout finalize doctor failed; finalize journal retained for inspection");
@@ -1004,6 +1005,7 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
     const doctorStatus = await runDoctor(root, version, {
       silentCard: true,
       context: "post-transaction-project-health",
+      skipVersionRegistryLookup: true,
       allowActiveTransaction: true,
       expectedCurrentStateWitness: transaction.journal.currentStateWitness,
       captureFormalUserRules: (state) => { formalRuntimeState = state; },
@@ -2195,6 +2197,7 @@ async function recoverInterruptedTransaction(root) {
     const doctorStatus = await runDoctor(root, journal.committedVersion, {
       silentCard: true,
       context: "recovered-committed-transaction-health",
+      skipVersionRegistryLookup: true,
       allowActiveTransaction: true,
       expectedCurrentStateWitness: journal.currentStateWitness,
       captureFormalUserRules: (state) => { formalRuntimeState = state; },
