@@ -21,6 +21,15 @@ const dynamicDirectories = Object.freeze([
   { relative: "dev/session_log_archive", classification: "legacy-session-log-archive" }
 ]);
 
+export function gate5ItemRequiresSourceConservation(item) {
+  return Boolean(item && Array.isArray(item.classifications)
+    && item.classifications.some((classification) => classification !== "root-source"));
+}
+
+export function gate5SourceConservationItems(frozen) {
+  return Object.freeze((frozen?.items ?? []).filter(gate5ItemRequiresSourceConservation));
+}
+
 /**
  * Builds a read-only, hash-bound description of the Kit data that an upgrade
  * can reach. It deliberately records whole source files before any semantic
@@ -422,6 +431,9 @@ export async function freezeGate5Set({ root, contracts = installedFileContracts,
     .filter((item) => item.sourceStatus === "unresolved-missing-installed-source")
     .map((item) => Object.freeze({ sourcePath: item.targetRel, reason: "installed package target is missing from the root-source set" }));
   const bridgePaths = ["CLAUDE.md", "GEMINI.md"];
+  const sourceConservationPaths = items
+    .filter(gate5ItemRequiresSourceConservation)
+    .map((item) => item.sourcePath);
   const body = {
     schemaVersion: GATE5_FROZEN_SET_SCHEMA,
     operationAuthority: "none",
@@ -457,6 +469,11 @@ export async function freezeGate5Set({ root, contracts = installedFileContracts,
         entries: Object.freeze(items.filter((item) => item.classifications.includes("transaction-state")).map((item) => item.sourcePath))
       })
     }),
+    sourceConservation: Object.freeze({
+      selection: "known-kit-reachability",
+      protectedEntryCount: sourceConservationPaths.length,
+      sourcePaths: Object.freeze(sourceConservationPaths)
+    }),
     items: Object.freeze(items),
     unresolved: Object.freeze([...unresolvedItems, ...unresolvedContractTargets]
       .sort((left, right) => `${left.sourcePath}\0${left.reason}`.localeCompare(`${right.sourcePath}\0${right.reason}`)))
@@ -477,6 +494,11 @@ export function assertGate5FrozenSet(frozen) {
   }
   if (!frozen.packageContract || !Array.isArray(frozen.packageContract.coverage)) {
     throw new Error("Gate 5 frozen set does not bind package-contract coverage");
+  }
+  if (!frozen.sourceConservation || frozen.sourceConservation.selection !== "known-kit-reachability"
+    || !Number.isInteger(frozen.sourceConservation.protectedEntryCount)
+    || !Array.isArray(frozen.sourceConservation.sourcePaths)) {
+    throw new Error("Gate 5 frozen set does not define its current-state source-conservation selection");
   }
   const paths = new Set();
   const orderedPaths = [];
@@ -505,6 +527,13 @@ export function assertGate5FrozenSet(frozen) {
     if (coverage.sourceStatus === "unresolved-missing-installed-source") {
       expectedUnresolved.push(`${coverage.targetRel}\0installed package target is missing from the root-source set`);
     }
+  }
+  const expectedSourceConservationPaths = frozen.items
+    .filter(gate5ItemRequiresSourceConservation)
+    .map((item) => item.sourcePath);
+  if (frozen.sourceConservation.protectedEntryCount !== expectedSourceConservationPaths.length
+    || JSON.stringify(frozen.sourceConservation.sourcePaths) !== JSON.stringify(expectedSourceConservationPaths)) {
+    throw new Error("Gate 5 frozen set source-conservation selection does not match known Kit reachability");
   }
   if (JSON.stringify(orderedPaths) !== JSON.stringify([...orderedPaths].sort((left, right) => left.localeCompare(right)))) {
     throw new Error("Gate 5 frozen set items are not in canonical source-path order");

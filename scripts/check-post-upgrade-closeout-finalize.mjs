@@ -38,6 +38,7 @@ function scenarioRunner(id) {
   if (id === "adjacent-published-pristine-upgrade-closeout") return checkAdjacentPublishedUpgradeCanFinalizeCloseout;
   if (id === "v045-accepted-witness-legacy-archive-upgrade-closeout") return checkPublishedV045LegacyArchiveMigration;
   if (id === "schema2-state-only-supersession-closeout") return checkSchema2StateOnlySupersessionCloseout;
+  if (id === "source-conservation-bounded-root-scope") return checkBoundedRootSourceConservation;
   throw new Error(`no state-composition runner registered for ${id}`);
 }
 
@@ -74,8 +75,8 @@ function checkAdjacentPublishedUpgradeCanFinalizeCloseout(candidateBin) {
 
   mkdirSync(path.join(project, "docs"), { recursive: true });
   writeFileSync(path.join(project, "docs", "unexpected-note.md"), "# Unexpected note\n", "utf8");
-  const rejectedNewFile = cli(candidateBin, ["finalize-closeout", "--root", project], "finalize with new non-closeout file", { allowFailure: true });
-  assert(rejectedNewFile.status !== 0 && output(rejectedNewFile).includes("non-closeout drift"), "finalize-closeout accepted a new non-closeout file");
+  const ordinaryFileFinalize = cli(candidateBin, ["finalize-closeout", "--root", project], "finalize after ordinary new root file");
+  assert(output(ordinaryFileFinalize).includes("already matches") || output(ordinaryFileFinalize).includes("no post-upgrade current-state witness needed"), "ordinary new root file poisoned finalize-closeout");
 
   writeFileSync(path.join(project, "dev", "rules", "safety.md"), `${read(path.join(project, "dev", "rules", "safety.md"))}\n\nUnexpected non-closeout drift.\n`, "utf8");
   const beforeRejectedRuleJournals = countMigrationJournals(project);
@@ -83,6 +84,128 @@ function checkAdjacentPublishedUpgradeCanFinalizeCloseout(candidateBin) {
   assert(rejectedRule.status !== 0 && output(rejectedRule).includes("non-closeout drift"), "finalize-closeout accepted rule-pack drift");
   assert(countMigrationJournals(project) === beforeRejectedRuleJournals, "rejected non-closeout finalize created a journal");
   console.log("ok: adjacent published upgrade allows only explicit post-upgrade closeout finalize");
+}
+
+function checkBoundedRootSourceConservation(candidateBin) {
+  checkPublishedV046OrdinaryRootSourceRebind(candidateBin);
+  checkUnsafeLegacyRootSourceMetadataCannotSupersede(candidateBin);
+  checkCurrentCandidateOrdinaryRootSourceChange(candidateBin);
+}
+
+function checkPublishedV046OrdinaryRootSourceRebind(candidateBin) {
+  const project = fresh("v046-ordinary-root-source-project");
+  const sourceBin = installPublishedBin("0.3.41", "v046-ordinary-source");
+  const acceptedBin = installPublishedBin("0.3.46", "v046-ordinary-accepted");
+  run(process.execPath, [sourceBin, "init", "--yes", "--root", project], "v0.3.41 init for v0.3.46 ordinary root-source fixture");
+  writeFileSync(path.join(project, "README.md"), "# Local project README\n\nInitial ordinary local project text.\n", "utf8");
+  writeFileSync(path.join(project, "LOCAL_HISTORY.txt"), "Initial ordinary local project history.\n", "utf8");
+  const accepted = run(process.execPath, [acceptedBin, "upgrade", "--yes", "--root", project], "v0.3.46 ordinary root-source accepted upgrade");
+  assert(output(accepted).includes("migration committed"), "published v0.3.46 did not create a committed ordinary root-source witness");
+  const historical = findLatestCurrentStateJournal(project, { version: "0.3.46", command: "upgrade" });
+  assert(historical?.witness?.sourceConservation, "v0.3.46 ordinary root-source fixture did not retain source conservation");
+  assertOrdinaryRootOnlyWitness(historical.witness, "README.md");
+  assertOrdinaryRootOnlyWitness(historical.witness, "LOCAL_HISTORY.txt");
+
+  writeFileSync(path.join(project, "README.md"), "# Local project README\n\nChanged after historical source witness.\n", "utf8");
+  writeFileSync(path.join(project, "LOCAL_HISTORY.txt"), "Changed after historical source witness.\n", "utf8");
+  const staleDoctor = cli(candidateBin, ["doctor", "--root", project], "candidate doctor before ordinary root-source rebind", { allowFailure: true });
+  assert(staleDoctor.status !== 0 && output(staleDoctor).includes("unbound success state"), "ordinary legacy root-source drift did not require a bounded rebind");
+
+  const rebind = cli(candidateBin, ["upgrade", "--yes", "--root", project], "candidate rebind retires ordinary v0.3.46 root sources");
+  assert(output(rebind).includes("migration committed") || output(rebind).includes("accepted-current-state"), "ordinary root-source rebind did not commit");
+  const rebound = findLatestCurrentStateJournal(project, { version: packageVersion, command: "upgrade" });
+  assert(rebound?.witness?.sourceConservation, "ordinary root-source rebind did not create a strong source-conservation witness");
+  assert((rebound.witness.transaction.supersedesCurrentStateDigests ?? []).includes(historical.witness.currentStateDigest), "ordinary root-source rebind did not supersede the historical all-root witness");
+  assert(!sourceConservationPaths(rebound.witness).includes("README.md"), "ordinary README remained in bounded source conservation");
+  assert(!sourceConservationPaths(rebound.witness).includes("LOCAL_HISTORY.txt"), "ordinary local history file remained in bounded source conservation");
+  const doctor = cli(candidateBin, ["doctor", "--root", project], "doctor after ordinary root-source rebind");
+  assert(output(doctor).includes("status: passed"), "doctor did not pass after ordinary root-source rebind");
+
+  simulateCloseout(project);
+  const blocked = cli(candidateBin, ["doctor", "--root", project], "doctor after ordinary root-source closeout before finalize", { allowFailure: true });
+  assert(blocked.status !== 0 && output(blocked).includes("unbound success state"), "ordinary root-source fixture lost the normal pre-finalize closeout boundary");
+  const finalized = cli(candidateBin, ["finalize-closeout", "--root", project], "finalize ordinary root-source closeout");
+  assert(output(finalized).includes("closeout finalized"), "ordinary root-source fixture could not finalize legal closeout");
+  const finalDoctor = cli(candidateBin, ["doctor", "--root", project], "doctor after ordinary root-source finalize");
+  assert(output(finalDoctor).includes("status: passed"), "doctor did not pass after ordinary root-source finalize");
+  const card = cli(candidateBin, ["closeout-status", "--root", project], "closeout-status after ordinary root-source finalize");
+  assert(output(card).includes("status: complete"), "closeout-status did not pass after ordinary root-source finalize");
+  console.log("ok: published v0.3.46 all-root witness can legally rebind while retiring ordinary root-only sources");
+}
+
+function checkUnsafeLegacyRootSourceMetadataCannotSupersede(candidateBin) {
+  const sourceBin = installPublishedBin("0.3.41", "v046-unsafe-root-source");
+  const acceptedBin = installPublishedBin("0.3.46", "v046-unsafe-root-accepted");
+  const scenarios = [
+    {
+      label: "reader",
+      mutate: (entry) => {
+        entry.existingReaders = [{ reader: "synthetic current-state reader", via: "qa fixture" }];
+      }
+    },
+    {
+      label: "disposition",
+      mutate: (entry) => {
+        entry.disposition = "preserve";
+      }
+    },
+    {
+      label: "effect",
+      mutate: (entry) => {
+        entry.priorityRelation = "known-kit-priority";
+        entry.effectDecision = "known-kit-effect";
+      }
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const project = fresh(`v046-unsafe-root-source-${scenario.label}`);
+    run(process.execPath, [sourceBin, "init", "--yes", "--root", project], `v0.3.41 init for unsafe root-source ${scenario.label} fixture`);
+    writeFileSync(path.join(project, "README.md"), "# Local project README\n\nInitial ordinary local project text.\n", "utf8");
+    const accepted = run(process.execPath, [acceptedBin, "upgrade", "--yes", "--root", project], `v0.3.46 unsafe root-source ${scenario.label} accepted upgrade`);
+    assert(output(accepted).includes("migration committed"), `published v0.3.46 did not create the unsafe ${scenario.label} fixture witness`);
+    const historical = findLatestCurrentStateJournal(project, { version: "0.3.46", command: "upgrade" });
+    assert(historical?.witness?.sourceConservation, `unsafe ${scenario.label} fixture did not retain source conservation`);
+    assertOrdinaryRootOnlyWitness(historical.witness, "README.md");
+    const unsafe = mutateSourceConservationEntry(historical, "README.md", scenario.mutate);
+
+    const beforeJournals = countMigrationJournals(project);
+    const rebind = cli(candidateBin, ["upgrade", "--yes", "--root", project], `candidate refuses unsafe root-source ${scenario.label} retirement`, { allowFailure: true });
+    if (rebind.status !== 0) {
+      assert(countMigrationJournals(project) === beforeJournals, `rejected unsafe ${scenario.label} rebind wrote a journal`);
+      continue;
+    }
+    const rebound = findLatestCurrentStateJournal(project, { version: packageVersion, command: "upgrade" });
+    assert(rebound?.witness, `unsafe ${scenario.label} rebind did not leave an inspectable current-state witness`);
+    assert(!(rebound.witness.transaction.supersedesCurrentStateDigests ?? []).includes(unsafe.witness.currentStateDigest), `unsafe ${scenario.label} root-source entry was silently superseded`);
+    const doctor = cli(candidateBin, ["doctor", "--root", project], `doctor after unsafe root-source ${scenario.label} non-supersession`, { allowFailure: true });
+    assert(doctor.status !== 0 && output(doctor).includes("unbound success state"), `unsafe ${scenario.label} non-supersession was not fail-closed`);
+  }
+  console.log("ok: unsafe legacy root-source metadata cannot be retired by bounded rebind");
+}
+
+function checkCurrentCandidateOrdinaryRootSourceChange(candidateBin) {
+  const prefix = fresh(`candidate-ordinary-${previousVersion}-prefix`);
+  const project = fresh("candidate-ordinary-root-source-project");
+  npm(["install", "--prefix", prefix, `@adamchanadam/agent-handoff-kit@${previousVersion}`], `install previous published v${previousVersion} for ordinary source fixture`);
+  const previousBin = path.join(prefix, "node_modules", "@adamchanadam", "agent-handoff-kit", "bin", "agent-handoff-kit.mjs");
+  run(process.execPath, [previousBin, "init", "--yes", "--root", project], `v${previousVersion} init for current ordinary source fixture`);
+  writeFileSync(path.join(project, "project-notes.local.txt"), "ordinary local project note before candidate upgrade\n", "utf8");
+  mkdirSync(path.join(project, "assets"), { recursive: true });
+  writeFileSync(path.join(project, "assets", "local-plan.data"), "ordinary local plan before candidate upgrade\n", "utf8");
+  const upgrade = cli(candidateBin, ["upgrade", "--yes", "--root", project], "current candidate upgrade with ordinary root sources");
+  assert(output(upgrade).includes("migration committed") || output(upgrade).includes("accepted-current-state"), "current ordinary source upgrade did not commit");
+  const accepted = findLatestCurrentStateJournal(project, { version: packageVersion, command: "upgrade" });
+  assert(accepted?.witness?.sourceConservation, "current ordinary source fixture did not create a source-conservation witness");
+  assert(!sourceConservationPaths(accepted.witness).includes("project-notes.local.txt"), "arbitrary ordinary root note was protected as current-state authority");
+  assert(!sourceConservationPaths(accepted.witness).includes("assets/local-plan.data"), "arbitrary ordinary asset was protected as current-state authority");
+  writeFileSync(path.join(project, "project-notes.local.txt"), "ordinary local project note changed after candidate upgrade\n", "utf8");
+  writeFileSync(path.join(project, "assets", "local-plan.data"), "ordinary local plan changed after candidate upgrade\n", "utf8");
+  const doctor = cli(candidateBin, ["doctor", "--root", project], "doctor after current ordinary root-source changes");
+  assert(output(doctor).includes("status: passed"), "ordinary current root-source changes poisoned doctor");
+  const card = cli(candidateBin, ["closeout-status", "--root", project], "closeout-status after current ordinary root-source changes", { allowFailure: true });
+  assert(!output(card).includes("shared frozen-source witness") && !output(card).includes("non-closeout drift"), "ordinary current root-source changes poisoned closeout-status as source drift");
+  console.log("ok: current candidate excludes arbitrary ordinary root sources from current-state authority");
 }
 
 function checkPublishedV045LegacyArchiveMigration(candidateBin) {
@@ -463,6 +586,30 @@ function assertPublishedLegacyArchiveAcceptedWitness(project) {
 
 function findCurrentStateWitness(project, version) {
   return findLatestCurrentStateJournal(project, { version })?.witness ?? null;
+}
+
+function sourceConservationPaths(witness) {
+  return (witness.sourceConservation?.entries ?? []).map((entry) => entry.sourcePath);
+}
+
+function assertOrdinaryRootOnlyWitness(witness, sourcePath) {
+  const entry = (witness.sourceConservation?.entries ?? []).find((item) => item.sourcePath === sourcePath);
+  assert(entry, `historical witness does not bind ordinary source ${sourcePath}`);
+  assert(JSON.stringify(entry.classifications) === JSON.stringify(["root-source"]), `${sourcePath} was not captured as ordinary root-source only`);
+  assert(entry.disposition === "outside-known-kit-reachability", `${sourcePath} did not record outside-known-kit-reachability disposition`);
+  assert(entry.priorityRelation === "outside-known-kit-reachability", `${sourcePath} did not record outside-known-kit priority`);
+  assert(entry.effectDecision === "outside-known-kit-reachability", `${sourcePath} did not record outside-known-kit effect`);
+  assert(Array.isArray(entry.existingReaders) && entry.existingReaders.length === 0, `${sourcePath} invented an existing Kit reader`);
+}
+
+function mutateSourceConservationEntry(record, sourcePath, mutate) {
+  const entry = record.journal.sourceConservation?.entries?.find((item) => item.sourcePath === sourcePath);
+  assert(entry, `cannot mutate missing source-conservation entry ${sourcePath}`);
+  mutate(entry);
+  record.journal.currentStateWitness = currentStateWitnessForFixtureJournal(record.journal);
+  record.journal.currentStateReadback = currentStateReadbackForFixtureWitness(record.journal.currentStateWitness);
+  writeFileSync(record.journalPath, `${JSON.stringify(record.journal, null, 2)}\n`, "utf8");
+  return { ...record, witness: record.journal.currentStateWitness };
 }
 
 function findLatestCurrentStateJournal(project, { version = null, command = null } = {}) {

@@ -18,7 +18,7 @@ export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
   releaseReadinessCheck("r034-vertical", "check-r034-vertical.mjs", "artifact-backed R-034 vertical QA", 360_000),
   releaseReadinessCheck("r034-final-closure", "check-r034-final-closure.mjs", "R-034 Phase-0 five-file final closure QA", 240_000),
   releaseReadinessCheck("upgrade-safety", "check-upgrade-safety.mjs", "upgrade safety QA", 360_000),
-  releaseReadinessCheck("post-upgrade-closeout-finalize", "check-post-upgrade-closeout-finalize.mjs", "post-upgrade closeout finalize QA", 240_000),
+  releaseReadinessCheck("post-upgrade-closeout-finalize", "check-post-upgrade-closeout-finalize.mjs", "post-upgrade closeout finalize QA", 360_000),
   releaseReadinessCheck("prompt-mirror", "check-prompt-mirror.mjs", "prompt mirror checker", 60_000)
 ]);
 
@@ -327,6 +327,20 @@ export const POST_UPGRADE_STATE_COMPOSITIONS = Object.freeze([
       "failure semantics x ambiguous witness x non-closeout drift"
     ],
     expected: "schema 1 cannot become doctor authority over an unretired stronger witness; existing multi-hop downgraded closeout-only roots get a hash-bound transitive finalize bridge; non-closeout drift fails before writes until an authorized repair lets upgrade create a fresh strong rebind; branching, missing links, invalid cycles, ambiguity, and non-closeout drift remain fail-closed"
+  }),
+  composition("source-conservation-bounded-root-scope", {
+    baseline: "published v0.3.46 source-conservation witness plus current packed candidate witness",
+    ownershipDelta: "ordinary root source files outside known Kit reachability change after committed witness",
+    transactionPhase: "committed historical upgrade, committed candidate rebind, and committed current candidate upgrade",
+    filesystemSemantics: "ordinary project root files stay read-only evidence and do not become current-state authority",
+    postUpgradeAction: "doctor, legal rebind, normal closeout, finalize-closeout, and closeout-status",
+    deliveryArtifact: "packed candidate tarball",
+    requiredTriples: [
+      "published lineage x ordinary root source mutation x source-conservation rebind",
+      "current candidate x arbitrary user-owned source mutation x doctor authority",
+      "failure semantics x managed/formal drift x bounded current-state authority"
+    ],
+    expected: "ordinary root-only sources can be retired from legacy all-root witnesses and are excluded from new current-state source conservation; managed core, rule-pack, formal-route, bridge, archive, and state-only rejection paths remain fail-closed"
   })
 ]);
 

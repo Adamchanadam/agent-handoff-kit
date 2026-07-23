@@ -10,7 +10,7 @@ import { tmpdir as systemTmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
-import { assertGate5FrozenSet, freezeGate5Set } from "../bin/upgrade-inventory.mjs";
+import { assertGate5FrozenSet, freezeGate5Set, gate5SourceConservationItems } from "../bin/upgrade-inventory.mjs";
 import { materializeVerifiedV038ArtifactFixture } from "./r034-v038-artifact-fixture.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -74,10 +74,12 @@ async function prepare(project) {
   const before = await freezeGate5Set({ root: project, catalog });
   assertGate5FrozenSet(before);
   const item = new Map(before.items.map((entry) => [entry.sourcePath, entry]));
+  const protectedPaths = new Set(gate5SourceConservationItems(before).map((entry) => entry.sourcePath));
   assert(item.get("dev/safety.md")?.unresolvedReason === null, "path-only legacy safety source entered Gate 5 reachability");
+  assert(!protectedPaths.has("dev/safety.md"), "path-only legacy safety source entered current-state source conservation");
   for (const targetRel of runtimeTargets) assert(item.has(targetRel), `whole-set fixture omitted runtime target ${targetRel}`);
   const sidecar = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     project,
     artifactIntegrity: artifact.integrity,
     artifactFreshInitOutputDigest: artifact.freshInitOutputDigest,
@@ -96,7 +98,15 @@ async function prepare(project) {
       identity: artifact.initialTransactionWitness.identity
     },
     frozenSetSha256: before.frozenSetSha256,
-    items: before.items.map((entry) => ({ sourcePath: entry.sourcePath, sourceIdentity: entry.sourceIdentity, ownership: entry.ownership, unresolvedReason: entry.unresolvedReason, classifications: entry.classifications }))
+    sourceConservationPaths: before.sourceConservation.sourcePaths,
+    items: before.items.map((entry) => ({
+      sourcePath: entry.sourcePath,
+      sourceIdentity: entry.sourceIdentity,
+      ownership: entry.ownership,
+      unresolvedReason: entry.unresolvedReason,
+      classifications: entry.classifications,
+      sourceConservationProtected: protectedPaths.has(entry.sourcePath)
+    }))
   };
   writeFileSync(sidecarPath(project), `${JSON.stringify(sidecar, null, 2)}\n`, "utf8");
   console.log(`PREPARED: ${project}`);
@@ -107,7 +117,7 @@ async function prepare(project) {
 
 async function verify(project) {
   const sidecar = JSON.parse(read(sidecarPath(project)));
-  assert(sidecar.schemaVersion === 2, "unsupported Gate 5 closure sidecar");
+  assert(sidecar.schemaVersion === 3, "unsupported Gate 5 closure sidecar");
   assert(sidecar.artifactFreshInitOutputs?.length === 20, "artifact witness did not derive every v0.3.38 package fresh-init target");
   assert(sidecar.artifactFreshInitOutputs.every((entry) => entry.identity === "exact-fresh-init-artifact-output" && typeof entry.transform === "string"), "artifact witness falsely labels a raw package path as a fresh-init identity");
   assert(sidecar.artifactInitialTransactionWitness?.identity === "artifact-init-generated-historical-transaction-witness", "artifact-generated initial transaction witness is absent or misclassified");
@@ -123,13 +133,13 @@ async function verify(project) {
   assert(accepted?.schemaVersion === 4, "whole-set transaction omitted schema-v4 shared runtime acceptance");
   assert(sourceConservation?.schemaVersion === 1, "whole-set transaction omitted shared frozen-source conservation");
   assert(sourceConservation.frozenSetSha256 === sidecar.frozenSetSha256, "whole-set current state does not bind the exact pre-upgrade frozen-set identity");
-  assert(sourceConservation.entries.length === sidecar.items.length, "whole-set current state does not cover every original source");
+  assert(sourceConservation.entries.length === sidecar.sourceConservationPaths.length, "whole-set current state does not cover every protected original source");
   assert(journal.currentStateWitness?.runtimeAcceptance?.acceptanceDigest === accepted.acceptanceDigest, "whole-set current state does not bind runtime acceptance");
-  assert(journal.currentStateReadback?.sourceConservationEntryCount === sidecar.items.length, "whole-set success state did not use the fresh frozen-source readback");
+  assert(journal.currentStateReadback?.sourceConservationEntryCount === sidecar.sourceConservationPaths.length, "whole-set success state did not use the fresh protected frozen-source readback");
   assert(journal.currentStateReadback?.runtimeAcceptanceDigest === accepted.acceptanceDigest, "whole-set success state did not use the fresh runtime acceptance readback");
   assert(journal.runtimeAcceptanceReadback?.reader?.includes("direct AGENTS whole-file entry") && journal.runtimeAcceptanceReadback.reader.includes("direct RULE_PACKS entry"), "whole-set doctor readback does not disclose both preserved routing boundaries");
   assert(transaction.report.includes(accepted.acceptanceDigest) && transaction.report.includes(journal.currentStateWitness.currentStateDigest), "whole-set report does not consume the same acceptance/current-state identity");
-  assert(transaction.report.includes(`Frozen source-conservation entries: ${sidecar.items.length}`), "whole-set report omits the source-conservation portion of the same current state");
+  assert(transaction.report.includes(`Frozen source-conservation entries: ${sidecar.sourceConservationPaths.length}`), "whole-set report omits the source-conservation portion of the same current state");
 
   const closed = [];
   const conservedByPath = new Map(sourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
@@ -138,10 +148,14 @@ async function verify(project) {
     assert(active, `whole-set equality lost original source: ${source.sourcePath}`);
     const originalHash = source.sourceIdentity.sha256;
     const conserved = conservedByPath.get(source.sourcePath);
-    assert(conserved, `whole-set current state omitted original source: ${source.sourcePath}`);
-    assert(conserved.sourceWitness.sha256 === originalHash && conserved.sourceWitness.bytes === source.sourceIdentity.bytes, `whole-set source witness differs from original bytes: ${source.sourcePath}`);
-    assert(conserved.accepted.sha256 === active.sourceIdentity.sha256 && conserved.accepted.bytes === active.sourceIdentity.bytes, `whole-set current-state readback differs from active bytes: ${source.sourcePath}`);
-    assert(conserved.sourceByteRanges?.length === 1 && conserved.sourceByteRanges[0].start === 0 && conserved.sourceByteRanges[0].end === source.sourceIdentity.bytes && conserved.sourceByteRanges[0].sha256 === originalHash, `whole-set source has no complete byte-range reconstruction witness: ${source.sourcePath}`);
+    if (source.sourceConservationProtected) {
+      assert(conserved, `whole-set current state omitted protected original source: ${source.sourcePath}`);
+      assert(conserved.sourceWitness.sha256 === originalHash && conserved.sourceWitness.bytes === source.sourceIdentity.bytes, `whole-set source witness differs from original bytes: ${source.sourcePath}`);
+      assert(conserved.accepted.sha256 === active.sourceIdentity.sha256 && conserved.accepted.bytes === active.sourceIdentity.bytes, `whole-set current-state readback differs from active bytes: ${source.sourcePath}`);
+      assert(conserved.sourceByteRanges?.length === 1 && conserved.sourceByteRanges[0].start === 0 && conserved.sourceByteRanges[0].end === source.sourceIdentity.bytes && conserved.sourceByteRanges[0].sha256 === originalHash, `whole-set source has no complete byte-range reconstruction witness: ${source.sourcePath}`);
+    } else {
+      assert(!conserved, `ordinary outside-reachability source was protected as current-state authority: ${source.sourcePath}`);
+    }
     const transactionEntry = journalEntries.get(source.sourcePath);
     if (runtimeTargets.has(source.sourcePath)) {
       assertRuntimeClosure(source.sourcePath, originalHash, active, accepted, transactionEntry);
@@ -185,8 +199,8 @@ async function verify(project) {
     closed.push(`${source.sourcePath}:unchanged-outside-runtime`);
   }
   assert(closed.length === sidecar.items.length, "whole-set closure did not classify every original source item");
-  assert(conservedByPath.size === sidecar.items.length, "whole-set current state contains an unaccounted source-conservation entry");
-  console.log(`GREEN: Gate 5 whole-set equality classified ${closed.length} original sources under one artifact-backed frozen set and one shared current-state acceptance.`);
+  assert(conservedByPath.size === sidecar.sourceConservationPaths.length, "whole-set current state contains an unaccounted source-conservation entry");
+  console.log(`GREEN: Gate 5 whole-set equality classified ${closed.length} original sources under one artifact-backed frozen set and one bounded shared current-state acceptance.`);
   console.log(`before frozen-set digest: ${sidecar.frozenSetSha256}`);
   console.log(`after frozen-set digest:  ${after.frozenSetSha256}`);
   console.log(`transaction: ${journal.id}`);

@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { assessPromptMirrorRoot, assessPromptMirrorTexts, extractOpeningMessage } from "./prompt-mirror-core.mjs";
 import { freshInstallMappings, installedFileContract, installedMappings, requiredInstalledTargets, upgradeStateMappings, upgradeStateTargets } from "./installed-file-contract.mjs";
 import { getArtifactBoundManagedSegment, getOfficialBaseline, identifyOfficialOrigin, loadOfficialOriginCatalog } from "./official-origin-catalog.mjs";
-import { assertGate5FrozenSet, extractExplicitLocalReferences, freezeGate5Set } from "./upgrade-inventory.mjs";
+import { assertGate5FrozenSet, extractExplicitLocalReferences, freezeGate5Set, gate5SourceConservationItems } from "./upgrade-inventory.mjs";
 import {
   FORMAL_USER_RULES_ENTRY_ANCHOR,
   USER_RULES_ROUTER_PATH,
@@ -2831,7 +2831,7 @@ async function createSourceConservation(root, outputs, archiveMigrations = []) {
     sourcePrefix: `${migration.originalRel}/`,
     targetPrefix: `${migration.canonicalRel}/`
   }));
-  const entries = frozen.items.map((item) => {
+  const entries = gate5SourceConservationItems(frozen).map((item) => {
     const output = outputByTarget.get(item.sourcePath) ?? null;
     const rebind = pathRebindings.find((candidate) => item.sourcePath.startsWith(candidate.sourcePrefix)) ?? null;
     const sourcePath = rebind
@@ -3886,6 +3886,8 @@ async function classifyCurrentStateRebindMismatches(projectRoot, journal) {
   const illegalNonCloseout = [];
   for (const mismatch of mismatches) {
     if (isCloseoutFinalizeTarget(mismatch.path)) continue;
+    if (mismatch.kind === "source-conservation"
+      && sourceConservationEntryMayRetireAsUnreachableRootSource(mismatch.sourceConservationEntry)) continue;
     if (await mismatchMatchesCurrentInstalledSource(projectRoot, mismatch)) continue;
     illegalNonCloseout.push(mismatch);
   }
@@ -3916,9 +3918,10 @@ async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations 
       if (journal.state !== "committed" || !journal.currentStateWitness) continue;
       await validateRecoveryJournal(root, journal, journalPath);
       const priorWitness = validateCurrentStateWitness(journal);
-      if (await journalMatchesCurrentState(root, journal)
-        || await journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations)
-        || sourceConservationRebindsPrior(priorWitness, replacement.sourceConservation)) {
+      const sourceConservationRebind = sourceConservationEntriesRebindPrior(priorWitness, replacement.sourceConservation, archiveMigrations);
+      if ((await journalMatchesCurrentState(root, journal) && (!priorWitness.sourceConservation || sourceConservationRebind))
+        || await journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations, replacement.sourceConservation)
+        || sourceConservationRebind) {
         if (!canSupersedeCurrentStateWitness(replacement, priorWitness)) continue;
         restored.push(journal.currentStateWitness.currentStateDigest);
       }
@@ -3947,6 +3950,51 @@ function canSupersedeCurrentStateWitness(replacement, priorWitness) {
   return true;
 }
 
+function sourceConservationEntryMayRetireAsUnreachableRootSource(entry) {
+  return Boolean(entry
+    && Array.isArray(entry.classifications)
+    && entry.classifications.length === 1
+    && entry.classifications[0] === "root-source"
+    && entry.disposition === "outside-known-kit-reachability"
+    && Array.isArray(entry.existingReaders)
+    && entry.existingReaders.length === 0
+    && entry.priorityRelation === "outside-known-kit-reachability"
+    && entry.effectDecision === "outside-known-kit-reachability");
+}
+
+function sourceConservationEntryAcceptedMatches(entry, accepted) {
+  return Boolean(accepted
+    && accepted.sha256 === entry.accepted?.sha256
+    && accepted.bytes === entry.accepted?.bytes);
+}
+
+function sourceConservationEntryHasAcceptedCoverage(entry) {
+  return Boolean(entry
+    && entry.accepted
+    && typeof entry.accepted.sha256 === "string"
+    && Number.isInteger(entry.accepted.bytes));
+}
+
+function sourceConservationEntriesRebindPrior(priorWitness, replacementSourceConservation, archiveMigrations = []) {
+  if (!priorWitness.sourceConservation) return true;
+  if (!replacementSourceConservation) return false;
+  const replacementByPath = new Map(replacementSourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
+  const archiveRebindings = new Map();
+  for (const migration of [...(priorWitness.archiveMigrations ?? []), ...archiveMigrations]) {
+    for (const file of migration.snapshot.files ?? []) {
+      archiveRebindings.set(`${migration.originalRel}/${file.path}`, `${migration.canonicalRel}/${file.path}`);
+    }
+  }
+  return priorWitness.sourceConservation.entries.every((entry) => {
+    if (sourceConservationEntryMayRetireAsUnreachableRootSource(entry)) return true;
+    const replacement = replacementByPath.get(entry.sourcePath);
+    if (sourceConservationEntryHasAcceptedCoverage(replacement)) return true;
+    const reboundPath = archiveRebindings.get(entry.sourcePath);
+    const rebound = reboundPath ? replacementByPath.get(reboundPath) : null;
+    return sourceConservationEntryAcceptedMatches(entry, rebound?.accepted);
+  });
+}
+
 function sourceConservationRebindsPrior(priorWitness, replacementSourceConservation) {
   if (!replacementSourceConservation) return false;
   const replacementByPath = new Map(replacementSourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
@@ -3958,14 +4006,7 @@ function sourceConservationRebindsPrior(priorWitness, replacementSourceConservat
       && Number.isInteger(replacement.accepted.bytes);
   });
   if (!coversTransactionEntries) return false;
-  if (!priorWitness.sourceConservation) return true;
-  return priorWitness.sourceConservation.entries.every((entry) => {
-    const replacement = replacementByPath.get(entry.sourcePath);
-    return replacement
-      && replacement.accepted
-      && typeof replacement.accepted.sha256 === "string"
-      && Number.isInteger(replacement.accepted.bytes);
-  });
+  return sourceConservationEntriesRebindPrior(priorWitness, replacementSourceConservation);
 }
 
 function archiveMigrationHistoryIsRebound(priorWitness, replacementSourceConservation) {
@@ -3982,11 +4023,12 @@ function archiveMigrationHistoryIsRebound(priorWitness, replacementSourceConserv
       }
     }
   }
-  return sourceConservationRebindsPrior(priorWitness, replacementSourceConservation);
+  return sourceConservationEntriesRebindPrior(priorWitness, replacementSourceConservation);
 }
 
-async function journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations = []) {
+async function journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations = [], replacementSourceConservation = null) {
   const witness = validateCurrentStateWitness(journal);
+  const replacementByPath = new Map((replacementSourceConservation?.entries ?? []).map((entry) => [entry.sourcePath, entry]));
   const archiveRebindings = new Map();
   for (const migration of archiveMigrations) {
     for (const file of migration.snapshot.files) {
@@ -4013,11 +4055,17 @@ async function journalIsRestoredByOutputs(root, journal, outputWitnesses, archiv
       if (replacement.sha256 !== entry.accepted.sha256 || replacement.bytes !== entry.accepted.bytes) return false;
       continue;
     }
+    const sourceReplacement = replacementByPath.get(entry.sourcePath);
+    if (sourceReplacement) {
+      if (!sourceConservationEntryHasAcceptedCoverage(sourceReplacement)) return false;
+      continue;
+    }
     const archiveRebinding = archiveRebindings.get(entry.sourcePath);
     if (archiveRebinding) {
       if (archiveRebinding.sha256 !== entry.accepted.sha256 || archiveRebinding.bytes !== entry.accepted.bytes) return false;
       continue;
     }
+    if (!sourceConservationEntryMayRetireAsUnreachableRootSource(entry)) return false;
     const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
     if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) return false;
   }
@@ -4225,14 +4273,14 @@ async function currentStateMismatches(root, journal) {
   for (const entry of witness.sourceConservation?.entries ?? []) {
     const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
     if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) {
-      mismatches.set(entry.sourcePath, { path: entry.sourcePath, kind: "source-conservation" });
+      mismatches.set(entry.sourcePath, { path: entry.sourcePath, kind: "source-conservation", sourceConservationEntry: entry });
     }
   }
   if (witness.sourceConservation) {
     const conserved = new Set(witness.sourceConservation.entries.map((entry) => entry.sourcePath));
     const currentFrozen = await freezeGate5Set({ root });
     assertGate5FrozenSet(currentFrozen);
-    for (const item of currentFrozen.items) {
+    for (const item of gate5SourceConservationItems(currentFrozen)) {
       if (conserved.has(item.sourcePath) || isFinalizeJournalState(item.sourcePath)) continue;
       mismatches.set(item.sourcePath, { path: item.sourcePath, kind: "new-source" });
     }
@@ -4292,7 +4340,7 @@ async function writeCloseoutFinalizeJournal(root, version, prior) {
       ? {
           schemaVersion: oldWitness.sourceConservation.schemaVersion,
           frozenSetSha256: currentFrozen.frozenSetSha256,
-          entries: await Promise.all(currentFrozen.items
+          entries: await Promise.all(gate5SourceConservationItems(currentFrozen)
             .filter((item) => !isFinalizeJournalState(item.sourcePath))
             .map(async (item) => {
             const entry = oldSourceByPath.get(item.sourcePath) ?? null;

@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installedFileContracts } from "../bin/installed-file-contract.mjs";
 import { loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
-import { assertGate5FrozenSet, freezeGate5Set } from "../bin/upgrade-inventory.mjs";
+import { assertGate5FrozenSet, freezeGate5Set, gate5SourceConservationItems } from "../bin/upgrade-inventory.mjs";
 import { materializeVerifiedV038ArtifactFixture } from "./r034-v038-artifact-fixture.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,7 +38,7 @@ async function main() {
   const reordered = JSON.parse(JSON.stringify(first));
   reordered.items.reverse();
   refreshFrozenSetDigest(reordered);
-  assertThrows(() => assertGate5FrozenSet(reordered), "canonical source-path order", "reordered whole-Kit set was accepted");
+  assertThrows(() => assertGate5FrozenSet(reordered), "source-conservation selection does not match known Kit reachability", "reordered whole-Kit set was accepted");
   const incompleteUnresolved = JSON.parse(JSON.stringify(first));
   incompleteUnresolved.unresolved.pop();
   refreshFrozenSetDigest(incompleteUnresolved);
@@ -49,6 +49,10 @@ async function main() {
   assert(first.packageContract.installedTargets.length === installedFileContracts.length, "package contract coverage drifted from installed contract");
   assert(first.packageContract.coverage.length === installedFileContracts.length + 1, "whole frozen set omitted a package or formal-transition contract target");
   assert(first.rootSourceInventory.entryCount === first.items.length && /^[0-9a-f]{64}$/.test(first.rootSourceInventory.sha256), "whole frozen set omitted its root-source identity");
+  const protectedItems = gate5SourceConservationItems(first);
+  assert(first.sourceConservation.selection === "known-kit-reachability", "frozen set did not name the source-conservation selection rule");
+  assert(first.sourceConservation.protectedEntryCount === protectedItems.length, "source-conservation protected count drifted from known Kit reachability");
+  assert(JSON.stringify(first.sourceConservation.sourcePaths) === JSON.stringify(protectedItems.map((item) => item.sourcePath)), "source-conservation protected paths drifted from known Kit reachability");
   assert(first.rootSourceInventory.exclusions.some((entry) => entry.path === ".git"), "root-source exclusions are not explicit");
   assert(first.historicalSource.installedTemplateVersion === "0.3.38" && first.historicalSource.packageIdentity === "@adamchanadam/agent-handoff-kit@0.3.38" && first.historicalSource.packageIntegrity, "historical package identity is not bound to the installed fixture");
   assert(first.formalSurfaces.entry.present, "formal AGENTS entry is absent from the frozen set");
@@ -64,11 +68,14 @@ async function main() {
   assert(legacySafety?.classifications.length === 1 && legacySafety.classifications[0] === "root-source", "same-name legacy path was promoted into Gate 5 reachability");
   assert(legacySafety.packageContract === null && legacySafety.historicalOrigin === null && legacySafety.existingReaders.length === 0, "legacy safety source invented package, artifact, or formal-reader evidence");
   assert(legacySafety.priorityConflict.status === "not-applicable-outside-known-kit-reachability" && legacySafety.effect.decision === "outside-known-kit-reachability" && legacySafety.unresolvedReason === null, "legacy safety source did not remain outside known Kit reachability");
+  assert(!first.sourceConservation.sourcePaths.includes("dev/safety.md"), "same-name ordinary legacy source was promoted into current-state source conservation");
   assert(items.get("docs/custom-policy.json")?.existingReaders.some((reader) => reader.reader === "AGENTS.md"), "formal AGENTS reference was not bound to the frozen set");
+  assert(first.sourceConservation.sourcePaths.includes("docs/custom-policy.json"), "formal AGENTS reference was not protected by current-state source conservation");
   const unheadedOrdinary = items.get("notes/繁中與日本語/無標題規則.txt");
   assert(unheadedOrdinary?.classifications.length === 1 && unheadedOrdinary.classifications[0] === "root-source", "whole root scan omitted an unheaded multilingual ordinary source");
   assert(unheadedOrdinary.existingReaders.length === 0 && unheadedOrdinary.effect.status === "not-applicable-outside-known-kit-reachability", "ordinary root source was invented as active Kit content");
   assert(!first.unresolved.some((entry) => entry.sourcePath === unheadedOrdinary.sourcePath), "ordinary root source was incorrectly reported as an unresolved Kit item");
+  assert(!first.sourceConservation.sourcePaths.includes(unheadedOrdinary.sourcePath), "ordinary root source was protected as current-state authority");
   assert(!items.has(".git/HEAD"), "root-source inventory treated version-control metadata as project content");
   for (const item of first.items) {
     assert(item.sourceIdentity.sha256 === sha(readFileSync(path.join(project, item.sourcePath))), `frozen source bytes do not match current bytes: ${item.sourcePath}`);

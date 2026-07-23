@@ -1,5 +1,16 @@
 # 變更紀錄
 
+## v0.3.51 — 2026-07-23
+
+狀態：source package version。本版修補 source-conservation 的保護範圍：Gate 5 仍保留 whole-root discovery 作為唯讀安全證據，但 current-state witness 只保護有 Kit reachability、transaction、archive migration 或 installed contract coverage 的項目。普通 user-owned root files 不再因 README、CHANGELOG 或其他專案檔案正常變更而令 `doctor` 或 `closeout-status` 永久無法通過。正式發布狀態由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+### Source-conservation 範圍收口
+
+- `createSourceConservation()` 不再把 Gate 5 whole-root frozen set 全部放入 protected current-state authority；它只綁定已知 Kit-reachable 的 source-conservation subset。
+- legacy v0.3.46-style all-root witness 可在 upgrade rebind 中安全遷移：只有唯一 `root-source`、outside-known disposition / priority / effect、且沒有 existing reader 的普通 root entry 可退休。
+- 有 reader、非 outside-known metadata、rule-pack、formal-route、managed-core、archive migration 或 transaction state 的 entry 仍必須有 replacement / archive coverage，不能被 root-source-only 捷徑靜默 supersede。
+- 新回歸覆蓋 published v0.3.46 all-root witness、ordinary root file mutate、unsafe metadata synthetic entries、current arbitrary project files、managed-core drift、state-only bridge、archive bridge、missing / ambiguous / cycle fail-closed。
+
 ## v0.3.50 — 2026-07-23
 
 狀態：source package version。本版修補 closeout 與 QA runner 的終態處理：正式 QA 不再依賴可能無界等待的 `spawnSync` timeout；timeout、child signal、spawn / transport error、partial PASS、wrapper false-green 和 Windows command-wrapper shell option 都有結構化處理與反例保護。正式發布狀態由 GitHub Release 與 npm `@latest` 發佈後讀回確認。

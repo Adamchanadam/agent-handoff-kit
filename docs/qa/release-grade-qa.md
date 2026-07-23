@@ -15,6 +15,51 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
+## v0.3.51 candidate status
+
+- 狀態：本地 source candidate，尚未發布。目標是修補 source-conservation 範圍缺陷：Gate 5 whole-root discovery 保留為唯讀安全證據，但 protected current-state witness 只綁定 known-Kit-reachability / transaction / archive migration / installed contract coverage。普通 user-owned root files 正常變更不得永久 poison `doctor` 或 `closeout-status`；managed-core、rule-pack、formal-route、archive migration 與 closeout state 仍 fail closed。正式 push、tag、GitHub Release、npm publish 後仍須以 registry / release / npx readback 驗證。
+
+### Full-check role isolation（v0.3.51）
+
+- 狀態：SOURCE_REVIEW_PASS_PENDING_FREEZE。source-level candidate 已取得獨立唯讀審閱 PASS；這不是 freeze、full 或 release PASS。正式 `full` gate 必須等 clean commit、獨立 freeze identity review、candidate evidence、獨立 evidence receipt、candidate commit、tarball SHA-256、manifest digest、review bundle SHA-256、review subject digest 和五項結論全部綁定後才可通過。
+- 邊界：thread / role 欄位只作 audit provenance，不是密碼學身份證明，也不是 CLI 資料操作信任根。候選凍結後如 tracked candidate 改動，原 review receipt 自動失效。
+- Runner 綁定：`full` 會讀取 review bundle JSON，重算 `sha256(JSON.stringify(bundle.reviewSubject))`，並核對 bundle、evidence、receipt 與 clean HEAD 的 candidate、tarball、manifest、inventory、state history 和五項結論一致；bundle + evidence 一起被替換但沿用舊 receipt 時必須 hard fail。
+- five-conclusion writer assessment：governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting 目前仍未進入正式 evidence receipt；不得把 source-level PASS 寫成 full PASS。
+
+### Bilingual README semantic gate（v0.3.51，PASS）
+
+- Verdict: **PASS** — 中英文 README 只同步 source package version 為 v0.3.51；主路徑仍是用戶講目的、AI 判斷 install / upgrade / doctor，不把技術指令推回一般用戶。
+
+### Bilingual practical-guide semantic gate（v0.3.51，PASS）
+
+- Verdict: **PASS** — 中英文 practical guide 只同步可見版本與示例輸出為 v0.3.51；三個日常情景、新手一屏循環、blocked 說明與治理打通說法沒有新增分歧。
+
+### Bilingual AI-install semantic gate（v0.3.51，PASS）
+
+- Verdict: **PASS** — 中英文 AI-install 頁只同步目前 source package version；既有 install / upgrade / doctor 邊界、用戶授權、AI 處理技術步驟與 npm `@latest` readback 邊界沒有新增分歧。
+
+### Bilingual introduction semantic gate（v0.3.51，PASS）
+
+- Verdict: **PASS** — 中英文 60 秒入門只同步目前版本為 v0.3.51；狀態圖例、一屏開工 / 收工循環、普通 web chat 不適用邊界與安全提示沒有語意改動。
+
+### Bilingual local-workflow case-study semantic gate（v0.3.51，not changed）
+
+- Verdict: **not changed** — 本輪未改此文件對；它不是 source-conservation scope root-fix 的入口。
+
+### Cross-mind evidence 9-trigger table（v0.3.51）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | iterated | Released v0.3.50 can bind ordinary root project files into current-state authority, then later ordinary README / local-file changes become unbound drift. |
+| 2. External side effects | yes | deferred | No push, tag, GitHub Release, npm publish, Pages deployment, or real user-project write has been performed. |
+| 3. User-visible output | yes | iterated | Runtime behavior changes reduce false blocked states for ordinary project files; public surfaces only update source package version and release notes. |
+| 4. Complexity or boundary | yes | iterated | Whole-root evidence, protected source-conservation authority, legacy retirement, replacement coverage, and archive rebind are separated. |
+| 5. Documentation drift | yes | iterated | README, active HTML, whatsnew, CHANGELOG and release QA have v0.3.51 source-version surfaces. |
+| 6. Semantic runtime effect | yes | iterated | `createSourceConservation`, `findRestoredCurrentStateDigests`, `journalIsRestoredByOutputs`, and rebind coverage now share one bounded retirement rule. |
+| 7. Cross-agent / role boundary | yes | iterated | Source-level side PASS is recorded separately from freeze review, evidence receipt, full gate, and release-decision review. |
+| 8. Real user journey | yes | iterated | Ordinary user-owned root files may change without permanently poisoning Kit health; managed/formal/rule/archive state remains guarded. |
+| 9. Release statement | yes | deferred | Candidate has not been frozen, full-gated, pushed, tagged, released, published, or postpublish-read back. |
+
 ## v0.3.50 candidate status
 
 - 狀態：本地 source candidate，尚未發布。目標是修補 closeout / QA runner terminal-state root cause：正式 QA claims 和 release inventory 使用 bounded async runner；timeout、child signal、spawn / transport error、partial PASS、wrapper false-green、Windows command-wrapper shell option 與 WORK high-output pipe drain 均有反例保護。正式 push、tag、GitHub Release、npm publish 後仍須以 registry / release / npx readback 驗證。
