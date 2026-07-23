@@ -7,7 +7,7 @@ import { tmpdir as systemTmpdir } from "node:os";
 import { gunzipSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { installedFileContracts } from "../bin/installed-file-contract.mjs";
+import { installedFileContracts, requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
 import { canonicalizeOfficialText, loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -30,6 +30,7 @@ function main() {
     console.log("R-034 headed-appendix preservation transaction check passed; this is not a Gate 5 item closure");
     return;
   }
+  assertCliEnvDisablesUpdateNotice();
   // Keep the product-critical R-034 path first: an interrupted long-running
   // historical matrix must never make an omitted formal-router regression look
   // like a green upgrade QA.
@@ -234,6 +235,7 @@ function checkHistoricalSingleHopFixtures() {
     const versionNumber = version.replace(/^v/, "");
     materializeOfficialInstall(versionNumber, project);
     const result = cli(["upgrade", "--yes", "--root", project], `single-hop ${version}`);
+    assertRequiredFixtureFiles(project, `single-hop ${version} upgrade`, result);
     const doctor = cli(["doctor", "--root", project], `single-hop ${version} doctor`, {
       env: { AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" }
     });
@@ -464,6 +466,8 @@ function checkProjectIndexRealHeadings() {
 }
 
 function checkLifecycleCrossCheck() {
+  assertWriteCommandTerminalGuard();
+  assertLifecycleFixtureShapeGuard();
   const project = install("lifecycle");
   const handoff = path.join(project, "dev", "SESSION_HANDOFF.md");
   let text = read(handoff)
@@ -558,6 +562,7 @@ function checkLifecycleCrossCheck() {
 
 function configureLifecycleFixture(project, completed, pending) {
   const handoff = path.join(project, "dev", "SESSION_HANDOFF.md");
+  assertRequiredFixtureFiles(project, "lifecycle fixture before handoff edit", null, ["dev/SESSION_HANDOFF.md"]);
   const text = read(handoff)
     .replace("1. TBD", `1. ${completed}`)
     .replace("Recommended next step: TBD — reason: TBD", pending)
@@ -786,8 +791,40 @@ function checkIdempotency() {
 
 function install(label) {
   const project = fresh(label);
-  cli(["init", "--yes", "--root", project], `${label} bootstrap`);
+  const result = cli(["init", "--yes", "--root", project], `${label} bootstrap`);
+  assertRequiredFixtureFiles(project, `${label} bootstrap`, result);
   return project;
+}
+
+function assertLifecycleFixtureShapeGuard() {
+  const project = fresh("lifecycle-shape-guard");
+  let failed = false;
+  try {
+    assertRequiredFixtureFiles(project, "synthetic successful lifecycle bootstrap", { status: 0, stdout: "synthetic success", stderr: "" }, ["dev/SESSION_HANDOFF.md"]);
+  } catch (error) {
+    failed = error.message.includes("dev/SESSION_HANDOFF.md") && error.message.includes("synthetic successful lifecycle bootstrap missing required fixture files");
+  }
+  assert(failed, "lifecycle fixture shape guard did not catch a successful bootstrap missing dev/SESSION_HANDOFF.md");
+}
+
+function assertWriteCommandTerminalGuard() {
+  const result = { status: 0, stdout: "", stderr: "" };
+  let failed = false;
+  try {
+    assertWriteCommandTerminalResult(["init", "--yes", "--root", fresh("terminal-guard")], "synthetic init success", result);
+  } catch (error) {
+    failed = error.message.includes("synthetic init success completed without explicit terminal success output");
+  }
+  assert(failed, "write command terminal guard accepted status 0 with empty output");
+}
+
+function assertRequiredFixtureFiles(project, label, result = null, required = requiredInstalledTargets) {
+  const missing = required.filter((relative) => !existsSync(path.join(project, relative)));
+  if (missing.length === 0) return;
+  const devDir = path.join(project, "dev");
+  const shape = existsSync(devDir) ? readdirSync(devDir).join(", ") : "<no dev>";
+  const terminal = result ? `\nterminal output:\n${output(result)}` : "";
+  throw new Error(`${label} missing required fixture files before downstream read\nroot: ${project}\nmissing:\n${missing.map((item) => `- ${item}`).join("\n")}\ndev shape: ${shape}${terminal}`);
 }
 
 function fresh(label) {
@@ -801,10 +838,44 @@ function cli(args, label, options = {}) {
     cwd: root,
     encoding: "utf8",
     input: options.input,
-    env: { ...process.env, ...(options.env ?? {}) }
+    env: buildCliEnv(options.env)
   });
   if (!options.allowFailure && (result.error || result.status !== 0)) throw new Error(`${label} failed\n${output(result)}`);
+  if (!options.allowFailure) assertWriteCommandTerminalResult(args, label, result);
   return result;
+}
+
+function buildCliEnv(overrides = {}) {
+  return { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1", ...overrides };
+}
+
+function assertCliEnvDisablesUpdateNotice() {
+  const env = buildCliEnv();
+  assert(env.AGENT_HANDOFF_KIT_NO_UPDATE_CHECK === "1", "cli wrapper did not disable update notice by default");
+  const overridden = buildCliEnv({ AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "0" });
+  assert(overridden.AGENT_HANDOFF_KIT_NO_UPDATE_CHECK === "0", "cli wrapper does not preserve explicit env overrides");
+}
+
+function assertWriteCommandTerminalResult(args, label, result) {
+  const command = args[0];
+  if (!["init", "upgrade"].includes(command) || args.includes("--dry-run")) return;
+  const text = output(result);
+  if (!args.includes("--yes")) {
+    if (text.includes("cancelled: no files written")) return;
+    throw new Error(`${label} completed without explicit cancellation or write terminal output\n${text}`);
+  }
+  const hasDoctorSuccess = text.includes("status: passed");
+  const hasAcceptedCurrentStateSuccess = text.includes("mode: accepted-current-state")
+    && text.includes("結果：你已經是最新版本");
+  const hasUpgradeNoopSuccess = text.includes("mode: upgrade-existing")
+    && text.includes("結果：你已經是最新版本")
+    && text.includes("沒有檔案需要建立或合併");
+  const hasWriteSuccess = command === "init"
+    ? (text.includes("安裝完成") || text.includes("init 命令") || text.includes("created:"))
+    : (text.includes("migration committed") || text.includes("upgrade 命令") || text.includes("upgrade verified") || hasAcceptedCurrentStateSuccess || hasUpgradeNoopSuccess);
+  if (command === "init" && hasDoctorSuccess && hasWriteSuccess) return;
+  if (command === "upgrade" && hasWriteSuccess) return;
+  throw new Error(`${label} completed without explicit terminal success output\n${text}`);
 }
 
 function readOptionalBuffer(file) { try { return readFileSync(file); } catch { return null; } }
