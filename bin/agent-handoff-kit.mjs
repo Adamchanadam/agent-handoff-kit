@@ -763,6 +763,7 @@ async function runInstall(command, root, options, version) {
   // The only no-op authority here is the already committed whole current-state
   // witness, freshly revalidated against every accepted byte, reader, route,
   // priority, and effect by both loaders below.
+  let sourceConservationRebind = false;
   if (command === "upgrade") {
     let acceptedCurrentState = null;
     try {
@@ -770,6 +771,7 @@ async function runInstall(command, root, options, version) {
     } catch (error) {
       if (!String(error?.message ?? error).includes("doctor refuses an unbound success state")) throw error;
       await assertUnboundCurrentStateMayAttemptUpgradeRebind(root, error);
+      sourceConservationRebind = true;
     }
     if (acceptedCurrentState?.transaction?.command === "upgrade"
       && acceptedCurrentState.transaction.attemptedVersion === version) {
@@ -897,7 +899,7 @@ async function runInstall(command, root, options, version) {
     }
   }
 
-  await executeInstallTransaction(command, root, mode, plan, version, candidateOutputs);
+  await executeInstallTransaction(command, root, mode, plan, version, candidateOutputs, { sourceConservationRebind });
 }
 
 async function readInstalledTemplateVersion(root) {
@@ -910,7 +912,7 @@ async function readInstalledTemplateVersion(root) {
   }
 }
 
-async function executeInstallTransaction(command, root, mode, plan, version, candidateOutputs = null) {
+async function executeInstallTransaction(command, root, mode, plan, version, candidateOutputs = null, options = {}) {
   const outputs = candidateOutputs ?? await buildTransactionOutputs(command, root, plan, version);
   if (outputs.length === 0) {
     const health = await assessUpgradeNoopHealth(root, version);
@@ -941,9 +943,15 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
   const archiveMigrations = command === "upgrade"
     ? await prepareArchiveCasingMigrations(root)
     : [];
-  const runtimeAcceptance = command === "upgrade" ? resolveRuntimeAcceptance(outputs) : null;
+  const sourceConservationAuthority = command === "upgrade"
+    ? await hasCommittedSourceConservationAuthority(root)
+    : false;
+  if (options.sourceConservationRebind === true) {
+    for (const output of outputs) delete output.runtimeAcceptance;
+  }
+  const runtimeAcceptance = command === "upgrade" && options.sourceConservationRebind !== true ? resolveRuntimeAcceptance(outputs) : null;
   const sourceConservation = command === "upgrade" && (
-    runtimeAcceptance || await hasCommittedSourceConservationAuthority(root)
+    runtimeAcceptance || sourceConservationAuthority
   )
     ? await createSourceConservation(root, outputs, archiveMigrations)
     : null;
@@ -3814,6 +3822,7 @@ async function hasCommittedSourceConservationAuthority(root) {
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   let names;
   try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return false; throw error; }
+  const records = [];
   for (const name of names) {
     if (name === ".upgrade.lock") continue;
     const journalPath = path.join(migrationsRoot, name, "transaction.json");
@@ -3823,11 +3832,23 @@ async function hasCommittedSourceConservationAuthority(root) {
       const journal = JSON.parse(await readFile(journalPath, "utf8"));
       if (journal.state !== "committed" || !journal.currentStateWitness) continue;
       await validateRecoveryJournal(root, journal, journalPath);
-      if (validateCurrentStateWitness(journal).sourceConservation) return true;
+      records.push({ journal, journalPath, witness: validateCurrentStateWitness(journal), matches: await journalMatchesCurrentState(root, journal) });
     } catch (error) {
       if (error?.code !== "ENOENT") throw error;
     }
   }
+  const superseded = effectiveCurrentStateSupersededDigests(records);
+  let hasSourceConservation = false;
+  for (const record of records) {
+    if (!record.witness.sourceConservation || superseded.has(record.witness.currentStateDigest)) continue;
+    hasSourceConservation = true;
+    if (record.matches) continue;
+    const { illegalNonCloseout } = await classifyCurrentStateRebindMismatches(root, record.journal);
+    if (illegalNonCloseout.length > 0) {
+      throw new Error(`conflict: non-closeout drift blocks upgrade source-conservation rebind: ${illegalNonCloseout.map((item) => item.path).join(", ")}`);
+    }
+  }
+  if (hasSourceConservation) return true;
   return false;
 }
 
@@ -3853,10 +3874,30 @@ async function assertUnboundCurrentStateMayAttemptUpgradeRebind(root, cause) {
   const superseded = effectiveCurrentStateSupersededDigests(records);
   for (const record of records) {
     if (record.matches || !record.witness.sourceConservation || superseded.has(record.witness.currentStateDigest)) continue;
-    const mismatches = await currentStateMismatches(root, record.journal);
+    const { mismatches, illegalNonCloseout } = await classifyCurrentStateRebindMismatches(root, record.journal);
+    if (illegalNonCloseout.length > 0) throw cause;
     const managedCore = mismatches.filter((mismatch) => installedFileContract(mismatch.path)?.strategy === "managed-core");
     if (managedCore.length > 0) throw cause;
   }
+}
+
+async function classifyCurrentStateRebindMismatches(projectRoot, journal) {
+  const mismatches = await currentStateMismatches(projectRoot, journal);
+  const illegalNonCloseout = [];
+  for (const mismatch of mismatches) {
+    if (isCloseoutFinalizeTarget(mismatch.path)) continue;
+    if (await mismatchMatchesCurrentInstalledSource(projectRoot, mismatch)) continue;
+    illegalNonCloseout.push(mismatch);
+  }
+  return { mismatches, illegalNonCloseout };
+}
+
+async function mismatchMatchesCurrentInstalledSource(projectRoot, mismatch) {
+  const contract = installedFileContract(mismatch.path);
+  if (!contract || contract.strategy === "managed-core") return false;
+  const current = await readOptionalBuffer(path.join(projectRoot, mismatch.path));
+  const source = await readOptionalBuffer(path.join(packageRoot, contract.sourceRel));
+  return Boolean(current && source && current.length === source.length && sha256(current) === sha256(source));
 }
 
 async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations = [], replacement = {}) {

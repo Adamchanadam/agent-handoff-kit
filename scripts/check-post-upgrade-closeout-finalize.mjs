@@ -334,6 +334,7 @@ function checkBridgeNonCloseoutDriftRejects(candidateBin) {
   const project = createPublishedSchema2Project("schema2-state-only-non-closeout");
   cli(candidateBin, ["upgrade", "--yes", "--root", project], "non-closeout schema2 project to packed candidate");
   const strong = findLatestCurrentStateJournal(project, { version: packageVersion, command: "upgrade" });
+  assert(strong.journal.runtimeAcceptance && strong.witness.runtimeAcceptance, "healthy source-conservation upgrade lost runtime acceptance");
   writeSyntheticStateOnlyWitness(project, "state-only-non-closeout", [
     "dev/SESSION_HANDOFF.md",
     "dev/PROJECT_INDEX.md",
@@ -348,7 +349,7 @@ function checkBridgeNonCloseoutDriftRejects(candidateBin) {
 
   forceProjectIndexVersion(project, "0.3.44");
   const conflictedUpgrade = cli(candidateBin, ["upgrade", "--yes", "--root", project], "upgrade before authorized non-closeout repair", { allowFailure: true });
-  assert(conflictedUpgrade.status !== 0 && output(conflictedUpgrade).includes("conflict"), "upgrade accepted unrepaired non-closeout drift");
+  assert(conflictedUpgrade.status !== 0 && /(?:conflict|unbound success state)/u.test(output(conflictedUpgrade)), `upgrade accepted unrepaired non-closeout drift\n${output(conflictedUpgrade)}`);
   assertNoFinalizeWrite(project, beforeJournals, "unrepaired non-closeout upgrade rejection");
 
   writeFileSync(path.join(project, "dev", "rules", "safety.md"), read(path.join(root, "packs", "safety.md")), "utf8");
