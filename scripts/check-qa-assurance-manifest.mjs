@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   aggregateReleaseReadinessTimeoutMs,
+  assertPublicMirrorRequiredSources,
   CANDIDATE_EVIDENCE_CONTRACT,
   commandDocumentation,
   expectedPublicMirrorFileCount,
@@ -140,11 +141,41 @@ function validatePublicMirrorContract() {
   assert(PUBLIC_MIRROR_CONTRACT.schemaVersion === 1, "unexpected public mirror contract schema version");
   assert(Array.isArray(PUBLIC_MIRROR_CONTRACT.allowFiles) && PUBLIC_MIRROR_CONTRACT.allowFiles.includes("README.md"), "public mirror allowFiles contract drifted");
   assert(Array.isArray(PUBLIC_MIRROR_CONTRACT.allowDirs) && PUBLIC_MIRROR_CONTRACT.allowDirs.includes("docs/whatsnew"), "public mirror allowDirs must include versioned whatsnew pages");
+  assert(Array.isArray(PUBLIC_MIRROR_CONTRACT.requiredAllowFiles) && PUBLIC_MIRROR_CONTRACT.requiredAllowFiles.includes("README.md"), "public mirror required files contract drifted");
+  assert(Array.isArray(PUBLIC_MIRROR_CONTRACT.requiredAllowDirs) && PUBLIC_MIRROR_CONTRACT.requiredAllowDirs.includes("docs/whatsnew"), "public mirror required dirs contract drifted");
   assert(!("expectedFileCount" in PUBLIC_MIRROR_CONTRACT), "public mirror file count must be derived from the manifest-owned membership, not a fixed number");
   assert(Number.isInteger(expectedPublicMirrorFileCount(root)) && expectedPublicMirrorFileCount(root) > 0, "public mirror derived file count is invalid");
+  validatePublicMirrorRequiredSourceFixtures();
   const mirrorBuilder = readFileSync(path.join(root, "scripts", "build-public-mirror.mjs"), "utf8");
+  assert(mirrorBuilder.includes("assertPublicMirrorRequiredSources(sourceRoot)"), "public mirror builder does not assert required source presence before copy/count");
   assert(mirrorBuilder.includes("expectedPublicMirrorFileCount(sourceRoot)"), "public mirror builder does not derive file count from the manifest owner");
   assert(!mirrorBuilder.includes("expected 110"), "public mirror builder still hard-codes the prior file count");
+}
+
+function validatePublicMirrorRequiredSourceFixtures() {
+  const contract = Object.freeze({
+    allowFiles: Object.freeze(["required-root.md", "optional-root.md"]),
+    allowDirs: Object.freeze(["required-dir", "optional-dir"]),
+    requiredAllowFiles: Object.freeze(["required-root.md"]),
+    requiredAllowDirs: Object.freeze(["required-dir"])
+  });
+  const positiveRoot = path.join(fixtureRoot, "mirror-required-positive");
+  mkdirSync(path.join(positiveRoot, "required-dir"), { recursive: true });
+  writeFileSync(path.join(positiveRoot, "required-root.md"), "required\n", "utf8");
+  writeFileSync(path.join(positiveRoot, "optional-root.md"), "optional\n", "utf8");
+  writeFileSync(path.join(positiveRoot, "required-dir", "entry.txt"), "entry\n", "utf8");
+  assertPublicMirrorRequiredSources(positiveRoot, contract);
+  assert(expectedPublicMirrorFileCount(positiveRoot, contract) === 3, "public mirror fixture count did not include required sources");
+
+  const missingFileRoot = path.join(fixtureRoot, "mirror-missing-file");
+  mkdirSync(path.join(missingFileRoot, "required-dir"), { recursive: true });
+  writeFileSync(path.join(missingFileRoot, "required-dir", "entry.txt"), "entry\n", "utf8");
+  assertRequiredSourceFailure(missingFileRoot, contract, "required-root.md: required file missing");
+
+  const missingDirRoot = path.join(fixtureRoot, "mirror-missing-dir");
+  mkdirSync(missingDirRoot, { recursive: true });
+  writeFileSync(path.join(missingDirRoot, "required-root.md"), "required\n", "utf8");
+  assertRequiredSourceFailure(missingDirRoot, contract, "required-dir: required directory missing");
 }
 
 function validateR034ArtifactContract() {
@@ -412,12 +443,12 @@ function validateEvidenceContracts() {
     AGENT_HANDOFF_KIT_QA_SELF_TEST_GITHUB_RELEASE: JSON.stringify(githubRelease)
   };
   invoke(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "near-valid candidate preflight", { env: selfTestEnv });
+  invoke(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "pre-freeze dirty candidate preflight", {
+    env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_STATUS: " M package.json\n" }
+  });
   invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", "9.9.9", "--validate-only"], "candidate-preflight package version mismatch", { env: selfTestEnv });
   invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "candidate-preflight surface version mismatch", {
     env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_SURFACE_VERSION_OVERRIDE: "9.9.9" }
-  });
-  invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "candidate-preflight tracked candidate drift", {
-    env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_STATUS: " M package.json\n" }
   });
   invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "candidate-preflight external readback indeterminate", {
     env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_LATEST_ERROR: "npm latest readback spawn-error" }
@@ -473,6 +504,9 @@ function validateEvidenceContracts() {
   };
   const candidate = path.join(fixtureRoot, "candidate.json");
   writeEvidence(candidate, validCandidate);
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "full rejects dirty candidate before evidence acceptance", {
+    env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_STATUS: " M package.json\n" }
+  });
   invoke(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "near-valid candidate evidence", { env: selfTestEnv });
 
   writeEvidence(candidate, { ...validCandidate, candidate: { ...validCandidate.candidate, tarballSha256: "f".repeat(64) } });
@@ -674,6 +708,16 @@ function invokeFailure(args, label, options = {}) {
   const result = runSync(process.execPath, args, label, { cwd: root, env: options.env ?? process.env });
   assert(!result.errorType && result.status !== 0, `${label} unexpectedly passed`);
   return result;
+}
+
+function assertRequiredSourceFailure(sourceRoot, contract, expectedText) {
+  let failed = false;
+  try {
+    expectedPublicMirrorFileCount(sourceRoot, contract);
+  } catch (error) {
+    failed = String(error.message).includes(expectedText);
+  }
+  assert(failed, `public mirror required-source fixture did not fail with ${expectedText}`);
 }
 
 function writeEvidence(file, value) {

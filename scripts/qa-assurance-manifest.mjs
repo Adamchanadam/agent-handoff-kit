@@ -73,13 +73,13 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
       layer: "candidate-preflight",
       required: true,
       executor: Object.freeze({ kind: "internal-validator", timeoutMs: 600_000 }),
-      provenance: "clean candidate source tree, active release surfaces, public mirror contract, official-origin catalog, npm latest readback, and manifest identities",
+      provenance: "working candidate source tree before freeze, active release surfaces, public mirror contract, official-origin catalog, npm latest readback, and manifest identities",
       stateAxes: Object.freeze(["candidate version", "surface synchronization", "mirror boundary", "published lineage", "manifest identity"]),
       expected: Object.freeze({
         positive: "candidate source state is internally synchronized before freeze/review/full",
-        negative: "version, surface, mirror, catalog, runner, dirty state, or external readback drift blocks preflight"
+        negative: "version, surface, mirror, catalog, runner, required source membership, or external readback drift blocks preflight"
       }),
-      readback: "package.json, clean HEAD, active surfaces, derived mirror membership, latest published catalog endpoint, npm latest readback, manifest digest, and release-readiness inventory digest",
+      readback: "package.json, active surfaces, required public mirror source membership, derived mirror membership, latest published catalog endpoint, npm latest readback, manifest digest, and release-readiness inventory digest; full adds clean HEAD and evidence binding",
       evidenceOutput: "preflight terminal output",
       failureMode: "blocked/indeterminate; no full-gate or release success may be inferred",
       outOfScope: "does not replace independent review, candidate evidence, full gate, postpublish readback, or package file-count validation"
@@ -143,34 +143,40 @@ export const RELEASE_PACKAGE_CONTRACT = Object.freeze({
   expectedPackageFileCount: 35
 });
 
+const PUBLIC_MIRROR_ALLOW_FILES = Object.freeze([
+  "README.md",
+  "README.en.md",
+  "LICENSE",
+  "package.json",
+  "agent-handoff-kit-ai-install.html",
+  "agent-handoff-kit-intro.html",
+  "agent-handoff-kit-guide.html",
+  "agent-handoff-kit-ai-install.en.html",
+  "agent-handoff-kit-intro.en.html",
+  "agent-handoff-kit-guide.en.html",
+  "agent-handoff-kit-en.css",
+  "local-agentic-ai-workflow-case-study.html",
+  "robots.txt",
+  "sitemap.xml",
+  "googlea551ba0f71dfb2ac.html",
+  ".gitignore"
+]);
+
+const PUBLIC_MIRROR_ALLOW_DIRS = Object.freeze([
+  "bin",
+  "runtime-core",
+  "packs",
+  "images",
+  "docs/whatsnew",
+  "case-study-multiworkspace"
+]);
+
 export const PUBLIC_MIRROR_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  allowFiles: Object.freeze([
-    "README.md",
-    "README.en.md",
-    "LICENSE",
-    "package.json",
-    "agent-handoff-kit-ai-install.html",
-    "agent-handoff-kit-intro.html",
-    "agent-handoff-kit-guide.html",
-    "agent-handoff-kit-ai-install.en.html",
-    "agent-handoff-kit-intro.en.html",
-    "agent-handoff-kit-guide.en.html",
-    "agent-handoff-kit-en.css",
-    "local-agentic-ai-workflow-case-study.html",
-    "robots.txt",
-    "sitemap.xml",
-    "googlea551ba0f71dfb2ac.html",
-    ".gitignore"
-  ]),
-  allowDirs: Object.freeze([
-    "bin",
-    "runtime-core",
-    "packs",
-    "images",
-    "docs/whatsnew",
-    "case-study-multiworkspace"
-  ]),
+  allowFiles: PUBLIC_MIRROR_ALLOW_FILES,
+  allowDirs: PUBLIC_MIRROR_ALLOW_DIRS,
+  requiredAllowFiles: PUBLIC_MIRROR_ALLOW_FILES,
+  requiredAllowDirs: PUBLIC_MIRROR_ALLOW_DIRS,
   forbiddenPathSegments: Object.freeze([
     "scripts",
     "test-fixtures",
@@ -372,21 +378,35 @@ export function aggregateReleaseReadinessTimeoutMs(inventory = QA_RELEASE_READIN
   return inventory.reduce((total, item) => total + item.timeoutMs, bufferMs);
 }
 
-export function publicMirrorSourceFiles(sourceRoot) {
+export function assertPublicMirrorRequiredSources(sourceRoot, contract = PUBLIC_MIRROR_CONTRACT) {
+  const missing = [];
+  for (const relative of contract.requiredAllowFiles ?? []) {
+    const absolute = pathJoin(sourceRoot, relative);
+    if (!fileExists(absolute)) missing.push(`${relative}: required file missing`);
+  }
+  for (const relative of contract.requiredAllowDirs ?? []) {
+    const absolute = pathJoin(sourceRoot, relative);
+    if (!directoryExists(absolute)) missing.push(`${relative}: required directory missing`);
+  }
+  if (missing.length > 0) throw new Error(`public mirror required source missing\n${missing.join("\n")}`);
+}
+
+export function publicMirrorSourceFiles(sourceRoot, contract = PUBLIC_MIRROR_CONTRACT) {
+  assertPublicMirrorRequiredSources(sourceRoot, contract);
   const files = [];
-  for (const relative of PUBLIC_MIRROR_CONTRACT.allowFiles) {
+  for (const relative of contract.allowFiles ?? []) {
     const absolute = pathJoin(sourceRoot, relative);
     if (fileExists(absolute)) files.push(absolute);
   }
-  for (const relative of PUBLIC_MIRROR_CONTRACT.allowDirs) {
+  for (const relative of contract.allowDirs ?? []) {
     const absolute = pathJoin(sourceRoot, relative);
     if (directoryExists(absolute)) files.push(...walkFiles(absolute));
   }
   return files;
 }
 
-export function expectedPublicMirrorFileCount(sourceRoot) {
-  return publicMirrorSourceFiles(sourceRoot).length;
+export function expectedPublicMirrorFileCount(sourceRoot, contract = PUBLIC_MIRROR_CONTRACT) {
+  return publicMirrorSourceFiles(sourceRoot, contract).length;
 }
 
 function surface(path) {

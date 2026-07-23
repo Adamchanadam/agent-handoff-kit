@@ -86,7 +86,8 @@ async function main() {
     throw new Error(`controlled executor failure: ${options.testFailClaim}`);
   }
 
-  if (layer === "candidate-preflight" || layer === "full") await validateCandidatePreflight(options);
+  if (layer === "candidate-preflight") await validateCandidatePreflight(options);
+  if (layer === "full") await validateCandidatePreflight(options, { requireFrozenIdentity: true });
   if (layer === "full") await validateCandidateEvidence(options);
   if (layer === "postpublish") await validatePostpublishEvidence(options);
   if (options.validateOnly) {
@@ -186,22 +187,32 @@ async function runClaim(claim) {
   await runNodeScriptChecked(script, claim.id, { cwd: root, env: process.env, timeoutMs: claim.executor.timeoutMs });
 }
 
-async function validateCandidatePreflight(options) {
+async function validateCandidatePreflight(options, config = {}) {
   assert(options.candidate, "candidate-preflight requires --candidate <version>");
   assert(QA_ASSURANCE_MANIFEST.layers["candidate-preflight"].command === "node scripts/qa.mjs candidate-preflight --candidate <version>", "candidate-preflight command contract drifted");
   const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
   assert(isStableSemver(options.candidate), "candidate-preflight requires a stable semver candidate");
   assert(packageJson.version === options.candidate, "candidate-preflight candidate version does not match package.json");
-  const status = await candidateGitStatus();
-  assert(status.stdout.trim() === "", "candidate-preflight requires a clean worktree; tracked drift invalidates old receipts");
-  const head = await candidateGitHead();
-  assert(isSha256(head, 40), "candidate-preflight could not read a clean candidate HEAD");
   assert(/^[a-f0-9]{64}$/.test(QA_ASSURANCE_MANIFEST_DIGEST), "candidate-preflight manifest digest is malformed");
   assert(/^[a-f0-9]{64}$/.test(QA_RELEASE_READINESS_INVENTORY_DIGEST), "candidate-preflight release-readiness inventory digest is malformed");
   validateCandidateReleaseSurfaces(options.candidate);
   validateCandidateMirrorBoundary(options.candidate);
   await validateCandidatePublishedLineage(options.candidate);
-  console.log(`ok: candidate-preflight identity ${options.candidate} ${head}`);
+  const status = await candidateGitStatus();
+  if (config.requireFrozenIdentity) {
+    assert(status.stdout.trim() === "", "full requires a clean worktree before candidate evidence can be accepted");
+    const head = await candidateGitHead();
+    assert(isSha256(head, 40), "full could not read a clean candidate HEAD");
+    console.log(`ok: candidate-preflight frozen identity ${options.candidate} ${head}`);
+    return;
+  }
+  const dirty = status.stdout.trim() !== "";
+  if (dirty) console.log(`ok: candidate-preflight semantic ${options.candidate} (pre-freeze tracked changes present)`);
+  else {
+    const head = await candidateGitHead();
+    assert(isSha256(head, 40), "candidate-preflight could not read candidate HEAD");
+    console.log(`ok: candidate-preflight semantic ${options.candidate} ${head}`);
+  }
 }
 
 function validateCandidateReleaseSurfaces(version) {

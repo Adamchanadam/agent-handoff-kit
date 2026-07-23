@@ -5,7 +5,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, wri
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expectedPublicMirrorFileCount, PUBLIC_MIRROR_CONTRACT, RELEASE_PACKAGE_CONTRACT } from "./qa-assurance-manifest.mjs";
+import { assertPublicMirrorRequiredSources, expectedPublicMirrorFileCount, PUBLIC_MIRROR_CONTRACT, RELEASE_PACKAGE_CONTRACT } from "./qa-assurance-manifest.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sourceRoot = path.resolve(__dirname, "..");
@@ -35,6 +35,7 @@ main();
 
 function main() {
   assert(!existsSync(outRoot), `output path already exists; choose a new path: ${outRoot}`);
+  assertPublicMirrorRequiredSources(sourceRoot);
   mkdirSync(outRoot, { recursive: true });
 
   for (const file of allowFiles) {
