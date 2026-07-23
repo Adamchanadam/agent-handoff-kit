@@ -28,18 +28,26 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 ### Bilingual README semantic gate（v0.3.51，PASS）
 
+- `README.md` SHA-256 `B9396E146B910A31E9F9FEF30BA0BAD9A029C7C3E23582C4587E650DE6A5EAFD`
+- `README.en.md` SHA-256 `C1ED4F949D982C1A1ACEF84BF77E6964A3A6E7790E571D3DF05A015B9E0DA49F`
 - Verdict: **PASS** — 中英文 README 只同步 source package version 為 v0.3.51；主路徑仍是用戶講目的、AI 判斷 install / upgrade / doctor，不把技術指令推回一般用戶。
 
 ### Bilingual practical-guide semantic gate（v0.3.51，PASS）
 
+- `agent-handoff-kit-guide.html` SHA-256 `7F1A962509DB0D5B2008B20C32CC38618A5AAE520134E1FC9BAE6DC063503F12`
+- `agent-handoff-kit-guide.en.html` SHA-256 `F609751CEB4A5D6C0A1E3266C95CAA5592B1145B03732417D6CBB6B3EB562326`
 - Verdict: **PASS** — 中英文 practical guide 只同步可見版本與示例輸出為 v0.3.51；三個日常情景、新手一屏循環、blocked 說明與治理打通說法沒有新增分歧。
 
 ### Bilingual AI-install semantic gate（v0.3.51，PASS）
 
+- `agent-handoff-kit-ai-install.html` SHA-256 `928FDB642B01344A0FD6676DFAEA1AE5139873262031D662F4A26F9701BDFABC`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `0E5AFBBE86B4C8219C0054B3E1F2B6E69D759233DB421477921223B40B7C55FB`
 - Verdict: **PASS** — 中英文 AI-install 頁只同步目前 source package version；既有 install / upgrade / doctor 邊界、用戶授權、AI 處理技術步驟與 npm `@latest` readback 邊界沒有新增分歧。
 
 ### Bilingual introduction semantic gate（v0.3.51，PASS）
 
+- `agent-handoff-kit-intro.html` SHA-256 `CEACCA7DBAA1E465533F00EBBBBFD7B27DBA39F8DB5CF67DBDF98972FED7ADF0`
+- `agent-handoff-kit-intro.en.html` SHA-256 `5B342420F1296CA54E24A804275F93E6C2D82C6D7066B20B1BBCC24AF54EE106`
 - Verdict: **PASS** — 中英文 60 秒入門只同步目前版本為 v0.3.51；狀態圖例、一屏開工 / 收工循環、普通 web chat 不適用邊界與安全提示沒有語意改動。
 
 ### Bilingual local-workflow case-study semantic gate（v0.3.51，not changed）
