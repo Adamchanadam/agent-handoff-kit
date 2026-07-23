@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,19 +12,20 @@ import {
   QA_RELEASE_READINESS_INVENTORY,
   QA_RELEASE_READINESS_INVENTORY_DIGEST
 } from "./qa-assurance-manifest.mjs";
+import { LONG_QA_TIMEOUT_MS, QaRunError, runChecked, runNodeScriptChecked } from "./qa-runner-core.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const evidenceContractSelfTest = process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1"
   && process.env.AGENT_HANDOFF_KIT_QA_EVIDENCE_CONTRACT_SELF_TEST === "1";
 
 try {
-  main();
+  await main();
 } catch (error) {
   console.error(`QA assurance failed: ${error.message}`);
-  process.exitCode = 1;
+  process.exitCode = error instanceof QaRunError ? error.exitCode : 1;
 }
 
-function main() {
+async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.list) {
     console.log(JSON.stringify({
@@ -36,6 +36,38 @@ function main() {
       releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
       releaseReadinessInventory: QA_RELEASE_READINESS_INVENTORY
     }, null, 2));
+    return;
+  }
+
+  if (options.testRunnerFixture) {
+    assert(process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1", "--test-runner-fixture is test-only");
+    assert(options.testRunnerTimeoutMs === null || Number.isInteger(options.testRunnerTimeoutMs) && options.testRunnerTimeoutMs > 0, "--test-runner-timeout-ms must be a positive integer");
+    await runNodeScriptChecked(options.testRunnerFixture, "production runner fixture", {
+      cwd: root,
+      env: process.env,
+      timeoutMs: options.testRunnerTimeoutMs ?? 200,
+      killGraceMs: 200,
+      settleGraceMs: 800
+    });
+    return;
+  }
+  if (options.testCommandShellFixture) {
+    assert(process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1", "--test-command-shell-fixture is test-only");
+    assert(options.testRunnerTimeoutMs === null || Number.isInteger(options.testRunnerTimeoutMs) && options.testRunnerTimeoutMs > 0, "--test-runner-timeout-ms must be a positive integer");
+    const result = await runCommand(options.testCommandShellFixture, [], "production command shell fixture", {
+      cwd: path.dirname(path.resolve(options.testCommandShellFixture)),
+      shell: true,
+      timeoutMs: options.testRunnerTimeoutMs ?? 10_000
+    });
+    process.stdout.write(result.stdout ?? "");
+    process.stderr.write(result.stderr ?? "");
+    return;
+  }
+  if (options.testCommandSpawnError) {
+    assert(process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1", "--test-command-spawn-error is test-only");
+    await runCommand("definitely-not-agent-handoff-kit-command", [], "production command spawn-error fixture", {
+      timeoutMs: 10_000
+    });
     return;
   }
 
@@ -50,19 +82,19 @@ function main() {
     throw new Error(`controlled executor failure: ${options.testFailClaim}`);
   }
 
-  if (layer === "full") validateCandidateEvidence(options);
-  if (layer === "postpublish") validatePostpublishEvidence(options);
+  if (layer === "full") await validateCandidateEvidence(options);
+  if (layer === "postpublish") await validatePostpublishEvidence(options);
   if (options.validateOnly) {
     console.log(`ok: ${layer} evidence contract (${QA_ASSURANCE_MANIFEST_DIGEST})`);
     return;
   }
 
-  for (const claim of claims) runClaim(claim);
+  for (const claim of claims) await runClaim(claim);
   console.log(`Agent Handoff Kit ${layer} QA passed (${QA_ASSURANCE_MANIFEST_DIGEST})`);
 }
 
 function parseArgs(args) {
-  const options = { layer: null, list: false, validateOnly: false, candidate: null, version: null, evidence: null, testFailClaim: null };
+  const options = { layer: null, list: false, validateOnly: false, candidate: null, version: null, evidence: null, testFailClaim: null, testRunnerFixture: null, testRunnerTimeoutMs: null, testCommandShellFixture: null, testCommandSpawnError: false };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--list") options.list = true;
@@ -71,20 +103,24 @@ function parseArgs(args) {
     else if (value === "--version") options.version = requireValue(args, ++index, value);
     else if (value === "--evidence") options.evidence = requireValue(args, ++index, value);
     else if (value === "--test-fail-claim") options.testFailClaim = requireValue(args, ++index, value);
+    else if (value === "--test-runner-fixture") options.testRunnerFixture = requireValue(args, ++index, value);
+    else if (value === "--test-runner-timeout-ms") options.testRunnerTimeoutMs = Number(requireValue(args, ++index, value));
+    else if (value === "--test-command-shell-fixture") options.testCommandShellFixture = requireValue(args, ++index, value);
+    else if (value === "--test-command-spawn-error") options.testCommandSpawnError = true;
     else if (!options.layer) options.layer = value;
     else throw new Error(`unknown argument: ${value}`);
   }
   return options;
 }
 
-function validateCandidateEvidence(options) {
+async function validateCandidateEvidence(options) {
   assert(options.candidate, "full requires --candidate <version>");
   const evidence = readEvidence(options.evidence, "full requires --evidence <candidate-evidence.json>");
   const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
   assert(packageJson.version === options.candidate, "full candidate version does not match package.json");
-  const status = candidateGitStatus();
+  const status = await candidateGitStatus();
   assert(status.stdout.trim() === "", "full requires a clean worktree before candidate evidence can be accepted");
-  const head = candidateGitHead();
+  const head = await candidateGitHead();
   assert(evidence.kind === "candidate-assurance" && evidence.schemaVersion === 1, "candidate evidence has the wrong schema");
   assert(evidence.manifestDigest === QA_ASSURANCE_MANIFEST_DIGEST, "candidate evidence manifest digest does not match this source");
   assert(evidence.releaseReadinessInventoryDigest === QA_RELEASE_READINESS_INVENTORY_DIGEST, "candidate evidence release-readiness inventory digest does not match this source");
@@ -93,14 +129,14 @@ function validateCandidateEvidence(options) {
   assert(evidence.candidate?.commit === head, "candidate evidence commit does not match clean HEAD");
   assert(evidence.candidate?.cleanWorktree === true, "candidate evidence must record cleanWorktree: true");
   assert(isSha256(evidence.candidate?.tarballSha256, 64), "candidate evidence requires tarballSha256");
-  assert(freshCandidateTarballSha256() === evidence.candidate.tarballSha256.toLowerCase(), "candidate evidence tarballSha256 does not match a freshly packed candidate");
+  assert(await freshCandidateTarballSha256() === evidence.candidate.tarballSha256.toLowerCase(), "candidate evidence tarballSha256 does not match a freshly packed candidate");
   assert(validManualVerdicts(evidence.manualVerdicts), `candidate evidence requires all five full-check verdicts to be passed: ${CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.join(", ")}`);
   validateRoleIsolationEvidence(evidence, head);
   validateCandidateReportSection(options.candidate);
   validateEvidenceRecords(evidence.evidence);
 }
 
-function validatePostpublishEvidence(options) {
+async function validatePostpublishEvidence(options) {
   assert(options.version, "postpublish requires --version <version>");
   const evidence = readEvidence(options.evidence, "postpublish requires --evidence <postpublish-evidence.json>");
   assert(evidence.kind === "postpublish-assurance" && evidence.schemaVersion === 1, "postpublish evidence has the wrong schema");
@@ -112,40 +148,37 @@ function validatePostpublishEvidence(options) {
   assert(isSha256(evidence.published?.gitCommit, 40), "postpublish evidence requires the exact published git commit");
   assert(typeof evidence.published?.githubReleaseUrl === "string" && evidence.published.githubReleaseUrl === `https://github.com/Adamchanadam/agent-handoff-kit/releases/tag/v${options.version}`, "postpublish evidence requires the exact GitHub Release URL");
 
-  const npmView = readNpmPublishedMetadata(options.version);
+  const npmView = await readNpmPublishedMetadata(options.version);
   assert(evidence.readbacks?.npm?.version === npmView.version, "postpublish npm evidence version does not match registry readback");
   assert(evidence.readbacks?.npm?.latest === options.version && npmView.latest === options.version, "postpublish npm latest readback does not match the published version");
   assert(evidence.readbacks?.npm?.tarball === npmView.tarball, "postpublish npm tarball URL does not match registry readback");
   assert(evidence.readbacks?.npm?.shasum === npmView.shasum, "postpublish npm shasum does not match registry readback");
   assert(evidence.readbacks?.npm?.integrity === npmView.integrity, "postpublish npm integrity does not match registry readback");
 
-  const packedSha256 = packPublishedTarballSha256(options.version);
+  const packedSha256 = await packPublishedTarballSha256(options.version);
   assert(evidence.published.tarballSha256.toLowerCase() === packedSha256, "postpublish published tarballSha256 does not match npm pack readback");
   assert(evidence.readbacks?.npmPack?.tarballSha256 === packedSha256, "postpublish npm pack readback does not match published tarballSha256");
 
-  const release = readGithubRelease(options.version);
+  const release = await readGithubRelease(options.version);
   assert(evidence.readbacks?.githubRelease?.tagName === release.tagName, "postpublish GitHub tag evidence does not match release readback");
   assert(evidence.readbacks.githubRelease.url === release.url, "postpublish GitHub URL evidence does not match release readback");
   assert(evidence.readbacks.githubRelease.targetCommitish === release.targetCommitish, "postpublish GitHub targetCommitish evidence does not match release readback");
   assert(evidence.readbacks.githubRelease.isDraft === false && release.isDraft === false, "postpublish GitHub Release is draft");
   assert(evidence.readbacks.githubRelease.isPrerelease === false && release.isPrerelease === false, "postpublish GitHub Release is prerelease");
 
-  const tagCommit = readRemoteTagCommit(options.version);
+  const tagCommit = await readRemoteTagCommit(options.version);
   assert(evidence.published.gitCommit.toLowerCase() === tagCommit, "postpublish published git commit does not match remote tag readback");
   assert(evidence.readbacks?.gitTag?.commit === tagCommit, "postpublish git tag evidence does not match remote tag readback");
 
-  const helpSha256 = npxHelpSha256(options.version);
+  const helpSha256 = await npxHelpSha256(options.version);
   assert(evidence.readbacks?.npxHelp?.sha256 === helpSha256, "postpublish npx help evidence does not match ordinary consumer readback");
 }
 
-function runClaim(claim) {
+async function runClaim(claim) {
   if (claim.executor.kind !== "node-script") return;
   const script = claim.executor.script;
   assert(existsSync(path.join(root, script)), `manifest executor is missing: ${script}`);
-  const result = spawnSync(process.execPath, [script], { cwd: root, encoding: "utf8", env: process.env });
-  if (result.error || result.status !== 0) {
-    throw new Error(`${claim.id} failed\n${result.error?.message ?? ""}\n${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim());
-  }
+  await runNodeScriptChecked(script, claim.id, { cwd: root, env: process.env, timeoutMs: claim.executor.timeoutMs });
 }
 
 function readEvidence(file, requiredMessage) {
@@ -285,11 +318,11 @@ function validateEvidenceRecords(records) {
   }
 }
 
-function freshCandidateTarballSha256() {
+async function freshCandidateTarballSha256() {
   if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_CANDIDATE_TARBALL_SHA256");
   const packDir = mkdtempSync(path.join(tmpdir(), "ahk-candidate-pack-"));
   try {
-    const result = runNpm(["pack", "--pack-destination", packDir, "--json"], "npm pack candidate");
+    const result = await runNpm(["pack", "--pack-destination", packDir, "--json"], "npm pack candidate");
     const parsed = JSON.parse(result.stdout);
     assert(Array.isArray(parsed) && parsed.length === 1, "npm pack candidate returned an unexpected response");
     const tarball = path.join(packDir, parsed[0].filename);
@@ -300,13 +333,13 @@ function freshCandidateTarballSha256() {
   }
 }
 
-function readNpmPublishedMetadata(version) {
+async function readNpmPublishedMetadata(version) {
   if (evidenceContractSelfTest) {
     const parsed = readSelfTestJson("AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_METADATA");
     assert(parsed.version === version, "self-test npm metadata version drifted");
     return parsed;
   }
-  const result = runNpm(["view", `@adamchanadam/agent-handoff-kit@${version}`, "version", "dist-tags.latest", "dist.tarball", "dist.shasum", "dist.integrity", "--json"], "npm published metadata");
+  const result = await runNpm(["view", `@adamchanadam/agent-handoff-kit@${version}`, "version", "dist-tags.latest", "dist.tarball", "dist.shasum", "dist.integrity", "--json"], "npm published metadata");
   const parsed = JSON.parse(result.stdout);
   return {
     version: parsed.version,
@@ -317,11 +350,11 @@ function readNpmPublishedMetadata(version) {
   };
 }
 
-function packPublishedTarballSha256(version) {
+async function packPublishedTarballSha256(version) {
   if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_PUBLISHED_TARBALL_SHA256");
   const packDir = mkdtempSync(path.join(tmpdir(), "ahk-published-pack-"));
   try {
-    const result = runNpm(["pack", `@adamchanadam/agent-handoff-kit@${version}`, "--pack-destination", packDir, "--json"], "npm pack published");
+    const result = await runNpm(["pack", `@adamchanadam/agent-handoff-kit@${version}`, "--pack-destination", packDir, "--json"], "npm pack published");
     const parsed = JSON.parse(result.stdout);
     assert(Array.isArray(parsed) && parsed.length === 1, "npm pack published returned an unexpected response");
     const tarball = path.join(packDir, parsed[0].filename);
@@ -332,19 +365,19 @@ function packPublishedTarballSha256(version) {
   }
 }
 
-function readGithubRelease(version) {
+async function readGithubRelease(version) {
   if (evidenceContractSelfTest) {
     const parsed = readSelfTestJson("AGENT_HANDOFF_KIT_QA_SELF_TEST_GITHUB_RELEASE");
     assert(parsed.tagName === `v${version}`, "self-test GitHub Release tag drifted");
     return parsed;
   }
-  const result = runCommand("gh", ["release", "view", `v${version}`, "--json", "tagName,url,targetCommitish,isDraft,isPrerelease"], "GitHub Release readback");
+  const result = await runCommand("gh", ["release", "view", `v${version}`, "--json", "tagName,url,targetCommitish,isDraft,isPrerelease"], "GitHub Release readback");
   return JSON.parse(result.stdout);
 }
 
-function readRemoteTagCommit(version) {
+async function readRemoteTagCommit(version) {
   if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_TAG_COMMIT").toLowerCase();
-  const result = runCommand("git", ["ls-remote", "--tags", "origin", `v${version}`], "Git tag readback");
+  const result = await runCommand("git", ["ls-remote", "--tags", "origin", `v${version}`], "Git tag readback");
   const lines = result.stdout.trim().split(/\r?\n/u).filter(Boolean);
   const direct = lines.find((line) => line.endsWith(`refs/tags/v${version}`))?.split(/\s+/u)[0];
   const peeled = lines.find((line) => line.endsWith(`refs/tags/v${version}^{}`))?.split(/\s+/u)[0];
@@ -353,12 +386,12 @@ function readRemoteTagCommit(version) {
   return commit.toLowerCase();
 }
 
-function npxHelpSha256(version) {
+async function npxHelpSha256(version) {
   if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_NPX_HELP_SHA256");
   const cache = mkdtempSync(path.join(tmpdir(), "ahk-postpublish-npx-cache-"));
   const cwd = mkdtempSync(path.join(tmpdir(), "ahk-postpublish-npx-cwd-"));
   try {
-    const result = runNpx(["--cache", cache, "--yes", `@adamchanadam/agent-handoff-kit@${version}`, "--help"], "npx published help", cwd);
+    const result = await runNpx(["--cache", cache, "--yes", `@adamchanadam/agent-handoff-kit@${version}`, "--help"], "npx published help", cwd);
     const text = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
     assert(text.includes(`v${version}`), "npx help readback does not contain the published version");
     return sha256(Buffer.from(text, "utf8"));
@@ -377,8 +410,8 @@ function candidateGitStatus() {
   return runGit(["status", "--porcelain"], "git status");
 }
 
-function candidateGitHead() {
-  return runGit(["rev-parse", "HEAD"], "git HEAD").stdout.trim();
+async function candidateGitHead() {
+  return (await runGit(["rev-parse", "HEAD"], "git HEAD")).stdout.trim();
 }
 
 function runNpm(args, label) {
@@ -405,11 +438,12 @@ function runNpx(args, label, cwd) {
 }
 
 function runCommand(command, args, label, options = {}) {
-  const result = spawnSync(command, args, { cwd: options.cwd ?? root, encoding: "utf8", env: options.env ?? process.env, shell: options.shell ?? false });
-  if (result.error || result.status !== 0) {
-    throw new Error(`${label} failed\n${result.error?.message ?? ""}\n${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim());
-  }
-  return result;
+  return runChecked(command, args, label, {
+    cwd: options.cwd ?? root,
+    env: options.env ?? process.env,
+    shell: options.shell ?? false,
+    timeoutMs: options.timeoutMs ?? LONG_QA_TIMEOUT_MS
+  });
 }
 
 function sha256(value) {

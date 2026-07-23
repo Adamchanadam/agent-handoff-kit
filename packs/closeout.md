@@ -24,6 +24,8 @@ Do not copy the full opening message into `dev/SESSION_LOG.md` or any third curr
 
 ## Full Closeout
 
+Full closeout is differential. Reuse a completed task check only when its recorded root, task input, tool identity, commit / artifact identity, and required file hashes still match the current state. Do not rerun task QA that is already bound to unchanged identity. Do rerun checks affected by closeout writes, gates that are incomplete or indeterminate, closeout-specific checks, and the final `closeout-status` read-back. If a closeout attempt is interrupted, stopped, aborted, times out, or hits a spawn / transport error, resume at the first incomplete or indeterminate gate; do not restart from the beginning unless the root, input, tool identity, commit, artifact, or relevant hash changed.
+
 1. Reconcile `dev/SESSION_HANDOFF.md`; never append a new current-state snapshot beneath an old one. Verify durable anchors, then rewrite or explicitly confirm every closeout-reconciled section.
 2. Reconcile lifecycle state across `Completed This Session`, `Validation / QC`, `Next Priorities`, `Risks / Blockers`, and `Next Session Opening Message`. Completed or verified work cannot remain unresolved unless explicitly reclassified as monitor-only, follow-up scope, blocked, or reopened with its missing evidence or trigger.
    The bundled doctor is a mechanical floor for obvious overlap and unresolved fields; it cannot prove that renamed or paraphrased work is semantically consistent. Read all five sections as a whole before marking the lifecycle field resolved. For governance, release, or another project-defined high-risk completion, use the project's independent semantic review gate in addition to doctor.

@@ -1,5 +1,25 @@
 import { createHash } from "node:crypto";
 
+export const QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS = 120_000;
+
+export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
+  releaseReadinessCheck("qa-assurance-manifest", "check-qa-assurance-manifest.mjs", "QA assurance manifest wiring", 180_000),
+  releaseReadinessCheck("public-prototype", "check-public-prototype.mjs", "prototype QA", 120_000),
+  releaseReadinessCheck("closeout-card", "check-closeout-card-contract.mjs", "closeout card contract QA", 120_000),
+  releaseReadinessCheck("closeout-efficiency", "check-closeout-efficiency.mjs", "closeout efficiency and terminal-state QA", 120_000),
+  releaseReadinessCheck("public-mirror", "build-public-mirror.mjs", "public mirror QA", 180_000),
+  releaseReadinessCheck("pack-scenarios", "check-pack-scenarios.mjs", "pack scenario QA", 120_000),
+  releaseReadinessCheck("r034-inventory", "check-r034-inventory.mjs", "R-034 inventory QA", 120_000),
+  releaseReadinessCheck("r034-semantic-candidate", "check-r034-semantic-candidate.mjs", "R-034 semantic candidate QA", 120_000),
+  releaseReadinessCheck("official-origin-catalog", "check-official-origin-catalog.mjs", "official-origin catalog QA", 180_000),
+  releaseReadinessCheck("r034-gate5-closure", "check-r034-gate5-closure.mjs", "R-034 Gate 5 whole-set closure QA", 240_000),
+  releaseReadinessCheck("r034-vertical", "check-r034-vertical.mjs", "artifact-backed R-034 vertical QA", 360_000),
+  releaseReadinessCheck("r034-final-closure", "check-r034-final-closure.mjs", "R-034 Phase-0 five-file final closure QA", 240_000),
+  releaseReadinessCheck("upgrade-safety", "check-upgrade-safety.mjs", "upgrade safety QA", 360_000),
+  releaseReadinessCheck("post-upgrade-closeout-finalize", "check-post-upgrade-closeout-finalize.mjs", "post-upgrade closeout finalize QA", 240_000),
+  releaseReadinessCheck("prompt-mirror", "check-prompt-mirror.mjs", "prompt mirror checker", 60_000)
+]);
+
 export const QA_ASSURANCE_MANIFEST = Object.freeze({
   schemaVersion: 1,
   layers: Object.freeze({
@@ -32,6 +52,11 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
       stateAxes: ["closeout persistence", "lifecycle state"],
       readback: "closeout-status"
     }),
+    claim("closeout-efficiency", "quick", "scripts/check-closeout-efficiency.mjs", {
+      provenance: "current source tree and isolated closeout fixture",
+      stateAxes: ["closeout rerun scope", "tool terminal state", "wrapper propagation"],
+      readback: "closeout-status, timeout, wrapper, and retry-scope counterexamples"
+    }),
     claim("prompt-mirror", "quick", "scripts/check-prompt-mirror.mjs", {
       provenance: "runtime-core templates",
       stateAxes: ["generated mirror", "line ending"],
@@ -40,7 +65,8 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
     claim("release-readiness", "full", "scripts/check-release-readiness.mjs", {
       provenance: "candidate source tree plus declared candidate evidence",
       stateAxes: ["candidate identity", "package boundary", "upgrade safety"],
-      readback: "release-readiness output and candidate evidence digest"
+      readback: "release-readiness output and candidate evidence digest",
+      timeoutMs: aggregateReleaseReadinessTimeoutMs()
     }),
     Object.freeze({
       id: "published-artifact-evidence",
@@ -183,23 +209,6 @@ export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
   })
 });
 
-export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
-  releaseReadinessCheck("qa-assurance-manifest", "check-qa-assurance-manifest.mjs", "QA assurance manifest wiring"),
-  releaseReadinessCheck("public-prototype", "check-public-prototype.mjs", "prototype QA"),
-  releaseReadinessCheck("closeout-card", "check-closeout-card-contract.mjs", "closeout card contract QA"),
-  releaseReadinessCheck("public-mirror", "build-public-mirror.mjs", "public mirror QA"),
-  releaseReadinessCheck("pack-scenarios", "check-pack-scenarios.mjs", "pack scenario QA"),
-  releaseReadinessCheck("r034-inventory", "check-r034-inventory.mjs", "R-034 inventory QA"),
-  releaseReadinessCheck("r034-semantic-candidate", "check-r034-semantic-candidate.mjs", "R-034 semantic candidate QA"),
-  releaseReadinessCheck("official-origin-catalog", "check-official-origin-catalog.mjs", "official-origin catalog QA"),
-  releaseReadinessCheck("r034-gate5-closure", "check-r034-gate5-closure.mjs", "R-034 Gate 5 whole-set closure QA"),
-  releaseReadinessCheck("r034-vertical", "check-r034-vertical.mjs", "artifact-backed R-034 vertical QA"),
-  releaseReadinessCheck("r034-final-closure", "check-r034-final-closure.mjs", "R-034 Phase-0 five-file final closure QA"),
-  releaseReadinessCheck("upgrade-safety", "check-upgrade-safety.mjs", "upgrade safety QA"),
-  releaseReadinessCheck("post-upgrade-closeout-finalize", "check-post-upgrade-closeout-finalize.mjs", "post-upgrade closeout finalize QA"),
-  releaseReadinessCheck("prompt-mirror", "check-prompt-mirror.mjs", "prompt mirror checker")
-]);
-
 export const QA_RELEASE_READINESS_INVENTORY_DIGEST = digest(QA_RELEASE_READINESS_INVENTORY);
 
 export const POST_UPGRADE_STATE_COMPOSITIONS = Object.freeze([
@@ -272,7 +281,7 @@ function claim(id, layer, script, details) {
     id,
     layer,
     required: true,
-    executor: Object.freeze({ kind: "node-script", script }),
+    executor: Object.freeze({ kind: "node-script", script, timeoutMs: details.timeoutMs ?? 120_000 }),
     provenance: details.provenance,
     stateAxes: Object.freeze(details.stateAxes),
     expected: Object.freeze({ positive: "executor exits 0", negative: "executor exits nonzero" }),
@@ -283,8 +292,12 @@ function claim(id, layer, script, details) {
   });
 }
 
-function releaseReadinessCheck(id, script, label) {
-  return Object.freeze({ id, script, label });
+function releaseReadinessCheck(id, script, label, timeoutMs) {
+  return Object.freeze({ id, script, label, timeoutMs });
+}
+
+export function aggregateReleaseReadinessTimeoutMs(inventory = QA_RELEASE_READINESS_INVENTORY, bufferMs = QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS) {
+  return inventory.reduce((total, item) => total + item.timeoutMs, bufferMs);
 }
 
 function surface(path) {

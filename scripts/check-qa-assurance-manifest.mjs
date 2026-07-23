@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
+  aggregateReleaseReadinessTimeoutMs,
   CANDIDATE_EVIDENCE_CONTRACT,
   commandDocumentation,
   POST_UPGRADE_STATE_COMPOSITIONS,
@@ -15,10 +15,12 @@ import {
   QA_ASSURANCE_MANIFEST_DIGEST,
   QA_RELEASE_READINESS_INVENTORY,
   QA_RELEASE_READINESS_INVENTORY_DIGEST,
+  QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS,
   R034_ARTIFACT_CONTRACT,
   RELEASE_PACKAGE_CONTRACT,
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
+import { assertRunFailed, invokeAsync, runSync, runSyncChecked, TIMEOUT_EXIT_CODE } from "./qa-runner-core.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "ack-qa-assurance-"));
@@ -34,6 +36,8 @@ try {
   validateCommandDocumentation();
   validateRunnerInventory();
   validateReleaseReadinessInventory();
+  validateRunnerTerminalStateContract();
+  await validateProductionRunnerTerminalStateContract();
   validateFailurePropagation();
   validateEvidenceContracts();
   console.log("ok: QA assurance manifest and runner wiring");
@@ -51,7 +55,10 @@ function validateManifest() {
     assert(QA_ASSURANCE_MANIFEST.layers[claim.layer], `claim uses unknown layer: ${claim.id}`);
     for (const field of ["provenance", "readback", "evidenceOutput", "failureMode", "outOfScope"]) assert(typeof claim[field] === "string" && claim[field], `claim ${claim.id} missing ${field}`);
     assert(Array.isArray(claim.stateAxes) && claim.stateAxes.length > 0, `claim ${claim.id} has no state axes`);
-    if (claim.executor.kind === "node-script") assert(claim.executor.script && path.resolve(root, claim.executor.script).startsWith(`${root}${path.sep}`), `claim ${claim.id} has an unsafe script path`);
+    if (claim.executor.kind === "node-script") {
+      assert(claim.executor.script && path.resolve(root, claim.executor.script).startsWith(`${root}${path.sep}`), `claim ${claim.id} has an unsafe script path`);
+      assert(Number.isInteger(claim.executor.timeoutMs) && claim.executor.timeoutMs >= 30_000, `claim ${claim.id} lacks a reasonable per-command timeout`);
+    }
   }
   assert(/^[a-f0-9]{64}$/.test(QA_ASSURANCE_MANIFEST_DIGEST), "manifest digest is malformed");
 }
@@ -162,11 +169,31 @@ function validateReleaseReadinessInventory() {
     scripts.add(item.script);
     assert(existsSync(path.join(root, "scripts", item.script)), `release-readiness inventory script is missing: ${item.script}`);
     assert(typeof item.label === "string" && item.label, `release-readiness inventory item missing label: ${item.id}`);
+    assert(Number.isInteger(item.timeoutMs) && item.timeoutMs >= 30_000, `release-readiness inventory item lacks a reasonable per-command timeout: ${item.id}`);
   }
+  assert(ids.has("closeout-efficiency"), "release-readiness inventory omits closeout-efficiency");
+  const inventoryBudgetMs = QA_RELEASE_READINESS_INVENTORY.reduce((total, item) => total + item.timeoutMs, 0);
+  const aggregateBudgetMs = aggregateReleaseReadinessTimeoutMs();
+  const releaseReadinessClaim = QA_ASSURANCE_MANIFEST.claims.find((claim) => claim.id === "release-readiness");
+  assert(releaseReadinessClaim.executor.timeoutMs === aggregateBudgetMs, "release-readiness claim timeout is not derived from the manifest inventory");
+  assert(aggregateBudgetMs === inventoryBudgetMs + QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS, "release-readiness aggregate timeout drifted from inventory plus startup buffer");
+  assertOuterTimeoutCoversInventory(aggregateBudgetMs, QA_RELEASE_READINESS_INVENTORY);
+  let shortOuterRejected = false;
+  try {
+    assertOuterTimeoutCoversInventory(inventoryBudgetMs - 1, QA_RELEASE_READINESS_INVENTORY);
+  } catch {
+    shortOuterRejected = true;
+  }
+  assert(shortOuterRejected, "release-readiness accepted an outer timeout shorter than the sequential inventory budget");
 
   const releaseChecker = readFileSync(path.join(root, "scripts", "check-release-readiness.mjs"), "utf8");
   assert(releaseChecker.includes("for (const qaCheck of QA_RELEASE_READINESS_INVENTORY)"), "release readiness no longer iterates over the manifest-owned inventory");
   assert(!/runQaScript\s*\(\s*["']/.test(releaseChecker), "release readiness still contains hard-coded QA member calls");
+  assert(releaseChecker.includes("runNodeScriptChecked"), "release readiness inventory loop is not using the bounded checked runner");
+  assert(!/\brunNodeScript\s*\(/.test(releaseChecker), "release readiness inventory loop still uses the sync node-script runner");
+  const qaRunner = readFileSync(path.join(root, "scripts", "qa.mjs"), "utf8");
+  assert(qaRunner.includes("runNodeScriptChecked"), "qa.mjs claims are not using the bounded checked runner");
+  assert(!/\brunNodeScript\s*\(/.test(qaRunner) && !/\brunSyncChecked\b/.test(qaRunner), "qa.mjs claims still depend on the sync checked runner");
   invoke(["scripts/check-release-readiness.mjs", "--qa-inventory-self-test"], "release-readiness inventory negative self-test", {
     env: { ...process.env, AGENT_HANDOFF_KIT_QA_TEST_MODE: "1" }
   });
@@ -191,14 +218,119 @@ function validateStateCompositions() {
 
 function validateFailurePropagation() {
   for (const claim of QA_ASSURANCE_MANIFEST.claims.filter((item) => item.required)) {
-    const result = spawnSync(process.execPath, ["scripts/qa.mjs", claim.layer, "--test-fail-claim", claim.id], {
+    const result = runSync(process.execPath, ["scripts/qa.mjs", claim.layer, "--test-fail-claim", claim.id], "controlled failure propagation", {
       cwd: root,
-      encoding: "utf8",
       env: { ...process.env, AGENT_HANDOFF_KIT_QA_TEST_MODE: "1" }
     });
-    assert(!result.error && result.status !== 0, `controlled failure did not block ${claim.id}`);
+    assert(!result.errorType && result.status !== 0, `controlled failure did not block ${claim.id}`);
     assert(`${result.stdout}\n${result.stderr}`.includes(`controlled executor failure: ${claim.id}`), `controlled failure was not attributed to ${claim.id}`);
   }
+  console.log("ok: required QA claim failures propagate");
+}
+
+function validateRunnerTerminalStateContract() {
+  const partialPassTimeout = runSync(process.execPath, ["-e", "console.log('PASS before final state'); setTimeout(() => {}, 10000);"], "partial PASS timeout self-test", { cwd: root, timeoutMs: 200 });
+  assert(partialPassTimeout.timedOut && partialPassTimeout.status === TIMEOUT_EXIT_CODE, "partial PASS output before timeout must be blocked as indeterminate");
+
+  const selfSigterm = runSync(process.execPath, ["-e", "process.kill(process.pid, 'SIGTERM');"], "self SIGTERM self-test", { cwd: root, timeoutMs: 10_000 });
+  assert(!selfSigterm.timedOut && selfSigterm.status !== TIMEOUT_EXIT_CODE, "child self-SIGTERM must not be reported as the runner timeout exit code");
+
+  const exitNine = runSync(process.execPath, ["-e", "process.exit(9);"], "exit 9 propagation self-test", { cwd: root, timeoutMs: 10_000 });
+  assert(exitNine.status === 9, "runner did not preserve child exit code 9");
+
+  const spawnError = runSync("definitely-not-agent-handoff-kit-command", [], "spawn error self-test", { cwd: root, timeoutMs: 10_000 });
+  assert(spawnError.errorType === "spawn-error" && spawnError.status === null, "spawn error must be distinguished from ordinary nonzero exit");
+
+  assertRunFailed(partialPassTimeout, "partial PASS timeout self-test");
+  assertRunFailed(selfSigterm, "self SIGTERM self-test");
+  assertRunFailed(exitNine, "exit 9 propagation self-test");
+  assertRunFailed(spawnError, "spawn error self-test");
+  console.log("ok: QA runner terminal-state contract");
+}
+
+async function validateProductionRunnerTerminalStateContract() {
+  const ignoreSigterm = await runQaRunnerFixture("ignore-sigterm.mjs", [
+    "process.on('SIGTERM', () => {});",
+    "console.log('PASS before final state');",
+    "setInterval(() => {}, 10000);"
+  ], { timeoutMs: 200, label: "qa.mjs production runner ignore-SIGTERM fixture" });
+  assert(ignoreSigterm.status === TIMEOUT_EXIT_CODE && !ignoreSigterm.timedOut, `qa.mjs production runner did not return bounded child timeout status\n${ignoreSigterm.stdout}\n${ignoreSigterm.stderr}`);
+  assert(ignoreSigterm.elapsedMs < 5_000, `qa.mjs production runner ignore-SIGTERM fixture exceeded bounded wall-clock: ${ignoreSigterm.elapsedMs}ms`);
+  assert(`${ignoreSigterm.stdout}\n${ignoreSigterm.stderr}`.includes("PASS before final state"), "qa.mjs production runner fixture did not preserve partial stdout for readback");
+  assertRunFailed(ignoreSigterm, "qa.mjs production runner ignore-SIGTERM fixture");
+
+  const partialPass = await runQaRunnerFixture("partial-pass.mjs", [
+    "console.log('PASS before final state');",
+    "setTimeout(() => {}, 10000);"
+  ], { timeoutMs: 200, label: "qa.mjs production runner partial-PASS fixture" });
+  assert(partialPass.status === TIMEOUT_EXIT_CODE && !partialPass.timedOut, `qa.mjs production runner partial-PASS fixture did not return child timeout status\n${partialPass.stdout}\n${partialPass.stderr}`);
+  assert(`${partialPass.stdout}\n${partialPass.stderr}`.includes("PASS before final state"), "qa.mjs production runner partial-PASS fixture did not preserve partial stdout");
+  assertRunFailed(partialPass, "qa.mjs production runner partial-PASS fixture");
+
+  const selfSigterm = await runQaRunnerFixture("self-sigterm.mjs", [
+    "process.kill(process.pid, 'SIGTERM');"
+  ], { timeoutMs: 10_000, label: "qa.mjs production runner self-SIGTERM fixture" });
+  assert(selfSigterm.status !== TIMEOUT_EXIT_CODE && !selfSigterm.timedOut, `qa.mjs production runner self-SIGTERM was misreported as timeout\n${selfSigterm.stdout}\n${selfSigterm.stderr}`);
+  assertRunFailed(selfSigterm, "qa.mjs production runner self-SIGTERM fixture");
+
+  const exitNine = await runQaRunnerFixture("exit-nine.mjs", [
+    "process.exit(9);"
+  ], { timeoutMs: 10_000, label: "qa.mjs production runner exit-9 fixture" });
+  assert(exitNine.status === 9, `qa.mjs production runner did not preserve exit 9\n${exitNine.stdout}\n${exitNine.stderr}`);
+  assertRunFailed(exitNine, "qa.mjs production runner exit-9 fixture");
+
+  const commandSpawnError = await invokeAsync(process.execPath, [
+    "scripts/qa.mjs",
+    "--test-command-spawn-error"
+  ], "qa.mjs production command spawn-error fixture", {
+    cwd: root,
+    env: { ...process.env, AGENT_HANDOFF_KIT_QA_TEST_MODE: "1" },
+    timeoutMs: 10_000
+  });
+  assert(commandSpawnError.status !== 0 && `${commandSpawnError.stdout}\n${commandSpawnError.stderr}`.includes("spawn-error"), `qa.mjs production command wrapper did not preserve spawn-error\n${commandSpawnError.stdout}\n${commandSpawnError.stderr}`);
+  assertRunFailed(commandSpawnError, "qa.mjs production command spawn-error fixture");
+
+  const shellFixture = process.platform === "win32" ? path.join(fixtureRoot, "shell-fixture.cmd") : path.join(fixtureRoot, "shell-fixture.sh");
+  writeFileSync(shellFixture, process.platform === "win32"
+    ? "@echo AHK_SHELL_FIXTURE_OK\r\n"
+    : "echo AHK_SHELL_FIXTURE_OK\n", "utf8");
+  if (process.platform !== "win32") {
+    chmodSync(shellFixture, 0o700);
+    assert((statSync(shellFixture).mode & 0o111) !== 0, "POSIX shell fixture is not executable after chmod readback");
+  }
+  const shellResult = await invokeAsync(process.execPath, [
+    "scripts/qa.mjs",
+    "--test-command-shell-fixture",
+    shellFixture,
+    "--test-runner-timeout-ms",
+    "10000"
+  ], "qa.mjs production command shell fixture", {
+    cwd: root,
+    env: { ...process.env, AGENT_HANDOFF_KIT_QA_TEST_MODE: "1" },
+    timeoutMs: 10_000
+  });
+  assert(shellResult.status === 0 && shellResult.stdout.includes("AHK_SHELL_FIXTURE_OK"), `qa.mjs production command wrapper did not propagate shell:true\n${shellResult.stdout}\n${shellResult.stderr}`);
+  console.log("ok: qa.mjs production runner and command-wrapper terminal-state contract");
+}
+
+async function runQaRunnerFixture(fileName, lines, options) {
+  const fixture = path.join(fixtureRoot, fileName);
+  writeFileSync(fixture, lines.join("\n"), "utf8");
+  const startedAt = Date.now();
+  const result = await invokeAsync(process.execPath, [
+    "scripts/qa.mjs",
+    "--test-runner-fixture",
+    fixture,
+    "--test-runner-timeout-ms",
+    String(options.timeoutMs)
+  ], options.label, {
+    cwd: root,
+    env: { ...process.env, AGENT_HANDOFF_KIT_QA_TEST_MODE: "1" },
+    timeoutMs: 5_000,
+    killGraceMs: 500,
+    settleGraceMs: 2_000
+  });
+  return { ...result, elapsedMs: Date.now() - startedAt };
 }
 
 function validateEvidenceContracts() {
@@ -481,14 +613,12 @@ function validateEvidenceContracts() {
 }
 
 function invoke(args, label, options = {}) {
-  const result = spawnSync(process.execPath, args, { cwd: root, encoding: "utf8", env: options.env ?? process.env });
-  assert(!result.error && result.status === 0, `${label} failed\n${result.error?.message ?? ""}\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
-  return result;
+  return runSyncChecked(process.execPath, args, label, { cwd: root, env: options.env ?? process.env });
 }
 
 function invokeFailure(args, label, options = {}) {
-  const result = spawnSync(process.execPath, args, { cwd: root, encoding: "utf8", env: options.env ?? process.env });
-  assert(!result.error && result.status !== 0, `${label} unexpectedly passed`);
+  const result = runSync(process.execPath, args, label, { cwd: root, env: options.env ?? process.env });
+  assert(!result.errorType && result.status !== 0, `${label} unexpectedly passed`);
   return result;
 }
 
@@ -498,6 +628,11 @@ function writeEvidence(file, value) {
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function assertOuterTimeoutCoversInventory(outerTimeoutMs, inventory) {
+  const inventoryBudgetMs = inventory.reduce((total, item) => total + item.timeoutMs, 0);
+  assert(Number.isInteger(outerTimeoutMs) && outerTimeoutMs >= inventoryBudgetMs, `outer timeout ${outerTimeoutMs}ms is shorter than sequential inventory budget ${inventoryBudgetMs}ms`);
 }
 
 function assert(condition, message) {

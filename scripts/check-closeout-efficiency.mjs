@@ -2,13 +2,13 @@
 
 // Isolated green verification.  The matching pre-fix red evidence remains in
 // the separate frozen-source clone; this helper stays untracked in integration.
-import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractOpeningMessage } from "../bin/prompt-mirror-core.mjs";
+import { assertRunFailed, assertRunPassed, describeResult, invokeAsync, TIMEOUT_EXIT_CODE } from "./qa-runner-core.mjs";
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "ack-closeout-efficiency-red-"));
@@ -89,8 +89,50 @@ try {
   const handoffFailure = await invoke(["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], noUpdateEnv);
   assert(handoffFailure.status !== 0 && handoffFailure.stdout.includes("project-required persistence is not complete or not required"), `handoff failure produced a false closeout success\n${output(handoffFailure)}`);
 
+  const differentCwd = await invoke([path.join(sourceRoot, "bin", "agent-handoff-kit.mjs"), "closeout-status", "--root", fixtureRoot], noUpdateEnv, { cwd: tmpdir() });
+  assert(differentCwd.status !== 0 && differentCwd.stdout.includes("project-required persistence is not complete or not required"), `explicit --root was not honored from a different cwd\n${output(differentCwd)}`);
+
+  const partialPassTimeout = await invoke(["-e", "console.log('PASS before final state'); setTimeout(() => {}, 10000);"], noUpdateEnv, { timeoutMs: 200 });
+  assert(partialPassTimeout.timedOut && partialPassTimeout.status === TIMEOUT_EXIT_CODE, `partial PASS before timeout did not become indeterminate\n${output(partialPassTimeout)}`);
+  assertRunFailed(partialPassTimeout, "partial PASS timeout fixture");
+
+  const ignoreSigtermTimeout = await invoke(["-e", "process.on('SIGTERM', () => {}); console.log('PASS before final state'); setInterval(() => {}, 10000);"], noUpdateEnv, {
+    timeoutMs: 200,
+    killGraceMs: 200,
+    settleGraceMs: 800
+  });
+  assert(ignoreSigtermTimeout.timedOut && ignoreSigtermTimeout.status === TIMEOUT_EXIT_CODE, `child that ignored SIGTERM did not settle as bounded timeout\n${output(ignoreSigtermTimeout)}`);
+  assert(ignoreSigtermTimeout.stopped === true || ignoreSigtermTimeout.stopped === false, `ignore-SIGTERM result did not preserve stopped proof state\n${output(ignoreSigtermTimeout)}`);
+  assertRunFailed(ignoreSigtermTimeout, "ignore SIGTERM timeout fixture");
+
+  const wrapperFalseGreen = await invoke(["-e", "const {spawnSync}=require('node:child_process'); const r=spawnSync(process.execPath,['-e','process.exit(9)'],{encoding:'utf8'}); console.log(`inner status ${r.status}`); process.exit(0);"], noUpdateEnv, { timeoutMs: 10_000 });
+  let wrapperRejected = false;
+  try {
+    assertRunPassed(wrapperFalseGreen, "wrapper false-green fixture", { requiredStdoutIncludes: "AHK_TERMINAL_SUCCESS" });
+  } catch {
+    wrapperRejected = true;
+  }
+  assert(wrapperRejected, `wrapper that swallowed inner exit 9 was accepted as terminal success\n${output(wrapperFalseGreen)}`);
+
+  const spawnError = await invokeCommand("definitely-not-agent-handoff-kit-command", [], noUpdateEnv, { timeoutMs: 10_000 });
+  assert(spawnError.errorType === "spawn-error", `spawn/transport error was not classified distinctly\n${output(spawnError)}`);
+  assertRunFailed(spawnError, "spawn error fixture");
+
+  const retryPlan = closeoutRetryPlan([
+    gate("root identity", "passed", "root-a"),
+    gate("tool identity", "passed", "tool-a"),
+    gate("task QA", "passed", "qa-a"),
+    gate("prompt mirror", "indeterminate", "mirror-a"),
+    gate("closeout-status", "required", "closeout-a")
+  ], {
+    "root identity": "root-a",
+    "tool identity": "tool-a",
+    "task QA": "qa-a"
+  });
+  assert(JSON.stringify(retryPlan) === JSON.stringify(["prompt mirror", "closeout-status"]), `identity-stable retry plan reran already-passed gates: ${retryPlan.join(", ")}`);
+
   console.log("GREEN PASSED: full closeout delegates its single fresh doctor read-back to closeout-status, whose doctor made zero registry lookups; ordinary doctor made one lookup and retained version alignment; NO_UPDATE_CHECK suppressed lookups for init, doctor, and closeout-status.");
-  console.log("SAFETY CONFIRMED: doctor, mirror, and handoff failures each remained nonzero and never produced handoff saved.");
+  console.log("SAFETY CONFIRMED: doctor, mirror, handoff, timeout, wrapper, spawn-error, different-cwd, and retry-scope failures remained nonzero or indeterminate and never produced handoff saved.");
 } finally {
   registry.close();
   rmSync(fixtureRoot, { recursive: true, force: true });
@@ -104,15 +146,17 @@ function cleanEnvironment(overrides) {
   return env;
 }
 
-function invoke(args, env) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, args, { cwd: sourceRoot, env, stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.setEncoding("utf8").on("data", (chunk) => { stdout += chunk; });
-    child.stderr.setEncoding("utf8").on("data", (chunk) => { stderr += chunk; });
-    child.on("error", reject);
-    child.on("close", (status) => resolve({ status, stdout, stderr }));
+function invoke(args, env, options = {}) {
+  return invokeCommand(process.execPath, args, env, options);
+}
+
+function invokeCommand(command, args, env, options = {}) {
+  return invokeAsync(command, args, options.label ?? args.join(" "), {
+    cwd: options.cwd ?? sourceRoot,
+    env,
+    timeoutMs: options.timeoutMs ?? 120_000,
+    killGraceMs: options.killGraceMs,
+    settleGraceMs: options.settleGraceMs
   });
 }
 
@@ -157,7 +201,17 @@ function readAt(base, relative) {
 }
 
 function output(result) {
-  return `${result.stdout}\n${result.stderr}`;
+  return describeResult(result);
+}
+
+function gate(name, state, identity) {
+  return { name, state, identity };
+}
+
+function closeoutRetryPlan(gates, unchangedIdentities) {
+  const firstUnfinished = gates.findIndex((item) => item.state !== "passed" || unchangedIdentities[item.name] !== undefined && unchangedIdentities[item.name] !== item.identity);
+  if (firstUnfinished < 0) return [];
+  return gates.slice(firstUnfinished).map((item) => item.name);
 }
 
 function assert(condition, message) {

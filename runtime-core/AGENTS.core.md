@@ -59,8 +59,8 @@ In every user-facing reply, lead with ordinary language: state the result and it
 Choose exactly one tier after a task:
 
 1. No persistence: no durable fact was produced. One-off answers, transient output, active unapproved drafts, and routine rerunnable checks normally use this tier.
-2. Lightweight checkpoint: a durable fact affects future action while the session continues or may be interrupted. Write only its smallest correct home; do not regenerate the startup mirror or perform full closeout.
-3. Full closeout: explicit end-of-session / handoff intent, a tool or day boundary, or completed external / release / governance work that the next agent must continue. Load `dev/rules/closeout.md`.
+2. Lightweight checkpoint: a durable fact affects future action while the session continues or may be interrupted. This is the default for ongoing sessions. Write only its smallest correct home; do not regenerate the startup mirror or perform full closeout.
+3. Full closeout: explicit end-of-session / handoff intent, a real day / tool-session boundary, or a state where the current agent cannot continue and the next agent must take over. Ordinary external-tool use, a completed release / governance subtask, or a durable note during an ongoing session is not by itself a full closeout trigger. Load `dev/rules/closeout.md` only when this tier is selected.
 
 Route current objective, next action, active risk, blocker, and startup-needed facts to `dev/SESSION_HANDOFF.md`; chronological evidence to `dev/SESSION_LOG.md`; maps to `dev/PROJECT_INDEX.md`; sync obligations to `dev/DOC_SYNC_REGISTRY.md`; long-term rationale to `dev/PROJECT_DECISIONS.md`; and reusable procedures to the relevant pack, registered reference, or QA check. Do not store the same task contract or reusable rule in several homes.
 

@@ -16,6 +16,7 @@ import {
   RELEASE_PACKAGE_CONTRACT,
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
+import { runNodeScriptChecked } from "./qa-runner-core.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -31,9 +32,9 @@ const pinnedV041Artifact = {
 };
 const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, writes, network access, or opt-out execution wording.";
 
-main();
+await main();
 
-function main() {
+async function main() {
   if (process.argv.includes("--qa-inventory-self-test")) {
     checkReleaseReadinessInventorySelfTest();
     return;
@@ -59,7 +60,7 @@ function main() {
 
   const executedQaIds = [];
   for (const qaCheck of QA_RELEASE_READINESS_INVENTORY) {
-    runManifestQaScript(qaCheck, executedQaIds);
+    await runManifestQaScript(qaCheck, executedQaIds);
   }
   assertReleaseReadinessInventoryComplete(executedQaIds);
 
@@ -1996,13 +1997,14 @@ function extractSectionText(text, markerId, headingTitle) {
   return text.slice(start, nextHeading ? start + nextHeading.index : text.length);
 }
 
-function runManifestQaScript(qaCheck, executedQaIds) {
+async function runManifestQaScript(qaCheck, executedQaIds) {
   executedQaIds.push(qaCheck.id);
-  executeQaScript(qaCheck.script, qaCheck.label);
+  await executeQaScript(qaCheck.script, qaCheck.label);
 }
 
 function executeQaScript(scriptName, label) {
-  run(process.execPath, [path.join("scripts", scriptName)], label);
+  const entry = QA_RELEASE_READINESS_INVENTORY.find((item) => item.script === scriptName);
+  return runNodeScriptChecked(path.join("scripts", scriptName), label, { cwd: root, timeoutMs: entry?.timeoutMs });
 }
 
 function assertReleaseReadinessInventoryComplete(executedQaIds) {
