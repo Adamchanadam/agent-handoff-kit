@@ -5,7 +5,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, wri
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PUBLIC_MIRROR_CONTRACT, RELEASE_PACKAGE_CONTRACT } from "./qa-assurance-manifest.mjs";
+import { expectedPublicMirrorFileCount, PUBLIC_MIRROR_CONTRACT, RELEASE_PACKAGE_CONTRACT } from "./qa-assurance-manifest.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sourceRoot = path.resolve(__dirname, "..");
@@ -15,60 +15,10 @@ const outRoot = args.out
   ? path.resolve(args.out)
   : path.join(tmpdir(), `ack-public-mirror-${Date.now()}`);
 
-const allowFiles = [
-  "README.md",
-  "README.en.md",
-  "LICENSE",
-  "package.json",
-  "agent-handoff-kit-ai-install.html",
-  "agent-handoff-kit-intro.html",
-  "agent-handoff-kit-guide.html",
-  "agent-handoff-kit-ai-install.en.html",
-  "agent-handoff-kit-intro.en.html",
-  "agent-handoff-kit-guide.en.html",
-  "agent-handoff-kit-en.css",
-  "local-agentic-ai-workflow-case-study.html",
-  "robots.txt",
-  "sitemap.xml",
-  "googlea551ba0f71dfb2ac.html",
-  ".gitignore"
-];
-
-const allowDirs = [
-  "bin",
-  "runtime-core",
-  "packs",
-  "images",
-  "docs/whatsnew",
-  "case-study-multiworkspace"
-];
-
-const forbiddenPathSegments = new Set([
-  "scripts",
-  "test-fixtures",
-  "qa",
-  "node_modules",
-  ".git"
-]);
-
-const forbiddenFileNames = new Set([
-  "MAINTAINERS.md",
-  "CHANGELOG.md",
-  "architecture.md",
-  "auditor-rubric.md",
-  "coding-continuity-model.md",
-  "complexity-budget.schema.md",
-  "core-contract.md",
-  "health-checks.md",
-  "installer-design.md",
-  "migration-plan.md",
-  "pack-loading-contract.md",
-  "preservation-map.md",
-  "problem-definition.md",
-  "scenario-dry-runs.md",
-  "stop-rules.md"
-]);
-
+const allowFiles = PUBLIC_MIRROR_CONTRACT.allowFiles;
+const allowDirs = PUBLIC_MIRROR_CONTRACT.allowDirs;
+const forbiddenPathSegments = new Set(PUBLIC_MIRROR_CONTRACT.forbiddenPathSegments);
+const forbiddenFileNames = new Set(PUBLIC_MIRROR_CONTRACT.forbiddenFileNames);
 const forbiddenText = [
   { label: "docs/qa path", pattern: /docs[\\/]qa/i },
   { label: "test fixture path", pattern: /test-fixtures/i },
@@ -141,7 +91,8 @@ function checkMirrorShape() {
     }
   }
   assert(pathHits.length === 0, formatHits("forbidden public mirror paths", pathHits));
-  assert(files.length === PUBLIC_MIRROR_CONTRACT.expectedFileCount, `public mirror file count drifted: expected ${PUBLIC_MIRROR_CONTRACT.expectedFileCount}, got ${files.length}`);
+  const expectedCount = expectedPublicMirrorFileCount(sourceRoot);
+  assert(files.length === expectedCount, `public mirror file count drifted: expected ${expectedCount}, got ${files.length}`);
   console.log("ok: public mirror shape");
 }
 

@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readdirSync, statSync } from "node:fs";
+import path from "node:path";
 
 export const QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS = 120_000;
 
@@ -26,6 +28,10 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
     quick: Object.freeze({
       purpose: "local engineering signal only; never a release verdict",
       command: "node scripts/qa.mjs quick"
+    }),
+    "candidate-preflight": Object.freeze({
+      purpose: "candidate synchronization preflight before freeze/review/full; never a full or release verdict",
+      command: "node scripts/qa.mjs candidate-preflight --candidate <version>"
     }),
     full: Object.freeze({
       purpose: "candidate-bound pre-publish decision",
@@ -61,6 +67,22 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
       provenance: "runtime-core templates",
       stateAxes: ["generated mirror", "line ending"],
       readback: "prompt mirror assessment"
+    }),
+    Object.freeze({
+      id: "candidate-preflight",
+      layer: "candidate-preflight",
+      required: true,
+      executor: Object.freeze({ kind: "internal-validator", timeoutMs: 600_000 }),
+      provenance: "clean candidate source tree, active release surfaces, public mirror contract, official-origin catalog, npm latest readback, and manifest identities",
+      stateAxes: Object.freeze(["candidate version", "surface synchronization", "mirror boundary", "published lineage", "manifest identity"]),
+      expected: Object.freeze({
+        positive: "candidate source state is internally synchronized before freeze/review/full",
+        negative: "version, surface, mirror, catalog, runner, dirty state, or external readback drift blocks preflight"
+      }),
+      readback: "package.json, clean HEAD, active surfaces, derived mirror membership, latest published catalog endpoint, npm latest readback, manifest digest, and release-readiness inventory digest",
+      evidenceOutput: "preflight terminal output",
+      failureMode: "blocked/indeterminate; no full-gate or release success may be inferred",
+      outOfScope: "does not replace independent review, candidate evidence, full gate, postpublish readback, or package file-count validation"
     }),
     claim("release-readiness", "full", "scripts/check-release-readiness.mjs", {
       provenance: "candidate source tree plus declared candidate evidence",
@@ -123,7 +145,56 @@ export const RELEASE_PACKAGE_CONTRACT = Object.freeze({
 
 export const PUBLIC_MIRROR_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  expectedFileCount: 110
+  allowFiles: Object.freeze([
+    "README.md",
+    "README.en.md",
+    "LICENSE",
+    "package.json",
+    "agent-handoff-kit-ai-install.html",
+    "agent-handoff-kit-intro.html",
+    "agent-handoff-kit-guide.html",
+    "agent-handoff-kit-ai-install.en.html",
+    "agent-handoff-kit-intro.en.html",
+    "agent-handoff-kit-guide.en.html",
+    "agent-handoff-kit-en.css",
+    "local-agentic-ai-workflow-case-study.html",
+    "robots.txt",
+    "sitemap.xml",
+    "googlea551ba0f71dfb2ac.html",
+    ".gitignore"
+  ]),
+  allowDirs: Object.freeze([
+    "bin",
+    "runtime-core",
+    "packs",
+    "images",
+    "docs/whatsnew",
+    "case-study-multiworkspace"
+  ]),
+  forbiddenPathSegments: Object.freeze([
+    "scripts",
+    "test-fixtures",
+    "qa",
+    "node_modules",
+    ".git"
+  ]),
+  forbiddenFileNames: Object.freeze([
+    "MAINTAINERS.md",
+    "CHANGELOG.md",
+    "architecture.md",
+    "auditor-rubric.md",
+    "coding-continuity-model.md",
+    "complexity-budget.schema.md",
+    "core-contract.md",
+    "health-checks.md",
+    "installer-design.md",
+    "migration-plan.md",
+    "pack-loading-contract.md",
+    "preservation-map.md",
+    "problem-definition.md",
+    "scenario-dry-runs.md",
+    "stop-rules.md"
+  ])
 });
 
 export const R034_ARTIFACT_CONTRACT = Object.freeze({
@@ -269,6 +340,7 @@ export function commandDocumentation() {
     "<!-- qa-assurance-command:block:start -->",
     "```text",
     QA_ASSURANCE_MANIFEST.layers.quick.command,
+    QA_ASSURANCE_MANIFEST.layers["candidate-preflight"].command,
     QA_ASSURANCE_MANIFEST.layers.full.command,
     QA_ASSURANCE_MANIFEST.layers.postpublish.command,
     "```",
@@ -300,6 +372,23 @@ export function aggregateReleaseReadinessTimeoutMs(inventory = QA_RELEASE_READIN
   return inventory.reduce((total, item) => total + item.timeoutMs, bufferMs);
 }
 
+export function publicMirrorSourceFiles(sourceRoot) {
+  const files = [];
+  for (const relative of PUBLIC_MIRROR_CONTRACT.allowFiles) {
+    const absolute = pathJoin(sourceRoot, relative);
+    if (fileExists(absolute)) files.push(absolute);
+  }
+  for (const relative of PUBLIC_MIRROR_CONTRACT.allowDirs) {
+    const absolute = pathJoin(sourceRoot, relative);
+    if (directoryExists(absolute)) files.push(...walkFiles(absolute));
+  }
+  return files;
+}
+
+export function expectedPublicMirrorFileCount(sourceRoot) {
+  return publicMirrorSourceFiles(sourceRoot).length;
+}
+
 function surface(path) {
   return Object.freeze({ path });
 }
@@ -314,4 +403,39 @@ function composition(id, details) {
 
 function digest(value) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function pathJoin(root, relative) {
+  return path.join(root, relative);
+}
+
+function fileExists(file) {
+  try {
+    return !fsStat(file).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function directoryExists(dir) {
+  try {
+    return fsStat(dir).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function walkFiles(dir) {
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const fullPath = pathJoin(dir, entry.name);
+    if (entry.isDirectory()) files.push(...walkFiles(fullPath));
+    if (entry.isFile()) files.push(fullPath);
+  }
+  return files;
+}
+
+function fsStat(file) {
+  return statSync(file);
 }

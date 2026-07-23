@@ -7,12 +7,13 @@
 <!-- qa-assurance-command:block:start -->
 ```text
 node scripts/qa.mjs quick
+node scripts/qa.mjs candidate-preflight --candidate <version>
 node scripts/qa.mjs full --candidate <version> --evidence <candidate-evidence.json>
 node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evidence.json>
 ```
 <!-- qa-assurance-command:block:end -->
 
-`quick` is an engineering signal only. `full` requires clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help for the claimed version. Historical release records below are evidence, not the current QA command contract.
+`quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
 ## v0.3.50 candidate status
 

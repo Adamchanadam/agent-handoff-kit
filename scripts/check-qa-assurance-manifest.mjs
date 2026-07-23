@@ -9,6 +9,7 @@ import {
   aggregateReleaseReadinessTimeoutMs,
   CANDIDATE_EVIDENCE_CONTRACT,
   commandDocumentation,
+  expectedPublicMirrorFileCount,
   POST_UPGRADE_STATE_COMPOSITIONS,
   PUBLIC_MIRROR_CONTRACT,
   QA_ASSURANCE_MANIFEST,
@@ -47,7 +48,7 @@ try {
 
 function validateManifest() {
   assert(QA_ASSURANCE_MANIFEST.schemaVersion === 1, "unexpected QA assurance manifest schema version");
-  assert(Object.keys(QA_ASSURANCE_MANIFEST.layers).join(",") === "quick,full,postpublish", "QA layers drifted");
+  assert(Object.keys(QA_ASSURANCE_MANIFEST.layers).join(",") === "quick,candidate-preflight,full,postpublish", "QA layers drifted");
   const ids = new Set();
   for (const claim of QA_ASSURANCE_MANIFEST.claims) {
     assert(!ids.has(claim.id), `duplicate QA claim id: ${claim.id}`);
@@ -58,6 +59,8 @@ function validateManifest() {
     if (claim.executor.kind === "node-script") {
       assert(claim.executor.script && path.resolve(root, claim.executor.script).startsWith(`${root}${path.sep}`), `claim ${claim.id} has an unsafe script path`);
       assert(Number.isInteger(claim.executor.timeoutMs) && claim.executor.timeoutMs >= 30_000, `claim ${claim.id} lacks a reasonable per-command timeout`);
+    } else if (claim.executor.kind === "internal-validator") {
+      assert(Number.isInteger(claim.executor.timeoutMs) && claim.executor.timeoutMs >= 30_000, `claim ${claim.id} lacks a reasonable internal-validator timeout`);
     }
   }
   assert(/^[a-f0-9]{64}$/.test(QA_ASSURANCE_MANIFEST_DIGEST), "manifest digest is malformed");
@@ -135,7 +138,13 @@ function validateReleasePackageContract() {
 
 function validatePublicMirrorContract() {
   assert(PUBLIC_MIRROR_CONTRACT.schemaVersion === 1, "unexpected public mirror contract schema version");
-  assert(PUBLIC_MIRROR_CONTRACT.expectedFileCount === 110, "public mirror file count contract drifted");
+  assert(Array.isArray(PUBLIC_MIRROR_CONTRACT.allowFiles) && PUBLIC_MIRROR_CONTRACT.allowFiles.includes("README.md"), "public mirror allowFiles contract drifted");
+  assert(Array.isArray(PUBLIC_MIRROR_CONTRACT.allowDirs) && PUBLIC_MIRROR_CONTRACT.allowDirs.includes("docs/whatsnew"), "public mirror allowDirs must include versioned whatsnew pages");
+  assert(!("expectedFileCount" in PUBLIC_MIRROR_CONTRACT), "public mirror file count must be derived from the manifest-owned membership, not a fixed number");
+  assert(Number.isInteger(expectedPublicMirrorFileCount(root)) && expectedPublicMirrorFileCount(root) > 0, "public mirror derived file count is invalid");
+  const mirrorBuilder = readFileSync(path.join(root, "scripts", "build-public-mirror.mjs"), "utf8");
+  assert(mirrorBuilder.includes("expectedPublicMirrorFileCount(sourceRoot)"), "public mirror builder does not derive file count from the manifest owner");
+  assert(!mirrorBuilder.includes("expected 110"), "public mirror builder still hard-codes the prior file count");
 }
 
 function validateR034ArtifactContract() {
@@ -398,9 +407,35 @@ function validateEvidenceContracts() {
     AGENT_HANDOFF_KIT_QA_SELF_TEST_PUBLISHED_TARBALL_SHA256: publishedTarballSha256,
     AGENT_HANDOFF_KIT_QA_SELF_TEST_NPX_HELP_SHA256: npxHelpSha256,
     AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_TAG_COMMIT: gitCommit,
+    AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_LATEST_VERSION: previousPatch(version),
     AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_METADATA: JSON.stringify(npmMetadata),
     AGENT_HANDOFF_KIT_QA_SELF_TEST_GITHUB_RELEASE: JSON.stringify(githubRelease)
   };
+  invoke(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "near-valid candidate preflight", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", "9.9.9", "--validate-only"], "candidate-preflight package version mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "candidate-preflight surface version mismatch", {
+    env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_SURFACE_VERSION_OVERRIDE: "9.9.9" }
+  });
+  invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "candidate-preflight tracked candidate drift", {
+    env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_STATUS: " M package.json\n" }
+  });
+  invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "candidate-preflight external readback indeterminate", {
+    env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_LATEST_ERROR: "npm latest readback spawn-error" }
+  });
+  const missingLatestCatalog = writeCatalogFixture("missing-latest-catalog.json", (catalog, latest) => {
+    delete catalog.releases[latest];
+  });
+  invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "candidate-preflight catalog missing latest published", {
+    env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH: missingLatestCatalog }
+  });
+  const candidateInCatalog = writeCatalogFixture("candidate-in-catalog.json", (catalog, latest) => {
+    catalog.releases[version] = JSON.parse(JSON.stringify(catalog.releases[latest]));
+  });
+  invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "candidate-preflight candidate treated as catalog member", {
+    env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH: candidateInCatalog }
+  });
+  console.log("ok: candidate-preflight positive and negative fixtures");
+
   const validCandidate = {
     schemaVersion: 1,
     kind: "candidate-assurance",
@@ -614,6 +649,25 @@ function validateEvidenceContracts() {
 
 function invoke(args, label, options = {}) {
   return runSyncChecked(process.execPath, args, label, { cwd: root, env: options.env ?? process.env });
+}
+
+function writeCatalogFixture(name, mutate) {
+  const file = path.join(fixtureRoot, name);
+  const catalog = JSON.parse(readFileSync(path.join(root, "bin", "migration-baselines", "official-origin-catalog.json"), "utf8"));
+  const latest = previousPatch(JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version);
+  mutate(catalog, latest);
+  const digestCopy = { ...catalog };
+  delete digestCopy.catalogDigestSha256;
+  catalog.catalogDigestSha256 = sha256(`${JSON.stringify(digestCopy)}\n`);
+  writeEvidence(file, catalog);
+  return file;
+}
+
+function previousPatch(version) {
+  const parts = version.split(".").map((part) => Number.parseInt(part, 10));
+  assert(parts.length === 3 && parts.every(Number.isInteger) && parts[2] > 0, `cannot derive previous patch from ${version}`);
+  parts[2] -= 1;
+  return parts.join(".");
 }
 
 function invokeFailure(args, label, options = {}) {

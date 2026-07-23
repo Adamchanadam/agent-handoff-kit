@@ -7,11 +7,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CANDIDATE_EVIDENCE_CONTRACT,
+  expectedPublicMirrorFileCount,
+  PUBLIC_MIRROR_CONTRACT,
   QA_ASSURANCE_MANIFEST,
   QA_ASSURANCE_MANIFEST_DIGEST,
   QA_RELEASE_READINESS_INVENTORY,
-  QA_RELEASE_READINESS_INVENTORY_DIGEST
+  QA_RELEASE_READINESS_INVENTORY_DIGEST,
+  RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
+import { loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
 import { LONG_QA_TIMEOUT_MS, QaRunError, runChecked, runNodeScriptChecked } from "./qa-runner-core.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -72,7 +76,7 @@ async function main() {
   }
 
   const layer = options.layer;
-  assert(layer && QA_ASSURANCE_MANIFEST.layers[layer], "usage: node scripts/qa.mjs <quick|full|postpublish> [options]");
+  assert(layer && QA_ASSURANCE_MANIFEST.layers[layer], "usage: node scripts/qa.mjs <quick|candidate-preflight|full|postpublish> [options]");
   const claims = QA_ASSURANCE_MANIFEST.claims.filter((claim) => claim.layer === layer);
   assert(claims.length > 0, `manifest has no claims for ${layer}`);
 
@@ -82,6 +86,7 @@ async function main() {
     throw new Error(`controlled executor failure: ${options.testFailClaim}`);
   }
 
+  if (layer === "candidate-preflight" || layer === "full") await validateCandidatePreflight(options);
   if (layer === "full") await validateCandidateEvidence(options);
   if (layer === "postpublish") await validatePostpublishEvidence(options);
   if (options.validateOnly) {
@@ -179,6 +184,83 @@ async function runClaim(claim) {
   const script = claim.executor.script;
   assert(existsSync(path.join(root, script)), `manifest executor is missing: ${script}`);
   await runNodeScriptChecked(script, claim.id, { cwd: root, env: process.env, timeoutMs: claim.executor.timeoutMs });
+}
+
+async function validateCandidatePreflight(options) {
+  assert(options.candidate, "candidate-preflight requires --candidate <version>");
+  assert(QA_ASSURANCE_MANIFEST.layers["candidate-preflight"].command === "node scripts/qa.mjs candidate-preflight --candidate <version>", "candidate-preflight command contract drifted");
+  const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+  assert(isStableSemver(options.candidate), "candidate-preflight requires a stable semver candidate");
+  assert(packageJson.version === options.candidate, "candidate-preflight candidate version does not match package.json");
+  const status = await candidateGitStatus();
+  assert(status.stdout.trim() === "", "candidate-preflight requires a clean worktree; tracked drift invalidates old receipts");
+  const head = await candidateGitHead();
+  assert(isSha256(head, 40), "candidate-preflight could not read a clean candidate HEAD");
+  assert(/^[a-f0-9]{64}$/.test(QA_ASSURANCE_MANIFEST_DIGEST), "candidate-preflight manifest digest is malformed");
+  assert(/^[a-f0-9]{64}$/.test(QA_RELEASE_READINESS_INVENTORY_DIGEST), "candidate-preflight release-readiness inventory digest is malformed");
+  validateCandidateReleaseSurfaces(options.candidate);
+  validateCandidateMirrorBoundary(options.candidate);
+  await validateCandidatePublishedLineage(options.candidate);
+  console.log(`ok: candidate-preflight identity ${options.candidate} ${head}`);
+}
+
+function validateCandidateReleaseSurfaces(version) {
+  const surfaceVersion = evidenceContractSelfTest && process.env.AGENT_HANDOFF_KIT_QA_SELF_TEST_SURFACE_VERSION_OVERRIDE
+    ? process.env.AGENT_HANDOFF_KIT_QA_SELF_TEST_SURFACE_VERSION_OVERRIDE
+    : version;
+  const current = `v${surfaceVersion}`;
+  const activeSurfaces = RELEASE_STATE_CONTRACT.surfaces.map((surface) => materializeVersionedPath(surface.path, version));
+  const forbidden = RELEASE_STATE_CONTRACT.forbiddenPatterns.map((pattern) => new RegExp(pattern.source, pattern.flags));
+  const readmeHead = readRepoText("README.md").split(/\r?\n/u).slice(0, 12).join("\n");
+  const englishReadmeHead = readRepoText("README.en.md").split(/\r?\n/u).slice(0, 12).join("\n");
+  assert(readmeHead.includes(`原始碼套件版本：\`${current}\``), "README.md first screen is not synchronized to the candidate package version");
+  assert(readmeHead.includes("npm `@latest` 與 GitHub Release 以發佈後讀回為準"), "README.md must keep npm/GitHub publication as an external readback boundary");
+  assert(englishReadmeHead.includes(`Source package version: \`${current}\``), "README.en.md first screen is not synchronized to the candidate package version");
+  assert(englishReadmeHead.includes("npm `@latest` and GitHub Release are verified by post-publish readback"), "README.en.md must keep npm/GitHub publication as an external readback boundary");
+  for (const file of activeSurfaces) {
+    const text = readRepoText(file);
+    assert(text.includes(current), `${file} does not expose candidate source version ${current}`);
+    for (const pattern of forbidden) {
+      const match = pattern.exec(text);
+      assert(!match, `${file} still exposes release-state drift: ${match?.[0]}`);
+    }
+  }
+  const changelog = readRepoText("CHANGELOG.md").replace(/\r\n/g, "\n");
+  const heading = changelog.match(/^## v\d+\.\d+\.\d+ — .+$/m);
+  assert(heading?.[0]?.startsWith(`## ${current} — `), `CHANGELOG.md latest heading must be ${current}`);
+  const whatsnewIndex = readRepoText("docs/whatsnew/README.md");
+  assert(whatsnewIndex.includes(`[${current} 版本頁]`), `docs/whatsnew/README.md does not list ${current}`);
+}
+
+function validateCandidateMirrorBoundary(version) {
+  const expectedCount = expectedPublicMirrorFileCount(root);
+  assert(Number.isInteger(expectedCount) && expectedCount > 0, "candidate-preflight could not derive public mirror file count from manifest owner");
+  assert(PUBLIC_MIRROR_CONTRACT.allowDirs.includes("docs/whatsnew"), "public mirror contract must include versioned whatsnew pages");
+  assert(existsSync(path.join(root, "docs", "whatsnew", `v${version}.md`)), `candidate whatsnew page is missing: docs/whatsnew/v${version}.md`);
+  assert(expectedPublicMirrorFileCount(root) === expectedCount, "public mirror derived membership is unstable");
+}
+
+async function validateCandidatePublishedLineage(candidateVersion) {
+  const latestPublishedVersion = await readLatestPublishedVersion();
+  assert(isStableSemver(latestPublishedVersion), "published npm latest readback did not return a stable semver");
+  assert(compareSemver(candidateVersion, latestPublishedVersion) > 0, `candidate ${candidateVersion} must be newer than latest published ${latestPublishedVersion}`);
+  const catalogPath = process.env.AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH
+    ? path.resolve(process.env.AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH)
+    : undefined;
+  const catalog = await loadOfficialOriginCatalog(catalogPath);
+  const versions = Object.keys(catalog.releases ?? {});
+  assert(versions.includes(latestPublishedVersion), `official-origin catalog does not include latest published v${latestPublishedVersion}`);
+  assert(!versions.includes(candidateVersion), `official-origin catalog must not include unpublished candidate v${candidateVersion}`);
+  assert(versions.at(-1) === latestPublishedVersion, `official-origin catalog range must end at latest published v${latestPublishedVersion}`);
+}
+
+async function readLatestPublishedVersion() {
+  if (evidenceContractSelfTest) {
+    if (process.env.AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_LATEST_ERROR) throw new Error(process.env.AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_LATEST_ERROR);
+    return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_LATEST_VERSION");
+  }
+  const result = await runNpm(["view", "@adamchanadam/agent-handoff-kit", "version", "--json"], "npm latest published version");
+  return JSON.parse(result.stdout);
 }
 
 function readEvidence(file, requiredMessage) {
@@ -405,8 +487,33 @@ function runGit(args, label) {
   return runCommand("git", args, label);
 }
 
+function isStableSemver(version) {
+  return typeof version === "string" && /^\d+\.\d+\.\d+$/.test(version);
+}
+
+function compareSemver(left, right) {
+  const leftParts = left.split(".").map((part) => Number.parseInt(part, 10));
+  const rightParts = right.split(".").map((part) => Number.parseInt(part, 10));
+  for (let index = 0; index < 3; index += 1) {
+    if (leftParts[index] > rightParts[index]) return 1;
+    if (leftParts[index] < rightParts[index]) return -1;
+  }
+  return 0;
+}
+
+function materializeVersionedPath(template, version) {
+  return template.replace("${version}", version);
+}
+
+function readRepoText(relative) {
+  const absolute = path.join(root, relative);
+  assert(isInside(root, absolute), `repo path escaped root: ${relative}`);
+  assert(existsSync(absolute), `required candidate surface is missing: ${relative}`);
+  return readFileSync(absolute, "utf8");
+}
+
 function candidateGitStatus() {
-  if (evidenceContractSelfTest) return { stdout: "" };
+  if (evidenceContractSelfTest) return { stdout: process.env.AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_STATUS ?? "" };
   return runGit(["status", "--porcelain"], "git status");
 }
 
