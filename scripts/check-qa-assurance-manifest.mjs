@@ -135,7 +135,7 @@ function validateReleasePackageContract() {
 
 function validatePublicMirrorContract() {
   assert(PUBLIC_MIRROR_CONTRACT.schemaVersion === 1, "unexpected public mirror contract schema version");
-  assert(PUBLIC_MIRROR_CONTRACT.expectedFileCount === 109, "public mirror file count contract drifted");
+  assert(PUBLIC_MIRROR_CONTRACT.expectedFileCount === 110, "public mirror file count contract drifted");
 }
 
 function validateR034ArtifactContract() {
