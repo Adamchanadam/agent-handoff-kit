@@ -14,6 +14,59 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `full` requires clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
+## v0.3.50 candidate status
+
+- 狀態：本地 source candidate，尚未發布。目標是修補 closeout / QA runner terminal-state root cause：正式 QA claims 和 release inventory 使用 bounded async runner；timeout、child signal、spawn / transport error、partial PASS、wrapper false-green、Windows command-wrapper shell option 與 WORK high-output pipe drain 均有反例保護。正式 push、tag、GitHub Release、npm publish 後仍須以 registry / release / npx readback 驗證。
+
+### Full-check role isolation（v0.3.50）
+
+- 狀態：REVIEW_BUNDLE_READY。writer 已完成 five-conclusion writer assessment；正式 `full` gate 必須等 clean commit、獨立 read-only reviewer receipt、candidate commit、tarball SHA-256、manifest digest、review bundle SHA-256、review subject digest 和五項結論全部綁定後才可通過。
+- 邊界：thread / role 欄位只作 audit provenance，不是密碼學身份證明，也不是 CLI 資料操作信任根。候選凍結後如 tracked candidate 改動，原 review receipt 自動失效。
+- Runner 綁定：`full` 會讀取 review bundle JSON，重算 `sha256(JSON.stringify(bundle.reviewSubject))`，並核對 bundle、evidence、receipt 與 clean HEAD 的 candidate、tarball、manifest、inventory、state history 和五項結論一致；bundle + evidence 一起被替換但沿用舊 receipt 時必須 hard fail。
+- five-conclusion writer assessment：governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting 均為 writer-observed passed；這不是 independent review verdict，也不是 release-ready statement。
+
+### Bilingual README semantic gate（v0.3.50，PASS）
+
+- `README.md` SHA-256 `A05691B4263A3D9DA77F42D2822A5BCEAB23B3BB88CA9BE08FD79A1BDF98787D`
+- `README.en.md` SHA-256 `5563DD41A07000CD146F760044BDB9A90C7AAE7B5847F1BAB6EB20DDC777C747`
+- Verdict: **PASS** — 中英文 README 只同步 source package version 為 v0.3.50；主路徑仍是用戶講目的、AI 判斷 install / upgrade / doctor，不把技術指令推回一般用戶。
+
+### Bilingual practical-guide semantic gate（v0.3.50，PASS）
+
+- `agent-handoff-kit-guide.html` SHA-256 `79DCA8105E1A4CC9ECA6AF7DCCCB0C37C8F008C2352FC358067CC76C8B8BAB56`
+- `agent-handoff-kit-guide.en.html` SHA-256 `A828CBCC84D789DDB7F48FF7A21FBBF4EB8F1F2A4B8C59CFC2894EE3E6C5129D`
+- Verdict: **PASS** — 中英文 practical guide 只同步可見版本與示例輸出為 v0.3.50；三個日常情景、新手一屏循環、blocked 說明與治理打通說法沒有新增分歧。
+
+### Bilingual AI-install semantic gate（v0.3.50，PASS）
+
+- `agent-handoff-kit-ai-install.html` SHA-256 `806F0E0839A762809BE4E355C665F74ADD6E530D11FD3B7DF18B50D89300FAD8`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `D2404ED5E4C330F353565D50269A1E3FC56701F0F783BB99532CD8AE7863390A`
+- Verdict: **PASS** — 中英文 AI-install 頁只同步目前 source package version；既有 install / upgrade / doctor 邊界、用戶授權、AI 處理技術步驟與 npm `@latest` readback 邊界沒有新增分歧。
+
+### Bilingual introduction semantic gate（v0.3.50，PASS）
+
+- `agent-handoff-kit-intro.html` SHA-256 `1BD8D798E9879B58E75BAE1259DC6020D0AD5B17928EF0C52DCE4B6A93086530`
+- `agent-handoff-kit-intro.en.html` SHA-256 `BF8679CF2BF6A40F50F0A5B4275AC1331B6021C3FA0DAB8FF49B36BCA5969A1F`
+- Verdict: **PASS** — 中英文 60 秒入門只同步目前版本為 v0.3.50；狀態圖例、一屏開工 / 收工循環、普通 web chat 不適用邊界與安全提示沒有語意改動。
+
+### Bilingual local-workflow case-study semantic gate（v0.3.50，not changed）
+
+- Verdict: **not changed** — 本輪未改此文件對；它不是 closeout / QA runner terminal-state root-fix 的入口。
+
+### Cross-mind evidence 9-trigger table（v0.3.50）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | iterated | Real runner blocker showed stopped / aborted / timeout / spawn-error / wrapper false-green could be misclassified or hang. |
+| 2. External side effects | yes | deferred | No push, tag, GitHub Release, npm publish, Pages deployment, or real user-project write has been performed. |
+| 3. User-visible output | yes | iterated | Runtime closeout wording changes are AI-facing; public user surfaces only update source package version and release notes. |
+| 4. Complexity or boundary | yes | iterated | Timeout, child signal, spawn-error, shell option propagation, wrapper exit propagation, and differential closeout are separated. |
+| 5. Documentation drift | yes | iterated | README, active HTML, whatsnew, CHANGELOG and release QA have v0.3.50 source-version surfaces. |
+| 6. Semantic runtime effect | yes | iterated | `qa.mjs` formal claims and release inventory now use bounded async execution rather than sync timeout. |
+| 7. Cross-agent / role boundary | yes | iterated | Writer source freeze and independent reviewer receipt remain separate; source-level PASS is not release PASS. |
+| 8. Real user journey | yes | iterated | Users should see fewer stuck or false-green closeout / QA outcomes; blocked or indeterminate operations remain explicit. |
+| 9. Release statement | yes | deferred | Candidate has not been pushed, tagged, released, published, or postpublish-read back. |
+
 ## v0.3.49 candidate status
 
 - 狀態：本地 source candidate，尚未發布。目標是把 conflict / blocker 的用戶路徑收口：unknown local hash 只作 witness；用戶只確認需求與授權；能讀寫資料夾的 AI 做語意合併；Kit 以 `upgrade --dry-run`、`doctor` 與 hash / readback 驗收。正式 push、tag、GitHub Release、npm publish 後仍須以 registry / release / npx readback 驗證。

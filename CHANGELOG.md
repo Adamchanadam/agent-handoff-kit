@@ -1,5 +1,16 @@
 # 變更紀錄
 
+## v0.3.50 — 2026-07-23
+
+狀態：source package version。本版修補 closeout 與 QA runner 的終態處理：正式 QA 不再依賴可能無界等待的 `spawnSync` timeout；timeout、child signal、spawn / transport error、partial PASS、wrapper false-green 和 Windows command-wrapper shell option 都有結構化處理與反例保護。正式發布狀態由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+### Closeout / QA runner 終態收口
+
+- `scripts/qa.mjs` 和 release-readiness inventory 改用 bounded async checked runner，避免 child 攔截 SIGTERM 時令正式 QA 無限等待。
+- `scripts/qa-runner-core.mjs` 集中處理 timeout cleanup、force-kill、settlement deadline、child signal、sync / async spawn-error，以及 Windows `npm.cmd` / `npx.cmd` fallback 的 `shell: true` 傳遞。
+- closeout 規則改為差量收口：identity 未變時不重跑已完成 task QA，只從第一個未完成或未確定 gate 繼續。
+- WORK closeout checker 立即排空 stdout / stderr，避免高輸出子程序塞滿 pipe 後假逾時；self-test 覆蓋 2MB stdout。
+
 ## v0.3.49 — 2026-07-20
 
 狀態：source package version。本版修正 conflict / blocker 出現時的產品路徑：未知本地 hash 只作 witness；用戶只確認需求和授權；能讀寫該專案的 AI 負責語意合併；Kit 以 dry-run、doctor 與 hash / readback 驗收。正式發布狀態由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
