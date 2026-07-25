@@ -16,7 +16,7 @@ import {
   RELEASE_PACKAGE_CONTRACT,
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
-import { runNodeScriptChecked } from "./qa-runner-core.mjs";
+import { describeResult, runChecked, runNodeScriptChecked } from "./qa-runner-core.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -394,7 +394,7 @@ async function main() {
   assert(!existsSync(path.join(tempRoot, "archive")), "installer created archive directory by default");
   checkResearchDecisionTraceContract();
   checkHandoffTemperatureBoundaryContract();
-  checkGeneratedMarkdownGovernanceContract();
+  await checkGeneratedMarkdownGovernanceContract();
   simulateMultiSessionFlow(installedHandoff, installedLog);
   simulateLocalizedHandoffHeadings();
 
@@ -2433,7 +2433,7 @@ function checkHandoffTemperatureBoundaryContract() {
   console.log("ok: handoff temperature boundary contract");
 }
 
-function checkGeneratedMarkdownGovernanceContract() {
+async function checkGeneratedMarkdownGovernanceContract() {
   const negativeRoot = path.join(tmpdir(), `ack-generated-markdown-fail-${Date.now()}`);
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", negativeRoot], "generated markdown governance negative bootstrap");
   mkdirSync(path.join(negativeRoot, "outputs"), { recursive: true });
@@ -2484,8 +2484,18 @@ function checkGeneratedMarkdownGovernanceContract() {
     ),
     "utf8"
   );
-  const positiveDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", positiveRoot], "generated markdown governance positive doctor");
-  assert(positiveDoctor.stdout.includes("status: passed"), "indexed generated Markdown fixture should pass doctor");
+  const positiveDoctorLabel = "generated markdown governance positive doctor";
+  const positiveDoctor = await runChecked(
+    process.execPath,
+    ["bin/agent-handoff-kit.mjs", "doctor", "--root", positiveRoot],
+    positiveDoctorLabel,
+    { cwd: root, timeoutMs: 120_000 }
+  );
+  assert(
+    positiveDoctor.stdout.includes("status: passed"),
+    `indexed generated Markdown fixture should pass doctor\n${describeResult(positiveDoctor)}`
+  );
+  console.log(`ok: ${positiveDoctorLabel}`);
   console.log("ok: generated Markdown governance contract");
 }
 
