@@ -17,12 +17,40 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 ## v0.3.52 candidate status
 
-- 狀態：未提交的本地 source candidate integration。範圍只包括 manifest-bound、no-project-content-overwrite 的 `reconcile-current-state` 根修，以及 continuity startup 的可選 display-only 動態 task title。v0.3.51 仍是已發布版本；本段不代表 clean freeze、formal full、release 或 postpublish PASS。
+- 狀態：clean source-review commit `ed487e1f3ad3b269e7059bb2a35f250e2c6f8c32`，parent `387a0b0968f875c15437822105ebd5261e7fb921`，reviewed tarball SHA-256 `6D28D214F1CAF36D5128A84A73893635AB295453BACB534A0D31CB42A4472735`。範圍只包括 manifest-bound、no-project-content-overwrite 的 `reconcile-current-state` 根修，以及 continuity startup 的可選 display-only 動態 task title。
 - 已有組件證據：根修 final reviewer task `019f9628-466c-78d2-bad8-12021cfbede4` PASS；動態標題 reviewer task `019f97cc-5b74-7041-84e8-77532682c8cc`、nonce `AHK-TITLE-REVIEW-20260725-7C4E91B2` PASS。未獲審閱授權的 handshake-only task 不作證據。
 - 根修邊界：一個 `reconcile-current-state` 命令、deterministic manifest、verified in-memory plan、zero project-content overwrite，以及 reconciliation command/mode 專用的 readback / no-backup / recovery authority；原 init / upgrade / finalize / doctor / closeout / Gate 5 / archive migration / recovery 契約不得放寬。
 - 標題邊界：平台可安全讀回及控制標題時才可使用；只用已載入事實，保留 informative title，不支援時靜默略過。標題不是狀態、進度、健康結果、完成證據或額外授權。
-- 本階段 dirty-state 證據：正式 generator 已從 npm v0.3.51 套件產生 21-file contract，並與 remote tag / GitHub Release 交叉核對；official-origin catalog、startup-status-only、pack scenarios、QA manifest、focused / full post-upgrade closeout-finalize、upgrade-safety、R-034 Gate 5 closure / freeze 及 `candidate-preflight --candidate 0.3.52` 均通過。這只證明未提交來源整合可進入下一個本地 commit 封包。
-- 明確排除：clean commit、候選提交後的雙語獨立審閱、完整 release-readiness / full evidence、push、tag、GitHub Release、npm publish、postpublish、公開同步及真實使用者專案執行。
+- source-review receipt：reviewer task `019f97f6-5543-7f80-a701-e137f70e3b70`、nonce `AHK-V0352-FINAL-REVIEW-20260725-8D31C6A4` 的整體 verdict 為 **BLOCK**，唯一 blocker 是本文件仍記載未提交 / dirty-state 且缺少下列 v0.3.52 雙語證據；產品邏輯與四組雙語內容沒有 blocker。完成 evidence-only 修補後，必須由同一 reviewer 對新 commit / tarball identity 重綁再裁決。
+- 發布邊界：v0.3.51 仍是已發布版本；v0.3.52 尚未完成 `full`、push、tag、GitHub Release、npm publish 或 postpublish，本段不代表整體 review、release-ready 或 release PASS。
+
+### Bilingual README semantic gate（v0.3.52，PASS）
+
+- Reviewer：task `019f97f6-5543-7f80-a701-e137f70e3b70`；nonce `AHK-V0352-FINAL-REVIEW-20260725-8D31C6A4`；範圍為 source-review commit `ed487e1f3ad3b269e7059bb2a35f250e2c6f8c32` 的繁中／英文 README 語意一致性。
+- `README.md` SHA-256 `E2B7899B911336547C1DD488DAD3B26E00F4D802CF0A673D7F87A5C2E082B852`
+- `README.en.md` SHA-256 `3FF76E1EB9AE47BBC78ADDF0A1810E63EA9D5D97480122938A04480A3F7CA89A`
+- Verdict: **PASS** — 兩份 README 對 v0.3.52 的根修、可選 display-only 動態標題及未發布邊界語意一致；此結論只適用於上述 source candidate，不是整體候選或發布 PASS。
+
+### Bilingual practical-guide semantic gate（v0.3.52，PASS）
+
+- Reviewer：task `019f97f6-5543-7f80-a701-e137f70e3b70`；nonce `AHK-V0352-FINAL-REVIEW-20260725-8D31C6A4`；範圍為 source-review commit `ed487e1f3ad3b269e7059bb2a35f250e2c6f8c32` 的繁中／英文 practical guide 語意一致性。
+- `agent-handoff-kit-guide.html` SHA-256 `2C9D883810D23001AF62117C1784617390DF75FA4220A3D6E8265B4A41D2C27E`
+- `agent-handoff-kit-guide.en.html` SHA-256 `AAE7B26266CD5168C1D7429DA170C6B24DEC589749106E073044221C429802D9`
+- Verdict: **PASS** — 兩份 practical guide 對 v0.3.52 功能價值、日常操作與未發布邊界語意一致；此結論只適用於上述 source candidate，不是整體候選或發布 PASS。
+
+### Bilingual AI-install semantic gate（v0.3.52，PASS）
+
+- Reviewer：task `019f97f6-5543-7f80-a701-e137f70e3b70`；nonce `AHK-V0352-FINAL-REVIEW-20260725-8D31C6A4`；範圍為 source-review commit `ed487e1f3ad3b269e7059bb2a35f250e2c6f8c32` 的繁中／英文 AI-install 語意一致性。
+- `agent-handoff-kit-ai-install.html` SHA-256 `AE1A3E6F6B9E26358F0DEBD135DB0B47ECF47572ACF860B60C8AE30834554529`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `E82EBC4F59EFCD77F45B343F7C9220562BBDD5707A5B343E44C13969C7636F20`
+- Verdict: **PASS** — 兩份 AI-install 頁對 v0.3.52 安裝／升級邊界、根修與可選標題行為語意一致；此結論只適用於上述 source candidate，不是整體候選或發布 PASS。
+
+### Bilingual introduction semantic gate（v0.3.52，PASS）
+
+- Reviewer：task `019f97f6-5543-7f80-a701-e137f70e3b70`；nonce `AHK-V0352-FINAL-REVIEW-20260725-8D31C6A4`；範圍為 source-review commit `ed487e1f3ad3b269e7059bb2a35f250e2c6f8c32` 的繁中／英文 introduction 語意一致性。
+- `agent-handoff-kit-intro.html` SHA-256 `D7830497A4AA004DA0E5463E5AB02F8CD58D5D8ACD0FEAD9CF780DC80D1534A9`
+- `agent-handoff-kit-intro.en.html` SHA-256 `B9D9C6376B12FE101395647AA5B51707D45D116575C9DD805ED4638160497F4D`
+- Verdict: **PASS** — 兩份 introduction 對 v0.3.52 的一屏使用路徑、可選 display-only 標題與未發布邊界語意一致；此結論只適用於上述 source candidate，不是整體候選或發布 PASS。
 
 ## v0.3.51 candidate status
 
