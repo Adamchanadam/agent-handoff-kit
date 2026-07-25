@@ -44,6 +44,10 @@ const closeoutFinalizeTargets = new Set([
   "dev/DOC_SYNC_REGISTRY.md",
   "dev/PROJECT_DECISIONS.md"
 ]);
+const directCloseoutStateTargets = Object.freeze([...closeoutFinalizeTargets].sort((left, right) => left.localeCompare(right)));
+const directCloseoutStateTargetSet = new Set(directCloseoutStateTargets);
+const canonicalSessionLogArchiveRoot = "dev/SESSION_LOG_archive";
+const legacySessionLogArchiveRoot = "dev/session_log_archive";
 const credentialLeakPatterns = [
   { pattern: /sk-ant-[A-Za-z0-9_-]{20,}/, label: "Anthropic API key" },
   { pattern: /\bsk-[A-Za-z0-9_-]{20,}/, label: "sk-prefixed token" },
@@ -604,6 +608,11 @@ async function main() {
     return;
   }
 
+  if (command === "reconcile-current-state") {
+    await runReconcileCurrentState(root, options, version);
+    return;
+  }
+
   throw new Error(`unknown command "${command}"`);
 }
 
@@ -664,6 +673,131 @@ async function runFinalizeCloseout(root, version) {
   console.log(`current-state digest: ${transaction.journal.currentStateWitness.currentStateDigest}`);
 }
 
+async function runReconcileCurrentState(root, options, version) {
+  await validateTransactionRoot(root, [], { createMissingRoot: false });
+  if (options.dryRun) await assertDryRunHasNoPendingTransaction(root);
+  else {
+    assertCurrentStateReconcileWriteIntent(options);
+    if (await recoverBoundCurrentStateReconciliation(root, options.manifest)) {
+      console.log("current-state reconciliation recovery completed; run a fresh dry-run before applying another reconciliation plan");
+      return;
+    }
+  }
+  const candidate = await findCurrentStateReconciliationBase(root, version);
+  if (!candidate) {
+    console.log("current-state reconciliation: no stale source-conservation witness needs reconciliation");
+    if (options.dryRun) console.log("dry-run: no files written");
+    return;
+  }
+  if (candidate.illegal.length > 0) {
+    throw new Error(`current-state reconciliation blocked: ${candidate.illegal.map((item) => `${item.path} (${item.reason})`).join(", ")}`);
+  }
+  if (candidate.reconcilable.length === 0) {
+    console.log("current-state reconciliation: current-state witness already matches project bytes");
+    if (options.dryRun) console.log("dry-run: no files written");
+    return;
+  }
+  console.log(`current-state reconciliation plan: ${candidate.reconcilable.length} path(s)`);
+  console.log(`manifest sha256: ${candidate.manifestSha256}`);
+  for (const item of candidate.reconcilable) console.log(`- ${item.path}: ${item.reason}`);
+  if (options.dryRun) {
+    console.log("dry-run: no files written");
+    return;
+  }
+  if (options.manifest !== candidate.manifestSha256) {
+    throw new Error("current-state reconciliation manifest mismatch before writes; no files written");
+  }
+  const verified = await findCurrentStateReconciliationBase(root, version);
+  if (!verified || verified.manifestSha256 !== candidate.manifestSha256 || JSON.stringify(verified.manifest) !== JSON.stringify(candidate.manifest)) {
+    throw new Error("current-state reconciliation manifest changed before transaction preparation; no files written");
+  }
+  await assertCurrentStateReconciliationVerifiedPlanStillCurrent(root, verified);
+  const transaction = await writeCurrentStateReconciliationJournal(root, version, verified);
+  if (!await journalMatchesCurrentState(root, transaction.journal)) {
+    throw new Error("post-reconciliation current-state readback failed; reconciliation journal retained for inspection");
+  }
+  transaction.journal.currentStateReadback = currentStateReadbackFromVerifiedProjectBytes(transaction.journal.currentStateWitness);
+  await writeSecureJson(transaction.journalPath, transaction.journal);
+  await writeCurrentStateReconciliationReport({ root, migrationDir: path.dirname(transaction.journalPath), journal: transaction.journal, reconciledPaths: candidate.reconcilable.map((item) => item.path) });
+  console.log(`current-state reconciled: bound ${candidate.reconcilable.length} current project path(s) without overwriting project files`);
+  console.log("project health: run upgrade/doctor next if this project predates the current Kit template");
+  console.log(`current-state digest: ${transaction.journal.currentStateWitness.currentStateDigest}`);
+}
+
+function assertCurrentStateReconcileWriteIntent(options) {
+  if (!options.yes || !options.manifest) {
+    throw new Error("current-state reconciliation requires --yes --manifest <dry-run manifest sha256>; no files written");
+  }
+  if (typeof options.manifest !== "string" || !/^[a-f0-9]{64}$/.test(options.manifest)) {
+    throw new Error("current-state reconciliation manifest must be a lowercase sha256 digest; no files written");
+  }
+}
+
+async function recoverBoundCurrentStateReconciliation(root, manifestSha256) {
+  const lockPath = path.join(root, "dev", "governance_migrations", ".upgrade.lock");
+  let rawLock;
+  try {
+    rawLock = await readFile(lockPath, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw new Error("current-state reconciliation recovery lock is unreadable or unsafe; no writes attempted");
+  }
+  let lock;
+  try {
+    lock = JSON.parse(rawLock);
+  } catch {
+    throw new Error("current-state reconciliation recovery lock is not bound to a verified reconciliation transaction; no writes attempted");
+  }
+  if (!lock || typeof lock !== "object" || Array.isArray(lock)
+    || typeof lock.id !== "string" || !lock.id
+    || typeof lock.journal !== "string" || !lock.journal
+    || typeof lock.host !== "string" || !lock.host
+    || !Number.isInteger(lock.pid) || lock.pid <= 0
+    || lock.command !== "reconcile-current-state") {
+    throw new Error("current-state reconciliation recovery lock is not bound to reconcile-current-state; no writes attempted");
+  }
+  if (lock.host === hostname() && processIsAlive(lock.pid)) {
+    throw new Error(`another current-state reconciliation process is active (pid ${lock.pid}); no writes attempted`);
+  }
+  if (lock.host && lock.host !== hostname()) {
+    throw new Error(`current-state reconciliation recovery lock belongs to another host (${lock.host}); no writes attempted`);
+  }
+  const journalPath = path.resolve(root, lock.journal);
+  if (!isInside(root, journalPath)) throw new Error("current-state reconciliation recovery journal path escapes selected root; no writes attempted");
+  let journal;
+  try {
+    journal = JSON.parse(await readFile(journalPath, "utf8"));
+  } catch {
+    throw new Error("current-state reconciliation recovery lock has no readable durable journal; no writes attempted");
+  }
+  await validateRecoveryJournal(root, journal, journalPath, lock.id);
+  if (journal.command !== "reconcile-current-state" || journal.mode !== "source-state-reconciliation") {
+    throw new Error("current-state reconciliation recovery journal has no reconciliation authority; no writes attempted");
+  }
+  if (!["prepared", "committed"].includes(journal.state)) {
+    throw new Error("current-state reconciliation recovery journal is not in a recoverable state; no writes attempted");
+  }
+  if (journal.reconciliationManifestSha256 !== manifestSha256) {
+    throw new Error("current-state reconciliation recovery manifest digest does not match the CLI manifest; no writes attempted");
+  }
+  if (!journal.reconciliationManifest || typeof journal.reconciliationManifest !== "object" || Array.isArray(journal.reconciliationManifest)) {
+    throw new Error("current-state reconciliation recovery journal has no durable manifest; no writes attempted");
+  }
+  if (journal.reconciliationManifest.command !== "reconcile-current-state") {
+    throw new Error("current-state reconciliation recovery manifest has no reconciliation command authority; no writes attempted");
+  }
+  const durableManifestSha256 = sha256(Buffer.from(`${JSON.stringify(journal.reconciliationManifest)}\n`, "utf8"));
+  if (durableManifestSha256 !== manifestSha256) {
+    throw new Error("current-state reconciliation recovery durable manifest digest does not match the CLI manifest; no writes attempted");
+  }
+  const rootReal = await realpath(root);
+  if (journal.reconciliationManifest.root?.realpath !== rootReal) {
+    throw new Error("current-state reconciliation recovery manifest root does not match the selected root; no writes attempted");
+  }
+  await recoverInterruptedTransaction(root, { reconciliationManifestSha256: manifestSha256 });
+  return true;
+}
+
 function closeoutOutcome(value) {
   return /^(complete|completed)\b/i.test((value ?? "").trim()) ? "complete" : "blocked";
 }
@@ -709,6 +843,7 @@ function parseArgs(args) {
     }
     if (arg === "--dry-run") options.dryRun = true;
     else if (arg === "--yes" || arg === "-y") options.yes = true;
+    else if (arg === "--manifest") options.manifest = args[++i];
     else if (arg === "--help" || arg === "-h") options.help = true;
     else if (arg === "--root") options.root = args[++i];
     else throw new Error(`unknown option "${arg}"`);
@@ -1316,12 +1451,7 @@ async function prepareTransaction(root, command, version, outputs, mode, plan, s
   await mkdir(archiveBackupDir, { recursive: true });
   await tightenPermissions(migrationsRoot, 0o700);
   await tightenPermissions(migrationDir, 0o700);
-  const lock = await open(lockPath, "wx", 0o600).catch((error) => {
-    if (error?.code === "EEXIST") throw new Error("another upgrade transaction or unresolved recovery lock is present");
-    throw error;
-  });
-  await lock.writeFile(JSON.stringify({ id, host: hostname(), pid: process.pid, journal: path.relative(root, journalPath) }, null, 2));
-  await lock.close();
+  await publishTransactionLock(root, lockPath, { id, host: hostname(), pid: process.pid, journal: path.relative(root, journalPath), command });
 
   const entries = [];
   for (const output of outputs) {
@@ -1906,6 +2036,7 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   const seen = new Set();
   const formalWitness = validateFormalUserRulesWitness(journal.formalUserRules);
   const runtimeAcceptance = validateRuntimeAcceptance(journal.runtimeAcceptance);
+  const zeroWriteReconciliation = journal.command === "reconcile-current-state" && journal.mode === "source-state-reconciliation";
   const hasArchiveMigrationField = journal.archiveMigrations !== undefined;
   const requiresArchiveBackup = journal.command === "upgrade" && hasArchiveMigrationField;
   if (journal.archiveMigrations != null && !Array.isArray(journal.archiveMigrations)) throw new Error("upgrade journal archive migrations are invalid; no recovery writes attempted");
@@ -1930,21 +2061,22 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   if (!migrationsStats?.isDirectory() || migrationsStats.isSymbolicLink()
     || !migrationStats?.isDirectory() || migrationStats.isSymbolicLink()
     || !journalStats?.isFile() || journalStats.isSymbolicLink()
-    || !backupStats?.isDirectory() || backupStats.isSymbolicLink()
-    || !stageStats?.isDirectory() || stageStats.isSymbolicLink()
+    || (!zeroWriteReconciliation && (!backupStats?.isDirectory() || backupStats.isSymbolicLink()))
+    || (!zeroWriteReconciliation && (!stageStats?.isDirectory() || stageStats.isSymbolicLink()))
     || (requiresArchiveBackup && (!archiveBackupStats?.isDirectory() || archiveBackupStats.isSymbolicLink()))) {
     throw new Error("upgrade transaction directories or journal are missing or unsafe; no recovery writes attempted");
   }
   const migrationsReal = await realpath(migrationsRoot);
   const migrationReal = await realpath(migrationDir);
   const journalReal = await realpath(journalPath);
-  const backupRealRoot = await realpath(backupRoot);
-  const stageRealRoot = await realpath(stageRoot);
+  const backupRealRoot = zeroWriteReconciliation ? null : await realpath(backupRoot);
+  const stageRealRoot = zeroWriteReconciliation ? null : await realpath(stageRoot);
   const archiveBackupRealRoot = requiresArchiveBackup ? await realpath(archiveBackupRoot) : null;
   if (!isInside(rootReal, migrationsReal) || !isInside(migrationsReal, migrationReal)
-    || !isInside(migrationReal, journalReal) || !isInside(migrationReal, backupRealRoot) || !isInside(migrationReal, stageRealRoot)
+    || !isInside(migrationReal, journalReal)
+    || (!zeroWriteReconciliation && (!isInside(migrationReal, backupRealRoot) || !isInside(migrationReal, stageRealRoot)))
     || !samePath(path.dirname(migrationReal), migrationsReal)
-    || !samePath(path.dirname(backupRealRoot), migrationReal) || !samePath(path.dirname(stageRealRoot), migrationReal)
+    || (!zeroWriteReconciliation && (!samePath(path.dirname(backupRealRoot), migrationReal) || !samePath(path.dirname(stageRealRoot), migrationReal)))
     || (requiresArchiveBackup && !samePath(path.dirname(archiveBackupRealRoot), migrationReal))) {
     throw new Error("upgrade transaction paths resolve outside the selected root or transaction; no recovery writes attempted");
   }
@@ -1974,25 +2106,34 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
       if (error?.code !== "ENOENT") throw error;
     }
 
-    const stageAbs = path.resolve(stageRoot, entry.targetRel);
-    const stageStats = await lstat(stageAbs).catch(() => null);
-    if (!stageStats?.isFile() || stageStats.isSymbolicLink()) throw new Error("upgrade journal stage is missing or unsafe; no recovery writes attempted");
-    const stageReal = await realpath(stageAbs);
-    if (!isInside(stageRealRoot, stageReal)) throw new Error("upgrade journal stage resolves outside this transaction; no recovery writes attempted");
-    if (sha256(await readFile(stageAbs)) !== entry.afterHash) throw new Error("upgrade journal stage hash does not match the recorded candidate; no recovery writes attempted");
+    if (zeroWriteReconciliation && entry.beforeHash !== entry.afterHash) {
+      throw new Error("current-state reconciliation journal cannot record project-content writes; no recovery writes attempted");
+    }
+    if (!zeroWriteReconciliation) {
+      const stageAbs = path.resolve(stageRoot, entry.targetRel);
+      const stageStats = await lstat(stageAbs).catch(() => null);
+      if (!stageStats?.isFile() || stageStats.isSymbolicLink()) throw new Error("upgrade journal stage is missing or unsafe; no recovery writes attempted");
+      const stageReal = await realpath(stageAbs);
+      if (!isInside(stageRealRoot, stageReal)) throw new Error("upgrade journal stage resolves outside this transaction; no recovery writes attempted");
+      if (sha256(await readFile(stageAbs)) !== entry.afterHash) throw new Error("upgrade journal stage hash does not match the recorded candidate; no recovery writes attempted");
+    }
 
     let backup = null;
     if (entry.existed) {
-      if (typeof entry.backupRel !== "string" || !entry.backupRel) throw new Error("upgrade journal backup path is missing; no recovery writes attempted");
-      const backupAbs = path.resolve(root, entry.backupRel);
-      const expectedBackup = path.resolve(backupRoot, entry.targetRel);
-      if (!samePath(backupAbs, expectedBackup) || !isInside(backupRoot, backupAbs)) throw new Error("upgrade journal backup path is outside this transaction; no recovery writes attempted");
-      const backupFileStats = await lstat(backupAbs).catch(() => null);
-      if (!backupFileStats?.isFile() || backupFileStats.isSymbolicLink()) throw new Error("upgrade journal backup is missing or unsafe; no recovery writes attempted");
-      const backupReal = await realpath(backupAbs);
-      if (!isInside(backupRealRoot, backupReal)) throw new Error("upgrade journal backup resolves outside this transaction; no recovery writes attempted");
-      backup = await readFile(backupAbs);
-      if (sha256(backup) !== entry.beforeHash) throw new Error("upgrade journal backup hash does not match the recorded input; no recovery writes attempted");
+      if (zeroWriteReconciliation) {
+        if (entry.backupRel !== null) throw new Error("current-state reconciliation journal must not record backup paths; no recovery writes attempted");
+      } else {
+        if (typeof entry.backupRel !== "string" || !entry.backupRel) throw new Error("upgrade journal backup path is missing; no recovery writes attempted");
+        const backupAbs = path.resolve(root, entry.backupRel);
+        const expectedBackup = path.resolve(backupRoot, entry.targetRel);
+        if (!samePath(backupAbs, expectedBackup) || !isInside(backupRoot, backupAbs)) throw new Error("upgrade journal backup path is outside this transaction; no recovery writes attempted");
+        const backupFileStats = await lstat(backupAbs).catch(() => null);
+        if (!backupFileStats?.isFile() || backupFileStats.isSymbolicLink()) throw new Error("upgrade journal backup is missing or unsafe; no recovery writes attempted");
+        const backupReal = await realpath(backupAbs);
+        if (!isInside(backupRealRoot, backupReal)) throw new Error("upgrade journal backup resolves outside this transaction; no recovery writes attempted");
+        backup = await readFile(backupAbs);
+        if (sha256(backup) !== entry.beforeHash) throw new Error("upgrade journal backup hash does not match the recorded input; no recovery writes attempted");
+      }
     } else if (entry.backupRel !== null) {
       throw new Error("upgrade journal has an unexpected backup for a created target; no recovery writes attempted");
     }
@@ -2024,7 +2165,9 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   }
   if (journal.currentStateWitness) {
     const currentStateWitness = validateCurrentStateWitness(journal);
-    validateCurrentStateReadback(journal.currentStateReadback, currentStateWitness);
+    validateCurrentStateReadback(journal.currentStateReadback, currentStateWitness, {
+      allowProjectByteReader: zeroWriteReconciliation
+    });
   } else if (journal.currentStateReadback != null) {
     throw new Error("shared current-state readback exists without a current-state witness; no recovery writes attempted");
   }
@@ -2174,13 +2317,30 @@ async function removeArchiveSubsetNoClobber(root, migration, canonicalAbs, escro
   }
 }
 
-async function recoverInterruptedTransaction(root) {
+function assertRecoveryCallerMayHandleReconciliation(lock, journal, manifestSha256) {
+  const involvesReconciliation = lock.command === "reconcile-current-state" || journal.command === "reconcile-current-state";
+  if (!involvesReconciliation) return;
+  if (typeof manifestSha256 !== "string" || !/^[a-f0-9]{64}$/.test(manifestSha256)
+    || lock.command !== "reconcile-current-state"
+    || journal.command !== "reconcile-current-state"
+    || journal.mode !== "source-state-reconciliation"
+    || journal.reconciliationManifestSha256 !== manifestSha256
+    || !journal.reconciliationManifest
+    || typeof journal.reconciliationManifest !== "object"
+    || Array.isArray(journal.reconciliationManifest)
+    || sha256(Buffer.from(`${JSON.stringify(journal.reconciliationManifest)}\n`, "utf8")) !== manifestSha256) {
+    throw new Error("current-state reconciliation recovery requires reconcile-current-state --yes --manifest <freshly reviewed digest>; no automatic recovery attempted");
+  }
+}
+
+async function recoverInterruptedTransaction(root, options = {}) {
   const lockPath = path.join(root, "dev", "governance_migrations", ".upgrade.lock");
   let lock;
   try {
     lock = JSON.parse(await readFile(lockPath, "utf8"));
   } catch (error) {
     if (error?.code === "ENOENT") return;
+    if (await quarantineUnboundUnreadableLock(root, lockPath)) return;
     throw new Error("upgrade lock exists but is unreadable; no writes attempted");
   }
   if (!lock || typeof lock !== "object" || Array.isArray(lock) || typeof lock.id !== "string" || typeof lock.journal !== "string"
@@ -2197,6 +2357,7 @@ async function recoverInterruptedTransaction(root) {
   } catch {
     throw new Error("incomplete upgrade lock has no readable journal; no automatic recovery attempted");
   }
+  assertRecoveryCallerMayHandleReconciliation(lock, journal, options.reconciliationManifestSha256);
   await validateRecoveryJournal(root, journal, journalPath, lock.id);
   if (journal.state === "committed") {
     if (!journal.committedVersion) journal.committedVersion = journal.attemptedVersion;
@@ -2229,9 +2390,18 @@ async function recoverInterruptedTransaction(root) {
     }
     const migrationDir = path.dirname(journalPath);
     await writeSecureJson(journalPath, journal);
-    await writeTransactionReport({ id: journal.id, migrationDir, journal });
+    if (journal.command === "reconcile-current-state") {
+      const reconciledPaths = (journal.currentStateWitness?.sourceConservation?.entries ?? [])
+        .filter((entry) => ["user-owned-reconciliation", "session-log-archive-reconciliation"].includes(entry.disposition))
+        .map((entry) => entry.sourcePath);
+      await writeCurrentStateReconciliationReport({ migrationDir, journal, reconciledPaths });
+    } else {
+      await writeTransactionReport({ id: journal.id, migrationDir, journal });
+    }
     await unlinkIfExists(lockPath);
-    console.log("⚠️ recovered committed upgrade: migration report was verified or rebuilt before planning this run");
+    console.log(journal.command === "reconcile-current-state"
+      ? "⚠️ recovered committed current-state reconciliation: reconciliation report was verified or rebuilt before planning this run"
+      : "⚠️ recovered committed upgrade: migration report was verified or rebuilt before planning this run");
     return;
   }
   if (journal.state === "rolled-back") {
@@ -2242,6 +2412,35 @@ async function recoverInterruptedTransaction(root) {
   if (!rollback.ok) throw new Error(`interrupted upgrade has third-state edits: ${rollback.conflicts.join("; ")}`);
   await unlinkIfExists(lockPath);
   console.log("⚠️ recovered interrupted upgrade: transaction-owned changes were safely rolled back before planning this run");
+}
+
+async function quarantineUnboundUnreadableLock(root, lockPath) {
+  let raw;
+  try {
+    raw = await readFile(lockPath, "utf8");
+  } catch {
+    return false;
+  }
+  const trimmed = raw.trim();
+  if (!(trimmed === "" || trimmed === "{" || trimmed === "[")) return false;
+  const migrationsRoot = path.join(root, "dev", "governance_migrations");
+  const entries = await readdir(migrationsRoot, { withFileTypes: true }).catch(() => []);
+  const activeStates = new Set(["prepared", "committing", "rollback-needed", "manual-recovery-required"]);
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const journalPath = path.join(migrationsRoot, entry.name, "transaction.json");
+    let journal = null;
+    try {
+      journal = JSON.parse(await readFile(journalPath, "utf8"));
+    } catch {
+      continue;
+    }
+    if (activeStates.has(journal?.state)) return false;
+  }
+  const quarantinePath = path.join(migrationsRoot, `.upgrade.lock.unbound-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`);
+  await rename(lockPath, quarantinePath);
+  console.log("⚠️ recovered unbound incomplete upgrade lock: quarantined empty or partial lock before planning this run");
+  return true;
 }
 
 async function writeTransactionReport(transaction) {
@@ -2273,6 +2472,30 @@ async function writeTransactionReport(transaction) {
     "",
     "## Shared Current-State Witness",
     ...renderCurrentStateWitnessReport(transaction.journal.currentStateWitness, transaction.journal.currentStateReadback)
+  ];
+  await writeFile(reportPath, `${lines.join("\n")}\n`, { mode: 0o600 });
+  await tightenPermissions(reportPath, 0o600);
+  return reportPath;
+}
+
+async function writeCurrentStateReconciliationReport({ migrationDir, journal, reconciledPaths }) {
+  const reportPath = path.join(migrationDir, "migration-report.md");
+  const lines = [
+    "# Agent Handoff Kit Current-State Reconciliation Report",
+    "",
+    `- Command: ${journal.command ?? "reconcile-current-state"}`,
+    `- Attempted version: ${journal.attemptedVersion}`,
+    `- Committed version: ${journal.committedVersion ?? "none"}`,
+    `- Transaction state: ${journal.state}`,
+    `- Supersedes current-state digest: ${(journal.supersedesCurrentStateDigests ?? []).join(", ")}`,
+    `- Current-state digest: ${journal.currentStateWitness?.currentStateDigest ?? "none"}`,
+    `- Reconciled paths: ${reconciledPaths.join(", ")}`,
+    ...(journal.reconciliationManifestSha256 ? [`- Reconciliation manifest sha256: ${journal.reconciliationManifestSha256}`] : []),
+    "- Project files overwritten: none",
+    "- Transaction-owned project content writes: none",
+    "",
+    "## Shared Current-State Witness",
+    ...renderCurrentStateWitnessReport(journal.currentStateWitness, journal.currentStateReadback)
   ];
   await writeFile(reportPath, `${lines.join("\n")}\n`, { mode: 0o600 });
   await tightenPermissions(reportPath, 0o600);
@@ -2397,6 +2620,20 @@ async function unlinkIfExists(filePath) {
   try { await unlink(filePath); } catch (error) { if (error?.code !== "ENOENT") throw error; }
 }
 
+async function publishTransactionLock(root, lockPath, lockRecord) {
+  const lockDir = path.dirname(lockPath);
+  const tempPath = path.join(lockDir, `.upgrade.lock.${lockRecord.id}.${process.pid}.${randomUUID()}.tmp`);
+  await writeSecureJson(tempPath, lockRecord);
+  try {
+    await link(tempPath, lockPath);
+  } catch (error) {
+    await unlinkIfExists(tempPath).catch(() => {});
+    if (error?.code === "EEXIST") throw new Error("another upgrade transaction or unresolved recovery lock is present");
+    throw error;
+  }
+  await unlinkIfExists(tempPath);
+}
+
 function processIsAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try { process.kill(pid, 0); return true; } catch { return false; }
@@ -2422,6 +2659,9 @@ function safeErrorLabel(error) {
 }
 
 async function runDoctor(root, version, options = {}) {
+  if (options.allowActiveTransaction !== true && await hasActiveTransactionLock(root)) {
+    throw new Error("current-state recovery is pending; doctor refuses a partial transaction state");
+  }
   // The transaction journal is the existing shared acceptance authority. A
   // preserved non-exact rule pack may intentionally retain older/user bytes;
   // its missing current-template anchors are acceptable only when this same
@@ -2919,7 +3159,7 @@ function validateCurrentStateWitnessValue(value) {
     || ![1, 2, 3].includes(value.schemaVersion)
     || !value.transaction || typeof value.transaction !== "object" || Array.isArray(value.transaction)
     || typeof value.transaction.id !== "string" || !value.transaction.id
-    || !["init", "upgrade", "finalize-closeout"].includes(value.transaction.command)
+    || !["init", "upgrade", "finalize-closeout", "reconcile-current-state"].includes(value.transaction.command)
     || typeof value.transaction.mode !== "string" || !value.transaction.mode
     || !isStableSemver(value.transaction.attemptedVersion ?? "")
     || !Array.isArray(value.entries) || value.entries.length === 0
@@ -2952,12 +3192,16 @@ function validateCurrentStateWitnessValue(value) {
     ...(formalWitness ? [...formalWitness.contentPaths] : [])
   ]);
   const seenTargets = new Set();
+  const zeroWriteReconciliation = value.transaction.command === "reconcile-current-state" && value.transaction.mode === "source-state-reconciliation";
   for (const entry of value.entries) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)
       || typeof entry.targetRel !== "string" || !knownTargets.has(entry.targetRel) || seenTargets.has(entry.targetRel)
       || typeof entry.existed !== "boolean"
       || typeof entry.afterHash !== "string" || !/^[a-f0-9]{64}$/.test(entry.afterHash)
-      || (entry.existed && (typeof entry.beforeHash !== "string" || !/^[a-f0-9]{64}$/.test(entry.beforeHash) || typeof entry.backupRel !== "string" || !entry.backupRel))
+      || (entry.existed && (typeof entry.beforeHash !== "string" || !/^[a-f0-9]{64}$/.test(entry.beforeHash)
+        || (zeroWriteReconciliation
+          ? entry.backupRel !== null || entry.beforeHash !== entry.afterHash
+          : typeof entry.backupRel !== "string" || !entry.backupRel)))
       || (!entry.existed && (entry.beforeHash !== null || entry.backupRel !== null))) {
       throw new Error("shared current-state entry witness is invalid; no recovery writes attempted");
     }
@@ -3023,7 +3267,7 @@ function validateSourceConservation(value, { required = false } = {}) {
       || !Array.isArray(entry.sourceByteRanges) || entry.sourceByteRanges.length !== 1
       || entry.sourceByteRanges[0]?.start !== 0 || entry.sourceByteRanges[0]?.end !== entry.sourceWitness.bytes
       || entry.sourceByteRanges[0]?.sha256 !== entry.sourceWitness.sha256
-      || !["preserve", "transaction-output", "unchanged-source", "retained-historical-state", "outside-known-kit-reachability", "closeout-state-finalize", "canonical-path-migration", "canonical-path-migration-closeout"].includes(entry.disposition)
+      || !["preserve", "transaction-output", "unchanged-source", "retained-historical-state", "outside-known-kit-reachability", "closeout-state-finalize", "canonical-path-migration", "canonical-path-migration-closeout", "user-owned-reconciliation", "session-log-archive-reconciliation"].includes(entry.disposition)
       || !Array.isArray(entry.existingReaders)
       || entry.existingReaders.some((reader) => !reader || typeof reader !== "object" || Array.isArray(reader) || typeof reader.reader !== "string" || !reader.reader || typeof reader.via !== "string" || !reader.via)
       || typeof entry.priorityRelation !== "string" || !entry.priorityRelation
@@ -3031,8 +3275,8 @@ function validateSourceConservation(value, { required = false } = {}) {
       || !Array.isArray(entry.classifications) || entry.classifications.length === 0 || entry.classifications.some((classification) => typeof classification !== "string" || !classification)) {
       throw new Error("shared current-state source conservation entry is invalid; no recovery writes attempted");
     }
-    if (["canonical-path-migration", "canonical-path-migration-closeout"].includes(entry.disposition)) {
-      if (value.schemaVersion !== 2 || !isSafeProjectRelative(entry.sourceOriginPath)
+    if (["canonical-path-migration", "canonical-path-migration-closeout", "session-log-archive-reconciliation"].includes(entry.disposition) && entry.sourceOriginPath !== undefined) {
+      if (![2, 3].includes(value.schemaVersion) || !isSafeProjectRelative(entry.sourceOriginPath)
         || entry.sourceOriginPath === entry.sourcePath
         || !entry.sourceOriginPath.startsWith("dev/") || !entry.sourcePath.startsWith("dev/SESSION_LOG_archive/")) {
         throw new Error("archive source-path rebinding is invalid; no recovery writes attempted");
@@ -3918,7 +4162,10 @@ async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations 
       if (journal.state !== "committed" || !journal.currentStateWitness) continue;
       await validateRecoveryJournal(root, journal, journalPath);
       const priorWitness = validateCurrentStateWitness(journal);
-      const sourceConservationRebind = sourceConservationEntriesRebindPrior(priorWitness, replacement.sourceConservation, archiveMigrations);
+      const sourceConservationRebind = sourceConservationEntriesRebindPrior(priorWitness, replacement.sourceConservation, archiveMigrations, {
+        allowArchiveState: sourceConservationHasArchiveReconciliation(priorWitness.sourceConservation)
+          || sourceConservationHasArchiveReconciliation(replacement.sourceConservation)
+      });
       if ((await journalMatchesCurrentState(root, journal) && (!priorWitness.sourceConservation || sourceConservationRebind))
         || await journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations, replacement.sourceConservation)
         || sourceConservationRebind) {
@@ -3942,12 +4189,19 @@ function currentStateWitnessCapability(value = {}) {
 function canSupersedeCurrentStateWitness(replacement, priorWitness) {
   const replacementCapability = currentStateWitnessCapability(replacement);
   if (priorWitness.sourceConservation && !replacementCapability.sourceConservation) return false;
+  const archiveAuthority = sourceConservationHasArchiveReconciliation(replacement.sourceConservation)
+    || sourceConservationHasArchiveReconciliation(priorWitness.sourceConservation);
   if (Array.isArray(priorWitness.archiveMigrations) && priorWitness.archiveMigrations.length > 0
     && !replacementCapability.archiveMigrations
-    && !archiveMigrationHistoryIsRebound(priorWitness, replacement.sourceConservation)) {
+    && !sourceConservationEntriesRebindPrior(priorWitness, replacement.sourceConservation, [], { allowArchiveState: archiveAuthority })
+    && !(archiveAuthority && archiveMigrationHistoryIsRebound(priorWitness, replacement.sourceConservation))) {
     return false;
   }
   return true;
+}
+
+function sourceConservationHasArchiveReconciliation(sourceConservation) {
+  return Boolean(sourceConservation?.entries?.some((entry) => entry.disposition === "session-log-archive-reconciliation"));
 }
 
 function sourceConservationEntryMayRetireAsUnreachableRootSource(entry) {
@@ -3975,7 +4229,7 @@ function sourceConservationEntryHasAcceptedCoverage(entry) {
     && Number.isInteger(entry.accepted.bytes));
 }
 
-function sourceConservationEntriesRebindPrior(priorWitness, replacementSourceConservation, archiveMigrations = []) {
+function sourceConservationEntriesRebindPrior(priorWitness, replacementSourceConservation, archiveMigrations = [], options = {}) {
   if (!priorWitness.sourceConservation) return true;
   if (!replacementSourceConservation) return false;
   const replacementByPath = new Map(replacementSourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
@@ -3986,6 +4240,10 @@ function sourceConservationEntriesRebindPrior(priorWitness, replacementSourceCon
     }
   }
   return priorWitness.sourceConservation.entries.every((entry) => {
+    const archiveState = sourceConservationEntryIsSessionLogArchive(entry)
+      || isSessionLogArchivePath(entry.sourcePath)
+      || (entry.sourceOriginPath && isSessionLogArchivePath(entry.sourceOriginPath));
+    if (archiveState && options.allowArchiveState !== true) return false;
     if (sourceConservationEntryMayRetireAsUnreachableRootSource(entry)) return true;
     const replacement = replacementByPath.get(entry.sourcePath);
     if (sourceConservationEntryHasAcceptedCoverage(replacement)) return true;
@@ -4023,23 +4281,12 @@ function archiveMigrationHistoryIsRebound(priorWitness, replacementSourceConserv
       }
     }
   }
-  return sourceConservationEntriesRebindPrior(priorWitness, replacementSourceConservation);
+  return sourceConservationEntriesRebindPrior(priorWitness, replacementSourceConservation, [], { allowArchiveState: true });
 }
 
 async function journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations = [], replacementSourceConservation = null) {
   const witness = validateCurrentStateWitness(journal);
   const replacementByPath = new Map((replacementSourceConservation?.entries ?? []).map((entry) => [entry.sourcePath, entry]));
-  const archiveRebindings = new Map();
-  for (const migration of archiveMigrations) {
-    for (const file of migration.snapshot.files) {
-      archiveRebindings.set(`${migration.originalRel}/${file.path}`, {
-        sourcePath: `${migration.originalRel}/${file.path}`,
-        reboundPath: `${migration.canonicalRel}/${file.path}`,
-        sha256: file.sha256,
-        bytes: file.bytes
-      });
-    }
-  }
   for (const entry of journal.entries) {
     const replacement = outputWitnesses.get(entry.targetRel);
     if (replacement) {
@@ -4060,11 +4307,7 @@ async function journalIsRestoredByOutputs(root, journal, outputWitnesses, archiv
       if (!sourceConservationEntryHasAcceptedCoverage(sourceReplacement)) return false;
       continue;
     }
-    const archiveRebinding = archiveRebindings.get(entry.sourcePath);
-    if (archiveRebinding) {
-      if (archiveRebinding.sha256 !== entry.accepted.sha256 || archiveRebinding.bytes !== entry.accepted.bytes) return false;
-      continue;
-    }
+    if (sourceConservationEntryIsSessionLogArchive(entry) || isSessionLogArchivePath(entry.sourcePath)) return false;
     if (!sourceConservationEntryMayRetireAsUnreachableRootSource(entry)) return false;
     const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
     if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) return false;
@@ -4288,6 +4531,480 @@ async function currentStateMismatches(root, journal) {
   return [...mismatches.values()].sort((left, right) => left.path.localeCompare(right.path));
 }
 
+async function findCurrentStateReconciliationBase(root, version) {
+  const migrationsRoot = path.join(root, "dev", "governance_migrations");
+  let names;
+  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
+  const records = [];
+  const superseded = new Set();
+  for (const name of names) {
+    if (name === ".upgrade.lock") continue;
+    const journalPath = path.join(migrationsRoot, name, "transaction.json");
+    try {
+      const stats = await lstat(journalPath);
+      if (!stats.isFile() || stats.isSymbolicLink()) continue;
+      const journal = JSON.parse(await readFile(journalPath, "utf8"));
+      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
+      await validateRecoveryJournal(root, journal, journalPath);
+      const witness = validateCurrentStateWitness(journal);
+      for (const digest of witness.transaction.supersedesCurrentStateDigests ?? []) superseded.add(digest);
+      records.push({ journal, journalPath, witness, matches: await journalMatchesCurrentState(root, journal) });
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+  const stale = records
+    .filter((record) => !record.matches && record.witness.sourceConservation && !superseded.has(record.witness.currentStateDigest));
+  if (stale.length === 0) return null;
+  if (stale.length > 1) {
+    const digests = stale.map((record) => record.witness.currentStateDigest).join(", ");
+    throw new Error(`current-state reconciliation refuses ambiguous stale source-conservation authorities: ${digests}`);
+  }
+  const currentFrozen = await freezeGate5Set({ root });
+  assertGate5FrozenSet(currentFrozen);
+  const classified = await classifyCurrentStateReconciliationMismatches(root, stale[0].journal, currentFrozen);
+  const candidate = { ...stale[0], currentFrozen, ...classified };
+  if (candidate.illegal.length > 0 || candidate.reconcilable.length === 0) return candidate;
+  return await createCurrentStateReconciliationVerifiedPlan(root, version, candidate);
+}
+
+async function classifyCurrentStateReconciliationMismatches(root, journal, currentFrozen) {
+  const currentByPath = new Map(gate5SourceConservationItems(currentFrozen).map((item) => [item.sourcePath, item]));
+  const mismatches = await currentStateMismatches(root, journal);
+  const reconcilable = [];
+  const archive = [];
+  const illegal = [];
+  const archiveQualification = await qualifySessionLogArchive(root, currentFrozen);
+  for (const mismatch of mismatches) {
+    if (isCloseoutFinalizeTarget(mismatch.path)) {
+      reconcilable.push({ ...mismatch, reason: "legal closeout state readback" });
+      continue;
+    }
+    if (mismatchIsSessionLogArchiveDelta(mismatch, currentByPath.get(mismatch.path))) {
+      if (archiveQualification.ok) {
+        archive.push({ ...mismatch, reason: "qualified session-log archive maintenance readback" });
+      } else {
+        illegal.push({ ...mismatch, reason: archiveQualification.reason });
+      }
+      continue;
+    }
+    if (mismatch.kind === "source-conservation"
+      && sourceConservationEntryMayReconcileAsUserOwnedFormal(mismatch.sourceConservationEntry, currentByPath.get(mismatch.path))) {
+      reconcilable.push({ ...mismatch, reason: "user-owned formal source readback" });
+      continue;
+    }
+    if (mismatch.kind === "new-source"
+      && gate5ItemMayReconcileAsUserOwnedFormal(currentByPath.get(mismatch.path))) {
+      reconcilable.push({ ...mismatch, reason: "new user-owned formal source readback" });
+      continue;
+    }
+    illegal.push({ ...mismatch, reason: currentStateReconciliationBlockReason(mismatch, currentByPath.get(mismatch.path)) });
+  }
+  return {
+    mismatches,
+    currentByPath,
+    archive,
+    archiveQualification,
+    reconcilable: [...reconcilable, ...archive].sort((left, right) => left.path.localeCompare(right.path)),
+    illegal
+  };
+}
+
+function mismatchIsSessionLogArchiveDelta(mismatch, currentItem) {
+  return Boolean(isSessionLogArchivePath(mismatch.path)
+    || sourceConservationEntryIsSessionLogArchive(mismatch.sourceConservationEntry)
+    || (currentItem?.classifications ?? []).some((classification) => ["session-log-archive", "legacy-session-log-archive"].includes(classification)));
+}
+
+async function qualifySessionLogArchive(root, currentFrozen) {
+  const archiveCasing = await checkSessionLogArchiveCasing(root);
+  if (!archiveCasing.ok) return { ok: false, reason: archiveCasing.finding, inventory: null };
+  const archiveRoot = path.join(root, canonicalSessionLogArchiveRoot);
+  const archiveStats = await lstat(archiveRoot).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error));
+  if (!archiveStats) return { ok: false, reason: "canonical session-log archive root is missing", inventory: null };
+  if (!archiveStats.isDirectory() || archiveStats.isSymbolicLink()) return { ok: false, reason: "canonical session-log archive root is not a safe real directory", inventory: null };
+  const rootReal = await realpath(root);
+  const archiveReal = await realpath(archiveRoot);
+  if (!isInside(rootReal, archiveReal)) return { ok: false, reason: "canonical session-log archive root resolves outside selected root", inventory: null };
+  const route = gate5SourceConservationItems(currentFrozen).find((item) => item.sourcePath === "dev/SESSION_LOG.md");
+  if (!route
+    || sourceConservationEntryIsSessionLogArchive({ classifications: route.classifications })
+    || !Array.isArray(route.existingReaders)
+    || route.existingReaders.length === 0
+    || route.effect?.decision !== "preserve-existing-route-or-stop") {
+    return { ok: false, reason: "current non-archive SESSION_LOG formal route is not mechanically verifiable", inventory: null };
+  }
+  const inventory = await inventorySessionLogArchiveTree(root, archiveRoot, archiveReal);
+  const index = inventory.files.find((file) => file.path === "INDEX.md");
+  if (!index) return { ok: false, reason: "session-log archive INDEX.md is missing", inventory };
+  const indexText = await readFile(path.join(archiveRoot, "INDEX.md"), "utf8");
+  const listed = extractArchiveIndexBatchList(indexText);
+  if (listed.includes("INDEX.md")) return { ok: false, reason: "session-log archive INDEX.md must not self-reference", inventory };
+  const duplicates = listed.filter((item, indexOfItem) => listed.indexOf(item) !== indexOfItem);
+  if (duplicates.length > 0) return { ok: false, reason: `session-log archive INDEX.md has duplicate archive entries: ${[...new Set(duplicates)].join(", ")}`, inventory };
+  const actualArchiveItems = inventory.files
+    .map((file) => file.path)
+    .filter((filePath) => filePath !== "INDEX.md")
+    .sort((left, right) => left.localeCompare(right));
+  const listedSorted = [...listed].sort((left, right) => left.localeCompare(right));
+  if (JSON.stringify(actualArchiveItems) !== JSON.stringify(listedSorted)) {
+    return {
+      ok: false,
+      reason: `session-log archive INDEX/list mismatch: listed=${listedSorted.join(", ") || "none"} actual=${actualArchiveItems.join(", ") || "none"}`,
+      inventory
+    };
+  }
+  return {
+    ok: true,
+    reason: "canonical session-log archive inventory and INDEX are bidirectionally verified",
+    inventory: {
+      ...inventory,
+      indexSha256: index.sha256,
+      listedArchiveItems: listedSorted,
+      inventorySha256: sha256(Buffer.from(`${JSON.stringify({
+        root: canonicalSessionLogArchiveRoot,
+        directories: inventory.directories,
+        files: inventory.files,
+        listedArchiveItems: listedSorted
+      })}\n`, "utf8"))
+    }
+  };
+}
+
+async function inventorySessionLogArchiveTree(root, archiveRoot, archiveReal) {
+  const directories = [];
+  const files = [];
+  async function visit(currentAbs, relative) {
+    const entries = await readdir(currentAbs, { withFileTypes: true });
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      const childAbs = path.join(currentAbs, entry.name);
+      const childRel = relative ? `${relative}/${entry.name}` : entry.name;
+      const stats = await lstat(childAbs);
+      if (stats.isSymbolicLink()) throw new Error(`${canonicalSessionLogArchiveRoot}/${childRel}: archive qualification rejects symbolic links, junctions, and reparse points`);
+      const childReal = await realpath(childAbs);
+      if (!isInside(archiveReal, childReal) || !isInside(root, childReal)) {
+        throw new Error(`${canonicalSessionLogArchiveRoot}/${childRel}: archive item resolves outside the canonical archive root`);
+      }
+      if (stats.isDirectory()) {
+        directories.push(childRel);
+        await visit(childAbs, childRel);
+      } else if (stats.isFile()) {
+        const bytes = await readFile(childAbs);
+        files.push({ path: childRel, sha256: sha256(bytes), bytes: bytes.length });
+      } else {
+        throw new Error(`${canonicalSessionLogArchiveRoot}/${childRel}: archive qualification accepts only regular files and directories`);
+      }
+    }
+  }
+  await visit(archiveRoot, "");
+  return {
+    root: canonicalSessionLogArchiveRoot,
+    directories: directories.sort((left, right) => left.localeCompare(right)),
+    files: files.sort((left, right) => left.path.localeCompare(right.path))
+  };
+}
+
+function extractArchiveIndexBatchList(indexText) {
+  const matches = [...indexText.matchAll(/\b([A-Za-z0-9._-]*archive[A-Za-z0-9._-]*\.md)\b/gu)]
+    .map((match) => match[1])
+    .filter((name) => !name.includes("/") && !name.includes("\\"));
+  return matches.sort((left, right) => left.localeCompare(right));
+}
+
+async function createCurrentStateReconciliationVerifiedPlan(root, version, candidate) {
+  const rootReal = await realpath(root);
+  const activeWitness = validateCurrentStateWitness(candidate.journal);
+  const currentByPath = new Map(gate5SourceConservationItems(candidate.currentFrozen).map((item) => [item.sourcePath, item]));
+  const transactionEntries = [];
+  for (const entry of activeWitness.entries) {
+    const current = await readOptionalBuffer(path.join(root, entry.targetRel));
+    if (!current) throw new Error(`${entry.targetRel}: cannot reconcile missing transaction target`);
+    const witness = { sha256: sha256(current), bytes: current.length };
+    transactionEntries.push({
+      targetRel: entry.targetRel,
+      existed: true,
+      beforeHash: witness.sha256,
+      afterHash: witness.sha256,
+      backupRel: null,
+      committed: false,
+      witness
+    });
+  }
+  const reconcilePaths = new Set(candidate.reconcilable.map((item) => item.path));
+  const archiveReconcilePaths = new Set((candidate.archive ?? []).map((item) => item.path));
+  const oldSourceByPath = new Map((activeWitness.sourceConservation?.entries ?? []).map((entry) => [entry.sourcePath, entry]));
+  const sourceEntries = [];
+  for (const item of gate5SourceConservationItems(candidate.currentFrozen).filter((entry) => !isFinalizeJournalState(entry.sourcePath))) {
+    const entry = oldSourceByPath.get(item.sourcePath) ?? null;
+    const current = await readOptionalBuffer(path.join(root, item.sourcePath));
+    if (!current) throw new Error(`${item.sourcePath}: cannot reconcile missing source`);
+    const currentWitness = { sha256: sha256(current), bytes: current.length };
+    const priorAccepted = entry?.accepted ?? currentWitness;
+    const changedFromPrior = currentWitness.sha256 !== priorAccepted.sha256 || currentWitness.bytes !== priorAccepted.bytes;
+    const disposition = isCloseoutFinalizeTarget(item.sourcePath) && changedFromPrior
+      ? entry?.sourceOriginPath
+        ? "canonical-path-migration-closeout"
+        : "closeout-state-finalize"
+      : archiveReconcilePaths.has(item.sourcePath)
+        ? "session-log-archive-reconciliation"
+        : reconcilePaths.has(item.sourcePath)
+          ? "user-owned-reconciliation"
+          : entry?.disposition ?? (item.classifications.includes("transaction-state") ? "retained-historical-state" : "unchanged-source");
+    sourceEntries.push({
+      sourcePath: item.sourcePath,
+      ...(entry?.sourceOriginPath && ["canonical-path-migration", "canonical-path-migration-closeout", "session-log-archive-reconciliation"].includes(disposition) ? { sourceOriginPath: entry.sourceOriginPath } : {}),
+      sourceWitness: currentWitness,
+      accepted: currentWitness,
+      sourceByteRanges: [{ start: 0, end: currentWitness.bytes, sha256: currentWitness.sha256 }],
+      disposition,
+      existingReaders: entry?.existingReaders ?? item.existingReaders.map((reader) => ({ reader: reader.reader, via: reader.via })),
+      priorityRelation: entry?.priorityRelation ?? item.priorityConflict.relation,
+      effectDecision: entry?.effectDecision ?? item.effect.decision,
+      classifications: entry?.classifications ?? [...item.classifications]
+    });
+  }
+  const deltas = [];
+  for (const item of candidate.reconcilable) {
+    const prior = item.sourceConservationEntry?.accepted ?? null;
+    const currentWitness = sourceEntries.find((entry) => entry.sourcePath === item.path)?.accepted
+      ?? transactionEntries.find((entry) => entry.targetRel === item.path)?.witness
+      ?? { missing: true };
+    const currentItem = currentByPath.get(item.path) ?? null;
+    deltas.push({
+      path: item.path,
+      kind: item.kind,
+      prior: prior ?? { missing: true },
+      current: currentWitness,
+      classification: currentItem?.classifications ?? item.sourceConservationEntry?.classifications ?? [],
+      existingReaders: currentItem?.existingReaders ?? item.sourceConservationEntry?.existingReaders ?? [],
+      priorityRelation: currentItem?.priorityConflict?.relation ?? item.sourceConservationEntry?.priorityRelation ?? null,
+      effectDecision: currentItem?.effect?.decision ?? item.sourceConservationEntry?.effectDecision ?? null,
+      reason: item.reason,
+      authority: mismatchIsSessionLogArchiveDelta(item, currentItem) ? "session-log-archive-qualification" : "generic-formal-current-state-reconciliation",
+      archiveQualification: mismatchIsSessionLogArchiveDelta(item, currentItem)
+        ? {
+            ok: candidate.archiveQualification.ok,
+            reason: candidate.archiveQualification.reason,
+            inventorySha256: candidate.archiveQualification.inventory?.inventorySha256 ?? null
+          }
+        : null
+    });
+  }
+  const manifest = {
+    schemaVersion: 1,
+    command: "reconcile-current-state",
+    root: {
+      selected: path.resolve(root),
+      realpath: rootReal
+    },
+    toolVersion: version,
+    activeWitness: {
+      digest: activeWitness.currentStateDigest,
+      command: activeWitness.transaction.command,
+      attemptedVersion: activeWitness.transaction.attemptedVersion,
+      schemaVersion: activeWitness.schemaVersion
+    },
+    supersededWitnessDigests: activeWitness.transaction.supersedesCurrentStateDigests ?? [],
+    directCloseoutStateTargets,
+    archiveInventory: candidate.archiveQualification.inventory
+      ? {
+          root: canonicalSessionLogArchiveRoot,
+          inventorySha256: candidate.archiveQualification.inventory.inventorySha256,
+          indexSha256: candidate.archiveQualification.inventory.indexSha256,
+          files: candidate.archiveQualification.inventory.files,
+          directories: candidate.archiveQualification.inventory.directories,
+          listedArchiveItems: candidate.archiveQualification.inventory.listedArchiveItems
+        }
+      : null,
+    archiveQualification: {
+      ok: candidate.archiveQualification.ok,
+      reason: candidate.archiveQualification.reason
+    },
+    deltas: deltas.sort((left, right) => left.path.localeCompare(right.path))
+  };
+  return {
+    ...candidate,
+    transactionEntries,
+    sourceConservation: {
+      schemaVersion: activeWitness.sourceConservation.schemaVersion,
+      frozenSetSha256: candidate.currentFrozen.frozenSetSha256,
+      entries: sourceEntries.sort((left, right) => left.sourcePath.localeCompare(right.sourcePath))
+    },
+    manifest,
+    manifestSha256: sha256(Buffer.from(`${JSON.stringify(manifest)}\n`, "utf8"))
+  };
+}
+
+async function assertCurrentStateReconciliationVerifiedPlanStillCurrent(root, plan) {
+  const activeWitness = validateCurrentStateWitness(plan.journal);
+  if (activeWitness.currentStateDigest !== plan.manifest.activeWitness.digest) {
+    throw new Error("current-state reconciliation active witness changed before writes; no files written");
+  }
+  for (const entry of plan.transactionEntries) {
+    const current = await readOptionalBuffer(path.join(root, entry.targetRel));
+    if (!current || sha256(current) !== entry.afterHash || current.length !== entry.witness.bytes) {
+      throw new Error(`${entry.targetRel}: current-state reconciliation target changed before writes; no files written`);
+    }
+  }
+  for (const entry of plan.sourceConservation.entries) {
+    const current = await readOptionalBuffer(path.join(root, entry.sourcePath));
+    if (!current || sha256(current) !== entry.accepted.sha256 || current.length !== entry.accepted.bytes) {
+      throw new Error(`${entry.sourcePath}: current-state reconciliation source changed before writes; no files written`);
+    }
+  }
+}
+
+function currentStateReconciliationBlockReason(mismatch, currentItem) {
+  if (mismatch.kind === "transaction-entry") return "transaction entry is not a legal closeout target";
+  if (installedFileContract(mismatch.path)) return "installed Kit contract remains fail-closed";
+  if (isSessionLogArchivePath(mismatch.path)
+    || sourceConservationEntryIsSessionLogArchive(mismatch.sourceConservationEntry)
+    || currentItem?.classifications?.some((classification) => ["session-log-archive", "legacy-session-log-archive"].includes(classification))) {
+    return "session-log archive state remains fail-closed until the canonical archive group qualifies";
+  }
+  if (currentItem?.classifications?.some((classification) => ["managed-contract", "transaction-state", "legacy-session-log-archive", "session-log-archive"].includes(classification))) {
+    return "Kit-managed, transaction, or archive state remains fail-closed";
+  }
+  return "not a user-owned formally reachable reconciliation entry";
+}
+
+function sourceConservationEntryMayReconcileAsUserOwnedFormal(entry, currentItem) {
+  return Boolean(entry
+    && Array.isArray(entry.classifications)
+    && entry.classifications.includes("root-source")
+    && entry.classifications.includes("formal-reference")
+    && !entry.classifications.some((classification) => ["managed-contract", "transaction-state", "legacy-session-log-archive", "session-log-archive"].includes(classification))
+    && Array.isArray(entry.existingReaders)
+    && entry.existingReaders.length > 0
+    && entry.priorityRelation !== "outside-known-kit-reachability"
+    && entry.effectDecision === "preserve-existing-route-or-stop"
+    && gate5ItemMayReconcileAsUserOwnedFormal(currentItem));
+}
+
+function gate5ItemMayReconcileAsUserOwnedFormal(item) {
+  // `user-or-unknown` is deliberately not treated as ownership proof.  It is
+  // only the negative half of the authority test: the path is not an exact
+  // installed Kit contract.  Reconciliation still requires a formal reader,
+  // preserve-or-stop effect, no managed/transaction/archive classification, and
+  // a fresh whole-file readback before any current-state authority changes.
+  return Boolean(item
+    && item.ownership === "user-or-unknown"
+    && Array.isArray(item.classifications)
+    && item.classifications.includes("root-source")
+    && item.classifications.includes("formal-reference")
+    && !item.classifications.some((classification) => ["managed-contract", "transaction-state", "legacy-session-log-archive", "session-log-archive"].includes(classification))
+    && Array.isArray(item.existingReaders)
+    && item.existingReaders.length > 0
+    && item.effect?.decision === "preserve-existing-route-or-stop"
+    && !installedFileContract(item.sourcePath)
+    && !isCloseoutFinalizeTarget(item.sourcePath)
+    && !isFinalizeJournalState(item.sourcePath));
+}
+
+async function writeCurrentStateReconciliationJournal(root, version, candidate, options = {}) {
+  const command = "reconcile-current-state";
+  const mode = "source-state-reconciliation";
+  const oldWitness = validateCurrentStateWitness(candidate.journal);
+  const retainedArchiveMigrations = oldWitness.archiveMigrations ?? [];
+  const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
+  const migrationsRoot = path.join(root, "dev", "governance_migrations");
+  const migrationDir = path.join(migrationsRoot, id);
+  const journalPath = path.join(migrationDir, "transaction.json");
+  const lockPath = path.join(migrationsRoot, ".upgrade.lock");
+  await mkdir(migrationDir, { recursive: true });
+  await tightenPermissions(migrationsRoot, 0o700);
+  await tightenPermissions(migrationDir, 0o700);
+
+  let journal = null;
+  let lockCreated = false;
+  let durableJournalPhase = null;
+  try {
+    journal = {
+      id,
+      command,
+      mode,
+      attemptedVersion: version,
+      committedVersion: null,
+      plannedSkips: 0,
+      host: hostname(),
+      pid: process.pid,
+      state: "prepared",
+      createdAt: new Date().toISOString(),
+      committedAt: null,
+      entries: candidate.transactionEntries.map(({ witness, ...entry }) => ({ ...entry })),
+      formalUserRules: null,
+      runtimeReadback: null,
+      runtimeAcceptance: null,
+      runtimeAcceptanceReadback: null,
+      sourceConservation: candidate.sourceConservation,
+      archiveMigrations: [],
+      supersedesCurrentStateDigests: [oldWitness.currentStateDigest],
+      currentStateWitness: null,
+      currentStateReadback: null,
+      reconciliationManifest: candidate.manifest,
+      reconciliationManifestSha256: candidate.manifestSha256
+    };
+    await writeSecureJson(journalPath, journal);
+    durableJournalPhase = "prepared";
+    if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_RECONCILE_PREPARED_JOURNAL === "1") {
+      throw new Error("QA generic failure after reconcile prepared journal");
+    }
+
+    if (process.env.AGENT_HANDOFF_KIT_QA_CREATE_FOREIGN_RECONCILE_LOCK_BEFORE_LOCK === "1") {
+      await publishTransactionLock(root, lockPath, {
+        id: `qa-owner-${id}`,
+        host: hostname(),
+        pid: process.pid,
+        journal: path.relative(root, journalPath),
+        command: "qa-owner-lock"
+      });
+    }
+    await publishTransactionLock(root, lockPath, { id, host: hostname(), pid: process.pid, journal: path.relative(root, journalPath), command });
+    lockCreated = true;
+    if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_RECONCILE_LOCK === "1"
+      || process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_RECONCILE_LOCK === "1") {
+      throw new Error("QA generic failure after reconcile lock with prepared journal");
+    }
+
+    journal.entries = journal.entries.map((entry) => ({ ...entry, committed: true }));
+    journal.state = "committed";
+    journal.committedVersion = version;
+    journal.committedAt = new Date().toISOString();
+    journal.archiveMigrations = retainedArchiveMigrations;
+    journal.currentStateWitness = createCurrentStateWitness(journal);
+    await writeSecureJson(journalPath, journal);
+    durableJournalPhase = "committed";
+    if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_RECONCILE_COMMITTED_JOURNAL === "1"
+      || process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_RECONCILE_JOURNAL_COMMIT === "1") {
+      throw new Error("QA generic failure after committed reconcile journal");
+    }
+    if (!await journalMatchesCurrentState(root, journal)) {
+      throw new Error("post-reconciliation current-state readback failed; reconciliation journal retained for inspection");
+    }
+    journal.currentStateReadback = currentStateReadbackFromVerifiedProjectBytes(journal.currentStateWitness);
+    await writeSecureJson(journalPath, journal);
+    await writeCurrentStateReconciliationReport({ root, migrationDir, journal, reconciledPaths: candidate.reconcilable.map((item) => item.path) });
+    if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_RECONCILE_REPORT === "1") {
+      throw new Error("QA generic failure after reconcile report");
+    }
+    if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_BEFORE_RECONCILE_UNLOCK === "1") {
+      throw new Error("QA generic failure before reconcile unlock");
+    }
+    await unlinkIfExists(lockPath);
+    lockCreated = false;
+    return { journalPath, journal };
+  } catch (error) {
+    if (lockCreated && durableJournalPhase) throw error;
+    if (!lockCreated && durableJournalPhase === "prepared" && journal) {
+      journal.state = "rolled-back";
+      journal.rollbackAt = new Date().toISOString();
+      journal.recoveryConflicts = [];
+      await writeSecureJson(journalPath, journal).catch(() => {});
+    }
+    throw error;
+  }
+}
+
 async function writeCloseoutFinalizeJournal(root, version, prior) {
   const oldWitness = validateCurrentStateWitness(prior.journal);
   const supersedesCurrentStateDigests = [...new Set([
@@ -4305,12 +5022,7 @@ async function writeCloseoutFinalizeJournal(root, version, prior) {
   await mkdir(stageDir, { recursive: true });
   await tightenPermissions(migrationsRoot, 0o700);
   await tightenPermissions(migrationDir, 0o700);
-  const lock = await open(lockPath, "wx", 0o600).catch((error) => {
-    if (error?.code === "EEXIST") throw new Error("another upgrade transaction or unresolved recovery lock is present");
-    throw error;
-  });
-  await lock.writeFile(JSON.stringify({ id, host: hostname(), pid: process.pid, journal: path.relative(root, journalPath), command: "finalize-closeout" }, null, 2));
-  await lock.close();
+  await publishTransactionLock(root, lockPath, { id, host: hostname(), pid: process.pid, journal: path.relative(root, journalPath), command: "finalize-closeout" });
 
   try {
     const priorEntryByTarget = new Map(prior.journal.entries.map((entry) => [entry.targetRel, entry]));
@@ -4430,11 +5142,24 @@ async function writeJournalFile(base, targetRel, bytes) {
 }
 
 function isCloseoutFinalizeTarget(relative) {
-  return closeoutFinalizeTargets.has(relative) || relative.startsWith("dev/SESSION_LOG_archive/");
+  return directCloseoutStateTargetSet.has(relative);
 }
 
 function isFinalizeJournalState(relative) {
   return relative.startsWith("dev/governance_migrations/");
+}
+
+function isSessionLogArchivePath(relative) {
+  return relative === canonicalSessionLogArchiveRoot
+    || relative.startsWith(`${canonicalSessionLogArchiveRoot}/`)
+    || relative === legacySessionLogArchiveRoot
+    || relative.startsWith(`${legacySessionLogArchiveRoot}/`);
+}
+
+function sourceConservationEntryIsSessionLogArchive(entry) {
+  return Boolean(entry
+    && Array.isArray(entry.classifications)
+    && entry.classifications.some((classification) => ["session-log-archive", "legacy-session-log-archive"].includes(classification)));
 }
 
 async function checkRuntimeAcceptance(root, options = {}) {
@@ -4499,16 +5224,32 @@ function currentStateReadbackFromDoctorStates(witness, formalState, runtimeAccep
   };
 }
 
-function validateCurrentStateReadback(value, witness) {
+function currentStateReadbackFromVerifiedProjectBytes(witness) {
+  const accepted = validateCurrentStateWitnessValue(witness);
+  return {
+    reader: "current-state project byte readback",
+    currentStateDigest: accepted.currentStateDigest,
+    sourceConservationEntryCount: accepted.sourceConservation?.entries.length ?? 0,
+    formalUserRulesAcceptanceDigest: accepted.formalUserRules?.acceptanceDigest ?? null,
+    runtimeAcceptanceDigest: accepted.runtimeAcceptance?.acceptanceDigest ?? null,
+    formalUserRules: null,
+    runtimeAcceptance: null
+  };
+}
+
+function validateCurrentStateReadback(value, witness, options = {}) {
   if (value == null) return null;
+  const projectByteReaderAllowed = options.allowProjectByteReader === true;
+  const readerAllowed = value.reader === "doctor shared current-state witness check"
+    || (projectByteReaderAllowed && value.reader === "current-state project byte readback");
   if (!value || typeof value !== "object" || Array.isArray(value)
-    || value.reader !== "doctor shared current-state witness check"
+    || !readerAllowed
     || value.currentStateDigest !== witness.currentStateDigest
     || (witness.sourceConservation && value.sourceConservationEntryCount !== witness.sourceConservation.entries.length)
     || (!witness.sourceConservation && value.sourceConservationEntryCount != null && value.sourceConservationEntryCount !== 0)
     || value.formalUserRulesAcceptanceDigest !== (witness.formalUserRules?.acceptanceDigest ?? null)
     || value.runtimeAcceptanceDigest !== (witness.runtimeAcceptance?.acceptanceDigest ?? null)) {
-    throw new Error("shared current-state doctor readback is detached from the accepted witness; no recovery writes attempted");
+    throw new Error("shared current-state readback is detached from the accepted witness; no recovery writes attempted");
   }
   return value;
 }
@@ -8065,6 +8806,7 @@ Usage:
   agent-handoff-kit doctor [--root <path>]
   agent-handoff-kit closeout-status [--root <path>]
   agent-handoff-kit finalize-closeout [--root <path>]
+  agent-handoff-kit reconcile-current-state [--dry-run] [--yes] --manifest <sha256> [--root <path>]
 
 Commands:
   init      Plan or install missing core files and rule packs.
@@ -8072,6 +8814,7 @@ Commands:
   doctor    Check required installed files.
   closeout-status  Render the state-bound closeout card after a full closeout.
   finalize-closeout  Bind legal post-upgrade closeout state edits before doctor.
+  reconcile-current-state  Bind intentional current-state source changes without overwriting project files.
 
 中文速讀：
   ✅ 第一次用：先在項目資料夾執行 init。

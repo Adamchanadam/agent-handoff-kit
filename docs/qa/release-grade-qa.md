@@ -15,6 +15,15 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
+## v0.3.52 candidate status
+
+- 狀態：未提交的本地 source candidate integration。範圍只包括 manifest-bound、no-project-content-overwrite 的 `reconcile-current-state` 根修，以及 continuity startup 的可選 display-only 動態 task title。v0.3.51 仍是已發布版本；本段不代表 clean freeze、formal full、release 或 postpublish PASS。
+- 已有組件證據：根修 final reviewer task `019f9628-466c-78d2-bad8-12021cfbede4` PASS；動態標題 reviewer task `019f97cc-5b74-7041-84e8-77532682c8cc`、nonce `AHK-TITLE-REVIEW-20260725-7C4E91B2` PASS。未獲審閱授權的 handshake-only task 不作證據。
+- 根修邊界：一個 `reconcile-current-state` 命令、deterministic manifest、verified in-memory plan、zero project-content overwrite，以及 reconciliation command/mode 專用的 readback / no-backup / recovery authority；原 init / upgrade / finalize / doctor / closeout / Gate 5 / archive migration / recovery 契約不得放寬。
+- 標題邊界：平台可安全讀回及控制標題時才可使用；只用已載入事實，保留 informative title，不支援時靜默略過。標題不是狀態、進度、健康結果、完成證據或額外授權。
+- 本階段 dirty-state 證據：正式 generator 已從 npm v0.3.51 套件產生 21-file contract，並與 remote tag / GitHub Release 交叉核對；official-origin catalog、startup-status-only、pack scenarios、QA manifest、focused / full post-upgrade closeout-finalize、upgrade-safety、R-034 Gate 5 closure / freeze 及 `candidate-preflight --candidate 0.3.52` 均通過。這只證明未提交來源整合可進入下一個本地 commit 封包。
+- 明確排除：clean commit、候選提交後的雙語獨立審閱、完整 release-readiness / full evidence、push、tag、GitHub Release、npm publish、postpublish、公開同步及真實使用者專案執行。
+
 ## v0.3.51 candidate status
 
 - 狀態：本地 source candidate，尚未發布。目標是修補 source-conservation 範圍缺陷：Gate 5 whole-root discovery 保留為唯讀安全證據，但 protected current-state witness 只綁定 known-Kit-reachability / transaction / archive migration / installed contract coverage。普通 user-owned root files 正常變更不得永久 poison `doctor` 或 `closeout-status`；managed-core、rule-pack、formal-route、archive migration 與 closeout state 仍 fail closed。正式 push、tag、GitHub Release、npm publish 後仍須以 registry / release / npx readback 驗證。

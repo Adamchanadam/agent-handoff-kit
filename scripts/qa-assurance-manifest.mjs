@@ -303,16 +303,16 @@ export const POST_UPGRADE_STATE_COMPOSITIONS = Object.freeze([
     baseline: "published v0.3.41 npm artifact upgraded by published v0.3.45 npm artifact",
     ownershipDelta: "v0.3.45 accepted current-state witness plus legacy lowercase archive",
     transactionPhase: "dry-run then committed upgrade",
-    filesystemSemantics: "legacy dev/session_log_archive to canonical dev/SESSION_LOG_archive",
-    postUpgradeAction: "normal closeout, finalize-closeout, and restart",
+    filesystemSemantics: "legacy dev/session_log_archive is historical evidence, not generic current-state acceptance",
+    postUpgradeAction: "generic doctor/rebind remains fail-closed; reconcile-current-state rejects uncontrolled nested/unlisted legacy inventory",
     deliveryArtifact: "packed candidate tarball",
     requiredTriples: [
       "transaction phase x ownership delta x post-upgrade action",
       "published lineage x packed candidate artifact x closeout/finalize",
       "filesystem semantics x path/casing migration x recovery",
-      "archive migration history x later source-conservation rebind x doctor authority"
+      "archive migration history x generic rebind rejection x qualified archive group fail-closed"
     ],
-    expected: "dry-run is non-mutating; transaction canonicalizes nested archive bytes without clobber; a later real upgrade without a new archive migration can retire the schema 3 witness through fresh source-conservation rebind; rollback and pre-durable crash recovery retry; closeout/finalize/restart remain healthy"
+    expected: "dry-run is non-mutating; uncontrolled legacy nested/unlisted archive inventory remains blocked until the single current-state reconciliation plan can verify a canonical archive group"
   }),
   composition("schema2-state-only-supersession-closeout", {
     baseline: "published v0.3.41 npm artifact upgraded by published v0.3.45 npm artifact and packed candidate",
@@ -341,6 +341,27 @@ export const POST_UPGRADE_STATE_COMPOSITIONS = Object.freeze([
       "failure semantics x managed/formal drift x bounded current-state authority"
     ],
     expected: "ordinary root-only sources can be retired from legacy all-root witnesses and are excluded from new current-state source conservation; managed core, rule-pack, formal-route, bridge, archive, and state-only rejection paths remain fail-closed"
+  }),
+  composition("formal-user-owned-source-reconciliation", {
+    baseline: "published v0.3.41 npm artifact upgraded by published v0.3.48 npm artifact into an anonymized Adam-AI-Instructions metadata shape",
+    ownershipDelta: "formally reachable user-owned docs, prompts, release notes, images, and legal closeout state change after a committed source-conservation witness",
+    transactionPhase: "blocked candidate upgrade/finalize, explicit no-overwrite reconcile-current-state with pre-recovery flags/digest gate, dry-run manifest, doctor, closeout-status, post-reconcile candidate upgrade, and repeat no-op",
+    filesystemSemantics: "whole-root inventory is diagnostic only; archive deltas are accepted only as one qualified canonical group inside reconcile-current-state; reconciliation writes only journal/report evidence and never overwrites project files; symlink/junction archive forms are capability-tested and rejected when creatable",
+    postUpgradeAction: "candidate upgrade remains fail-closed for stale witness drift; reconcile-current-state binds qualified archive group maintenance plus independently legal formal and closeout deltas; doctor and closeout-status pass after reconciliation",
+    deliveryArtifact: "packed candidate tarball",
+    requiredTriples: [
+      "owner class x reader/effect x current-state reconciliation",
+      "historical schema x supersession x formally reachable drift",
+      "independent oracle x generated state matrix x production CLI equivalence x randomized rename invariance",
+      "mutation/no-write x reconciliation journal x doctor authority",
+      "canonical archive inventory x INDEX bidirectional validation x manifest-bound current-state authority",
+      "missing, malformed, or wrong manifest / root, bytes, authority, qualification, and witness dry-run-to-execute drift x zero-write rejection",
+      "artifact-derived incident shape x repeat/no-op x invalid init recovery",
+      "post-reconcile upgrade x doctor/closeout x no-op rerun",
+      "empty/partial/invalid/foreign/unreadable lock, owner-lock race, prepared/committed-journal/report/unlock recovery x pre-recovery bound reconciliation manifest x no-overwrite readback x fail-closed managed/rule-pack drift",
+      "canonical archive filesystem form x symlink/junction/reparse capability x fail-closed inventory"
+    ],
+    expected: "formally reachable user-owned drift no longer creates a permanent health dead-end; archive state is accepted only as a qualified canonical group in the single manifest-bound reconcile-current-state plan; managed contract, transaction, invalid init, and malformed archive paths remain fail-closed"
   })
 ]);
 

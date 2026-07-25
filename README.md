@@ -2,7 +2,7 @@
 
 English: [README.en.md](README.en.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-原始碼套件版本：`v0.3.51`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
+原始碼套件版本：`v0.3.52`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
@@ -88,6 +88,8 @@ Start Agent Handoff
 ```
 
 中文可說「開工」。
+
+若目前平台能安全讀回並控制對話標題，單獨開工可順手把過於籠統或過時的標題改成簡潔的「`<項目名稱>｜<主要動作>`」。它只使用開工時已載入的事實，不為命名額外讀檔或連網；已有清楚標題便保留，不支援標題控制時則靜默略過。標題只供顯示，不代表項目狀態、進度、完成證據或額外授權。
 
 若 AI 還未指向你的專案資料夾，才使用帶路徑啟動句：
 

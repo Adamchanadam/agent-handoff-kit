@@ -30,7 +30,7 @@ const pinnedV041Artifact = {
   sha1: R034_ARTIFACT_CONTRACT.sha1,
   integrity: R034_ARTIFACT_CONTRACT.integrity
 };
-const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, writes, network access, or opt-out execution wording.";
+const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, one optional display-only title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out execution wording.";
 
 await main();
 
@@ -151,9 +151,18 @@ async function main() {
     "Pack loading is normally silent",
     "Show the startup card only for explicit continuity startup",
     "A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery",
+    "one optional display-only title update when safely supported",
     "the end of the turn",
-    "It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, writes, network access, or opt-out wording",
+    "It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out wording",
     "A concrete objective found only in loaded state is not authority to complete it",
+    "current-title readback and title control",
+    "Replace only a generic or stale title",
+    "keep an informative title",
+    "Use `<project name>｜<primary action>` from facts already loaded for startup",
+    "Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title",
+    "must not contain progress, completion, status, task/session IDs, absolute paths, secrets, or unverified facts",
+    "skip silently",
+    "display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth",
     "開工，繼續完成目前目標",
     "Agent Handoff Kit v<version>",
     "Never print the literal placeholder `v<version>`",

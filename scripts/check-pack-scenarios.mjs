@@ -363,16 +363,26 @@ function assertOnboardingDecisionCases() {
   assertIncludes(core, [
     "Clear continuity intent such as \"開工\"",
     "A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery",
+    "one optional display-only title update when safely supported",
     "and then the end of the turn",
-    "It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, writes, network access",
+    "It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions",
     "A concrete objective found only in loaded state is not authority to complete it",
+    "current-title readback and title control",
+    "Replace only a generic or stale title",
+    "keep an informative title",
+    "Use `<project name>｜<primary action>` from facts already loaded for startup",
+    "a concrete same-message task first",
+    "the loaded current objective plus recommended next action",
+    "Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title",
+    "skip silently",
+    "display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth",
     "開工，繼續做到下一個 blocker",
     "A direct ordinary task begins without a startup card or onboarding ceremony",
     "If no executable objective remains after state reading"
   ], "continuity startup core boundary");
   assert(!core.includes("If the same message or loaded state contains a concrete objective, begin its first safe action in the same response"), "plain 開工 still turns a loaded objective into same-turn full-task authority");
   assert(!core.includes("at most one bounded, low-cost, reversible first checkpoint"), "plain 開工 still permits a task checkpoint");
-  console.log("ok: 開工 only -> restore minimum state, show card/status, then return control");
+  console.log("ok: 開工 only -> restore minimum state, optionally update display title, show card/status, then return control");
   console.log("ok: 開工 + explicit continuation -> may proceed under the normal task rules");
   console.log("ok: direct ordinary task -> no startup ceremony");
   console.log("ok: 新手，教我用 -> onboarding");

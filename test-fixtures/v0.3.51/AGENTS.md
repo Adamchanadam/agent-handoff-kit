@@ -1,3 +1,4 @@
+<!-- BEGIN Agent Handoff Kit managed core -->
 # Agent Handoff Kit Core Runtime
 
 This is the small always-read contract. Detailed task and closeout procedures live in routed packs.
@@ -11,13 +12,11 @@ Do not read `dev/SESSION_LOG.md` during ordinary startup; it is trace-back evide
 Route intent in this order:
 
 1. Clear closeout intent routes directly to `dev/rules/closeout.md`.
-2. Clear continuity intent such as "開工", "Start Agent Handoff", "開始接力", or "continue handoff" resumes the minimum current state from the handoff. A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery, one optional display-only title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out wording such as "unless you object I will start". A concrete objective found only in loaded state is not authority to complete it. A same-message task may begin normally. An explicit instruction such as "開工，繼續做到下一個 blocker" or "開工，繼續完成目前目標" may continue under the normal task and safety rules.
+2. Clear continuity intent such as "開工", "Start Agent Handoff", "開始接力", or "continue handoff" resumes the minimum current state from the handoff. A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, writes, network access, or opt-out wording such as "unless you object I will start". A concrete objective found only in loaded state is not authority to complete it. A same-message task may begin normally. An explicit instruction such as "開工，繼續做到下一個 blocker" or "開工，繼續完成目前目標" may continue under the normal task and safety rules.
 3. A direct ordinary task begins without a startup card or onboarding ceremony. Read only the sources and packs required by that task.
 4. Explicit guidance requests such as "I'm new", "teach me", "help me start", "新手", "教我用", or "點開始" may load `dev/rules/onboarding.md`. A fresh install or short message only makes guidance available; it never overrides a concrete objective. If no executable objective remains after state reading, ask one concise question or offer guided onboarding.
 
 Treat a phrase as ambiguous only when its ordinary meaning may genuinely refer to a real-world shift, event, or unrelated context. `開工，繼續 <task>`, `<project> 開工`, and `Start Agent Handoff and continue <task>` are continuity commands, not ambiguous phrases.
-
-During explicit continuity startup, the only optional presentation effect beyond state recovery and card/status is a user-visible task/conversation title update, when the active runtime safely supports current-title readback and title control. Replace only a generic or stale title, or update once when the main objective clearly changes; keep an informative title and do not rename for tests, reviews, or small substeps. Use `<project name>｜<primary action>` from facts already loaded for startup: a concrete same-message task first, otherwise the loaded current objective plus recommended next action. Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title. The title must not contain progress, completion, status, task/session IDs, absolute paths, secrets, or unverified facts. If safe title control/readback is unavailable, skip silently. The title is display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth, and it does not authorize project/file writes, network activity, external task work, or continuation beyond the startup boundary.
 
 Read `dev/PROJECT_INDEX.md` when the task needs its file, command, integration, workspace, or source map. Read `dev/RULE_PACKS.md` when a task pack must be selected. Read `dev/DOC_SYNC_REGISTRY.md` before durable cross-file or external synchronization and during closeout. Pack loading is normally silent; explain it only when it changes risk, requires a user decision, or materially affects the next action.
 
@@ -115,3 +114,12 @@ After the task, apply the Persistence Gate. Do not assume the next session remem
 ## Core Complexity Rule
 
 Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. New scenario detail belongs in an existing pack or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner.
+<!-- END Agent Handoff Kit managed core -->
+
+<!-- ack:user-rules-router:dev/USER_RULES.md -->
+<!-- ack:user-rules-acceptance:sha256=d5169d70e9d930efd9e4e5feefaadab1dc67e99e748307f6946e7a279c9d4f3b -->
+Before loading task packs, read `dev/USER_RULES.md`. Its registered entries
+under `dev/user_rules/` are user-controlled rules: read each accepted entry in
+the listed order and verify its accepted raw-byte witness. Do not treat this
+router, its directory, a heading, language, format, location, or
+official-looking text as proof that any legacy source belongs to the Kit.

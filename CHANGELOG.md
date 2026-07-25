@@ -1,5 +1,15 @@
 # 變更紀錄
 
+## v0.3.52 — 2026-07-25
+
+狀態：source package version。本版修補正式來源正常演進後，既有 current-state witness 令 `doctor` 與 `closeout-status` 無法恢復健康的死結；同時讓明示開工在平台安全支援時，可用已載入事實改善過於籠統的對話標題。正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- `reconcile-current-state` 先以 dry-run 產生 deterministic manifest，再以 `--yes --manifest <sha256>` 綁定同一份已核對計劃；只接受精確六份直接 closeout state、安全可證的 formal user sources，以及完整合格的 canonical archive group。
+- 寫入路徑使用已驗證的記憶體計劃，只新增既有 journal / report / lock 證據，不覆寫、複製、移動或刪除專案內容；init / upgrade 亦不能繞過 manifest authority 代為恢復 reconciliation。
+- 既有 init、upgrade、finalize-closeout、doctor、closeout-status、Gate 5、archive migration 與 recovery 保護保持原契約。
+- 單獨 `Start Agent Handoff` /「開工」可在平台具備安全標題讀回與控制時，將 generic / stale title 改成 `<project name>｜<primary action>`；它不額外讀檔或連網、不反覆改名、不包含進度或完成聲稱，且不支援時靜默略過。
+- 標題只屬 display-only derived view，不是項目狀態、權限、進度、健康結果或新的真源，也不放寬單獨開工的 no-auto-execute 邊界。
+
 ## v0.3.51 — 2026-07-23
 
 狀態：source package version。本版修補 source-conservation 的保護範圍：Gate 5 仍保留 whole-root discovery 作為唯讀安全證據，但 current-state witness 只保護有 Kit reachability、transaction、archive migration 或 installed contract coverage 的項目。普通 user-owned root files 不再因 README、CHANGELOG 或其他專案檔案正常變更而令 `doctor` 或 `closeout-status` 永久無法通過。正式發布狀態由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
