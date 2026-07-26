@@ -17,11 +17,39 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 ## v0.3.53 candidate status
 
-- 狀態：Public source candidate，尚未 clean commit、full、push、tag、GitHub Release、npm publish 或 postpublish readback。本段只記錄 source candidate 狀態，不是 release-ready、full PASS、tarball PASS 或發布完成聲稱。
+- 狀態：Public source candidate；source-review freeze commit `afc49fc2346c2b4709f60184106bf8fae0e7f1d8` is clean and R4 product accepted. Formal full previously stopped only because the v0.3.53 bilingual independent-review sections were missing; R5 independently accepted the four changed bilingual pairs below. This evidence-only correction is not full PASS, release PASS, push, tag, GitHub Release, npm publish, or postpublish readback.
 - 已接受產品 source review：R4 final frozen review receipt nonce `CER-AHK-R4-BATCH14-CORR2-REVIEW-20260726-01` returned `accepted_for_product_integration` with zero Critical / Major / Minor findings. It accepts the v0.3.53 Public product integration candidate after the BATCH14 / CORR2 PROJECT_INDEX byte-preservation correction, including scoped typed inventory / inert generic references / doctor non-discovery、dry-run/apply preflight parity and lock revalidation、legacy witness retirement、single Stack version parser/startup boundary、PROJECT_INDEX visible-Markdown authority / legal transforms, and the related obsolete QA-owner convergence.
-- Frozen scope / C matrix：Public remains on `main` at `ea80f8d2771f3562f54a841cf55b31a280a8553a` with 37 tracked changes/deletions plus 4 untracked candidate paths. C reports the affected product matrix passed, including syntax, upgrade-safety, startup-status-only, stateful raw, Gate 5 closure / transaction-window, post-upgrade closeout/finalize, public-prototype, inventory, QA assurance, quick, candidate-preflight `0.3.53`, npm pack dry-run with 34 files, and diff-check. This is still source-candidate evidence, not full release evidence.
+- Frozen scope / C matrix：R4 accepted the product candidate at source level, then Phase A froze it as clean commit `afc49fc2346c2b4709f60184106bf8fae0e7f1d8` for review. C reports the affected product matrix passed, including syntax, upgrade-safety, startup-status-only, stateful raw, Gate 5 closure / transaction-window, post-upgrade closeout/finalize, public-prototype, inventory, QA assurance, quick, candidate-preflight `0.3.53`, npm pack dry-run with 34 files, and diff-check. This is still source-candidate / evidence-prep history, not full release evidence.
 - 發布打包邊界：本候選只把已接受產品變更包裝成 v0.3.53 source candidate。55-item ledger 現在 53 項完成；剩餘 34 Public clean export-ready / clean candidate identity 與 36 commit / push / tag / release / publish / installable v0.3.53。正式 release 仍須 clean candidate commit、candidate evidence、full gate、push、tag、GitHub Release、npm publish 與 postpublish readback 逐項重綁。
 - official-origin lineage：v0.3.52 已由既有 generator 從 npm package、remote tag 與 GitHub Release 重建到 official-origin catalog / fixture；v0.3.53 仍不可進入 catalog，直到它成為正式發布來源。
+
+### Bilingual README semantic gate（v0.3.53，PASS）
+
+- Reviewer：task `019fa03a-c35a-7433-8370-7af46130e195`；nonce `CER-AHK-R5-BILINGUAL-20260726-01`；fresh independent read-only semantic review.
+- `README.md` SHA-256 `148640BE725D330D89D3142B1F15242148C276869E2515A1C123657431AA3AF3`
+- `README.en.md` SHA-256 `B44312DBD5B45B7F162168ABFB87424641B1AAEA384C9BC234A313391BF35421`
+- Verdict: **PASS** — English preserves the Chinese README purpose, start path, local-folder requirement, startup/closeout behavior, safety boundaries, external-tool ownership, companion-project relationship, navigation and v0.3.53 release-state note.
+
+### Bilingual practical-guide semantic gate（v0.3.53，PASS）
+
+- Reviewer/provenance：task `019fa03a-c35a-7433-8370-7af46130e195`；nonce `CER-AHK-R5-BILINGUAL-20260726-01`.
+- `agent-handoff-kit-guide.html` SHA-256 `641711D20D9B77155C7FB167A1E3EE1A2D9073288F99C24D691E199E20F6F925`
+- `agent-handoff-kit-guide.en.html` SHA-256 `F4DD68D83501391846B75618283481BF82881533383224EB69399ECE1078F173`
+- Verdict: **PASS** — English preserves the three case flows, task-authorization boundary, install/doctor examples, high-risk preview, document bridge, external writes, closeout/readback and v0.3.53 sample/version claims.
+
+### Bilingual AI-install semantic gate（v0.3.53，PASS）
+
+- Reviewer/provenance：task `019fa03a-c35a-7433-8370-7af46130e195`；nonce `CER-AHK-R5-BILINGUAL-20260726-01`.
+- `agent-handoff-kit-ai-install.html` SHA-256 `43D80A74AD684CF3E6535CBC5CDD3581CC7D5AC71A2092AC288BFCDA8513AA6D`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `CF33EDE56DD1F4E7A347B18CD547934DBD9E84A6349B1E45203401033EFE3E3A`
+- Verdict: **PASS** — English preserves scope, root confirmation, zero-write stop, init/upgrade choice, dry-run, conflict/readback, doctor and v0.3.53 version note.
+
+### Bilingual introduction semantic gate（v0.3.53，PASS）
+
+- Reviewer/provenance：task `019fa03a-c35a-7433-8370-7af46130e195`；nonce `CER-AHK-R5-BILINGUAL-20260726-01`.
+- `agent-handoff-kit-intro.html` SHA-256 `63C428AED8E35D95693B6EFFF8AE5ED9548967C977BA7D25F543979F211F1F52`
+- `agent-handoff-kit-intro.en.html` SHA-256 `8B4C484A5D6DD0ACFA57615D45E72F20A0C2E08A82EE1A3B64F115D945D54701`
+- Verdict: **PASS** — English preserves beginner problem framing, start/closeout model, work-mode and bridge scope, onboarding, safety guardrails, layered files, companion-tool positioning, navigation and v0.3.53 claims.
 
 ### Cross-mind evidence 9-trigger table（v0.3.53）
 
