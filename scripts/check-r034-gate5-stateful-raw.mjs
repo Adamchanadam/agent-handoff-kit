@@ -7,13 +7,17 @@ import { tmpdir as systemTmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
+import { parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import { materializeVerifiedV038ArtifactFixture } from "./r034-v038-artifact-fixture.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const candidateRoot = path.resolve(__dirname, "..");
 const qaTmp = process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "C:\\tmp" : systemTmpdir());
 const catalog = await loadOfficialOriginCatalog();
-const statefulTargets = ["START_NEXT_SESSION_PROMPT.txt", "dev/SESSION_HANDOFF.md", "dev/PROJECT_INDEX.md"];
+const packageVersion = JSON.parse(readFileSync(path.join(candidateRoot, "package.json"), "utf8")).version;
+const preservedStatefulTargets = ["START_NEXT_SESSION_PROMPT.txt", "dev/SESSION_HANDOFF.md", "dev/SESSION_LOG.md"];
+const projectIndexRel = "dev/PROJECT_INDEX.md";
+const statefulTargets = [...preservedStatefulTargets, projectIndexRel];
 
 main().catch((error) => {
   console.error(error.stack || error.message);
@@ -36,17 +40,25 @@ async function main() {
   const result = cli(["upgrade", "--yes", "--root", project], "stateful raw-byte green");
   const text = output(result);
   assert(result.status === 0 && text.includes("migration committed") && text.includes("project health: passed"), `stateful whole-file preserve blocked safe Kit updates: ${text}`);
-  assert(text.includes("preserve: 3"), "upgrade did not disclose all root/version stateful preserves");
-  for (const targetRel of statefulTargets) {
+  assert(text.includes("preserve: 3"), "upgrade did not disclose the current whole-file stateful preserves");
+  assert(text.includes("merge:") && text.includes("unique real PROJECT_INDEX Stack template-version row"), "upgrade did not disclose the PROJECT_INDEX metadata merge");
+  for (const targetRel of preservedStatefulTargets) {
     assert(readBuffer(path.join(project, targetRel)).equals(before.get(targetRel)), `${targetRel}: stateful preserve changed raw bytes`);
   }
+  const projectIndexBefore = before.get(projectIndexRel).toString("utf8");
+  const projectIndexAfter = readBuffer(path.join(project, projectIndexRel)).toString("utf8");
+  assert(!readBuffer(path.join(project, projectIndexRel)).equals(before.get(projectIndexRel)), "PROJECT_INDEX version metadata merge did not change bytes");
+  assert(parseProjectIndexTemplateVersion(projectIndexBefore) === "0.3.38", "fixture PROJECT_INDEX did not expose the expected old Stack version");
+  assert(parseProjectIndexTemplateVersion(projectIndexAfter) === packageVersion, "PROJECT_INDEX version metadata merge did not materialize the current package version");
+  assert(normalizeProjectIndexVersionRow(projectIndexAfter) === normalizeProjectIndexVersionRow(projectIndexBefore), "PROJECT_INDEX metadata merge changed bytes outside the unique Stack version row");
   assert(existsSync(path.join(project, "dev", "rules", "closeout.md")), "stateful preserve prevented an unrelated safe Kit update");
 
   const transaction = latestTransaction(project);
   const accepted = transaction.journal.runtimeAcceptance;
   assert(accepted?.schemaVersion === 4, "stateful whole-file acceptance did not use schema v4");
-  const entries = statefulTargets.map((targetRel) => accepted.entries.find((entry) => entry.targetRel === targetRel));
+  const entries = preservedStatefulTargets.map((targetRel) => accepted.entries.find((entry) => entry.targetRel === targetRel));
   assert(entries.every(Boolean), "same runtime acceptance omitted a root/version stateful item");
+  assert(!accepted.entries.some((entry) => entry.targetRel === projectIndexRel), "PROJECT_INDEX metadata merge was falsely represented as whole-file runtime acceptance");
   for (const entry of entries) {
     const bytes = before.get(entry.targetRel);
     assert(entry.disposition === "preserve" && entry.conflictDecision === "non-exact-package-bytes" && entry.effectDecision === "preserve-unmodified-through-direct-stateful-formal-entry", `${entry.targetRel}: stateful preservation decision is incomplete`);
@@ -57,10 +69,15 @@ async function main() {
   assert(handoffEntry.activeReader.reader === "AGENTS.md" && handoffEntry.activeReader.via === "direct-formal-entry", "handoff formal reader is not bound to the active AGENTS entry");
   const startupEntry = entries.find((entry) => entry.targetRel === "START_NEXT_SESSION_PROMPT.txt");
   assert(startupEntry.activeReader.reader === "START_NEXT_SESSION_PROMPT.txt" && startupEntry.activeReader.via === "formal-startup-entry", "startup formal entry is not bound to its own raw bytes");
+  const projectIndexEntry = transaction.journal.entries.find((entry) => entry.targetRel === projectIndexRel);
+  assert(projectIndexEntry?.beforeHash && projectIndexEntry.afterHash && projectIndexEntry.beforeHash !== projectIndexEntry.afterHash, "PROJECT_INDEX transaction entry did not record a distinct metadata before/after identity");
+  assert(projectIndexEntry.reason?.includes("unique real PROJECT_INDEX Stack template-version row"), "PROJECT_INDEX transaction entry did not disclose the narrow version-row reason");
+  assert(projectIndexEntry.afterHash === sha(readBuffer(path.join(project, projectIndexRel))), "PROJECT_INDEX transaction after hash does not match readback bytes");
   assert(transaction.journal.currentStateWitness?.runtimeAcceptance?.acceptanceDigest === accepted.acceptanceDigest, "shared current-state witness did not bind stateful acceptance");
-  assert(transaction.journal.runtimeAcceptanceReadback?.reader === "doctor formal startup/direct AGENTS stateful runtime acceptance check", "post-transaction doctor did not fresh-read the stateful acceptance");
+  assert(transaction.journal.runtimeAcceptanceReadback?.reader?.includes("formal startup/direct AGENTS stateful entries"), "post-transaction doctor did not fresh-read the stateful acceptance");
   assert(transaction.journal.currentStateReadback?.runtimeAcceptanceDigest === accepted.acceptanceDigest, "success output did not use the same stateful acceptance digest");
   assert(transaction.report.includes(accepted.acceptanceDigest) && transaction.report.includes(transaction.journal.currentStateWitness.currentStateDigest), "report did not consume the same stateful/current-state identity");
+  assert(transaction.report.includes(projectIndexEntry.afterHash) && transaction.report.includes(projectIndexEntry.reason), "report did not disclose the PROJECT_INDEX metadata merge identity");
 
   const doctor = cli(["doctor", "--root", project], "stateful ordinary doctor");
   assert(doctor.status === 0 && output(doctor).includes("formal startup/direct AGENTS stateful") && output(doctor).includes("status: passed"), "ordinary doctor did not fresh-read stateful acceptance");
@@ -72,7 +89,7 @@ async function main() {
   const restored = cli(["doctor", "--root", project], "stateful reader restoration");
   assert(restored.status === 0 && output(restored).includes("status: passed"), "ordinary doctor did not recover after restoring stateful bytes");
 
-  console.log("GREEN: a raw-only pre-existing stateful drift is preserved whole; formal startup/direct AGENTS readers, report, doctor, and success consume one current-state acceptance, and reader/byte drift blocks doctor until restored.");
+  console.log("GREEN: raw-only handoff/startup stateful drift is preserved whole; PROJECT_INDEX updates only its Stack version row; report, doctor, and success consume truthful current-state identity, and reader/byte drift blocks doctor until restored.");
   console.log(`fixture: ${project}`);
   console.log(`artifact integrity: ${artifact.integrity}`);
   console.log(`transaction: ${transaction.journal.id}`);
@@ -113,3 +130,10 @@ function readBuffer(file) { return readFileSync(file); }
 function sha(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function output(result) { return `${result.stdout ?? ""}\n${result.stderr ?? ""}`; }
 function assert(condition, message) { if (!condition) throw new Error(message); }
+
+function normalizeProjectIndexVersionRow(text) {
+  const row = /^\| Agent Handoff Kit template version \| [^|\n]+ \| ([^|\n]+) \|$/m;
+  const matches = text.match(new RegExp(row.source, "gm")) ?? [];
+  assert(matches.length === 1, "PROJECT_INDEX does not have exactly one version row for normalization");
+  return text.replace(row, "| Agent Handoff Kit template version | <VERSION> | $1 |");
+}

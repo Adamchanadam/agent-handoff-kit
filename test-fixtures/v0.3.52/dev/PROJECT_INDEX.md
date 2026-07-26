@@ -6,7 +6,7 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 
 | Field | Value | Last verified |
 |---|---|---|
-| Agent Handoff Kit template version | 0.3.47 | current template version |
+| Agent Handoff Kit template version | 0.3.52 | current template version |
 | Runtime | TBD | TBD |
 | Framework | TBD | TBD |
 | Package manager | TBD | TBD |
@@ -39,7 +39,7 @@ Purpose: give a stateless AI a compact map of the project before it reads or edi
 | Test suite | TBD | TBD |
 | Runbook | TBD | TBD |
 | Public docs | TBD | TBD |
-| Durable artifact review | `dev/PROJECT_INDEX.md` + `dev/DOC_SYNC_REGISTRY.md` | After creating docs, generated outputs, specs, runbooks, checklists, research notes, or other durable artifacts, classify each file as indexed / synced / temporary / one-time evidence before completion; doctor validates explicit Kit contracts and formal typed user-rule paths only, not arbitrary project artifacts |
+| Generated Markdown review | `dev/PROJECT_INDEX.md` + `dev/DOC_SYNC_REGISTRY.md` | After creating Markdown docs, generated Markdown outputs, specs, runbooks, checklists, or research notes, classify each file as indexed / synced / temporary / one-time evidence before completion; other durable formats require human review because doctor scans Markdown only |
 
 ## Fact Base
 
@@ -113,8 +113,8 @@ Do not store credential values or machine-private paths here. Local machine-only
 
 | Check | Command | Run before | Last verified |
 |---|---|---|---|
-| Agent Handoff Kit doctor | `npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .` | closeout / Kit contract health / explicit registered-path checks | package latest |
-| Project governance check | Check newly created durable artifacts against `dev/PROJECT_INDEX.md` and `dev/DOC_SYNC_REGISTRY.md`; register, sync, consolidate, or explicitly classify as temporary / one-time evidence. This is an AI responsibility, not a root-discovery doctor scan. | closeout / durable file changes | unverified until project-specific command exists |
+| Agent Handoff Kit doctor | `npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .` | closeout / governance changes / generated Markdown artifact checks | package latest |
+| Project governance check | Check newly created Markdown against `dev/PROJECT_INDEX.md` and `dev/DOC_SYNC_REGISTRY.md`; register, sync, consolidate, or explicitly classify as temporary / one-time evidence. Review non-Markdown durable outputs manually. | closeout / durable file changes | unverified until project-specific command exists |
 
 ## Workspace Identity
 
@@ -136,7 +136,7 @@ Record this at closeout so the next AI can detect wrong-root or workspace drift.
 | UI behavior | TBD | build + visual/manual check |
 | Data model | TBD | migration/checks |
 | Governance behavior | `AGENTS.md`, `dev/*` | doc sync registry |
-| Durable artifacts | docs, generated outputs, project-specific reference folders, specs, runbooks, checklists, research notes | classify as indexed / synced / temporary / one-time evidence when created or modified by the AI; update `dev/PROJECT_INDEX.md` or `dev/DOC_SYNC_REGISTRY.md` when durable |
+| Generated Markdown | `docs/`, `outputs/`, root Markdown files, project-specific reference folders | classify as indexed / synced / temporary / one-time evidence; update `dev/PROJECT_INDEX.md` or `dev/DOC_SYNC_REGISTRY.md` when durable; review other formats manually |
 | Closeout/startup contract | `AGENTS.md`, `dev/rules/closeout.md`, `START_NEXT_SESSION_PROMPT.txt`, `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, `dev/PROJECT_INDEX.md` | hot-path reads stay minimal; lifecycle state agrees; log has no full prompt; prompt mirror regenerated from handoff at closeout |
 
 ## External Services

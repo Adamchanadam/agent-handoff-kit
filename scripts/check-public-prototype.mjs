@@ -6,6 +6,7 @@ import { tmpdir as systemTmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { freshInstallMappings, installedMappings, upgradeStateMappings } from "../bin/installed-file-contract.mjs";
+import { parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import { createFreshUserRuleAcceptance, parseUserRulesState, readFormalUserRules, userRulesAcceptanceDigest } from "../bin/user-rules-router.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -63,10 +64,12 @@ async function main() {
   assert(!installedPrompt.includes("If my message or the handoff already gives an executable task"), "initial START_NEXT_SESSION_PROMPT.txt still promotes a loaded objective into same-turn full-task authority");
   assert(installedPrompt.includes("A fresh install only makes guidance available; it does not force onboarding"), "initial START_NEXT_SESSION_PROMPT.txt missing onboarding eligibility boundary");
   assert(!installedPrompt.includes("Help me choose the right working scenario"), "initial START_NEXT_SESSION_PROMPT.txt still forces the legacy chooser path");
+  const installedProjectIndex = readFileSync(path.join(tempRoot, "dev", "PROJECT_INDEX.md"), "utf8");
+  assert(parseProjectIndexTemplateVersion(installedProjectIndex) === version, "fresh init PROJECT_INDEX Stack version does not match package version");
   const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor installed templates");
   assert(doctor.stdout.includes("status: passed"), "doctor output did not include status: passed");
   assert(doctor.stdout.includes("✅ 檢查通過"), "doctor output missing beginner-friendly passed message");
-  assert(doctor.stdout.includes("generated markdown governance checks: 1"), "doctor output missing generated Markdown governance check");
+  assert(!doctor.stdout.includes("generated markdown governance checks"), "doctor must not claim a generated Markdown root-discovery check");
   assert(!doctor.stdout.includes("項目首次安裝距今：未知"), "doctor did not recognize the current transaction directory timestamp");
   mkdirSync(path.join(tempRoot, "dev/governance_migrations/20260423T112233Z"), { recursive: true });
   const legacyAgeDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor legacy migration timestamp compatibility");
@@ -170,7 +173,7 @@ async function main() {
   assert(recoveredUserRules.rules.length === 2 && recoveredUserRules.rules[0].bytes.equals(userRuleBytes) && recoveredUserRules.rules[1].bytes.equals(laterUserRuleBytes), "restored router did not recover the exact accepted user rules");
   assert(run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor restored formal user-rules state").stdout.includes("status: passed"), "doctor did not recover after restoring accepted user-rules state");
   console.log("ok: formal user-rules reader binds ordered acceptance state, preserves fresh routing through core upgrade, rejects bypasses, and recovers exact registered bytes");
-  checkGeneratedMarkdownGovernanceDryRun();
+  checkUnregisteredMarkdownNonDiscovery();
   await checkUpdateNotice();
 
   const pack = runNpm(["pack", "--dry-run"], "npm package dry-run");
@@ -187,25 +190,27 @@ async function main() {
   console.log(`temp install root: ${tempRoot}`);
 }
 
-function checkGeneratedMarkdownGovernanceDryRun() {
-  const orphanRoot = path.join(tmpdir(), `ack-prototype-orphan-${Date.now()}`);
-  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", orphanRoot], "orphan Markdown dry-run bootstrap");
+function checkUnregisteredMarkdownNonDiscovery() {
+  const orphanRoot = path.join(tmpdir(), `ack-prototype-nondiscovery-${Date.now()}`);
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", orphanRoot], "unregistered Markdown non-discovery bootstrap");
   mkdirSync(path.join(orphanRoot, "outputs"), { recursive: true });
   writeFileSync(
     path.join(orphanRoot, "outputs/unregistered_design.md"),
-    "# Unregistered Design\n\nThis file should be registered or classified before completion.\n",
+    "# Unregistered Design\n\nThis file remains a human governance responsibility, not a doctor root-scan target.\n",
     "utf8"
   );
 
+  const beforeBytes = readFileSync(path.join(orphanRoot, "outputs/unregistered_design.md"));
   const doctor = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", orphanRoot], {
     cwd: root,
     encoding: "utf8"
   });
   const output = outputText(doctor);
-  assert(doctor.status !== 0, "doctor should fail when generated Markdown is left orphaned");
-  assert(output.includes("generated markdown governance checks"), "orphan Markdown dry-run did not fail generated Markdown governance check");
-  assert(output.includes("outputs/unregistered_design.md"), "orphan Markdown dry-run did not report the orphan file path");
-  console.log("ok: orphan Markdown dry-run");
+  assert(doctor.status === 0 && output.includes("status: passed"), "doctor should not fail on arbitrary unregistered Markdown");
+  assert(!output.includes("generated markdown governance checks"), "doctor still claims a generated Markdown root-discovery check");
+  assert(!output.includes("outputs/unregistered_design.md"), "doctor reported an arbitrary unregistered Markdown path");
+  assert(readFileSync(path.join(orphanRoot, "outputs/unregistered_design.md")).equals(beforeBytes), "doctor changed arbitrary unregistered Markdown bytes");
+  console.log("ok: unregistered Markdown non-discovery");
 }
 
 async function checkUpdateNotice() {
@@ -265,7 +270,7 @@ function runNpm(args, label) {
 }
 
 function expectedPackageFileCount() {
-  return 35;
+  return 34;
 }
 
 function runFailure(command, args, label, env = {}) {

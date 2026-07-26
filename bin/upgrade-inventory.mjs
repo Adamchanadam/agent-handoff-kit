@@ -3,6 +3,7 @@ import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { installedFileContracts, upgradeStateFileContracts, INSTALLED_FILE_CONTRACT_SCHEMA } from "./installed-file-contract.mjs";
 import { loadOfficialOriginCatalog } from "./official-origin-catalog.mjs";
+import { FORMAL_USER_RULES_ENTRY_ANCHOR, readFormalUserRules } from "./user-rules-router.mjs";
 
 export const UPGRADE_INVENTORY_SCHEMA = 1;
 export const GATE5_FROZEN_SET_SCHEMA = 2;
@@ -15,8 +16,9 @@ const formalEntryTargets = Object.freeze([
   "START_NEXT_SESSION_PROMPT.txt"
 ]);
 
-const dynamicDirectories = Object.freeze([
-  { relative: "dev/governance_migrations", classification: "transaction-state" },
+const transactionRegistryRoot = "dev/governance_migrations";
+
+const archiveDirectories = Object.freeze([
   { relative: "dev/SESSION_LOG_archive", classification: "session-log-archive" },
   { relative: "dev/session_log_archive", classification: "legacy-session-log-archive" }
 ]);
@@ -49,15 +51,13 @@ export async function buildUpgradeInventory({ root, contracts = installedFileCon
   const realRoot = await realpath(rootPath);
   const entries = new Map();
   const blockers = [];
-  const queue = [];
-  const queued = new Set();
 
   const addBlocker = (relative, reason) => {
     const key = `${relative}\0${reason}`;
     if (!blockers.some((item) => `${item.path}\0${item.reason}` === key)) blockers.push({ path: relative, reason });
   };
 
-  async function addFile(relative, classification, reachability = null, enqueueForReferences = false) {
+  async function addFile(relative, classification, reachability = null) {
     const normalized = normalizeProjectRelative(relative);
     if (!normalized) {
       addBlocker(String(relative), "reference escapes the selected project root");
@@ -102,10 +102,6 @@ export async function buildUpgradeInventory({ root, contracts = installedFileCon
     }
     entry.classifications.add(classification);
     if (reachability) entry.reachability.set(`${reachability.from}\0${reachability.via}`, reachability);
-    if (enqueueForReferences && entry.text != null && !queued.has(normalized)) {
-      queued.add(normalized);
-      queue.push(entry);
-    }
     return entry;
   }
 
@@ -114,27 +110,26 @@ export async function buildUpgradeInventory({ root, contracts = installedFileCon
     await addFile(
       contract.targetRel,
       "managed-contract",
-      isFormalEntry ? { from: "formal-entry", via: contract.targetRel } : { from: "managed-contract", via: contract.targetRel },
-      true
+      isFormalEntry ? { from: "formal-entry", via: contract.targetRel } : { from: "managed-contract", via: contract.targetRel }
     );
   }
 
-  for (const directory of dynamicDirectories) {
+  await addTransactionRegistry(transactionRegistryRoot);
+
+  for (const directory of archiveDirectories) {
     await addTree(directory.relative, directory.classification);
   }
 
-  for (const contract of contracts) {
-    if (!contract.targetRel.startsWith("dev/rules/")) continue;
-    const legacy = `dev/${path.posix.basename(contract.targetRel)}`;
-    await addFile(legacy, "legacy-rule-location", { from: "legacy-location", via: legacy }, true);
-  }
-
-  while (queue.length > 0) {
-    const source = queue.shift();
-    for (const reference of extractExplicitLocalReferences(source.text)) {
-      const target = normalizeProjectRelative(reference.path);
-      if (!target) continue;
-      await addFile(target, "formal-reference", { from: source.path, via: reference.via }, true);
+  const agentsEntry = entries.get("AGENTS.md");
+  if (agentsEntry?.text?.includes(FORMAL_USER_RULES_ENTRY_ANCHOR)) {
+    try {
+      const formal = await readFormalUserRules({ root: rootPath, allowActiveTransaction: true });
+      await addFile(formal.routerPath, "formal-user-rules-router", { from: formal.entryPath, via: formal.routerPath });
+      for (const rule of formal.rules) {
+        await addFile(rule.path, "formal-user-rule-content", { from: formal.routerPath, via: rule.path });
+      }
+    } catch (error) {
+      addBlocker("dev/USER_RULES.md", `formal user-rules state is unsafe: ${String(error?.message ?? error)}`);
     }
   }
 
@@ -164,13 +159,55 @@ export async function buildUpgradeInventory({ root, contracts = installedFileCon
     formalEntryTargets: formalEntryTargets.filter((target) => entries.has(target))
   });
 
+  async function addTransactionRegistry(relativeDirectory) {
+    const normalized = normalizeProjectRelative(relativeDirectory);
+    if (!normalized) {
+      addBlocker(String(relativeDirectory), "transaction registry escapes the selected project root");
+      return;
+    }
+    const absolute = path.resolve(rootPath, normalized);
+    const stats = await lstat(absolute).catch((error) => {
+      if (error?.code === "ENOENT") return null;
+      throw error;
+    });
+    if (!stats) return;
+    if (!stats.isDirectory() || stats.isSymbolicLink()) {
+      addBlocker(normalized, "transaction registry is not a safe real directory");
+      return;
+    }
+    const resolved = await realpath(absolute);
+    if (!isInside(realRoot, resolved)) {
+      addBlocker(normalized, "transaction registry resolves outside the selected project root");
+      return;
+    }
+    for (const item of await readdir(absolute, { withFileTypes: true })) {
+      const child = `${normalized}/${item.name}`;
+      const childAbsolute = path.join(absolute, item.name);
+      const childStats = await lstat(childAbsolute).catch((error) => {
+        if (error?.code === "ENOENT") return null;
+        throw error;
+      });
+      if (!childStats) continue;
+      if (childStats.isFile()) continue;
+      if (childStats.isSymbolicLink() || !childStats.isDirectory()) {
+        addBlocker(child, "transaction registry child is not a safe real directory");
+        continue;
+      }
+      const childResolved = await realpath(childAbsolute);
+      if (!isInside(realRoot, childResolved)) {
+        addBlocker(child, "transaction registry child resolves outside the selected project root");
+        continue;
+      }
+      await addFile(`${child}/transaction.json`, "transaction-state", { from: "transaction-registry", via: normalized });
+    }
+  }
+
   async function addTree(relativeDirectory, classification) {
     const normalized = normalizeProjectRelative(relativeDirectory);
     if (!normalized) {
       addBlocker(String(relativeDirectory), "dynamic directory escapes the selected project root");
       return;
     }
-    if (!(await hasExactProjectPath(rootPath, normalized))) return;
     const absolute = path.resolve(rootPath, normalized);
     const stats = await lstat(absolute).catch((error) => {
       if (error?.code === "ENOENT") return null;
@@ -188,36 +225,29 @@ export async function buildUpgradeInventory({ root, contracts = installedFileCon
     }
     for (const item of await readdir(absolute, { withFileTypes: true })) {
       const child = `${normalized}/${item.name}`;
-      if (item.isDirectory()) await addTree(child, classification);
-      else if (item.isFile()) await addFile(child, classification, { from: "dynamic-state", via: normalized }, false);
-      else addBlocker(child, "dynamic inventory source is not a regular file or directory");
+      const childAbsolute = path.join(absolute, item.name);
+      const childStats = await lstat(childAbsolute).catch((error) => {
+        if (error?.code === "ENOENT") return null;
+        throw error;
+      });
+      if (!childStats) continue;
+      if (childStats.isSymbolicLink()) {
+        addBlocker(child, "dynamic inventory source is not a safe real file or directory");
+      } else if (childStats.isDirectory()) {
+        await addTree(child, classification);
+      } else if (childStats.isFile()) {
+        await addFile(child, classification, { from: "dynamic-state", via: normalized });
+      } else {
+        addBlocker(child, "dynamic inventory source is not a regular file or directory");
+      }
     }
   }
 }
 
-async function hasExactProjectPath(rootPath, normalized) {
-  const parts = normalized.split("/");
-  let current = rootPath;
-  for (const part of parts) {
-    const entries = await readdir(current, { withFileTypes: true }).catch((error) => {
-      if (error?.code === "ENOENT") return null;
-      throw error;
-    });
-    if (!entries) return false;
-    const exact = entries.find((entry) => entry.name === part);
-    if (!exact) return false;
-    current = path.join(current, exact.name);
-  }
-  return true;
-}
-
 /**
- * Gate 5 needs a stronger closure than the shared semantic-candidate
- * inventory: every regular project source under the selected root receives a
- * raw-byte witness, even when no currently known Kit reader reaches it.  The
- * latter is recorded as explicitly outside the known Kit reachability set,
- * never silently omitted.  This is read-only evidence; it does not choose an
- * upgrade action or make an unknown source Kit-managed.
+ * Gate 5 current scope is the typed reachable inventory. It deliberately does
+ * not walk the project root: ordinary files outside installed/runtime/formal
+ * user-rule/transaction/archive contracts are outside machine authority.
  */
 export async function buildGate5RootSourceInventory({ root, reachableInventory } = {}) {
   if (!root) throw new Error("Gate 5 root-source inventory requires a project root");
@@ -232,96 +262,27 @@ export async function buildGate5RootSourceInventory({ root, reachableInventory }
   if (!rootStats?.isDirectory() || rootStats.isSymbolicLink()) {
     throw new Error("Gate 5 root-source inventory root must be a real directory");
   }
-  const rootReal = await realpath(rootPath);
-  const reachableByPath = new Map(reachableInventory.entries.map((entry) => [entry.path, entry]));
   const entries = new Map();
   const blockers = [...reachableInventory.blockers];
-  const exclusions = Object.freeze([{ path: ".git", reason: "version-control metadata is not project content unless a formal reader explicitly reaches it" }]);
 
-  const addBlocker = (relative, reason) => {
-    const key = `${relative}\0${reason}`;
-    if (!blockers.some((item) => `${item.path}\0${item.reason}` === key)) blockers.push({ path: relative, reason });
-  };
-
-  async function addFile(relative) {
-    const normalized = normalizeProjectRelative(relative);
-    if (!normalized) {
-      addBlocker(String(relative), "root-source path escapes the selected project root");
-      return;
-    }
-    const absolute = path.resolve(rootPath, normalized);
-    if (!isInside(rootPath, absolute)) {
-      addBlocker(normalized, "root-source path escapes the selected project root");
-      return;
-    }
-    const stats = await lstat(absolute).catch((error) => {
-      if (error?.code === "ENOENT") return null;
-      throw error;
-    });
-    if (!stats) return;
-    if (stats.isSymbolicLink()) {
-      addBlocker(normalized, "symbolic links and junctions are not accepted as root-source inputs");
-      return;
-    }
-    if (!stats.isFile()) {
-      addBlocker(normalized, "root-source input is not a regular file");
-      return;
-    }
-    const resolved = await realpath(absolute);
-    if (!isInside(rootReal, resolved)) {
-      addBlocker(normalized, "root-source input resolves outside the selected project root");
-      return;
-    }
-    const bytes = await readFile(absolute);
-    const reachable = reachableByPath.get(normalized);
-    // A same-name dev/<rule>.md probe is discovery-only. It is neither a
-    // package contract nor a formal reader/effect witness, so Gate 5 must not
-    // let that path shape turn an ordinary root source into a Kit item. Actual
-    // formal references remain intact and continue to establish reachability.
-    const classifications = (reachable?.classifications ?? []).filter((classification) => classification !== "legacy-rule-location");
-    const reachability = (reachable?.reachability ?? []).filter((entry) => entry.from !== "legacy-location");
-    entries.set(normalized, Object.freeze({
-      path: normalized,
-      sha256: sha256(bytes),
-      bytes: bytes.length,
+  for (const reachable of reachableInventory.entries) {
+    const classifications = reachable.classifications ?? [];
+    const reachability = reachable.reachability ?? [];
+    entries.set(reachable.path, Object.freeze({
+      path: reachable.path,
+      sha256: reachable.sha256,
+      bytes: reachable.bytes,
       classifications: Object.freeze(["root-source", ...classifications].sort()),
       reachability: Object.freeze([...reachability]
         .sort((left, right) => `${left.from}\0${left.via}`.localeCompare(`${right.from}\0${right.via}`)))
     }));
-  }
-
-  async function walk(relative = "") {
-    const absolute = relative ? path.join(rootPath, relative) : rootPath;
-    const children = await readdir(absolute, { withFileTypes: true });
-    children.sort((left, right) => left.name.localeCompare(right.name));
-    for (const child of children) {
-      const childRelative = relative ? `${relative}/${child.name}` : child.name;
-      if (childRelative === ".git") continue;
-      if (child.isSymbolicLink()) {
-        addBlocker(childRelative, "symbolic links and junctions are not accepted as root-source inputs");
-      } else if (child.isDirectory()) {
-        await walk(childRelative);
-      } else if (child.isFile()) {
-        await addFile(childRelative);
-      } else {
-        addBlocker(childRelative, "root-source input is not a regular file or directory");
-      }
-    }
-  }
-
-  await walk();
-  for (const reachable of reachableInventory.entries) {
-    if (!entries.has(reachable.path)) {
-      addBlocker(reachable.path, "reachable inventory source was absent from the root-source scan");
-    }
   }
   const frozenEntries = [...entries.values()].sort((left, right) => left.path.localeCompare(right.path));
   const sortedBlockers = blockers.sort((left, right) => `${left.path}\0${left.reason}`.localeCompare(`${right.path}\0${right.reason}`));
   const body = {
     schemaVersion: GATE5_ROOT_SOURCE_INVENTORY_SCHEMA,
     entries: frozenEntries,
-    blockers: sortedBlockers,
-    exclusions
+    blockers: sortedBlockers
   };
   return Object.freeze({
     ...body,
@@ -353,7 +314,7 @@ export async function freezeGate5Set({ root, contracts = installedFileContracts,
     transition: transitionContracts.map(({ sourceRel, targetRel, strategy }) => ({ sourceRel, targetRel, strategy }))
   };
   const contractDigestSha256 = sha256(Buffer.from(`${JSON.stringify(contractBody)}\n`, "utf8"));
-  const installedTemplateVersion = await readInstalledTemplateVersion(rootPath);
+  const installedTemplateVersion = await readProjectIndexTemplateVersion(rootPath);
   const release = installedTemplateVersion ? officialCatalog.releases?.[installedTemplateVersion] : null;
   const entryByPath = new Map(rootSourceInventory.entries.map((entry) => [entry.path, entry]));
   const items = rootSourceInventory.entries.map((entry) => {
@@ -442,8 +403,7 @@ export async function freezeGate5Set({ root, contracts = installedFileContracts,
     rootSourceInventory: Object.freeze({
       schemaVersion: rootSourceInventory.schemaVersion,
       sha256: rootSourceInventory.rootSourceSha256,
-      entryCount: rootSourceInventory.entries.length,
-      exclusions: rootSourceInventory.exclusions
+      entryCount: rootSourceInventory.entries.length
     }),
     packageContract: Object.freeze({
       schemaVersion: INSTALLED_FILE_CONTRACT_SCHEMA,
@@ -488,9 +448,8 @@ export function assertGate5FrozenSet(frozen) {
   if (!Array.isArray(frozen.items) || frozen.items.length === 0) throw new Error("Gate 5 frozen set has no items");
   if (!frozen.rootSourceInventory || frozen.rootSourceInventory.schemaVersion !== GATE5_ROOT_SOURCE_INVENTORY_SCHEMA
     || !/^[0-9a-f]{64}$/.test(frozen.rootSourceInventory.sha256)
-    || !Number.isInteger(frozen.rootSourceInventory.entryCount) || frozen.rootSourceInventory.entryCount !== frozen.items.length
-    || !Array.isArray(frozen.rootSourceInventory.exclusions)) {
-    throw new Error("Gate 5 frozen set does not bind a complete root-source inventory");
+    || !Number.isInteger(frozen.rootSourceInventory.entryCount) || frozen.rootSourceInventory.entryCount !== frozen.items.length) {
+    throw new Error("Gate 5 frozen set does not bind its scoped typed source inventory");
   }
   if (!frozen.packageContract || !Array.isArray(frozen.packageContract.coverage)) {
     throw new Error("Gate 5 frozen set does not bind package-contract coverage");
@@ -576,14 +535,135 @@ function isFormalReader(reader) {
   return reader === "formal-entry" || !["managed-contract", "legacy-location", "dynamic-state"].includes(reader);
 }
 
-async function readInstalledTemplateVersion(root) {
+export async function readProjectIndexTemplateVersion(root) {
   const bytes = await readFile(path.join(root, "dev", "PROJECT_INDEX.md")).catch((error) => {
     if (error?.code === "ENOENT") return null;
     throw error;
   });
   if (!bytes) return null;
-  const match = /^\| Agent Handoff Kit template version \| ([0-9]+\.[0-9]+\.[0-9]+) \|/m.exec(bytes.toString("utf8"));
-  return match?.[1] ?? null;
+  return parseProjectIndexTemplateVersion(bytes.toString("utf8"));
+}
+
+export function parseProjectIndexTemplateVersion(text) {
+  return projectIndexTemplateVersionEvidence(text)?.version ?? null;
+}
+
+export function projectIndexTemplateVersionRow(text) {
+  return projectIndexTemplateVersionEvidence(text)?.row ?? null;
+}
+
+export function materializeProjectIndexTemplateVersion(text, version) {
+  if (!isStableSemver(version)) return text;
+  const evidence = projectIndexTemplateVersionEvidence(text);
+  if (!evidence) return text;
+  return String(text).slice(0, evidence.rowStart)
+    + evidence.row.replace(`| ${evidence.version} |`, `| ${version} |`)
+    + String(text).slice(evidence.rowEnd);
+}
+
+function projectIndexTemplateVersionEvidence(text) {
+  const value = String(text);
+  const normalized = value.replace(/\r\n/g, "\n");
+  const visibleLines = markdownVisibleLinesOutsideHiddenBlocks(value);
+  const headings = [];
+  for (const item of visibleLines) if (/^## [^\r\n]+$/u.test(item.text)) headings.push({ title: item.text.trim(), line: item.line, offset: item.normalizedStart });
+  const stackHeadings = headings.filter((heading) => heading.title === "## Stack");
+  if (stackHeadings.length !== 1) return null;
+  const stack = stackHeadings[0];
+  const nextHeading = headings.find((heading) => heading.line > stack.line);
+  const stackStart = stack.offset + visibleLines.find((line) => line.line === stack.line)?.text.length + 1;
+  const stackEnd = nextHeading ? nextHeading.offset : normalized.length;
+  const stackLines = visibleLines.filter((line) => line.normalizedStart >= stackStart && line.normalizedStart < stackEnd);
+  const candidateRows = [];
+  const rowPattern = /^\| Agent Handoff Kit template version \| ([^|\n]+) \| [^|\n]+ \|$/u;
+  for (const line of stackLines) {
+    const match = rowPattern.exec(line.text);
+    if (!match) continue;
+    const version = match[1].trim();
+    if (!isStableSemver(version)) return null;
+    candidateRows.push({
+      version,
+      row: line.text,
+      rowStart: line.start,
+      rowEnd: line.end
+    });
+  }
+  const versionLabelRows = stackLines.filter((line) => line.text.startsWith("| Agent Handoff Kit template version |"));
+  if (versionLabelRows.length !== candidateRows.length || candidateRows.length !== 1) return null;
+  const [row] = candidateRows;
+  return { version: row.version, row: row.row, rowStart: row.rowStart, rowEnd: row.rowEnd };
+}
+
+export function markdownVisibleLinesOutsideHiddenBlocks(text) {
+  const value = String(text);
+  const normalized = value.replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
+  const result = [];
+  let offset = 0;
+  let fence = null;
+  let inComment = false;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (inComment) {
+      if (line.includes("-->")) inComment = false;
+      offset += line.length + 1;
+      continue;
+    }
+    const fenceMatch = /^\s{0,3}(`{3,}|~{3,})(?![`~])(.*)$/u.exec(line);
+    const fenceRun = fenceMatch?.[1] ?? null;
+    if (fence) {
+      if (
+        fenceRun
+        && fenceRun[0] === fence.char
+        && fenceRun.length >= fence.length
+        && /^\s*$/u.test(fenceMatch?.[2] ?? "")
+      ) {
+        fence = null;
+      }
+      offset += line.length + 1;
+      continue;
+    }
+    if (fenceRun) {
+      fence = { char: fenceRun[0], length: fenceRun.length };
+      offset += line.length + 1;
+      continue;
+    }
+    const commentStart = line.indexOf("<!--");
+    if (commentStart >= 0) {
+      if (line.indexOf("-->", commentStart + 4) < 0) inComment = true;
+      offset += line.length + 1;
+      continue;
+    }
+    result.push({
+      text: line,
+      line: index,
+      normalizedStart: offset,
+      normalizedEnd: offset + line.length,
+      start: originalOffsetForNormalizedOffset(value, offset),
+      end: originalOffsetForNormalizedOffset(value, offset + line.length)
+    });
+    offset += line.length + 1;
+  }
+  return result;
+}
+
+function originalOffsetForNormalizedOffset(text, normalizedOffset) {
+  let original = 0;
+  let normalized = 0;
+  while (original < text.length && normalized < normalizedOffset) {
+    if (text[original] === "\r" && text[original + 1] === "\n") {
+      original += 2;
+      normalized += 1;
+    } else {
+      original += 1;
+      normalized += 1;
+    }
+  }
+  return original;
+}
+
+function isStableSemver(value) {
+  return /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u.test(String(value));
 }
 
 export function extractExplicitLocalReferences(text) {

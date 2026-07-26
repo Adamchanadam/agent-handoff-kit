@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractOpeningMessage, normalizePrompt } from "../bin/prompt-mirror-core.mjs";
 import { requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
+import { materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import {
   commandDocumentation,
   QA_RELEASE_READINESS_INVENTORY,
@@ -332,9 +333,7 @@ async function main() {
     "checkInstalledIntegrationsCredentialLeak",
     "assessHandoffLifecycleConsistency",
     "checkHandoffTemperatureBoundary",
-    "handoff temperature boundary checks",
-    "checkGeneratedMarkdownGovernance",
-    "generated markdown governance checks"
+    "handoff temperature boundary checks"
   ]);
   assertIncludes("bin/installed-file-contract.mjs", [
     "runtime-core/PROJECT_DECISIONS.md",
@@ -361,8 +360,7 @@ async function main() {
   assert(doctor.stdout.includes("dev/PROJECT_DECISIONS.md (research-derived decision evidence chains)"), "doctor did not report research-derived decision trace check");
   assert(doctor.stdout.includes("handoff temperature boundary checks: 1"), "doctor did not run handoff temperature boundary checks");
   assert(doctor.stdout.includes("dev/SESSION_HANDOFF.md / START_NEXT_SESSION_PROMPT.txt (current-state evidence boundary)"), "doctor did not report handoff temperature boundary check");
-  assert(doctor.stdout.includes("generated markdown governance checks: 1"), "doctor did not run generated markdown governance checks");
-  assert(doctor.stdout.includes("dev/PROJECT_INDEX.md (generated Markdown registration; other formats require human review)"), "doctor did not report the bounded generated Markdown governance check");
+  assert(!doctor.stdout.includes("generated markdown governance checks"), "doctor must not claim generated Markdown root-discovery checks");
   assert(doctor.stdout.includes("dev/rules/onboarding.md (onboarding pack structure)"), "doctor did not check onboarding pack schema");
   assert(doctor.stdout.includes("dev/rules/integrations.md (integrations pack structure)"), "doctor did not check integrations pack schema (R-030 v0.3.0+)");
   assert(doctor.stdout.includes("SESSION_LOG 接力角色紀律: ok"), "doctor did not run SESSION_LOG discipline check, or fresh install triggered an unexpected warning");
@@ -394,7 +392,7 @@ async function main() {
   assert(!existsSync(path.join(tempRoot, "archive")), "installer created archive directory by default");
   checkResearchDecisionTraceContract();
   checkHandoffTemperatureBoundaryContract();
-  await checkGeneratedMarkdownGovernanceContract();
+  await checkUnregisteredMarkdownNonDiscoveryContract();
   simulateMultiSessionFlow(installedHandoff, installedLog);
   simulateLocalizedHandoffHeadings();
 
@@ -1325,11 +1323,9 @@ function simulateScenarioBranching() {
   // marked it `skip` not `merge`. Real-user case (Adam v0.3.3 first-test) had both
   // metadata + structure stale; the new 3a + 3b split covers each axis independently.
 
-  // Scenario 3a — synthetic, metadata-only non-exact state: current init + only
-  // rewrite the version row. This is not a published historical artifact, so the
-  // changed whole file has no raw-byte ownership identity. R-034 therefore must
-  // preserve it and bind that preservation to the shared readback; an old
-  // metadata-injection expectation cannot authorize a rewrite.
+  // Scenario 3a — synthetic, metadata-only stale state: current init + only the
+  // shared Stack version row materialized backward, then upgrade materializes it
+  // forward again without giving PROJECT_INDEX whole-file runtime authority.
   const s3aRoot = path.join(tempBase, "scenario-upgrade-metadata-only");
   const s3aInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s3aRoot], { encoding: "utf8", env, cwd: root });
   if (s3aInit.status !== 0) {
@@ -1337,15 +1333,9 @@ function simulateScenarioBranching() {
   }
   const s3aIndexPath = path.join(s3aRoot, "dev/PROJECT_INDEX.md");
   const s3aIndexText = readFileSync(s3aIndexPath, "utf8");
-  writeFileSync(
-    s3aIndexPath,
-    s3aIndexText.replace(
-      /\| Agent Handoff Kit template version \| [\d.]+ \|/,
-      "| Agent Handoff Kit template version | 0.2.9 |"
-    ),
-    "utf8"
-  );
+  writeFileSync(s3aIndexPath, materializeProjectIndexTemplateVersion(s3aIndexText, "0.2.9"), "utf8");
   const s3aIndexBefore = readFileSync(s3aIndexPath);
+  assert(parseProjectIndexTemplateVersion(s3aIndexBefore.toString("utf8")) === "0.2.9", "scenario 3a prep did not create stale Stack version evidence");
   const s3a = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3aRoot], "scenario 3a upgrade metadata-only stale", { env });
   assertScenarioOutput("scenario 3a (upgrade metadata-only stale)", s3a.stdout, {
     mustHave: [
@@ -1363,7 +1353,7 @@ function simulateScenarioBranching() {
     ]
   });
   assertConciseUpgradeSuccessNarrative("scenario 3a (upgrade metadata-only stale)", s3a.stdout, currentVersion);
-  assert(readFileSync(s3aIndexPath).equals(s3aIndexBefore), "scenario 3a rewrote non-exact PROJECT_INDEX bytes");
+  assertProjectIndexMetadataTransition("scenario 3a", s3aIndexBefore, readFileSync(s3aIndexPath), currentVersion);
   const s3aDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s3aRoot], "scenario 3a ordinary doctor after preserved metadata", { env });
   const s3aMigrations = path.join(s3aRoot, "dev", "governance_migrations");
   const s3aTransactions = readdirSync(s3aMigrations)
@@ -1373,23 +1363,24 @@ function simulateScenarioBranching() {
   const s3aJournal = s3aTransaction
     ? JSON.parse(readFileSync(path.join(s3aMigrations, s3aTransaction, "transaction.json"), "utf8"))
     : null;
-  const s3aEntry = s3aJournal?.runtimeAcceptance?.entries?.find((entry) => entry.targetRel === "dev/PROJECT_INDEX.md");
+  const s3aEntry = s3aJournal?.entries?.find((entry) => entry.targetRel === "dev/PROJECT_INDEX.md");
   const s3aDigest = s3aJournal?.currentStateWitness?.currentStateDigest;
   const s3aReport = s3aTransaction
     ? readFileSync(path.join(s3aMigrations, s3aTransaction, "migration-report.md"), "utf8")
     : "";
   assert(
     s3aDoctor.stdout.includes("status: passed")
-      && s3aEntry?.disposition === "preserve"
-      && s3aEntry?.activeReader?.reader === "AGENTS.md"
-      && s3aEntry?.activeReader?.via === "direct-formal-entry"
-      && s3aEntry?.effectDecision === "preserve-unmodified-through-direct-stateful-formal-entry"
+      && s3aEntry?.beforeHash !== s3aEntry?.afterHash
+      && s3aEntry?.reason?.includes("unique real PROJECT_INDEX Stack template-version row")
+      && !s3aJournal?.runtimeAcceptance?.entries?.some((entry) => entry.targetRel === "dev/PROJECT_INDEX.md")
       && s3aDigest
       && s3aJournal.currentStateReadback?.currentStateDigest === s3aDigest
-      && s3aReport.includes(s3aDigest),
-    "scenario 3a did not bind preserved PROJECT_INDEX to the shared doctor/report current-state readback"
+      && s3aReport.includes(s3aDigest)
+      && s3aReport.includes(s3aEntry.afterHash)
+      && s3aReport.includes(s3aEntry.reason),
+    "scenario 3a did not bind PROJECT_INDEX metadata transition to the shared doctor/report current-state readback"
   );
-  console.log("ok: scenario 3a preserves synthetic non-exact PROJECT_INDEX bytes and doctor/report read the same accepted state");
+  console.log("ok: scenario 3a materializes only the PROJECT_INDEX Stack version row and doctor/report read the same current state");
 
   // Scenario 3b — structurally stale via real test-fixtures/v0.1.7 fixture:
   // PROJECT_INDEX comes from actual v0.1.7 init output, lacks v0.2.0+
@@ -1433,10 +1424,8 @@ function simulateScenarioBranching() {
   console.log(`ok: scenario 3b (structurally stale) post-upgrade template version = v${s3bVersionMatch[1]}`);
 
   // Scenario 3c — stale lifecycle placeholder with older template metadata.
-  // These stateful files no longer have exact package bytes. R-034 therefore
-  // preserves them whole and proves their direct reader/effect through the
-  // shared transaction state; pathname and a familiar lifecycle marker do not
-  // grant replacement ownership.
+  // SESSION_HANDOFF remains whole-file preserved; PROJECT_INDEX updates only its
+  // shared Stack version row and stays outside runtimeAcceptance.
   const s3cRoot = path.join(tempBase, "scenario-upgrade-stale-lifecycle-placeholder");
   materializePinnedV041ArtifactInit(s3cRoot);
   const s3cIndexPath = path.join(s3cRoot, "dev/PROJECT_INDEX.md");
@@ -1469,7 +1458,7 @@ function simulateScenarioBranching() {
     ]
   });
   assertConciseUpgradeSuccessNarrative("scenario 3c (upgrade stale lifecycle placeholder)", s3c.stdout, currentVersion);
-  assert(readFileSync(s3cIndexPath).equals(s3cIndexBefore), "scenario 3c overwrote non-exact PROJECT_INDEX bytes");
+  assertProjectIndexMetadataTransition("scenario 3c", s3cIndexBefore, readFileSync(s3cIndexPath), currentVersion);
   assert(readFileSync(s3cHandoffPath).equals(s3cHandoffBefore), "scenario 3c overwrote non-exact handoff bytes");
   const s3cDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s3cRoot], "scenario 3c ordinary doctor after preserved-state upgrade", { env });
   const s3cMigrations = path.join(s3cRoot, "dev", "governance_migrations");
@@ -1481,24 +1470,29 @@ function simulateScenarioBranching() {
     ? JSON.parse(readFileSync(path.join(s3cMigrations, s3cTransaction, "transaction.json"), "utf8"))
     : null;
   const s3cEntries = s3cJournal?.runtimeAcceptance?.entries ?? [];
-  const s3cStatefulEntries = ["dev/SESSION_HANDOFF.md", "dev/PROJECT_INDEX.md"]
-    .map((targetRel) => s3cEntries.find((entry) => entry.targetRel === targetRel));
+  const s3cHandoffEntry = s3cEntries.find((entry) => entry.targetRel === "dev/SESSION_HANDOFF.md");
+  const s3cIndexEntry = s3cJournal?.entries?.find((entry) => entry.targetRel === "dev/PROJECT_INDEX.md");
   const s3cDigest = s3cJournal?.currentStateWitness?.currentStateDigest;
   const s3cReport = s3cTransaction
     ? readFileSync(path.join(s3cMigrations, s3cTransaction, "migration-report.md"), "utf8")
     : "";
   assert(
     s3cDoctor.stdout.includes("status: passed")
-      && s3cStatefulEntries.every((entry) => entry?.disposition === "preserve"
-        && entry?.activeReader?.reader === "AGENTS.md"
-        && entry?.activeReader?.via === "direct-formal-entry"
-        && entry?.effectDecision === "preserve-unmodified-through-direct-stateful-formal-entry")
+      && s3cHandoffEntry?.disposition === "preserve"
+      && s3cHandoffEntry?.activeReader?.reader === "AGENTS.md"
+      && s3cHandoffEntry?.activeReader?.via === "direct-formal-entry"
+      && s3cHandoffEntry?.effectDecision === "preserve-unmodified-through-direct-stateful-formal-entry"
+      && s3cIndexEntry?.beforeHash !== s3cIndexEntry?.afterHash
+      && s3cIndexEntry?.reason?.includes("unique real PROJECT_INDEX Stack template-version row")
+      && !s3cEntries.some((entry) => entry.targetRel === "dev/PROJECT_INDEX.md")
       && s3cDigest
       && s3cJournal.currentStateReadback?.currentStateDigest === s3cDigest
-      && s3cReport.includes(s3cDigest),
-    "scenario 3c did not bind preserved stateful files to the shared doctor/report current-state readback"
+      && s3cReport.includes(s3cDigest)
+      && s3cReport.includes(s3cIndexEntry.afterHash)
+      && s3cReport.includes(s3cIndexEntry.reason),
+    "scenario 3c did not bind preserved handoff and PROJECT_INDEX metadata transition to the shared doctor/report current-state readback"
   );
-  console.log("ok: scenario 3c preserves non-exact stateful bytes and doctor/report read the same accepted state");
+  console.log("ok: scenario 3c preserves handoff bytes, materializes PROJECT_INDEX Stack version row, and doctor/report read the same current state");
 
   // Scenario 5: upgrade with conflict. This guards the user-facing stop state:
   // when a bridge file cannot be safely merged, output must say the upgrade is
@@ -1624,6 +1618,14 @@ function assertConciseUpgradeSuccessNarrative(label, output, expectedVersion) {
   assert(!section.includes("對你已有檔案的影響"), `${label} printed release-note impact section`);
   assert(!section.includes("建議下一步"), `${label} printed release-note recommendation section`);
   console.log(`ok: ${label} concise upgrade success narrative (${nonEmptyLines.length} lines, ${section.length} chars)`);
+}
+
+function assertProjectIndexMetadataTransition(label, beforeBytes, afterBytes, expectedVersion) {
+  const beforeText = beforeBytes.toString("utf8");
+  const afterText = afterBytes.toString("utf8");
+  assert(parseProjectIndexTemplateVersion(beforeText) !== expectedVersion, `${label} PROJECT_INDEX fixture was not stale before upgrade`);
+  assert(parseProjectIndexTemplateVersion(afterText) === expectedVersion, `${label} PROJECT_INDEX did not materialize package version`);
+  assert(afterText === materializeProjectIndexTemplateVersion(beforeText, expectedVersion), `${label} PROJECT_INDEX changed bytes outside the shared Stack version-row materializer`);
 }
 
 function staleCoreFixture() {
@@ -2433,24 +2435,26 @@ function checkHandoffTemperatureBoundaryContract() {
   console.log("ok: handoff temperature boundary contract");
 }
 
-async function checkGeneratedMarkdownGovernanceContract() {
-  const negativeRoot = path.join(tmpdir(), `ack-generated-markdown-fail-${Date.now()}`);
-  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", negativeRoot], "generated markdown governance negative bootstrap");
+async function checkUnregisteredMarkdownNonDiscoveryContract() {
+  const negativeRoot = path.join(tmpdir(), `ack-generated-markdown-nondiscovery-${Date.now()}`);
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", negativeRoot], "unregistered Markdown non-discovery bootstrap");
   mkdirSync(path.join(negativeRoot, "outputs"), { recursive: true });
   writeFileSync(
     path.join(negativeRoot, "outputs/unregistered_design.md"),
-    "# Unregistered Design\n\nThis dry-run artifact should fail doctor until it is indexed or classified.\n",
+    "# Unregistered Design\n\nThis artifact is a human governance responsibility, not a doctor root-scan target.\n",
     "utf8"
   );
+  const sentinelBytes = readFileSync(path.join(negativeRoot, "outputs/unregistered_design.md"));
 
   const negativeDoctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], {
     cwd: root,
     encoding: "utf8"
   });
   const negativeOutput = outputText(negativeDoctor);
-  assert(negativeDoctor.status !== 0, "unregistered generated Markdown should fail doctor");
-  assert(negativeOutput.includes("generated markdown governance checks"), "generated Markdown negative fixture did not fail the governance check");
-  assert(negativeOutput.includes("outputs/unregistered_design.md"), "generated Markdown negative fixture did not report the orphan path");
+  assert(negativeDoctor.status === 0 && negativeOutput.includes("status: passed"), "unregistered Markdown should not fail doctor");
+  assert(!negativeOutput.includes("generated markdown governance checks"), "doctor still claims generated Markdown root-discovery checks");
+  assert(!negativeOutput.includes("outputs/unregistered_design.md"), "doctor reported an arbitrary unregistered Markdown path");
+  assert(readFileSync(path.join(negativeRoot, "outputs/unregistered_design.md")).equals(sentinelBytes), "doctor changed arbitrary unregistered Markdown bytes");
 
   const negativeIndexPath = path.join(negativeRoot, "dev/PROJECT_INDEX.md");
   writeFileSync(
@@ -2465,10 +2469,10 @@ async function checkGeneratedMarkdownGovernanceContract() {
     "utf8"
   );
   const lookalikeDoctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], { cwd: root, encoding: "utf8" });
-  assert(lookalikeDoctor.status !== 0 && outputText(lookalikeDoctor).includes("outputs/unregistered_design.md"), "longer path, broad pattern, or another file's temporary label made an orphan artifact pass");
+  assert(lookalikeDoctor.status === 0 && !outputText(lookalikeDoctor).includes("outputs/unregistered_design.md"), "lookalike rows or prose made doctor report an arbitrary unregistered Markdown path");
 
   const positiveRoot = path.join(tmpdir(), `ack-generated-markdown-pass-${Date.now()}`);
-  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", positiveRoot], "generated markdown governance positive bootstrap");
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", positiveRoot], "registered Markdown non-discovery bootstrap");
   mkdirSync(path.join(positiveRoot, "outputs"), { recursive: true });
   writeFileSync(
     path.join(positiveRoot, "outputs/registered_design.md"),
@@ -2484,7 +2488,7 @@ async function checkGeneratedMarkdownGovernanceContract() {
     ),
     "utf8"
   );
-  const positiveDoctorLabel = "generated markdown governance positive doctor";
+  const positiveDoctorLabel = "registered Markdown ordinary doctor";
   const positiveDoctor = await runChecked(
     process.execPath,
     ["bin/agent-handoff-kit.mjs", "doctor", "--root", positiveRoot],
@@ -2493,10 +2497,10 @@ async function checkGeneratedMarkdownGovernanceContract() {
   );
   assert(
     positiveDoctor.stdout.includes("status: passed"),
-    `indexed generated Markdown fixture should pass doctor\n${describeResult(positiveDoctor)}`
+    `registered Markdown fixture should pass ordinary doctor\n${describeResult(positiveDoctor)}`
   );
   console.log(`ok: ${positiveDoctorLabel}`);
-  console.log("ok: generated Markdown governance contract");
+  console.log("ok: unregistered Markdown non-discovery contract");
 }
 
 function checkRulePackRoutingDurableHomeAudit() {

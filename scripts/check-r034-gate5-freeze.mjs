@@ -29,6 +29,7 @@ async function main() {
   write(path.join(project, "notes", "繁中與日本語", "無標題規則.txt"), "保留這份未被正式 Kit reader 讀取的使用者內容。\nユーザー固有の内容。\n");
   write(path.join(project, ".git", "HEAD"), "ref: refs/heads/main\n");
   write(path.join(project, "dev", "safety.md"), "# Legacy safety location\n\nRetain this legacy source at its existing route.\n");
+  write(path.join(project, "dev", "governance_migrations", "registry-note.txt"), "safe regular registry child is not transaction authority\n");
   write(path.join(project, "dev", "governance_migrations", "historical", "transaction.json"), "{\n  \"state\": \"committed\"\n}\n");
 
   const before = snapshot(project);
@@ -48,12 +49,11 @@ async function main() {
   assert(first.operationAuthority === "none" && first.activationStatus === "not-authorized", "frozen set claimed activation authority");
   assert(first.packageContract.installedTargets.length === installedFileContracts.length, "package contract coverage drifted from installed contract");
   assert(first.packageContract.coverage.length === installedFileContracts.length + 1, "whole frozen set omitted a package or formal-transition contract target");
-  assert(first.rootSourceInventory.entryCount === first.items.length && /^[0-9a-f]{64}$/.test(first.rootSourceInventory.sha256), "whole frozen set omitted its root-source identity");
+  assert(first.rootSourceInventory.entryCount === first.items.length && /^[0-9a-f]{64}$/.test(first.rootSourceInventory.sha256), "scoped frozen set omitted its typed-source identity");
   const protectedItems = gate5SourceConservationItems(first);
   assert(first.sourceConservation.selection === "known-kit-reachability", "frozen set did not name the source-conservation selection rule");
   assert(first.sourceConservation.protectedEntryCount === protectedItems.length, "source-conservation protected count drifted from known Kit reachability");
   assert(JSON.stringify(first.sourceConservation.sourcePaths) === JSON.stringify(protectedItems.map((item) => item.sourcePath)), "source-conservation protected paths drifted from known Kit reachability");
-  assert(first.rootSourceInventory.exclusions.some((entry) => entry.path === ".git"), "root-source exclusions are not explicit");
   assert(first.historicalSource.installedTemplateVersion === "0.3.38" && first.historicalSource.packageIdentity === "@adamchanadam/agent-handoff-kit@0.3.38" && first.historicalSource.packageIntegrity, "historical package identity is not bound to the installed fixture");
   assert(first.formalSurfaces.entry.present, "formal AGENTS entry is absent from the frozen set");
   assert(first.formalSurfaces.bridges.every((entry) => entry.present), "bridge surfaces are not bound to the frozen set");
@@ -64,37 +64,43 @@ async function main() {
   const headedMixed = items.get("dev/rules/integrations.md");
   assert(headedMixed?.ownership === "user-or-unknown", "headed appendix was inferred to be managed");
   assert(headedMixed.historicalOrigin && !headedMixed.historicalOrigin.exactPackageBytes, "headed appendix was incorrectly accepted as exact package bytes");
-  const legacySafety = items.get("dev/safety.md");
-  assert(legacySafety?.classifications.length === 1 && legacySafety.classifications[0] === "root-source", "same-name legacy path was promoted into Gate 5 reachability");
-  assert(legacySafety.packageContract === null && legacySafety.historicalOrigin === null && legacySafety.existingReaders.length === 0, "legacy safety source invented package, artifact, or formal-reader evidence");
-  assert(legacySafety.priorityConflict.status === "not-applicable-outside-known-kit-reachability" && legacySafety.effect.decision === "outside-known-kit-reachability" && legacySafety.unresolvedReason === null, "legacy safety source did not remain outside known Kit reachability");
+  assert(!items.has("dev/safety.md"), "same-name legacy path was promoted into Gate 5 scoped inventory");
   assert(!first.sourceConservation.sourcePaths.includes("dev/safety.md"), "same-name ordinary legacy source was promoted into current-state source conservation");
-  assert(items.get("docs/custom-policy.json")?.existingReaders.some((reader) => reader.reader === "AGENTS.md"), "formal AGENTS reference was not bound to the frozen set");
-  assert(first.sourceConservation.sourcePaths.includes("docs/custom-policy.json"), "formal AGENTS reference was not protected by current-state source conservation");
+  assert(!items.has("dev/governance_migrations/registry-note.txt"), "safe regular transaction-registry child was promoted into Gate 5 scoped inventory");
+  assert(!first.sourceConservation.sourcePaths.includes("dev/governance_migrations/registry-note.txt"), "safe regular transaction-registry child was protected by current-state source conservation");
+  assert(!items.has("docs/custom-policy.json"), "generic AGENTS Markdown link was promoted into Gate 5 scoped inventory");
+  assert(!first.sourceConservation.sourcePaths.includes("docs/custom-policy.json"), "generic AGENTS Markdown link was protected by current-state source conservation");
   const unheadedOrdinary = items.get("notes/繁中與日本語/無標題規則.txt");
-  assert(unheadedOrdinary?.classifications.length === 1 && unheadedOrdinary.classifications[0] === "root-source", "whole root scan omitted an unheaded multilingual ordinary source");
-  assert(unheadedOrdinary.existingReaders.length === 0 && unheadedOrdinary.effect.status === "not-applicable-outside-known-kit-reachability", "ordinary root source was invented as active Kit content");
-  assert(!first.unresolved.some((entry) => entry.sourcePath === unheadedOrdinary.sourcePath), "ordinary root source was incorrectly reported as an unresolved Kit item");
-  assert(!first.sourceConservation.sourcePaths.includes(unheadedOrdinary.sourcePath), "ordinary root source was protected as current-state authority");
+  assert(!unheadedOrdinary, "ordinary multilingual user source was promoted into Gate 5 scoped inventory");
+  assert(!first.sourceConservation.sourcePaths.includes("notes/繁中與日本語/無標題規則.txt"), "ordinary root source was protected as current-state authority");
   assert(!items.has(".git/HEAD"), "root-source inventory treated version-control metadata as project content");
   for (const item of first.items) {
     assert(item.sourceIdentity.sha256 === sha(readFileSync(path.join(project, item.sourcePath))), `frozen source bytes do not match current bytes: ${item.sourcePath}`);
     assert(Array.isArray(item.existingReaders) && item.priorityConflict?.status && item.effect?.status, `frozen item omits reader, priority/conflict, or effect record: ${item.sourcePath}`);
   }
-  const rootFiles = [...snapshot(project).keys()].filter((relative) => !relative.startsWith(".git/"));
-  assert(rootFiles.length === first.items.length && rootFiles.every((relative) => items.has(relative)), "whole root-source set omitted a regular project file");
+  for (const excluded of ["dev/safety.md", "dev/governance_migrations/registry-note.txt", "docs/custom-policy.json", "notes/繁中與日本語/無標題規則.txt"]) {
+    assert(before.has(excluded), `fixture sentinel missing before freeze: ${excluded}`);
+    assert(snapshot(project).get(excluded) === before.get(excluded), `freeze changed excluded sentinel bytes: ${excluded}`);
+  }
   assert(!first.unresolved.some((entry) => entry.sourcePath === "dev/safety.md"), "canonical unresolved list retained path-only legacy safety source");
+  assert(!first.unresolved.some((entry) => entry.sourcePath === "dev/governance_migrations/registry-note.txt"), "canonical unresolved list retained safe regular transaction-registry child");
   assert(first.unresolved.some((entry) => entry.sourcePath === "dev/rules/integrations.md"), "canonical unresolved list omitted the mixed rule-pack item");
+  const productionInventorySource = readFileSync(path.join(root, "bin", "upgrade-inventory.mjs"), "utf8");
+  assert(!productionInventorySource.includes("hasExactProjectPath"), "production inventory still contains parent-directory enumeration helper");
+  assert(!productionInventorySource.includes("readdir(current"), "production inventory still enumerates parent directories while locating typed roots");
 
+  append(path.join(project, "notes", "繁中與日本語", "無標題規則.txt"), "ordinary drift ignored by scoped inventory\n");
+  const ordinaryDrift = await freezeGate5Set({ root: project, catalog });
+  assert(first.frozenSetSha256 === ordinaryDrift.frozenSetSha256 && first.rootSourceInventory.sha256 === ordinaryDrift.rootSourceInventory.sha256, "ordinary user-file drift invalidated the scoped frozen-set digest");
   append(path.join(project, "dev", "rules", "integrations.md"), "after-freeze drift\n");
   const drifted = await freezeGate5Set({ root: project, catalog });
-  assert(first.frozenSetSha256 !== drifted.frozenSetSha256 && first.rootSourceInventory.sha256 !== drifted.rootSourceInventory.sha256, "source-byte drift did not invalidate the whole root-source frozen-set digest");
-  console.log("ok: verified v0.3.38 artifact fixture whole root-source frozen set binds package contract, historical source, transaction registry, bridges, router absence, formal entry, raw bytes, reader records, and a fixture-specific digest");
+  assert(first.frozenSetSha256 !== drifted.frozenSetSha256 && first.rootSourceInventory.sha256 !== drifted.rootSourceInventory.sha256, "typed source-byte drift did not invalidate the scoped frozen-set digest");
+  console.log("ok: verified v0.3.38 artifact fixture scoped typed frozen set binds package contract, historical source, transaction registry, bridges, router absence, formal entry, raw bytes, reader records, and a fixture-specific digest");
   console.log(`ok: artifact integrity ${artifact.integrity}`);
   console.log(`ok: frozen-set digest ${first.frozenSetSha256}`);
-  console.log("ok: headed mixed bytes remain user-or-unknown; same-name legacy path without contract/artifact/formal reader remains an ordinary root source outside known Kit reachability");
+  console.log("ok: headed mixed bytes remain user-or-unknown; generic links, same-name legacy paths, safe registry regular files, ordinary notes, and .git are outside scoped current inventory");
   console.log(`ok: canonical remaining unresolved ${first.unresolved.map((entry) => `${entry.sourcePath} — ${entry.reason}`).join(" | ") || "none"}`);
-  console.log("R-034 v0.3.38 whole root-source frozen-set witness passed; it is evidence-only and not a Gate 5 PASS");
+  console.log("R-034 v0.3.38 scoped typed frozen-set witness passed; it is evidence-only and not a Gate 5 PASS");
 }
 
 function fresh(label) {

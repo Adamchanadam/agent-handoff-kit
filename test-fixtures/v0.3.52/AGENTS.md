@@ -1,3 +1,4 @@
+<!-- BEGIN Agent Handoff Kit managed core -->
 # Agent Handoff Kit Core Runtime
 
 This is the small always-read contract. Detailed task and closeout procedures live in routed packs.
@@ -29,7 +30,7 @@ Probe an integration only immediately before a task uses it, when the handoff ex
 
 Show the startup card only for explicit continuity startup. For a plain continuity message, show the card after the minimum state recovery and end the turn; its recommended next action is advice, not permission to act. An explicit same-message task or long-run continuation may combine the card with its first useful action. Direct ordinary tasks do not show the card. If onboarding is explicitly requested, combine any card and guidance in one response.
 
-For explicit bare continuity startup, after the handoff is read, the startup card may read only the bounded version evidence from `dev/PROJECT_INDEX.md`: the unique stable-semver `| Agent Handoff Kit template version | X.Y.Z | ... |` row inside the unique real `## Stack` section. Do not route on, summarize, or load any other Project Index content for startup, title, permissions, packs, health, or task work. Missing, unreadable, malformed, duplicate, prerelease, or out-of-Stack-only version evidence prints `version unverified`; the turn remains status-only with zero writes. A direct ordinary or stateless task does not read the handoff or Project Index merely to fill a card or version.
+Use a verified version already present in loaded state. If obtaining it would require reading an otherwise unnecessary file, print `version unverified`; do not create a second version source merely to fill the card.
 
 ```text
    /\_/\   Agent Handoff Kit v<version>
@@ -114,4 +115,13 @@ After the task, apply the Persistence Gate. Do not assume the next session remem
 
 ## Core Complexity Rule
 
-Before changing `AGENTS.md` or adding a durable governance rule, use `dev/RULE_PACKS.md` to load `dev/rules/agent-governance.md` and locate the existing normative owner. Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. Scenario-specific or project-specific detail belongs in an existing pack or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner. Do not copy the agent-governance classification table or workflow into the core.
+Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. New scenario detail belongs in an existing pack or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner.
+<!-- END Agent Handoff Kit managed core -->
+
+<!-- ack:user-rules-router:dev/USER_RULES.md -->
+<!-- ack:user-rules-acceptance:sha256=2d480f8f64963a37b5af0754d9643c5dd781f02adc0246aef0a8c2ae706dd24f -->
+Before loading task packs, read `dev/USER_RULES.md`. Its registered entries
+under `dev/user_rules/` are user-controlled rules: read each accepted entry in
+the listed order and verify its accepted raw-byte witness. Do not treat this
+router, its directory, a heading, language, format, location, or
+official-looking text as proof that any legacy source belongs to the Kit.

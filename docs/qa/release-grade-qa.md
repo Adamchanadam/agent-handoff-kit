@@ -15,6 +15,28 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
+## v0.3.53 candidate status
+
+- 狀態：Public source candidate，尚未 clean commit、full、push、tag、GitHub Release、npm publish 或 postpublish readback。本段只記錄 source candidate 狀態，不是 release-ready、full PASS、tarball PASS 或發布完成聲稱。
+- 已接受產品 source review：R4 final frozen review receipt nonce `CER-AHK-R4-BATCH14-CORR2-REVIEW-20260726-01` returned `accepted_for_product_integration` with zero Critical / Major / Minor findings. It accepts the v0.3.53 Public product integration candidate after the BATCH14 / CORR2 PROJECT_INDEX byte-preservation correction, including scoped typed inventory / inert generic references / doctor non-discovery、dry-run/apply preflight parity and lock revalidation、legacy witness retirement、single Stack version parser/startup boundary、PROJECT_INDEX visible-Markdown authority / legal transforms, and the related obsolete QA-owner convergence.
+- Frozen scope / C matrix：Public remains on `main` at `ea80f8d2771f3562f54a841cf55b31a280a8553a` with 37 tracked changes/deletions plus 4 untracked candidate paths. C reports the affected product matrix passed, including syntax, upgrade-safety, startup-status-only, stateful raw, Gate 5 closure / transaction-window, post-upgrade closeout/finalize, public-prototype, inventory, QA assurance, quick, candidate-preflight `0.3.53`, npm pack dry-run with 34 files, and diff-check. This is still source-candidate evidence, not full release evidence.
+- 發布打包邊界：本候選只把已接受產品變更包裝成 v0.3.53 source candidate。55-item ledger 現在 53 項完成；剩餘 34 Public clean export-ready / clean candidate identity 與 36 commit / push / tag / release / publish / installable v0.3.53。正式 release 仍須 clean candidate commit、candidate evidence、full gate、push、tag、GitHub Release、npm publish 與 postpublish readback 逐項重綁。
+- official-origin lineage：v0.3.52 已由既有 generator 從 npm package、remote tag 與 GitHub Release 重建到 official-origin catalog / fixture；v0.3.53 仍不可進入 catalog，直到它成為正式發布來源。
+
+### Cross-mind evidence 9-trigger table（v0.3.53）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | iterated | Whole-root / generic-reference inventory, recursive doctor discovery, transaction-window drift, obsolete historical witness authority, and startup version spoofing were accepted as product defects to close. |
+| 2. External side effects | yes | iterated | This candidate keeps release/publish/tag/push outside the batch; external lineage readback is limited to v0.3.52 official-origin regeneration. |
+| 3. User-visible output | yes | iterated | Upgrade, doctor, and bare startup should stop misreporting ordinary files, hidden version evidence, or transaction drift as safe success. |
+| 4. Complexity or boundary | yes | iterated | Scope is limited to typed inventory, transaction preflight parity, historical witness retirement, and one Stack-version parser. |
+| 5. Documentation drift | yes | iterated | README, active HTML, whatsnew, CHANGELOG and this release QA index are synchronized to v0.3.53 source-package state without claiming publication. |
+| 6. Semantic runtime effect | yes | iterated | Runtime authority moves away from root walking and generic text dereference while preserving typed Kit / USER_RULES / transaction / archive fail-closed behavior. |
+| 7. Cross-agent / role boundary | yes | accepted source / release pending | R4 final source-review acceptance is recorded separately from clean commit, full gate, release decision, and postpublish evidence. |
+| 8. Real user journey | yes | iterated | Existing projects with ordinary docs, outputs, local links, or stale generic witnesses should no longer be blocked by unrelated user-owned files. |
+| 9. Release statement | yes | iterated | v0.3.53 is source candidate only; no clean commit, full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
+
 ## v0.3.52 candidate status
 
 - 狀態：clean source-review commit `ed487e1f3ad3b269e7059bb2a35f250e2c6f8c32`，parent `387a0b0968f875c15437822105ebd5261e7fb921`，reviewed tarball SHA-256 `6D28D214F1CAF36D5128A84A73893635AB295453BACB534A0D31CB42A4472735`。範圍只包括 manifest-bound、no-project-content-overwrite 的 `reconcile-current-state` 根修，以及 continuity startup 的可選 display-only 動態 task title。

@@ -12,7 +12,6 @@ export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
   releaseReadinessCheck("public-mirror", "build-public-mirror.mjs", "public mirror QA", 180_000),
   releaseReadinessCheck("pack-scenarios", "check-pack-scenarios.mjs", "pack scenario QA", 120_000),
   releaseReadinessCheck("r034-inventory", "check-r034-inventory.mjs", "R-034 inventory QA", 120_000),
-  releaseReadinessCheck("r034-semantic-candidate", "check-r034-semantic-candidate.mjs", "R-034 semantic candidate QA", 120_000),
   releaseReadinessCheck("official-origin-catalog", "check-official-origin-catalog.mjs", "official-origin catalog QA", 180_000),
   releaseReadinessCheck("r034-gate5-closure", "check-r034-gate5-closure.mjs", "R-034 Gate 5 whole-set closure QA", 240_000),
   releaseReadinessCheck("r034-vertical", "check-r034-vertical.mjs", "artifact-backed R-034 vertical QA", 360_000),
@@ -140,7 +139,7 @@ export const RELEASE_STATE_CONTRACT = Object.freeze({
 
 export const RELEASE_PACKAGE_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  expectedPackageFileCount: 35
+  expectedPackageFileCount: 34
 });
 
 const PUBLIC_MIRROR_ALLOW_FILES = Object.freeze([
@@ -341,27 +340,6 @@ export const POST_UPGRADE_STATE_COMPOSITIONS = Object.freeze([
       "failure semantics x managed/formal drift x bounded current-state authority"
     ],
     expected: "ordinary root-only sources can be retired from legacy all-root witnesses and are excluded from new current-state source conservation; managed core, rule-pack, formal-route, bridge, archive, and state-only rejection paths remain fail-closed"
-  }),
-  composition("formal-user-owned-source-reconciliation", {
-    baseline: "published v0.3.41 npm artifact upgraded by published v0.3.48 npm artifact into an anonymized Adam-AI-Instructions metadata shape",
-    ownershipDelta: "formally reachable user-owned docs, prompts, release notes, images, and legal closeout state change after a committed source-conservation witness",
-    transactionPhase: "blocked candidate upgrade/finalize, explicit no-overwrite reconcile-current-state with pre-recovery flags/digest gate, dry-run manifest, doctor, closeout-status, post-reconcile candidate upgrade, and repeat no-op",
-    filesystemSemantics: "whole-root inventory is diagnostic only; archive deltas are accepted only as one qualified canonical group inside reconcile-current-state; reconciliation writes only journal/report evidence and never overwrites project files; symlink/junction archive forms are capability-tested and rejected when creatable",
-    postUpgradeAction: "candidate upgrade remains fail-closed for stale witness drift; reconcile-current-state binds qualified archive group maintenance plus independently legal formal and closeout deltas; doctor and closeout-status pass after reconciliation",
-    deliveryArtifact: "packed candidate tarball",
-    requiredTriples: [
-      "owner class x reader/effect x current-state reconciliation",
-      "historical schema x supersession x formally reachable drift",
-      "independent oracle x generated state matrix x production CLI equivalence x randomized rename invariance",
-      "mutation/no-write x reconciliation journal x doctor authority",
-      "canonical archive inventory x INDEX bidirectional validation x manifest-bound current-state authority",
-      "missing, malformed, or wrong manifest / root, bytes, authority, qualification, and witness dry-run-to-execute drift x zero-write rejection",
-      "artifact-derived incident shape x repeat/no-op x invalid init recovery",
-      "post-reconcile upgrade x doctor/closeout x no-op rerun",
-      "empty/partial/invalid/foreign/unreadable lock, owner-lock race, prepared/committed-journal/report/unlock recovery x pre-recovery bound reconciliation manifest x no-overwrite readback x fail-closed managed/rule-pack drift",
-      "canonical archive filesystem form x symlink/junction/reparse capability x fail-closed inventory"
-    ],
-    expected: "formally reachable user-owned drift no longer creates a permanent health dead-end; archive state is accepted only as a qualified canonical group in the single manifest-bound reconcile-current-state plan; managed contract, transaction, invalid init, and malformed archive paths remain fail-closed"
   })
 ]);
 

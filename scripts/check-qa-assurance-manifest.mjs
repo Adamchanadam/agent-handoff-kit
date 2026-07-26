@@ -134,7 +134,7 @@ function validateCandidateEvidenceContract() {
 
 function validateReleasePackageContract() {
   assert(RELEASE_PACKAGE_CONTRACT.schemaVersion === 1, "unexpected release package contract schema version");
-  assert(RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount === 35, "release package file count contract drifted");
+  assert(RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount === 34, "release package file count contract drifted");
 }
 
 function validatePublicMirrorContract() {

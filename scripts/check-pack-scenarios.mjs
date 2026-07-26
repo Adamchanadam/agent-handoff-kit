@@ -327,8 +327,20 @@ function assertPackStructure() {
     "For repo-wide scans, report candidates as candidates",
     "Long-term Governance Routing",
     "Content-based trigger",
-    "Do not persist long-term governance knowledge only in"
+    "Do not persist long-term governance knowledge only in",
+    "doctor does not discover unregistered ordinary workspace files",
+    "cannot replace explicit changed-artifact review"
   ], "agent governance durable-home routing");
+
+  assertIncludes(core, [
+    "Before changing `AGENTS.md` or adding a durable governance rule",
+    "use `dev/RULE_PACKS.md` to load `dev/rules/agent-governance.md`",
+    "locate the existing normative owner",
+    "Default-core rules must apply to most sessions",
+    "protect safety or continuity",
+    "be shorter than the routed detail they replace",
+    "Do not copy the agent-governance classification table or workflow into the core"
+  ], "core governance pre-edit routing gate");
 
   console.log("ok: rule pack structure and durable-home routing");
 }

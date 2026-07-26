@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installedFileContracts, requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
 import { canonicalizeOfficialText, loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
+import { markdownVisibleLinesOutsideHiddenBlocks, materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -46,9 +47,11 @@ function main() {
   checkCredentialPreBackupStop();
   checkHistoricalSingleHopFixtures();
   checkHistoricalCrlfAndBaselineMismatch();
+  checkHistoricalProjectIndexAuthorizedTransforms();
   checkV038HeadedAppendixProtection();
   checkRulePacksMarkerMerge();
   checkProjectIndexRealHeadings();
+  checkProjectIndexHiddenGovernanceFalseClose();
   checkHistoricalSessionLogTemplateMigration();
   checkMalformedSessionLogBoundary();
   checkLifecycleCrossCheck();
@@ -392,6 +395,20 @@ function checkHistoricalCrlfAndBaselineMismatch() {
   const crlfUpgrade = cli(["upgrade", "--yes", "--root", crlfProject], "v0.3.35 CRLF official upgrade");
   assert(crlfUpgrade.stdout.includes("status: passed"), "newline-only official variation did not upgrade cleanly");
   for (const [targetRel, before] of crlfBefore) {
+    if (targetRel === "dev/PROJECT_INDEX.md") {
+      const afterText = read(path.join(crlfProject, targetRel));
+      const beforeText = before.toString("utf8");
+      assert(parseProjectIndexTemplateVersion(beforeText) === "0.3.35", "CRLF fixture PROJECT_INDEX did not expose the old Stack version");
+      assert(realH2Count(beforeText, "Installed Integrations") === 1, "CRLF fixture PROJECT_INDEX did not start with one Installed Integrations section");
+      assert(realH2Count(beforeText, "Tool Operation References") === 0, "CRLF fixture PROJECT_INDEX unexpectedly started with Tool Operation References");
+      assert(parseProjectIndexTemplateVersion(afterText) === packageVersion, "CRLF fixture PROJECT_INDEX did not materialize the current Stack version");
+      assert(realH2Count(afterText, "Installed Integrations") === 1, "CRLF fixture PROJECT_INDEX lost the Installed Integrations section");
+      assert(realH2Count(afterText, "Tool Operation References") === 1, "CRLF fixture PROJECT_INDEX did not insert exactly one Tool Operation References section");
+      assert(!afterText.replace(/\r\n/g, "").includes("\n"), "CRLF fixture PROJECT_INDEX contains bare LF after migration");
+      const reversed = materializeProjectIndexTemplateVersion(removeH2(afterText, "Tool Operation References"), "0.3.35");
+      assert(reversed === beforeText, "CRLF fixture PROJECT_INDEX changed bytes outside the version row and Tool Operation References insertion");
+      continue;
+    }
     assert(readFileSync(path.join(crlfProject, targetRel)).equals(before), `newline-only non-exact ${targetRel} was rewritten instead of preserved`);
   }
 
@@ -415,6 +432,75 @@ function checkHistoricalCrlfAndBaselineMismatch() {
     assert(equalSnapshots(before, governanceSnapshot(project)), `${mode} baseline dry-run changed governance files`);
   }
   console.log("ok: CRLF official files upgrade; forged or missing baselines cannot authorize custom-rule merge");
+}
+
+function checkHistoricalProjectIndexAuthorizedTransforms() {
+  const v031Project = fresh("v031-project-index-authorized-transforms");
+  materializeOfficialInstall("0.3.1", v031Project);
+  const v031IndexPath = path.join(v031Project, "dev", "PROJECT_INDEX.md");
+  const v031BeforeText = read(v031IndexPath);
+  const v031BeforeVersion = parseProjectIndexTemplateVersion(v031BeforeText);
+  assert(v031BeforeVersion === "0.1.7", "v0.3.1 fixture PROJECT_INDEX did not expose its historical Stack version");
+  assert(realH2Count(v031BeforeText, "Installed Integrations") === 1, "v0.3.1 fixture PROJECT_INDEX did not start with one Installed Integrations section");
+  assert(realH2Count(v031BeforeText, "Tool Operation References") === 0, "v0.3.1 fixture PROJECT_INDEX unexpectedly started with Tool Operation References");
+  assert(v031BeforeText.includes("### Connectors（Anthropic 官方 vetted）"), "v0.3.1 fixture lacks the legacy connector heading text");
+  const v031Upgrade = cli(["upgrade", "--yes", "--root", v031Project], "v0.3.1 PROJECT_INDEX authorized transform upgrade");
+  assert(v031Upgrade.stdout.includes("status: passed"), "v0.3.1 authorized PROJECT_INDEX transform did not pass doctor");
+  const v031AfterText = read(v031IndexPath);
+  assert(parseProjectIndexTemplateVersion(v031AfterText) === packageVersion, "v0.3.1 PROJECT_INDEX did not materialize the current Stack version");
+  assert(realH2Count(v031AfterText, "Installed Integrations") === 1, "v0.3.1 PROJECT_INDEX lost Installed Integrations");
+  assert(realH2Count(v031AfterText, "Tool Operation References") === 1, "v0.3.1 PROJECT_INDEX did not insert Tool Operation References");
+  assert(v031AfterText.includes("### Connectors（Anthropic 官方 vetted）"), "v0.3.1 PROJECT_INDEX normalized a legacy pre-existing connector heading");
+  const v031Reversed = materializeProjectIndexTemplateVersion(removeH2(v031AfterText, "Tool Operation References"), v031BeforeVersion);
+  assert(v031Reversed === v031BeforeText, "v0.3.1 PROJECT_INDEX changed bytes outside Tool Operation References insertion and Stack version-row materialization");
+
+  const gapProject = fresh("v031-project-index-gap-preservation");
+  materializeOfficialInstall("0.3.1", gapProject);
+  const gapIndexPath = path.join(gapProject, "dev", "PROJECT_INDEX.md");
+  const gapSentinel = "CUSTOM_GAP_SENTINEL  \n\n\n";
+  let gapBeforeText = read(gapIndexPath);
+  const gapBeforeVersion = parseProjectIndexTemplateVersion(gapBeforeText);
+  assert(gapBeforeVersion === "0.1.7", "v0.3.1 gap fixture PROJECT_INDEX did not expose its historical Stack version");
+  assert(realH2Count(gapBeforeText, "Tool Operation References") === 0, "v0.3.1 gap fixture unexpectedly started with Tool Operation References");
+  gapBeforeText = gapBeforeText.replace("## Local QC Commands", `${gapSentinel}## Local QC Commands`);
+  writeFileSync(gapIndexPath, gapBeforeText, "utf8");
+  const gapBeforeBytes = readFileSync(gapIndexPath);
+  const gapUpgrade = cli(["upgrade", "--yes", "--root", gapProject], "v0.3.1 PROJECT_INDEX gap preservation");
+  assert(gapUpgrade.stdout.includes("status: passed"), "v0.3.1 gap preservation PROJECT_INDEX transform did not pass doctor");
+  const gapAfterText = read(gapIndexPath);
+  assert(gapAfterText.includes(gapSentinel), "v0.3.1 PROJECT_INDEX gap sentinel bytes were not preserved");
+  const gapReversed = materializeProjectIndexTemplateVersion(removeH2(gapAfterText, "Tool Operation References"), gapBeforeVersion);
+  assert(Buffer.from(gapReversed, "utf8").equals(gapBeforeBytes), "v0.3.1 PROJECT_INDEX gap fixture changed bytes outside Tool Operation References insertion and Stack version-row materialization");
+
+  const customProject = install("project-index-custom-credential-text");
+  const customIndexPath = path.join(customProject, "dev", "PROJECT_INDEX.md");
+  const customLiteral = "Former normalization literal retained as local content: ### Connectors（Anthropic 官方 vetted）";
+  let customBeforeText = materializeProjectIndexTemplateVersion(read(customIndexPath), "0.3.38");
+  customBeforeText = customBeforeText.replace("## Workspace Identity", `## Local Project Notes\n\n${customLiteral}\n\n## Workspace Identity`);
+  writeFileSync(customIndexPath, customBeforeText, "utf8");
+  const customUpgrade = cli(["upgrade", "--yes", "--root", customProject], "PROJECT_INDEX custom credential-normalization literal");
+  assert(customUpgrade.stdout.includes("status: passed"), "custom PROJECT_INDEX literal upgrade did not pass doctor");
+  const customAfterText = read(customIndexPath);
+  assert(customAfterText === materializeProjectIndexTemplateVersion(customBeforeText, packageVersion), "custom PROJECT_INDEX text changed outside the shared Stack version-row materializer");
+  assert(customAfterText.includes(customLiteral), "custom former credential-normalization literal was not preserved exactly");
+
+  const mixedFenceProject = install("project-index-mixed-fence-visible");
+  const mixedIndexPath = path.join(mixedFenceProject, "dev", "PROJECT_INDEX.md");
+  const mixedLine = "```~ mixed invalid fence opener remains ordinary visible text";
+  let mixedBeforeText = materializeProjectIndexTemplateVersion(read(mixedIndexPath), "0.3.38");
+  mixedBeforeText = mixedBeforeText.replace("## Stack", `${mixedLine}\n\n## Stack`);
+  writeFileSync(mixedIndexPath, mixedBeforeText, "utf8");
+  assert(markdownVisibleLinesOutsideHiddenBlocks(mixedBeforeText).some((line) => line.text === mixedLine), "mixed backtick/tilde line was treated as a fence opener");
+  assert(parseProjectIndexTemplateVersion(mixedBeforeText) === "0.3.38", "mixed invalid fence line hid the real Stack version row");
+  assert(realH2Count(mixedBeforeText, "Tool Operation References") === 1 && realH2Count(mixedBeforeText, "Local QC Commands") === 1, "mixed invalid fence line hid real PROJECT_INDEX governance sections");
+  const mixedUpgrade = cli(["upgrade", "--yes", "--root", mixedFenceProject], "PROJECT_INDEX mixed invalid fence line");
+  assert(mixedUpgrade.stdout.includes("status: passed"), "mixed invalid fence line made upgrade/doctor false-block");
+  const mixedAfterText = read(mixedIndexPath);
+  assert(mixedAfterText === materializeProjectIndexTemplateVersion(mixedBeforeText, packageVersion), "mixed invalid fence line fixture changed bytes outside the shared Stack version-row materializer");
+  assert(mixedAfterText.includes(mixedLine), "mixed invalid fence line bytes were not preserved");
+  assert(cli(["doctor", "--root", mixedFenceProject], "PROJECT_INDEX mixed invalid fence doctor").stdout.includes("status: passed"), "mixed invalid fence line made doctor false-block after upgrade");
+
+  console.log("ok: PROJECT_INDEX legal transforms are limited to missing Kit sections plus Stack version row");
 }
 
 function checkV038HeadedAppendixProtection() {
@@ -463,6 +549,32 @@ function checkProjectIndexRealHeadings() {
   const after = read(indexPath);
   assert(realH2Count(after, "Installed Integrations") === 1 && realH2Count(after, "Tool Operation References") === 1, "lookalike headings blocked real section insertion");
   console.log("ok: PROJECT_INDEX ignores inline/fenced heading lookalikes");
+}
+
+function checkProjectIndexHiddenGovernanceFalseClose() {
+  for (const variant of [
+    { label: "backtick-short-close", opener: "````", invalidClose: "```" },
+    { label: "tilde-trailing-close", opener: "~~~~", invalidClose: "~~~~ trailing text" }
+  ]) {
+    const project = install(`project-index-${variant.label}`);
+    const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
+    const current = read(indexPath);
+    const hiddenStart = current.indexOf("\n## Tool Operation References");
+    assert(hiddenStart >= 0, `${variant.label} fixture lacks Tool Operation References`);
+    const hidden = `${current.slice(0, hiddenStart + 1)}${variant.opener}\n${current.slice(hiddenStart + 1)}\n${variant.invalidClose}\n`;
+    writeFileSync(indexPath, hidden, "utf8");
+    assert(realH2Count(hidden, "Tool Operation References") === 0 && realH2Count(hidden, "Local QC Commands") === 0, `${variant.label} false close did not hide governance headings`);
+    const beforeSnapshot = fullSnapshot(project);
+    const beforeBytes = readFileSync(indexPath);
+    const doctor = cli(["doctor", "--root", project], `${variant.label} hidden PROJECT_INDEX doctor`, { allowFailure: true });
+    assert(doctor.status !== 0 && output(doctor).includes("Installed Integrations and Tool Operation References"), `${variant.label} hidden PROJECT_INDEX doctor did not fail closed`);
+    const upgrade = cli(["upgrade", "--yes", "--root", project], `${variant.label} hidden PROJECT_INDEX upgrade`, { allowFailure: true });
+    assert(upgrade.status !== 0 && output(upgrade).includes("PROJECT_INDEX.md must contain unique real H2 governance sections"), `${variant.label} hidden PROJECT_INDEX upgrade did not fail closed`);
+    assert(readFileSync(indexPath).equals(beforeBytes), `${variant.label} hidden PROJECT_INDEX upgrade changed target bytes`);
+    assert(equalSnapshots(beforeSnapshot, fullSnapshot(project)), `${variant.label} hidden PROJECT_INDEX upgrade or doctor wrote files`);
+    assert(!output(upgrade).includes("migration committed") && !output(upgrade).includes("project health: passed"), `${variant.label} hidden PROJECT_INDEX upgrade reported success`);
+  }
+  console.log("ok: PROJECT_INDEX long-fence false closes hide governance sections and fail closed with zero writes");
 }
 
 function checkLifecycleCrossCheck() {
@@ -935,17 +1047,23 @@ function collectReports(dir, reports) {
 }
 
 function removeH2(text, title) {
-  const pattern = new RegExp(`^## ${escapeRegExp(title)}\\s*$`, "m");
-  const match = pattern.exec(text);
+  const match = markdownH2Sections(text).find((section) => section.title === title);
   if (!match) return text;
-  const next = /^## [^#].*$/m.exec(text.slice(match.index + match[0].length));
-  const end = next ? match.index + match[0].length + next.index : text.length;
-  return `${text.slice(0, match.index)}${text.slice(end)}`;
+  return `${text.slice(0, match.start)}${text.slice(match.end)}`;
 }
 
 function realH2Count(text, title) {
-  const withoutFences = text.replace(/```[\s\S]*?```/g, "").replace(/<!--[\s\S]*?-->/g, "");
-  return (withoutFences.match(new RegExp(`^## ${escapeRegExp(title)}\\s*$`, "gm")) ?? []).length;
+  return markdownH2Sections(text).filter((section) => section.title === title).length;
+}
+
+function markdownH2Sections(text) {
+  const sections = [];
+  for (const line of markdownVisibleLinesOutsideHiddenBlocks(text)) {
+    const match = /^## ([^#].*?)\s*$/u.exec(line.text);
+    if (match) sections.push({ title: match[1], start: line.start, end: String(text).length });
+  }
+  for (let index = 0; index < sections.length - 1; index += 1) sections[index].end = sections[index + 1].start;
+  return sections;
 }
 
 function compareVersions(left, right) {

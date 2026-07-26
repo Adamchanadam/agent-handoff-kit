@@ -7,13 +7,15 @@ import { tmpdir as systemTmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
-import { extractExplicitLocalReferences } from "../bin/upgrade-inventory.mjs";
+import { extractExplicitLocalReferences, materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import { materializeVerifiedV038ArtifactFixture } from "./r034-v038-artifact-fixture.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const candidateRoot = path.resolve(__dirname, "..");
 const qaTmp = process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "C:\\tmp" : systemTmpdir());
 const catalog = await loadOfficialOriginCatalog();
+const packageVersion = JSON.parse(readFileSync(path.join(candidateRoot, "package.json"), "utf8")).version;
+const projectIndexRel = "dev/PROJECT_INDEX.md";
 
 main().catch((error) => {
   console.error(error.stack || error.message);
@@ -46,6 +48,7 @@ async function main() {
   assert(extractExplicitLocalReferences(beforeText).some((entry) => entry.path === localRel), "fixture local reference is not mechanically reachable from the formal AGENTS entry");
   const originalProjectIndex = artifact.freshInitOutputs.find((entry) => entry.targetRel === "dev/PROJECT_INDEX.md");
   assert(originalProjectIndex, "v0.3.38 artifact fixture omitted PROJECT_INDEX identity");
+  const projectIndexBefore = read(path.join(project, projectIndexRel));
 
   const result = cli(["upgrade", "--yes", "--root", project], "v0.3.38 AGENTS mixed-source red");
   const resultText = output(result);
@@ -59,7 +62,9 @@ async function main() {
   assert(extractExplicitLocalReferences(afterText).some((entry) => entry.path === localRel), "whole-file preserve removed the formal AGENTS local reference");
   assert(readBuffer(localPath).equals(localBytes), "upgrade changed the locally referenced target bytes");
   assert(existsSync(path.join(project, "dev", "rules", "closeout.md")), "whole-file preserve prevented an unrelated safe Kit update");
-  assert(sha(readBuffer(path.join(project, "dev", "PROJECT_INDEX.md"))) === originalProjectIndex.sha256, "whole-file preservation rewrote the legacy direct-entry PROJECT_INDEX bytes");
+  assert(parseProjectIndexTemplateVersion(projectIndexBefore) === "0.3.38", "AGENTS red PROJECT_INDEX did not start with the expected old Stack version");
+  assert(parseProjectIndexTemplateVersion(read(path.join(project, projectIndexRel))) === packageVersion, "AGENTS red PROJECT_INDEX did not materialize the package Stack version");
+  assert(read(path.join(project, projectIndexRel)) === materializeProjectIndexTemplateVersion(projectIndexBefore, packageVersion), "AGENTS red PROJECT_INDEX changed bytes outside the shared Stack version-row materializer");
 
   const transaction = latestTransaction(project);
   const entry = transaction.journal.entries.find((candidate) => candidate.targetRel === agentsRel);
@@ -74,28 +79,31 @@ async function main() {
   assert(accepted.disposition === "preserve" && accepted.conflictDecision === "non-exact-package-bytes" && accepted.effectDecision === "preserve-unmodified-through-direct-formal-entry", "direct AGENTS preservation decision is incomplete");
   assert(accepted.accepted.sha256 === sha(beforeBytes) && accepted.sourceWitness.sha256 === sha(beforeBytes) && accepted.accepted.bytes === beforeBytes.length && accepted.sourceWitness.bytes === beforeBytes.length, "direct AGENTS acceptance lost its original-byte witness");
   assert(accepted.sourceByteRanges?.length === 1 && accepted.sourceByteRanges[0].start === 0 && accepted.sourceByteRanges[0].end === beforeBytes.length && accepted.sourceByteRanges[0].sha256 === sha(beforeBytes), "direct AGENTS acceptance does not prove one complete non-overlapping source range");
-  const preservedProjectIndex = transaction.journal.runtimeAcceptance?.entries.find((candidate) => candidate.targetRel === "dev/PROJECT_INDEX.md");
-  assert(preservedProjectIndex?.disposition === "preserve" && preservedProjectIndex.accepted?.sha256 === originalProjectIndex.sha256, "shared acceptance did not record the preserved legacy PROJECT_INDEX bytes");
+  const projectIndexEntry = transaction.journal.entries.find((candidate) => candidate.targetRel === projectIndexRel);
+  const projectIndexAfter = read(path.join(project, projectIndexRel));
+  assert(projectIndexEntry?.beforeHash === sha(Buffer.from(projectIndexBefore, "utf8")) && projectIndexEntry.afterHash === sha(Buffer.from(projectIndexAfter, "utf8")) && projectIndexEntry.beforeHash !== projectIndexEntry.afterHash, "PROJECT_INDEX transaction entry did not bind the version-row metadata transition");
+  assert(projectIndexEntry.reason?.includes("unique real PROJECT_INDEX Stack template-version row"), "PROJECT_INDEX transaction entry did not disclose the narrow Stack version-row reason");
+  assert(!transaction.journal.runtimeAcceptance?.entries.some((candidate) => candidate.targetRel === projectIndexRel), "PROJECT_INDEX metadata transition was falsely included in runtimeAcceptance preserve entries");
+  assert(transaction.report.includes(projectIndexEntry.afterHash) && transaction.report.includes(projectIndexEntry.reason), "PROJECT_INDEX metadata transition was not disclosed in the migration report");
   assert(accepted.originalReader.reader === "AGENTS.md" && accepted.originalReader.via === "direct-formal-entry" && accepted.activeReader.agentsSha256 === sha(beforeBytes) && accepted.priorityRelation.includes("single complete source range 0..N"), "direct AGENTS acceptance omitted reader or priority/effect evidence");
-  const localReference = accepted.activeReader.references?.find((reference) => reference.targetRel === localRel && reference.via === "markdown-link");
-  assert(localReference?.sha256 === sha(localBytes) && localReference.bytes === localBytes.length, "direct AGENTS acceptance omitted the local formal-reference bytes from its reader/effect witness");
+  assert(!accepted.activeReader.references?.some((reference) => reference.targetRel === localRel), "direct AGENTS acceptance treated a generic Markdown link as filesystem authority");
   assert(transaction.journal.currentStateWitness.runtimeAcceptance?.acceptanceDigest === transaction.journal.runtimeAcceptance.acceptanceDigest, "whole current-state witness did not bind direct AGENTS acceptance");
   assert(transaction.journal.runtimeAcceptanceReadback?.reader?.includes("direct AGENTS whole-file entry"), "post-transaction doctor did not fresh-read the direct AGENTS acceptance");
   assert(transaction.journal.currentStateReadback?.runtimeAcceptanceDigest === transaction.journal.runtimeAcceptance.acceptanceDigest, "success state did not use the same direct AGENTS acceptance digest");
 
   const doctor = cli(["doctor", "--root", project], "AGENTS mixed-source ordinary doctor");
   assert(doctor.status === 0 && output(doctor).includes("direct AGENTS whole-file entry") && output(doctor).includes("shared current-state witness: 1") && output(doctor).includes("status: passed"), "ordinary doctor did not fresh-read the same direct AGENTS acceptance state");
-  assert(transaction.report?.includes("## Runtime Acceptance") && transaction.report.includes(transaction.journal.runtimeAcceptance.acceptanceDigest) && transaction.report.includes(`AGENTS.md:${sha(beforeBytes)}:preserve:preserve-unmodified-through-direct-formal-entry:range=0-${beforeBytes.length}`), "migration report did not consume the same complete direct AGENTS acceptance witness");
+  assert(transaction.report?.includes("## Runtime Acceptance") && transaction.report.includes(transaction.journal.runtimeAcceptance.acceptanceDigest) && transaction.report.includes(`AGENTS.md:${sha(beforeBytes)}:preserve:preserve-unmodified-through-direct-formal-entry:ranges=0-${beforeBytes.length}`), "migration report did not consume the same complete direct AGENTS acceptance witness");
   assert(transaction.report.includes("## Shared Current-State Witness") && transaction.report.includes(transaction.journal.currentStateWitness.currentStateDigest), "migration report did not consume the same whole current-state identity");
+  assert(!journalMentionsPath(transaction.journal, localRel), "transaction journal treated the generic AGENTS link target as current authority");
+  assert(!transaction.report.includes(localRel), "migration report mentioned the generic AGENTS link target");
 
   writeFileSync(localPath, Buffer.from("LOCAL_AGENT_RULE_TARGET_DRIFT_v1\n", "utf8"));
   const driftDoctor = cli(["doctor", "--root", project], "AGENTS local target drift regression");
-  assert(driftDoctor.status !== 0 && !output(driftDoctor).includes("status: passed"), "ordinary doctor accepted direct AGENTS local-reference byte drift after the transaction");
-  writeFileSync(localPath, localBytes);
-  const restoredDoctor = cli(["doctor", "--root", project], "AGENTS local target drift restoration");
-  assert(restoredDoctor.status === 0 && output(restoredDoctor).includes("status: passed"), "ordinary doctor did not recover after restoring the direct AGENTS local-reference bytes");
+  assert(driftDoctor.status === 0 && output(driftDoctor).includes("status: passed"), "ordinary doctor treated inert AGENTS local-reference target drift as a blocker");
+  assert(readBuffer(agentsPath).equals(beforeBytes), "doctor changed AGENTS bytes while ignoring an inert local-reference target");
 
-  console.log("GREEN: the original AGENTS mixed-source red fixture preserves the complete file unchanged, keeps its unheaded direct-entry user rule and local reference effective, and binds one complete source range plus direct reader/priority/effect to the same transaction, doctor, report, and success witness. Local referenced-target drift fails doctor until restored.");
+  console.log("GREEN: the original AGENTS mixed-source red fixture preserves the complete file unchanged, keeps its unheaded direct-entry user rule and local reference text, and binds one complete source range plus direct reader/priority/effect to the same transaction, doctor, report, and success witness. The generic referenced target is inert and does not block doctor when changed.");
   console.log(`fixture: ${project}`);
   console.log(`artifact integrity: ${artifact.integrity}`);
   console.log(`AGENTS before sha256: ${sha(beforeBytes)}`);
@@ -105,6 +113,10 @@ async function main() {
 
 function acceptedTarget(component, targetRel) {
   return Boolean(component?.entries?.some((entry) => entry.targetRel === targetRel));
+}
+
+function journalMentionsPath(journal, targetRel) {
+  return JSON.stringify(journal).includes(targetRel);
 }
 
 function cli(args, label) {

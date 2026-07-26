@@ -13,12 +13,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const qaTmp = process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "C:\\tmp" : systemTmpdir());
 const catalog = await loadOfficialOriginCatalog();
-const fiveConflictRules = Object.freeze([
+const modifiedRuleContracts = Object.freeze([
   "dev/rules/safety.md",
   "dev/rules/research.md",
   "dev/rules/agent-governance.md",
   "dev/rules/knowledge.md",
   "dev/rules/integrations.md"
+]);
+const inertUserTargets = Object.freeze([
+  "docs/custom-policy.json",
+  "資料/附加規則.md",
+  "docs/unrelated.txt",
+  "dev/safety.md"
 ]);
 
 main().catch((error) => {
@@ -37,8 +43,7 @@ async function main() {
   const afterSecond = fullSnapshot(project);
 
   assert(first.status === "ready", `inventory unexpectedly blocked: ${JSON.stringify(first.blockers)}`);
-  assert(first.entries.length >= installedFileContracts.length, "inventory omitted managed contract files");
-  assert(first.inventorySha256 === second.inventorySha256, "same source tree produced an unstable inventory digest");
+  assert(first.inventorySha256 === second.inventorySha256, "same typed source tree produced an unstable inventory digest");
   assert(equalSnapshots(before, afterFirst) && equalSnapshots(before, afterSecond), "read-only inventory changed the fixture");
   assert(first.formalEntryTargets.length === 4, "formal entry targets were not all retained");
 
@@ -46,25 +51,34 @@ async function main() {
   for (const { targetRel } of installedFileContracts) {
     assert(entries.has(targetRel), `managed contract omitted from inventory: ${targetRel}`);
   }
-  for (const targetRel of fiveConflictRules) {
+  for (const targetRel of modifiedRuleContracts) {
     const entry = entries.get(targetRel);
-    assert(entry, `five-conflict rule omitted: ${targetRel}`);
-    assert(entry.sha256 === sha(readFileSync(path.join(project, targetRel))), `five-conflict rule hash drifted: ${targetRel}`);
-    assert(readFileSync(path.join(project, targetRel), "utf8").includes(`R034_CUSTOM_${path.basename(targetRel, ".md").toUpperCase()}`), `five-conflict custom text changed: ${targetRel}`);
+    assert(entry, `typed installed rule-pack contract omitted: ${targetRel}`);
+    assert(entry.sha256 === sha(readFileSync(path.join(project, targetRel))), `typed installed contract hash drifted: ${targetRel}`);
+    assert(readFileSync(path.join(project, targetRel), "utf8").includes(`R034_CUSTOM_${path.basename(targetRel, ".md").toUpperCase()}`), `typed installed contract text changed: ${targetRel}`);
   }
 
-  const policy = entries.get("docs/custom-policy.json");
-  assert(policy?.classifications.includes("formal-reference"), "custom non-rule policy was not classified as a formal reference");
-  assert(policy.reachability.some((item) => item.from === "AGENTS.md" && item.via === "markdown-link"), "custom policy reachability is not bound to AGENTS.md");
-  const unicodeRule = entries.get("資料/附加規則.md");
-  assert(unicodeRule?.classifications.includes("formal-reference"), "Unicode-path reference was not inventoried");
-  assert(unicodeRule.reachability.some((item) => item.from === "AGENTS.md" && item.via === "inline-code-path"), "Unicode-path reachability is not bound to AGENTS.md");
-  assert(entries.get("dev/safety.md")?.classifications.includes("legacy-rule-location"), "known legacy rule location was not inventoried");
-  assert(entries.get("dev/governance_migrations/prior/transaction.json")?.classifications.includes("transaction-state"), "dynamic transaction state was not inventoried");
+  assert(entries.get("dev/governance_migrations/prior/transaction.json")?.classifications.includes("transaction-state"), "exact transaction.json state was not inventoried");
   assert(entries.get("dev/session_log_archive/archive_001.md")?.classifications.includes("legacy-session-log-archive"), "legacy session-log archive was not inventoried");
-  assert(!entries.has("docs/unrelated.txt"), "unreachable unrelated file was pulled into the inventory");
+  for (const inertTarget of inertUserTargets) {
+    assert(!entries.has(inertTarget), `inert generic user target became inventory authority: ${inertTarget}`);
+    assert(readFileSync(path.join(project, inertTarget), "utf8") === beforeText(project, inertTarget), `inventory changed inert user target bytes: ${inertTarget}`);
+  }
 
-  console.log("ok: R-034 inventory covers managed, custom, legacy, dynamic, and Unicode-referenced sources without writes");
+  write(path.join(project, "docs", "custom-policy.json"), "{\n  \"retention\": \"local-drift\"\n}\n");
+  write(path.join(project, "資料", "附加規則.md"), "# 附加規則\n\nDRIFT SHOULD BE INERT.\n");
+  write(path.join(project, "docs", "unrelated.txt"), "Unrelated drift must not affect typed inventory.\n");
+  write(path.join(project, "dev", "safety.md"), "# Legacy safety location\n\nDRIFT SHOULD BE INERT.\n");
+  const drifted = await buildUpgradeInventory({ root: project });
+  const driftEntries = new Map(drifted.entries.map((entry) => [entry.path, entry]));
+  assert(drifted.status === "ready", `generic user target drift unexpectedly blocked inventory: ${JSON.stringify(drifted.blockers)}`);
+  assert(drifted.inventorySha256 === first.inventorySha256, "inert generic target byte drift changed the typed inventory digest");
+  for (const inertTarget of inertUserTargets) {
+    assert(!driftEntries.has(inertTarget), `drifted inert target became inventory authority: ${inertTarget}`);
+  }
+
+  console.log("ok: R-034 inventory is scoped to installed contracts, exact transaction journals, and typed archive state");
+  console.log("ok: generic AGENTS Markdown/plain/Unicode references and unrelated files remain inert and do not affect the inventory digest");
   console.log(`ok: inventory digest ${first.inventorySha256}`);
   console.log("Agent Handoff Kit R-034 inventory QA passed");
 }
@@ -83,7 +97,7 @@ function writeFixtureState(project) {
   }
   append(
     path.join(project, "AGENTS.md"),
-    "\n## Local project references\n\n- [Custom policy](docs/custom-policy.json)\n- `資料/附加規則.md`\n"
+    "\n## Local project references\n\n- [Custom policy](docs/custom-policy.json)\n- `資料/附加規則.md`\n- Plain path: dev/safety.md\n"
   );
   write(path.join(project, "docs", "custom-policy.json"), "{\n  \"retention\": \"local\"\n}\n");
   write(path.join(project, "資料", "附加規則.md"), "# 附加規則\n\n僅供此專案使用。\n");
@@ -121,6 +135,14 @@ function walk(base, current, files) {
     if (entry.isDirectory()) walk(base, absolute, files);
     else if (entry.isFile()) files.push(path.relative(base, absolute).replaceAll(path.sep, "/"));
   }
+}
+
+function beforeText(project, relative) {
+  if (relative === "docs/custom-policy.json") return "{\n  \"retention\": \"local\"\n}\n";
+  if (relative === "資料/附加規則.md") return "# 附加規則\n\n僅供此專案使用。\n";
+  if (relative === "docs/unrelated.txt") return "This file is deliberately unreachable.\n";
+  if (relative === "dev/safety.md") return "# Legacy safety location\n\nRetain this legacy source for migration review.\n";
+  throw new Error(`unexpected inert target: ${relative}`);
 }
 
 function write(file, content) {

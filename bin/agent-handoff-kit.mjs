@@ -10,7 +10,17 @@ import { fileURLToPath } from "node:url";
 import { assessPromptMirrorRoot, assessPromptMirrorTexts, extractOpeningMessage } from "./prompt-mirror-core.mjs";
 import { freshInstallMappings, installedFileContract, installedMappings, requiredInstalledTargets, upgradeStateMappings, upgradeStateTargets } from "./installed-file-contract.mjs";
 import { getArtifactBoundManagedSegment, getOfficialBaseline, identifyOfficialOrigin, loadOfficialOriginCatalog } from "./official-origin-catalog.mjs";
-import { assertGate5FrozenSet, extractExplicitLocalReferences, freezeGate5Set, gate5SourceConservationItems } from "./upgrade-inventory.mjs";
+import {
+  assertGate5FrozenSet,
+  extractExplicitLocalReferences,
+  freezeGate5Set,
+  gate5SourceConservationItems,
+  markdownVisibleLinesOutsideHiddenBlocks,
+  materializeProjectIndexTemplateVersion,
+  parseProjectIndexTemplateVersion,
+  projectIndexTemplateVersionRow,
+  readProjectIndexTemplateVersion
+} from "./upgrade-inventory.mjs";
 import {
   FORMAL_USER_RULES_ENTRY_ANCHOR,
   USER_RULES_ROUTER_PATH,
@@ -62,6 +72,8 @@ const credentialLeakPatterns = [
   { pattern: /\bAKIA[A-Z0-9]{16}/, label: "AWS access key" },
   { pattern: /\bAIza[A-Za-z0-9_-]{35}/, label: "Google API key" }
 ];
+const projectIndexTemplateVersionMetadataReason = "update only the unique real PROJECT_INDEX Stack template-version row while preserving every other PROJECT_INDEX byte";
+const projectIndexTemplateVersionMetadataTransition = "project-index-template-version";
 
 // Exact v0.3.38 continuity quick-fix packs observed in real projects before the
 // product migration shipped. They contain no project-specific state. Matching
@@ -442,12 +454,6 @@ const schemaChecks = [
       // to verify the section is structurally present.
       tableHeader("Check", "Command", "Run before", "Last verified"),
       tableHeader("Change type", "Likely files", "Required checks"),
-      // R-030 v0.3.0+: Installed Integrations subsection table headers
-      tableHeader("Tool", "Project Usage", "Access Scope", "Specific Instance", "Credential Reference (no value)", "Declared", "Last Verified"),
-      tableHeader("Server", "Source", "Project Usage", "Credential Reference (no value)", "Declared", "Last Verified"),
-      tableHeader("Name", "Bundle Content (Skills + MCP + hooks)", "When Triggered", "Last Verified"),
-      tableHeader("Name", "Source", "When Triggered", "Last Verified"),
-      tableHeader("Layer", "Surface (specific instance)", "Role", "Write Direction"),
       tableHeader("Tool / operation", "Reference path or URL", "Required before", "Source and version/date", "Scope and known limits", "Last verified")
     ]
   },
@@ -858,17 +864,8 @@ function parseArgs(args) {
 // (otherwise plan-time short-circuit returns before inject can run).
 async function needsProjectIndexVersionInject(root, command, version) {
   if (command !== "upgrade") return false;
-  try {
-    const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
-    const text = await readFile(indexPath, "utf8");
-    const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
-    if (m && isStableSemver(m[1]) && compareSemver(m[1], version) < 0) {
-      return true;
-    }
-  } catch {
-    // ignore — silent if PROJECT_INDEX missing or unreadable
-  }
-  return false;
+  const installedVersion = await readProjectIndexTemplateVersion(root);
+  return Boolean(installedVersion && compareSemver(installedVersion, version) < 0);
 }
 
 async function runInstall(command, root, options, version) {
@@ -883,7 +880,7 @@ async function runInstall(command, root, options, version) {
       return;
     }
   }
-  const installedVersion = await readInstalledTemplateVersion(root);
+  const installedVersion = await readProjectIndexTemplateVersion(root);
   if (command === "upgrade" && installedVersion && compareSemver(installedVersion, version) > 0) {
     console.log(`selected root: ${root}`);
     console.log(`status: blocked`);
@@ -902,7 +899,7 @@ async function runInstall(command, root, options, version) {
   if (command === "upgrade") {
     let acceptedCurrentState = null;
     try {
-      acceptedCurrentState = await loadCommittedCurrentStateWitness(root);
+      acceptedCurrentState = await loadCommittedCurrentStateWitness(root, { allowHistoricalEdgeRetirement: true });
     } catch (error) {
       if (!String(error?.message ?? error).includes("doctor refuses an unbound success state")) throw error;
       await assertUnboundCurrentStateMayAttemptUpgradeRebind(root, error);
@@ -986,25 +983,20 @@ async function runInstall(command, root, options, version) {
     return;
   }
 
+  let transactionPreflight = null;
   if (planConflictCount === 0) {
-    candidateOutputs ??= await buildTransactionOutputs(command, root, plan, version);
-    const credentialFindings = await detectInstalledCredentialFindings(root);
-    if (credentialFindings.length > 0) {
+    try {
+      transactionPreflight = await buildInstallTransactionPreflight(command, root, plan, version, {
+        candidateOutputs,
+        sourceConservationRebind
+      });
+      candidateOutputs = transactionPreflight.outputs;
+    } catch (error) {
       plan.push({
         targetRel: "transaction preflight",
         action: "conflict",
-        reason: `existing governance contains ${credentialFindings.length} possible credential value(s); remove and rotate them before upgrade`
+        reason: safeErrorLabel(error)
       });
-    } else {
-      try {
-        await validateTransactionOverlay(root, candidateOutputs);
-      } catch (error) {
-        plan.push({
-          targetRel: "transaction preflight",
-          action: "conflict",
-          reason: safeErrorLabel(error)
-        });
-      }
     }
   }
 
@@ -1034,21 +1026,12 @@ async function runInstall(command, root, options, version) {
     }
   }
 
-  await executeInstallTransaction(command, root, mode, plan, version, candidateOutputs, { sourceConservationRebind });
+  await executeInstallTransaction(command, root, mode, plan, version, transactionPreflight, { sourceConservationRebind });
 }
 
-async function readInstalledTemplateVersion(root) {
-  try {
-    const text = await readFile(path.join(root, "dev/PROJECT_INDEX.md"), "utf8");
-    const match = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
-    return match && isStableSemver(match[1]) ? match[1] : null;
-  } catch {
-    return null;
-  }
-}
-
-async function executeInstallTransaction(command, root, mode, plan, version, candidateOutputs = null, options = {}) {
-  const outputs = candidateOutputs ?? await buildTransactionOutputs(command, root, plan, version);
+async function executeInstallTransaction(command, root, mode, plan, version, candidatePreflight = null, options = {}) {
+  const preflight = candidatePreflight ?? await buildInstallTransactionPreflight(command, root, plan, version, options);
+  const outputs = preflight.outputs;
   if (outputs.length === 0) {
     const health = await assessUpgradeNoopHealth(root, version);
     printUpgradeNoopShortCircuit(version, health);
@@ -1056,48 +1039,17 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
     return;
   }
 
-  const credentialFindings = await detectInstalledCredentialFindings(root);
-  if (credentialFindings.length > 0) {
-    console.log("⛔ 升級已停止：待備份的治理檔疑似含有 credential value。");
-    console.log("機密值不會顯示或複製；請先移除並輪換機密，再重跑 upgrade。");
-    for (const finding of credentialFindings) console.log(`blocked  ${finding.relative}:${finding.line} (${finding.label})`);
-    process.exitCode = 1;
-    return;
-  }
-
-  // Run the same deterministic acceptance gate used by dry-run before creating
-  // a lock, stage, backup, journal, or migration directory.
-  await validateTransactionOverlay(root, outputs);
   // The user has confirmed writes. Create and revalidate a missing root only
   // now, immediately before transaction artifacts are prepared.
   await validateTransactionRoot(root, plan, { createMissingRoot: true });
-  // Gate 5 does not introduce a second state owner.  When this existing
-  // transaction already has a runtime acceptance, bind the pre-transaction
-  // root-source witness into the same current-state digest before the journal
-  // directory itself is created.
-  const archiveMigrations = command === "upgrade"
-    ? await prepareArchiveCasingMigrations(root)
-    : [];
-  const sourceConservationAuthority = command === "upgrade"
-    ? await hasCommittedSourceConservationAuthority(root)
-    : false;
-  if (options.sourceConservationRebind === true) {
-    for (const output of outputs) delete output.runtimeAcceptance;
+  const transaction = await prepareTransaction(root, command, version, outputs, mode, plan, preflight.sourceConservation, preflight.supersedesCurrentStateDigests, preflight.archiveMigrations);
+  try {
+    await injectBeforeLockRevalidationDrift(root, transaction.journal);
+    await assertPreparedTransactionPreflightStillCurrent(root, transaction, preflight, plan, { sourceConservationRebind: options.sourceConservationRebind === true });
+  } catch (error) {
+    await abortPreparedTransactionBeforeTargetWrites(root, transaction, error);
+    throw error;
   }
-  const runtimeAcceptance = command === "upgrade" && options.sourceConservationRebind !== true ? resolveRuntimeAcceptance(outputs) : null;
-  const sourceConservation = command === "upgrade" && (
-    runtimeAcceptance || sourceConservationAuthority
-  )
-    ? await createSourceConservation(root, outputs, archiveMigrations)
-    : null;
-  // A repair may restore the exact bytes of a prior committed state.  Keep the
-  // causal replacement relation inside the existing sealed journal so ordinary
-  // doctor can select the freshly read-back transaction without falling back
-  // to mtime or a separate current-state registry.
-  const supersedesCurrentStateDigests = command === "upgrade"
-    ? await findRestoredCurrentStateDigests(root, outputs, archiveMigrations, { sourceConservation, archiveMigrations })
-    : [];
-  const transaction = await prepareTransaction(root, command, version, outputs, mode, plan, sourceConservation, supersedesCurrentStateDigests, archiveMigrations);
   try {
     transaction.journal.state = "committing";
     await writeSecureJson(transaction.journalPath, transaction.journal);
@@ -1234,6 +1186,142 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
   }
 }
 
+async function buildInstallTransactionPreflight(command, root, plan, version, options = {}) {
+  const outputs = options.candidateOutputs ?? await buildTransactionOutputs(command, root, plan, version, {
+    allowActiveTransaction: options.allowActiveTransaction === true
+  });
+  if (outputs.length === 0) {
+    return Object.freeze({
+      outputs,
+      archiveMigrations: Object.freeze([]),
+      sourceConservation: null,
+      supersedesCurrentStateDigests: Object.freeze([]),
+      identity: installTransactionPreflightIdentity({ command, version, outputs })
+    });
+  }
+
+  const credentialFindings = await detectInstalledCredentialFindings(root);
+  if (credentialFindings.length > 0) {
+    throw new Error(`existing governance contains ${credentialFindings.length} possible credential value(s); remove and rotate them before upgrade`);
+  }
+
+  await validateTransactionOverlay(root, outputs);
+  const archiveMigrations = command === "upgrade"
+    ? await prepareArchiveCasingMigrations(root)
+    : [];
+  if (options.sourceConservationRebind === true) {
+    for (const output of outputs) delete output.runtimeAcceptance;
+  }
+  const runtimeAcceptance = command === "upgrade" && options.sourceConservationRebind !== true ? resolveRuntimeAcceptance(outputs) : null;
+  const sourceConservationAuthority = command === "upgrade"
+    ? await hasCommittedSourceConservationAuthority(root)
+    : false;
+  const sourceConservation = command === "upgrade" && (
+    runtimeAcceptance || sourceConservationAuthority
+  )
+    ? await createSourceConservation(root, outputs, archiveMigrations, {
+      excludeInFlightTransactionId: options.excludeInFlightTransactionId ?? null
+    })
+    : null;
+  const supersedesCurrentStateDigests = command === "upgrade"
+    ? await findRestoredCurrentStateDigests(root, outputs, archiveMigrations, { sourceConservation, archiveMigrations })
+    : [];
+  const identity = installTransactionPreflightIdentity({
+    command,
+    version,
+    outputs,
+    archiveMigrations,
+    sourceConservation,
+    supersedesCurrentStateDigests,
+    sourceConservationRebind: options.sourceConservationRebind === true
+  });
+  return Object.freeze({
+    outputs,
+    archiveMigrations: Object.freeze(archiveMigrations),
+    sourceConservation,
+    supersedesCurrentStateDigests: Object.freeze(supersedesCurrentStateDigests),
+    identity
+  });
+}
+
+function installTransactionPreflightIdentity({ command, version, outputs = [], archiveMigrations = [], sourceConservation = null, supersedesCurrentStateDigests = [], sourceConservationRebind = false }) {
+  const body = {
+    schemaVersion: 1,
+    command,
+    version,
+    sourceConservationRebind,
+    outputs: outputs.map((output) => ({
+      targetRel: output.targetRel,
+      existed: Boolean(output.before),
+      beforeHash: output.beforeHash,
+      afterHash: output.afterHash,
+      bytes: output.after.length,
+      reason: output.reason ?? null
+    })),
+    archiveMigrations: archiveMigrations.map(archiveMigrationWitness),
+    sourceConservation: normalizeSourceConservationForPreflightIdentity(sourceConservation),
+    supersedesCurrentStateDigests
+  };
+  return sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8"));
+}
+
+function normalizeSourceConservationForPreflightIdentity(sourceConservation) {
+  if (!sourceConservation) return null;
+  return {
+    schemaVersion: sourceConservation.schemaVersion,
+    entries: sourceConservation.entries
+  };
+}
+
+async function assertPreparedTransactionPreflightStillCurrent(root, transaction, expected, plan, options = {}) {
+  let actual;
+  try {
+    actual = await buildInstallTransactionPreflight(
+      transaction.journal.command,
+      root,
+      plan,
+      transaction.journal.attemptedVersion,
+      {
+        allowActiveTransaction: true,
+        sourceConservationRebind: options.sourceConservationRebind === true,
+        excludeInFlightTransactionId: transaction.id
+      }
+    );
+  } catch (error) {
+    throw new Error(`transaction pre-replace preflight identity drifted under lock; no target replacement attempted: ${safeErrorLabel(error)}`);
+  }
+  if (actual.identity !== expected.identity) {
+    throw new Error("transaction pre-replace preflight identity drifted under lock; no target replacement attempted");
+  }
+}
+
+async function abortPreparedTransactionBeforeTargetWrites(root, transaction, error) {
+  if (transaction.journal.state !== "prepared" || transaction.journal.entries.some((entry) => entry.committed)
+    || (transaction.journal.archiveMigrations ?? []).some((migration) => migration.state !== "prepared")) {
+    throw new Error("pre-replace abort is only valid for a prepared transaction with no committed entries or archive relocation");
+  }
+  transaction.journal.state = "rolled-back";
+  transaction.journal.error = safeErrorLabel(error);
+  transaction.journal.rollbackAt = new Date().toISOString();
+  transaction.journal.recoveryConflicts = [];
+  await writeSecureJson(transaction.journalPath, transaction.journal);
+  await unlinkIfExists(transaction.lockPath);
+  console.log("⚠️ migration rolled back：lock-time preflight drifted before target replacement; no target bytes were replaced.");
+}
+
+async function injectBeforeLockRevalidationDrift(root, journal) {
+  const targetRel = process.env.AGENT_HANDOFF_KIT_QA_MUTATE_BEFORE_LOCK_REVALIDATION;
+  if (!targetRel) return;
+  const encoded = process.env.AGENT_HANDOFF_KIT_QA_MUTATE_BEFORE_LOCK_REVALIDATION_BASE64;
+  if (!encoded) throw new Error("QA before-lock-revalidation drift payload is missing");
+  if (!journal.entries.some((entry) => entry.targetRel === targetRel)) {
+    throw new Error(`QA before-lock-revalidation target is not part of this transaction: ${targetRel}`);
+  }
+  const targetAbs = path.resolve(root, targetRel);
+  if (!isInside(root, targetAbs)) throw new Error("QA before-lock-revalidation target escaped root");
+  await writeFile(targetAbs, Buffer.from(encoded, "base64"), { mode: 0o600 });
+}
+
 async function detectInstalledCredentialFindings(root) {
   const credentialInputs = [];
   for (const relative of requiredTargets) {
@@ -1243,19 +1331,39 @@ async function detectInstalledCredentialFindings(root) {
   return detectCredentialValues(credentialInputs);
 }
 
-async function buildTransactionOutputs(command, root, plan, version) {
+async function buildTransactionOutputs(command, root, plan, version, options = {}) {
   const byTarget = new Map();
   for (const item of plan) {
     if (item.action !== "create" && item.action !== "merge" && item.action !== "preserve") continue;
     const before = await readOptionalBuffer(item.targetAbs);
     let afterText = null;
     let after = null;
+    let projectIndexVersionMetadataMerge = false;
     if (item.action === "preserve") {
       if (!before) throw new Error(`${item.targetRel}: preserved transaction item disappeared before preparation`);
-      after = Buffer.from(before);
+      if (command === "upgrade" && item.targetRel === "dev/PROJECT_INDEX.md") {
+        const originalText = decodeUtf8(before, item.targetRel).text;
+        const materializedText = materializeProjectIndexTemplateVersion(originalText, version);
+        if (materializedText !== originalText) {
+          after = Buffer.from(materializedText, "utf8");
+          projectIndexVersionMetadataMerge = true;
+        }
+        else after = Buffer.from(before);
+      } else {
+        after = Buffer.from(before);
+      }
     } else if (item.action === "create") {
       const sourceText = await readTemplateSource(command, item.sourceRel, item.targetRel, item.sourceAbs);
       afterText = item.targetRel === "AGENTS.md" ? mergeManagedBlock("", sourceText) : sourceText;
+    } else if (item.action === "merge" && item.targetRel === "dev/PROJECT_INDEX.md" && item.metadataTransition === projectIndexTemplateVersionMetadataTransition) {
+      if (!before) throw new Error(`${item.targetRel}: template-version metadata transition disappeared before preparation`);
+      const originalText = decodeUtf8(before, item.targetRel).text;
+      const materializedText = materializeProjectIndexTemplateVersion(originalText, version);
+      if (materializedText !== originalText) {
+        after = Buffer.from(materializedText, "utf8");
+        projectIndexVersionMetadataMerge = true;
+      }
+      else after = Buffer.from(before);
     } else {
       afterText = item.mergedText;
       after = item.mergedBytes ? Buffer.from(item.mergedBytes) : null;
@@ -1267,17 +1375,17 @@ async function buildTransactionOutputs(command, root, plan, version) {
       const userRulesEntry = await readFile(path.join(packageRoot, "runtime-core", "USER_RULES_ENTRY.md"), "utf8");
       afterText = `${afterText.trimEnd()}\n\n${userRulesEntry.trim()}\n`;
     }
-    if (afterText != null) afterText = afterText.replaceAll("<absolute project root>", root);
+    if (afterText != null && !projectIndexVersionMetadataMerge) afterText = afterText.replaceAll("<absolute project root>", root);
     byTarget.set(item.targetRel, {
       targetRel: item.targetRel,
       targetAbs: item.targetAbs,
       before,
       after,
       afterText,
-      ...(item.action === "preserve" ? { forceTransaction: true } : {}),
-      ...(item.action === "preserve" ? { preservedRuntimeItem: item.preservedRuntimeItem } : {}),
+      ...(item.action === "preserve" && !projectIndexVersionMetadataMerge ? { forceTransaction: true } : {}),
+      ...(item.action === "preserve" && !projectIndexVersionMetadataMerge ? { preservedRuntimeItem: item.preservedRuntimeItem } : {}),
       ...(item.managedSegmentRuntimeItem ? { managedSegmentRuntimeItem: item.managedSegmentRuntimeItem } : {}),
-      reason: item.reason ?? item.action
+      reason: projectIndexVersionMetadataMerge ? projectIndexTemplateVersionMetadataReason : item.reason ?? item.action
     });
   }
 
@@ -1289,8 +1397,13 @@ async function buildTransactionOutputs(command, root, plan, version) {
     if (before) indexOutput = { targetRel: indexRel, targetAbs: indexAbs, before, afterText: decodeUtf8(before, indexRel).text, reason: "template version metadata" };
   }
   if (indexOutput?.afterText != null) {
-    const updated = indexOutput.afterText.replace(/\| Agent Handoff Kit template version \| [\d.]+ \|/, `| Agent Handoff Kit template version | ${version} |`);
-    indexOutput.afterText = updated;
+    const materializedText = materializeProjectIndexTemplateVersion(indexOutput.afterText, version);
+    if (materializedText !== indexOutput.afterText) {
+      indexOutput.after = Buffer.from(materializedText, "utf8");
+      indexOutput.afterText = null;
+    } else {
+      indexOutput.afterText = materializedText;
+    }
     byTarget.set(indexRel, indexOutput);
   }
 
@@ -1323,7 +1436,9 @@ async function buildTransactionOutputs(command, root, plan, version) {
     }
   }
 
-  await synchronizeFormalUserRulesTransactionState(command, root, byTarget, version);
+  await synchronizeFormalUserRulesTransactionState(command, root, byTarget, version, {
+    allowActiveTransaction: options.allowActiveTransaction === true
+  });
 
   const outputs = [];
   for (const item of byTarget.values()) {
@@ -1342,9 +1457,22 @@ async function buildTransactionOutputs(command, root, plan, version) {
 }
 
 function reconcilePlanWithTransactionOutputs(plan, outputs) {
-  const outputTargets = new Set(outputs.map((item) => item.targetRel));
+  const outputByTarget = new Map(outputs.map((item) => [item.targetRel, item]));
   for (const item of plan) {
-    if (!["create", "merge", "preserve"].includes(item.action) || outputTargets.has(item.targetRel)) continue;
+    const output = outputByTarget.get(item.targetRel);
+    if (
+      item.action === "preserve"
+      && item.targetRel === "dev/PROJECT_INDEX.md"
+      && output?.reason === projectIndexTemplateVersionMetadataReason
+      && output.beforeHash !== output.afterHash
+    ) {
+      item.action = "merge";
+      item.reason = output.reason;
+      item.metadataTransition = projectIndexTemplateVersionMetadataTransition;
+      delete item.preservedRuntimeItem;
+      continue;
+    }
+    if (!["create", "merge", "preserve"].includes(item.action) || output) continue;
     // Planning formal state transitions before rendering their canonical
     // acceptance is necessary for safety. Once the in-memory comparison proves
     // no bytes would change, do not present that transition as a write.
@@ -1353,7 +1481,7 @@ function reconcilePlanWithTransactionOutputs(plan, outputs) {
   }
 }
 
-async function synchronizeFormalUserRulesTransactionState(command, root, byTarget, version) {
+async function synchronizeFormalUserRulesTransactionState(command, root, byTarget, version, options = {}) {
   const routerOutput = byTarget.get(USER_RULES_ROUTER_PATH);
   if (!routerOutput) return;
 
@@ -1362,7 +1490,7 @@ async function synchronizeFormalUserRulesTransactionState(command, root, byTarge
     // The old formal reader is the sole authority for whether a prior router
     // is eligible for transition. A path, title, or directory never grants
     // this authority.
-    prior = await readFormalUserRules({ root });
+    prior = await readFormalUserRules({ root, allowActiveTransaction: options.allowActiveTransaction === true });
   }
 
   let agentOutput = byTarget.get("AGENTS.md");
@@ -1465,7 +1593,7 @@ async function prepareTransaction(root, command, version, outputs, mode, plan, s
       await writeFile(backupPath, output.before, { mode: 0o600 });
       backupRel = path.relative(root, backupPath);
     }
-    entries.push({ targetRel: output.targetRel, existed: Boolean(output.before), beforeHash: output.beforeHash, afterHash: output.afterHash, backupRel, committed: false });
+    entries.push({ targetRel: output.targetRel, existed: Boolean(output.before), beforeHash: output.beforeHash, afterHash: output.afterHash, backupRel, committed: false, reason: output.reason ?? null });
   }
   const journal = {
     id,
@@ -2459,7 +2587,7 @@ async function writeTransactionReport(transaction) {
     "",
     "## Actions",
     "",
-    ...transaction.journal.entries.map((entry) => `- ${entry.existed ? "merge" : "create"}: ${entry.targetRel}; backup=${entry.backupRel ?? "none"}; committed=${entry.committed}`),
+    ...transaction.journal.entries.map((entry) => `- ${entry.existed ? "merge" : "create"}: ${entry.targetRel}${entry.reason ? ` - ${entry.reason}` : ""}; backup=${entry.backupRel ?? "none"}; committed=${entry.committed}`),
     "",
     `- Planned skips: ${transaction.journal.plannedSkips ?? "unknown"}`,
     "- Conflicts: 0",
@@ -2872,23 +3000,6 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
-  const artifactResult = await checkGeneratedMarkdownGovernance(root);
-  console.log(`\ngenerated markdown governance checks: ${artifactResult.checked}`);
-  console.log(`${artifactResult.ok ? "ok" : "missing"}  dev/PROJECT_INDEX.md (generated Markdown registration; other formats require human review)`);
-  if (!artifactResult.ok) {
-    for (const finding of artifactResult.findings) {
-      console.log(`  missing: ${finding}`);
-    }
-    printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + researchTraceResult.checked + temperatureResult.checked + artifactResult.checked,
-      failedKind: "generated markdown governance checks",
-      failedCount: artifactResult.findings.length,
-      nextStep: "把新生成或新修改的 Markdown 登記到 dev/PROJECT_INDEX.md，或在 SESSION_LOG / task summary 以同一紀錄精確標成 draft、temporary 或 one-time evidence；如內容重複，先合併到單一真源。其他持久格式須由 AI 另作人工治理核對。"
-    });
-    process.exitCode = 1;
-    return "failed";
-  }
-
   const mirrorRows = await checkPromptMirror(root);
   const mirrorBlockingFailures = mirrorRows.filter((row) => !row.ok && row.reason !== "convenience copy differs from dev/SESSION_HANDOFF.md");
   const mirrorWarnings = mirrorRows.filter((row) => !row.ok && row.reason === "convenience copy differs from dev/SESSION_HANDOFF.md");
@@ -2961,7 +3072,7 @@ async function runDoctor(root, version, options = {}) {
   const overallHealthy = credentialResult.ok;
   if (overallHealthy && !options.silentCard) printCard(version, "doctor ready", "o.o");
   printDoctorSummary(version, root, overallHealthy ? "healthy" : "needs-attention", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + researchTraceResult.checked + temperatureResult.checked + artifactResult.checked + mirrorRows.length + 2,
+      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + researchTraceResult.checked + temperatureResult.checked + mirrorRows.length + 2,
     failedKind: !credentialResult.ok ? "credential leak" : null,
     failedCount: !credentialResult.ok ? credentialResult.findings.length : 0,
     warningKind: mirrorWarnings.length > 0 ? "prompt mirror warning" : null,
@@ -3059,7 +3170,7 @@ function resolveRuntimeAcceptance(outputs) {
   return validateRuntimeAcceptance(witnesses[0]);
 }
 
-async function createSourceConservation(root, outputs, archiveMigrations = []) {
+async function createSourceConservation(root, outputs, archiveMigrations = [], options = {}) {
   // `freezeGate5Set` is an existing read-only discovery witness.  Reuse it
   // here rather than creating a registry, pointer, or component authority.
   // Its ordered source records become one component of the journal's existing
@@ -3068,10 +3179,20 @@ async function createSourceConservation(root, outputs, archiveMigrations = []) {
   assertGate5FrozenSet(frozen);
   const outputByTarget = new Map(outputs.map((item) => [item.targetRel, item]));
   const pathRebindings = archiveMigrations.map((migration) => ({
+    originalRel: migration.originalRel,
+    canonicalRel: migration.canonicalRel,
     sourcePrefix: `${migration.originalRel}/`,
     targetPrefix: `${migration.canonicalRel}/`
   }));
-  const entries = gate5SourceConservationItems(frozen).map((item) => {
+  const excludedInFlightTransactionStatePath = options.excludeInFlightTransactionId
+    ? `dev/governance_migrations/${options.excludeInFlightTransactionId}/transaction.json`
+    : null;
+  const sourceItems = gate5SourceConservationItems(frozen).filter((item) => {
+    if (!excludedInFlightTransactionStatePath) return true;
+    return !(item.sourcePath === excludedInFlightTransactionStatePath && item.classifications.includes("transaction-state"));
+  });
+  const entriesByPath = new Map();
+  for (const item of sourceItems) {
     const output = outputByTarget.get(item.sourcePath) ?? null;
     const rebind = pathRebindings.find((candidate) => item.sourcePath.startsWith(candidate.sourcePrefix)) ?? null;
     const sourcePath = rebind
@@ -3092,7 +3213,7 @@ async function createSourceConservation(root, outputs, archiveMigrations = []) {
           : item.priorityConflict.status === "not-applicable-outside-known-kit-reachability"
             ? "outside-known-kit-reachability"
             : "unchanged-source";
-    return Object.freeze({
+    const entry = Object.freeze({
       sourcePath,
       ...(rebind ? { sourceOriginPath: item.sourcePath } : {}),
       sourceWitness,
@@ -3106,12 +3227,60 @@ async function createSourceConservation(root, outputs, archiveMigrations = []) {
       effectDecision: item.effect.decision,
       classifications: Object.freeze([...item.classifications])
     });
-  });
+    const record = { entry, sourceItemPath: item.sourcePath, rebind };
+    const existing = entriesByPath.get(entry.sourcePath);
+    if (!existing) {
+      entriesByPath.set(entry.sourcePath, record);
+    } else if (sourceConservationArchiveAliasCollisionMayCoalesce(existing, record)) {
+      entriesByPath.set(entry.sourcePath, record.rebind ? record : existing);
+    } else {
+      throw new Error(`${entry.sourcePath}: source conservation rebind collision; no recovery writes attempted`);
+    }
+  }
+  const entries = [...entriesByPath.values()]
+    .map((record) => record.entry)
+    .sort((left, right) => left.sourcePath.localeCompare(right.sourcePath));
   return Object.freeze({
     schemaVersion: archiveMigrations.length > 0 ? 2 : 1,
     frozenSetSha256: frozen.frozenSetSha256,
     entries: Object.freeze(entries)
   });
+}
+
+function sourceConservationArchiveAliasCollisionMayCoalesce(left, right) {
+  if (Boolean(left.rebind) === Boolean(right.rebind)) return false;
+  const migrated = left.rebind ? left : right;
+  const alias = left.rebind ? right : left;
+  const suffix = migrated.sourceItemPath.slice(migrated.rebind.sourcePrefix.length);
+  if (!suffix
+    || migrated.sourceItemPath !== `${migrated.rebind.originalRel}/${suffix}`
+    || migrated.entry.sourceOriginPath !== migrated.sourceItemPath
+    || migrated.entry.sourcePath !== `${migrated.rebind.canonicalRel}/${suffix}`
+    || alias.sourceItemPath !== migrated.entry.sourcePath
+    || alias.entry.sourcePath !== migrated.entry.sourcePath
+    || alias.entry.sourceOriginPath !== undefined
+    || migrated.entry.disposition !== "canonical-path-migration"
+    || alias.entry.disposition !== "unchanged-source") {
+    return false;
+  }
+  return sameByteWitness(migrated.entry.sourceWitness, alias.entry.sourceWitness)
+    && sameByteWitness(migrated.entry.accepted, alias.entry.accepted)
+    && JSON.stringify(migrated.entry.sourceByteRanges) === JSON.stringify(alias.entry.sourceByteRanges)
+    && JSON.stringify(migrated.entry.existingReaders) === JSON.stringify(alias.entry.existingReaders)
+    && migrated.entry.priorityRelation === alias.entry.priorityRelation
+    && migrated.entry.effectDecision === alias.entry.effectDecision
+    && archiveAliasClassificationsMayCoalesce(migrated.entry.classifications, alias.entry.classifications);
+}
+
+function archiveAliasClassificationsMayCoalesce(migrated, alias) {
+  const migratedSet = new Set(migrated);
+  const aliasSet = new Set(alias);
+  return migratedSet.size === 2
+    && aliasSet.size === 2
+    && migratedSet.has("root-source")
+    && migratedSet.has("legacy-session-log-archive")
+    && aliasSet.has("root-source")
+    && aliasSet.has("session-log-archive");
 }
 
 function currentStateWitnessBody(journal) {
@@ -3547,8 +3716,7 @@ async function directAgentsEntryWitness(root, bytes, outputByTarget = null) {
 
 function directFormalAgentReferences(text) {
   return extractExplicitLocalReferences(text).filter((reference) => (
-    reference.via === "markdown-link"
-    || (reference.via === "inline-code-path" && Boolean(installedFileContract(reference.path)))
+    Boolean(installedFileContract(reference.path))
   ));
 }
 
@@ -3643,8 +3811,10 @@ async function directRulePacksEntryWitness(root, agentsBytes, routerBytes, outpu
   for (let index = headerIndexes[0] + 2; index < lines.length && lines[index].startsWith("|"); index += 1) {
     const cells = lines[index].split("|").slice(1, -1).map((cell) => cell.trim());
     if (cells.length !== 3) throw new Error("RULE_PACKS.md has an invalid active routing row");
-    const targets = [...cells[1].matchAll(/`([^`\r\n]+)`/g)].map((match) => match[1].trim()).filter(Boolean);
-    if (targets.length === 0) throw new Error("RULE_PACKS.md active routing row has no readable target");
+    const targets = [...cells[1].matchAll(/`([^`\r\n]+)`/g)]
+      .map((match) => match[1].trim())
+      .filter((targetRel) => installedFileContract(targetRel)?.strategy === "rule-pack");
+    if (targets.length === 0) continue;
     for (const targetRel of targets) {
       const bytes = outputByTarget?.get(targetRel)?.after ?? await readRuntimeAcceptanceBytes(root, targetRel);
       routes.push(Object.freeze({
@@ -3656,7 +3826,7 @@ async function directRulePacksEntryWitness(root, agentsBytes, routerBytes, outpu
       }));
     }
   }
-  if (routes.length === 0) throw new Error("RULE_PACKS.md active routing table has no readable targets");
+  if (routes.length === 0) throw new Error("RULE_PACKS.md active routing table has no installed rule-pack contract targets");
   return Object.freeze({
     reader: "AGENTS.md",
     via: "direct-rule-packs-entry",
@@ -4008,7 +4178,7 @@ async function hasActiveTransactionLock(root) {
   }
 }
 
-async function loadCommittedCurrentStateWitness(root) {
+async function loadCommittedCurrentStateWitness(root, options = {}) {
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   let names;
   try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
@@ -4023,7 +4193,10 @@ async function loadCommittedCurrentStateWitness(root) {
       if (journal.state !== "committed" || !journal.currentStateWitness) continue;
       await validateRecoveryJournal(root, journal, journalPath);
       const witness = validateCurrentStateWitness(journal);
-      records.push({ journal, journalPath, witness, matches: await journalMatchesCurrentState(root, journal) });
+      const matches = options.allowHistoricalEdgeRetirement === true
+        ? await journalMatchesCurrentStateForHistoricalRebind(root, journal)
+        : await journalMatchesCurrentState(root, journal);
+      records.push({ journal, journalPath, witness, matches });
     } catch (error) {
       if (error?.code !== "ENOENT") throw error;
     }
@@ -4076,7 +4249,7 @@ async function hasCommittedSourceConservationAuthority(root) {
       const journal = JSON.parse(await readFile(journalPath, "utf8"));
       if (journal.state !== "committed" || !journal.currentStateWitness) continue;
       await validateRecoveryJournal(root, journal, journalPath);
-      records.push({ journal, journalPath, witness: validateCurrentStateWitness(journal), matches: await journalMatchesCurrentState(root, journal) });
+      records.push({ journal, journalPath, witness: validateCurrentStateWitness(journal), matches: await journalMatchesCurrentStateForHistoricalRebind(root, journal) });
     } catch (error) {
       if (error?.code !== "ENOENT") throw error;
     }
@@ -4110,7 +4283,7 @@ async function assertUnboundCurrentStateMayAttemptUpgradeRebind(root, cause) {
       const journal = JSON.parse(await readFile(journalPath, "utf8"));
       if (journal.state !== "committed" || !journal.currentStateWitness) continue;
       await validateRecoveryJournal(root, journal, journalPath);
-      records.push({ journal, journalPath, witness: validateCurrentStateWitness(journal), matches: await journalMatchesCurrentState(root, journal) });
+      records.push({ journal, journalPath, witness: validateCurrentStateWitness(journal), matches: await journalMatchesCurrentStateForHistoricalRebind(root, journal) });
     } catch (error) {
       if (error?.code !== "ENOENT") throw error;
     }
@@ -4126,12 +4299,10 @@ async function assertUnboundCurrentStateMayAttemptUpgradeRebind(root, cause) {
 }
 
 async function classifyCurrentStateRebindMismatches(projectRoot, journal) {
-  const mismatches = await currentStateMismatches(projectRoot, journal);
+  const mismatches = await currentStateMismatches(projectRoot, journal, { allowHistoricalEdgeRetirement: true });
   const illegalNonCloseout = [];
   for (const mismatch of mismatches) {
     if (isCloseoutFinalizeTarget(mismatch.path)) continue;
-    if (mismatch.kind === "source-conservation"
-      && sourceConservationEntryMayRetireAsUnreachableRootSource(mismatch.sourceConservationEntry)) continue;
     if (await mismatchMatchesCurrentInstalledSource(projectRoot, mismatch)) continue;
     illegalNonCloseout.push(mismatch);
   }
@@ -4166,9 +4337,10 @@ async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations 
         allowArchiveState: sourceConservationHasArchiveReconciliation(priorWitness.sourceConservation)
           || sourceConservationHasArchiveReconciliation(replacement.sourceConservation)
       });
-      if ((await journalMatchesCurrentState(root, journal) && (!priorWitness.sourceConservation || sourceConservationRebind))
+      if (sourceConservationRebind
+        || (await journalMatchesCurrentState(root, journal) && (!priorWitness.sourceConservation || sourceConservationRebind))
         || await journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations, replacement.sourceConservation)
-        || sourceConservationRebind) {
+      ) {
         if (!canSupersedeCurrentStateWitness(replacement, priorWitness)) continue;
         restored.push(journal.currentStateWitness.currentStateDigest);
       }
@@ -4204,16 +4376,49 @@ function sourceConservationHasArchiveReconciliation(sourceConservation) {
   return Boolean(sourceConservation?.entries?.some((entry) => entry.disposition === "session-log-archive-reconciliation"));
 }
 
-function sourceConservationEntryMayRetireAsUnreachableRootSource(entry) {
-  return Boolean(entry
-    && Array.isArray(entry.classifications)
-    && entry.classifications.length === 1
-    && entry.classifications[0] === "root-source"
-    && entry.disposition === "outside-known-kit-reachability"
-    && Array.isArray(entry.existingReaders)
-    && entry.existingReaders.length === 0
+function canRetireHistoricalEdge(entry, currentTypedProtection = null) {
+  if (!entry || currentTypedProtection) return false;
+  if (!isSafeProjectRelative(entry.sourcePath)) return false;
+  if (installedFileContract(entry.sourcePath)
+    || directStatefulTargets.has(entry.sourcePath)
+    || sourceConservationEntryIsTransactionRegistryJournal(entry)
+    || sourceConservationEntryIsSessionLogArchive(entry)
+    || isSessionLogArchivePath(entry.sourcePath)
+    || entry.sourcePath === USER_RULES_ROUTER_PATH
+    || isFormalUserRulesContentPath(entry.sourcePath)) {
+    return false;
+  }
+  if (!Array.isArray(entry.classifications) || !entry.classifications.includes("root-source")) return false;
+  if (entry.classifications.some((classification) => [
+    "managed-contract",
+    "legacy-session-log-archive",
+    "session-log-archive",
+    "formal-user-rules-router",
+    "formal-user-rule-content"
+  ].includes(classification))) {
+    return false;
+  }
+  const outsideKnownKitReachability = entry.disposition === "outside-known-kit-reachability"
     && entry.priorityRelation === "outside-known-kit-reachability"
-    && entry.effectDecision === "outside-known-kit-reachability");
+    && entry.effectDecision === "outside-known-kit-reachability"
+    && Array.isArray(entry.existingReaders)
+    && entry.existingReaders.length === 0;
+  const genericFormalReference = entry.classifications.includes("formal-reference")
+    && entry.effectDecision === "preserve-existing-route-or-stop"
+    && Array.isArray(entry.existingReaders)
+    && entry.existingReaders.length > 0;
+  const nonRegistryTransactionArtifact = entry.classifications.includes("transaction-state")
+    && entry.disposition === "retained-historical-state"
+    && entry.priorityRelation === "no-verified-reader"
+    && entry.effectDecision === "unresolved"
+    && Array.isArray(entry.existingReaders)
+    && entry.existingReaders.length === 0;
+  return outsideKnownKitReachability || genericFormalReference || nonRegistryTransactionArtifact;
+}
+
+function sourceConservationEntryIsTransactionRegistryJournal(entry) {
+  return Boolean(entry
+    && /^dev\/governance_migrations\/[^/]+\/transaction\.json$/u.test(entry.sourcePath));
 }
 
 function sourceConservationEntryAcceptedMatches(entry, accepted) {
@@ -4244,8 +4449,8 @@ function sourceConservationEntriesRebindPrior(priorWitness, replacementSourceCon
       || isSessionLogArchivePath(entry.sourcePath)
       || (entry.sourceOriginPath && isSessionLogArchivePath(entry.sourceOriginPath));
     if (archiveState && options.allowArchiveState !== true) return false;
-    if (sourceConservationEntryMayRetireAsUnreachableRootSource(entry)) return true;
     const replacement = replacementByPath.get(entry.sourcePath);
+    if (canRetireHistoricalEdge(entry, replacement)) return true;
     if (sourceConservationEntryHasAcceptedCoverage(replacement)) return true;
     const reboundPath = archiveRebindings.get(entry.sourcePath);
     const rebound = reboundPath ? replacementByPath.get(reboundPath) : null;
@@ -4308,7 +4513,7 @@ async function journalIsRestoredByOutputs(root, journal, outputWitnesses, archiv
       continue;
     }
     if (sourceConservationEntryIsSessionLogArchive(entry) || isSessionLogArchivePath(entry.sourcePath)) return false;
-    if (!sourceConservationEntryMayRetireAsUnreachableRootSource(entry)) return false;
+    if (canRetireHistoricalEdge(entry, sourceReplacement)) continue;
     const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
     if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) return false;
   }
@@ -4366,6 +4571,32 @@ async function journalMatchesCurrentState(root, journal) {
   return true;
 }
 
+async function journalMatchesCurrentStateForHistoricalRebind(root, journal) {
+  const witness = validateCurrentStateWitness(journal);
+  if (!witness.sourceConservation) return await journalMatchesCurrentState(root, journal);
+  const currentFrozen = await freezeGate5Set({ root });
+  assertGate5FrozenSet(currentFrozen);
+  const currentTypedByPath = new Map(gate5SourceConservationItems(currentFrozen).map((item) => [item.sourcePath, item]));
+  const plan = journal.entries.map((entry) => ({
+    action: "merge",
+    targetRel: entry.targetRel,
+    targetAbs: path.join(root, entry.targetRel)
+  }));
+  await validateTransactionRoot(root, plan, { createMissingRoot: false });
+  for (const entry of journal.entries) {
+    const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
+    if (!bytes || sha256(bytes) !== entry.afterHash) return false;
+  }
+  for (const entry of witness.sourceConservation?.entries ?? []) {
+    if (canRetireHistoricalEdge(entry, currentTypedByPath.get(entry.sourcePath))) {
+      continue;
+    }
+    const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
+    if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) return false;
+  }
+  return true;
+}
+
 async function findCloseoutFinalizeBase(root) {
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   let names;
@@ -4390,14 +4621,15 @@ async function findCloseoutFinalizeBase(root) {
   const records = [];
   for (const item of inspected) {
     const witness = validateCurrentStateWitness(item.journal);
-    const mismatches = await currentStateMismatches(root, item.journal);
+    const isSuperseded = superseded.has(witness.currentStateDigest);
+    const mismatches = await currentStateMismatches(root, item.journal, { allowHistoricalEdgeRetirement: isSuperseded });
     const closeoutOnly = mismatches.every((mismatch) => isCloseoutFinalizeTarget(mismatch.path));
     records.push({
       ...item,
       witness,
       mismatches,
       closeoutOnly,
-      isSuperseded: superseded.has(witness.currentStateDigest),
+      isSuperseded,
       additionalSupersedes: []
     });
   }
@@ -4506,14 +4738,22 @@ function withAdditionalCloseoutSupersedes(base, current) {
   };
 }
 
-async function currentStateMismatches(root, journal) {
+async function currentStateMismatches(root, journal, options = {}) {
   const witness = validateCurrentStateWitness(journal);
   const mismatches = new Map();
+  let currentFrozen = null;
+  let currentTypedByPath = null;
+  if (witness.sourceConservation) {
+    currentFrozen = await freezeGate5Set({ root });
+    assertGate5FrozenSet(currentFrozen);
+    currentTypedByPath = new Map(gate5SourceConservationItems(currentFrozen).map((item) => [item.sourcePath, item]));
+  }
   for (const entry of journal.entries) {
     const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
     if (!bytes || sha256(bytes) !== entry.afterHash) mismatches.set(entry.targetRel, { path: entry.targetRel, kind: "transaction-entry" });
   }
   for (const entry of witness.sourceConservation?.entries ?? []) {
+    if (options.allowHistoricalEdgeRetirement === true && canRetireHistoricalEdge(entry, currentTypedByPath.get(entry.sourcePath))) continue;
     const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
     if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) {
       mismatches.set(entry.sourcePath, { path: entry.sourcePath, kind: "source-conservation", sourceConservationEntry: entry });
@@ -4521,8 +4761,6 @@ async function currentStateMismatches(root, journal) {
   }
   if (witness.sourceConservation) {
     const conserved = new Set(witness.sourceConservation.entries.map((entry) => entry.sourcePath));
-    const currentFrozen = await freezeGate5Set({ root });
-    assertGate5FrozenSet(currentFrozen);
     for (const item of gate5SourceConservationItems(currentFrozen)) {
       if (conserved.has(item.sourcePath) || isFinalizeJournalState(item.sourcePath)) continue;
       mismatches.set(item.sourcePath, { path: item.sourcePath, kind: "new-source" });
@@ -4588,16 +4826,6 @@ async function classifyCurrentStateReconciliationMismatches(root, journal, curre
       }
       continue;
     }
-    if (mismatch.kind === "source-conservation"
-      && sourceConservationEntryMayReconcileAsUserOwnedFormal(mismatch.sourceConservationEntry, currentByPath.get(mismatch.path))) {
-      reconcilable.push({ ...mismatch, reason: "user-owned formal source readback" });
-      continue;
-    }
-    if (mismatch.kind === "new-source"
-      && gate5ItemMayReconcileAsUserOwnedFormal(currentByPath.get(mismatch.path))) {
-      reconcilable.push({ ...mismatch, reason: "new user-owned formal source readback" });
-      continue;
-    }
     illegal.push({ ...mismatch, reason: currentStateReconciliationBlockReason(mismatch, currentByPath.get(mismatch.path)) });
   }
   return {
@@ -4627,12 +4855,8 @@ async function qualifySessionLogArchive(root, currentFrozen) {
   const archiveReal = await realpath(archiveRoot);
   if (!isInside(rootReal, archiveReal)) return { ok: false, reason: "canonical session-log archive root resolves outside selected root", inventory: null };
   const route = gate5SourceConservationItems(currentFrozen).find((item) => item.sourcePath === "dev/SESSION_LOG.md");
-  if (!route
-    || sourceConservationEntryIsSessionLogArchive({ classifications: route.classifications })
-    || !Array.isArray(route.existingReaders)
-    || route.existingReaders.length === 0
-    || route.effect?.decision !== "preserve-existing-route-or-stop") {
-    return { ok: false, reason: "current non-archive SESSION_LOG formal route is not mechanically verifiable", inventory: null };
+  if (!sessionLogCloseoutRouteIsTypedKitContract(route)) {
+    return { ok: false, reason: "current non-archive SESSION_LOG closeout contract is not mechanically verifiable", inventory: null };
   }
   const inventory = await inventorySessionLogArchiveTree(root, archiveRoot, archiveReal);
   const index = inventory.files.find((file) => file.path === "INDEX.md");
@@ -4669,6 +4893,15 @@ async function qualifySessionLogArchive(root, currentFrozen) {
       })}\n`, "utf8"))
     }
   };
+}
+
+function sessionLogCloseoutRouteIsTypedKitContract(route) {
+  return Boolean(route
+    && route.sourcePath === "dev/SESSION_LOG.md"
+    && directCloseoutStateTargetSet.has(route.sourcePath)
+    && route.packageContract?.targetRel === "dev/SESSION_LOG.md"
+    && route.classifications?.includes("managed-contract")
+    && !sourceConservationEntryIsSessionLogArchive({ classifications: route.classifications }));
 }
 
 async function inventorySessionLogArchiveTree(root, archiveRoot, archiveReal) {
@@ -4730,7 +4963,6 @@ async function createCurrentStateReconciliationVerifiedPlan(root, version, candi
       witness
     });
   }
-  const reconcilePaths = new Set(candidate.reconcilable.map((item) => item.path));
   const archiveReconcilePaths = new Set((candidate.archive ?? []).map((item) => item.path));
   const oldSourceByPath = new Map((activeWitness.sourceConservation?.entries ?? []).map((entry) => [entry.sourcePath, entry]));
   const sourceEntries = [];
@@ -4747,9 +4979,7 @@ async function createCurrentStateReconciliationVerifiedPlan(root, version, candi
         : "closeout-state-finalize"
       : archiveReconcilePaths.has(item.sourcePath)
         ? "session-log-archive-reconciliation"
-        : reconcilePaths.has(item.sourcePath)
-          ? "user-owned-reconciliation"
-          : entry?.disposition ?? (item.classifications.includes("transaction-state") ? "retained-historical-state" : "unchanged-source");
+        : entry?.disposition ?? (item.classifications.includes("transaction-state") ? "retained-historical-state" : "unchanged-source");
     sourceEntries.push({
       sourcePath: item.sourcePath,
       ...(entry?.sourceOriginPath && ["canonical-path-migration", "canonical-path-migration-closeout", "session-log-archive-reconciliation"].includes(disposition) ? { sourceOriginPath: entry.sourceOriginPath } : {}),
@@ -4780,7 +5010,7 @@ async function createCurrentStateReconciliationVerifiedPlan(root, version, candi
       priorityRelation: currentItem?.priorityConflict?.relation ?? item.sourceConservationEntry?.priorityRelation ?? null,
       effectDecision: currentItem?.effect?.decision ?? item.sourceConservationEntry?.effectDecision ?? null,
       reason: item.reason,
-      authority: mismatchIsSessionLogArchiveDelta(item, currentItem) ? "session-log-archive-qualification" : "generic-formal-current-state-reconciliation",
+      authority: mismatchIsSessionLogArchiveDelta(item, currentItem) ? "session-log-archive-qualification" : "legal-closeout-state-finalize",
       archiveQualification: mismatchIsSessionLogArchiveDelta(item, currentItem)
         ? {
             ok: candidate.archiveQualification.ok,
@@ -4865,40 +5095,7 @@ function currentStateReconciliationBlockReason(mismatch, currentItem) {
   if (currentItem?.classifications?.some((classification) => ["managed-contract", "transaction-state", "legacy-session-log-archive", "session-log-archive"].includes(classification))) {
     return "Kit-managed, transaction, or archive state remains fail-closed";
   }
-  return "not a user-owned formally reachable reconciliation entry";
-}
-
-function sourceConservationEntryMayReconcileAsUserOwnedFormal(entry, currentItem) {
-  return Boolean(entry
-    && Array.isArray(entry.classifications)
-    && entry.classifications.includes("root-source")
-    && entry.classifications.includes("formal-reference")
-    && !entry.classifications.some((classification) => ["managed-contract", "transaction-state", "legacy-session-log-archive", "session-log-archive"].includes(classification))
-    && Array.isArray(entry.existingReaders)
-    && entry.existingReaders.length > 0
-    && entry.priorityRelation !== "outside-known-kit-reachability"
-    && entry.effectDecision === "preserve-existing-route-or-stop"
-    && gate5ItemMayReconcileAsUserOwnedFormal(currentItem));
-}
-
-function gate5ItemMayReconcileAsUserOwnedFormal(item) {
-  // `user-or-unknown` is deliberately not treated as ownership proof.  It is
-  // only the negative half of the authority test: the path is not an exact
-  // installed Kit contract.  Reconciliation still requires a formal reader,
-  // preserve-or-stop effect, no managed/transaction/archive classification, and
-  // a fresh whole-file readback before any current-state authority changes.
-  return Boolean(item
-    && item.ownership === "user-or-unknown"
-    && Array.isArray(item.classifications)
-    && item.classifications.includes("root-source")
-    && item.classifications.includes("formal-reference")
-    && !item.classifications.some((classification) => ["managed-contract", "transaction-state", "legacy-session-log-archive", "session-log-archive"].includes(classification))
-    && Array.isArray(item.existingReaders)
-    && item.existingReaders.length > 0
-    && item.effect?.decision === "preserve-existing-route-or-stop"
-    && !installedFileContract(item.sourcePath)
-    && !isCloseoutFinalizeTarget(item.sourcePath)
-    && !isFinalizeJournalState(item.sourcePath));
+  return "not a legal closeout or qualified session-log archive reconciliation entry";
 }
 
 async function writeCurrentStateReconciliationJournal(root, version, candidate, options = {}) {
@@ -5338,128 +5535,6 @@ async function checkResearchDecisionTrace(root) {
   return { ok: findings.length === 0, checked: 1, findings };
 }
 
-async function checkGeneratedMarkdownGovernance(root) {
-  let indexText = "";
-  let logText = "";
-  let handoffText = "";
-  try {
-    indexText = await readFile(path.join(root, "dev/PROJECT_INDEX.md"), "utf8");
-  } catch {
-    return { ok: false, checked: 1, findings: ["dev/PROJECT_INDEX.md unreadable; cannot verify generated Markdown governance"] };
-  }
-  try {
-    logText = await readFile(path.join(root, "dev/SESSION_LOG.md"), "utf8");
-  } catch {
-    logText = "";
-  }
-  try {
-    handoffText = await readFile(path.join(root, "dev/SESSION_HANDOFF.md"), "utf8");
-  } catch {
-    handoffText = "";
-  }
-
-  const markdownFiles = await listMarkdownFiles(root);
-  const findings = [];
-  for (const rel of markdownFiles) {
-    if (!isGeneratedArtifactCandidate(rel)) continue;
-    if (isArtifactGoverned(rel, { indexText, logText, handoffText })) continue;
-    findings.push(`${rel} is not registered in dev/PROJECT_INDEX.md and is not explicitly classified as draft / temporary / one-time evidence`);
-  }
-
-  return { ok: findings.length === 0, checked: 1, findings };
-}
-
-async function listMarkdownFiles(root) {
-  const results = [];
-  async function walk(dir) {
-    let entries = [];
-    try {
-      entries = await readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (entry.name === ".git" || entry.name === "node_modules") continue;
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(full);
-        continue;
-      }
-      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
-      results.push(path.relative(root, full).split(path.sep).join("/"));
-    }
-  }
-  await walk(root);
-  return results.sort();
-}
-
-function isGeneratedArtifactCandidate(rel) {
-  const normalized = rel.replaceAll("\\", "/");
-  const lower = normalized.toLowerCase();
-  const kitManaged = new Set([
-    "agents.md",
-    "claude.md",
-    "gemini.md",
-    "readme.md",
-    "dev/session_handoff.md",
-    "dev/session_log.md",
-    "dev/project_index.md",
-    "dev/doc_sync_registry.md",
-    "dev/rule_packs.md",
-    "dev/project_decisions.md"
-  ]);
-  if (kitManaged.has(lower)) return false;
-  if (lower.startsWith("dev/rules/")) return false;
-  if (lower.startsWith("dev/governance_migrations/")) return false;
-  if (lower.startsWith("dev/session_log_archive/")) return false;
-  if (lower.startsWith("docs/")) return true;
-  if (lower.startsWith("outputs/")) return true;
-  if (lower.startsWith("output/")) return true;
-  if (lower.startsWith("research/")) return true;
-  if (lower.startsWith("references/")) return true;
-  if (lower.startsWith("reference/")) return true;
-  if (lower.startsWith("runbooks/")) return true;
-  if (lower.startsWith("specs/")) return true;
-  if (lower.startsWith("requirements/")) return true;
-  return !normalized.includes("/");
-}
-
-function isArtifactGoverned(rel, { indexText, logText, handoffText }) {
-  const normalized = rel.replaceAll("\\", "/");
-  if (projectIndexRegistersExactPath(indexText, normalized)) return true;
-  return textExplicitlyClassifiesExactArtifact(logText, normalized)
-    || textExplicitlyClassifiesExactArtifact(handoffText, normalized);
-}
-
-function projectIndexRegistersExactPath(indexText, normalized) {
-  const active = stripMarkdownCommentsAndFences(indexText);
-  for (const line of active.split(/\r?\n/)) {
-    if (!line.trim().startsWith("|")) continue;
-    const cells = line.split("|").slice(1, -1);
-    for (const rawCell of cells) {
-      const cell = rawCell.trim().replace(/^`([^`]+)`$/, "$1");
-      if (cell === normalized) return true;
-      const link = /^\[[^\]]*\]\(([^)]+)\)$/.exec(cell);
-      if (link && link[1].replace(/^<|>$/g, "") === normalized) return true;
-    }
-  }
-  return false;
-}
-
-function textExplicitlyClassifiesExactArtifact(text, normalized) {
-  const active = stripMarkdownCommentsAndFences(text);
-  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const exactPath = new RegExp(`(?:^|[\\s\`|([<])${escaped}(?=$|[\\s\`|)\\]>.,;:])`, "i");
-  const label = /(draft|temporary|one-time evidence|non-authoritative|not source of truth|草稿|臨時|暫存|一次性|非真源|非權威)/i;
-  const markdownPath = /(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.md\b/gi;
-  for (const line of active.split(/\r?\n/)) {
-    if (!exactPath.test(line) || !label.test(line)) continue;
-    const paths = new Set((line.match(markdownPath) ?? []).map((item) => item.replaceAll("\\", "/").toLowerCase()));
-    if (paths.size === 1 && paths.has(normalized.toLowerCase())) return true;
-  }
-  return false;
-}
-
 function stripFencedCodeBlocks(text) {
   return text.replace(/```[\s\S]*?```/g, "");
 }
@@ -5685,7 +5760,7 @@ function printDoctorSummary(version, root, mode, details) {
     }
   } else {
     console.log(`status: failed (${details.failedCount} ${details.failedKind} failed)`);
-    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : details.failedKind === "research decision trace checks" ? "研究導向決策缺少可追溯來源鏈。" : details.failedKind === "handoff temperature boundary checks" ? "當前交接內容混入一次性或歷史證據。" : details.failedKind === "generated markdown governance checks" ? "有 Markdown 未完成登記、同步或精確臨時分類；其他持久格式須另作人工治理核對。" : "下次開工提示副本與 handoff 真源不同。"}`);
+    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : details.failedKind === "research decision trace checks" ? "研究導向決策缺少可追溯來源鏈。" : details.failedKind === "handoff temperature boundary checks" ? "當前交接內容混入一次性或歷史證據。" : "下次開工提示副本與 handoff 真源不同。"}`);
   }
   console.log("");
   console.log(`📦 版本：v${version}`);
@@ -6205,14 +6280,7 @@ function requiresHistoricalBaselineProof(context) {
 }
 
 async function readRootTemplateVersion(root) {
-  try {
-    const indexPath = path.join(root, "dev/PROJECT_INDEX.md");
-    const text = await readFile(indexPath, "utf8");
-    const m = text.match(/\| Agent Handoff Kit template version \| ([\d.]+) \|/);
-    return m?.[1] ?? null;
-  } catch {
-    return null;
-  }
+  return await readProjectIndexTemplateVersion(root);
 }
 
 function findArtifactBoundManagedCoreSegment(bytes, artifactSegment) {
@@ -6377,6 +6445,15 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       catalog: context.officialCatalog
     });
     if (baselineRecord?.state === "present") {
+      const projectIndexGovernanceCurrent = targetRel === "dev/PROJECT_INDEX.md"
+        ? mergeProjectIndexGovernanceSections(targetText, sourceText) === targetText
+        : true;
+      if (targetRel === "dev/PROJECT_INDEX.md" && !projectIndexGovernanceCurrent) {
+        // PROJECT_INDEX metadata-only transition is safe only after the
+        // existing governance section owner says the structure is current.
+        // Older exact or CRLF-only indexes that still need section migration
+        // must continue to the normal PROJECT_INDEX merge/replacement path.
+      } else {
       return {
         ...base,
         action: "preserve",
@@ -6391,6 +6468,7 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
           ? "dev/SESSION_LOG.md is not exact official package content; preserve its complete original bytes and AGENTS direct formal reader in the same transaction acceptance/readback"
           : `${targetRel} has no exact historical raw-byte identity after root/version initialization; preserve its complete original bytes and direct formal reader/effect in the same transaction acceptance/readback`
       };
+      }
     }
   }
   if (command === "upgrade" && directStatefulTargets.has(targetRel) && isUncatalogedHistoricalBaseline(context)) {
@@ -6406,6 +6484,25 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       },
       reason: `${targetRel} is non-exact historical state with no catalog raw-byte identity; root metadata is not replacement authority, so preserve complete bytes and direct formal reader/effect in the same transaction acceptance/readback`
     };
+  }
+  if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade") {
+    const mergedProjectIndex = mergeProjectIndexGovernanceSections(targetText, sourceText);
+    if (!mergedProjectIndex) {
+      return {
+        ...base,
+        action: "conflict",
+        reason: "PROJECT_INDEX.md must contain unique real H2 governance sections in the expected order; inline or fenced lookalikes are not sections"
+      };
+    }
+    if (mergedProjectIndex !== targetText) {
+      return {
+        ...base,
+        action: "merge",
+        reason: "insert the missing Installed Integrations and Tool Operation References H2 sections while preserving all existing project content",
+        mergedText: mergedProjectIndex
+      };
+    }
+    return { ...base, action: "skip", reason: "PROJECT_INDEX.md governance sections current and structurally unique" };
   }
   const officialOrigin = command === "upgrade" ? trustedOfficialOrigin(targetRel, context) : null;
   if (officialOrigin) {
@@ -6467,25 +6564,6 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
     return { ...base, action: "skip", reason: "official marked routes current; local rows preserved" };
-  }
-  if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade") {
-    const mergedProjectIndex = mergeProjectIndexGovernanceSections(targetText, sourceText);
-    if (!mergedProjectIndex) {
-      return {
-        ...base,
-        action: "conflict",
-        reason: "PROJECT_INDEX.md must contain unique real H2 governance sections in the expected order; inline or fenced lookalikes are not sections"
-      };
-    }
-    if (mergedProjectIndex !== targetText) {
-      return {
-        ...base,
-        action: "merge",
-        reason: "insert or normalize the unique Installed Integrations and Tool Operation References H2 sections while preserving all existing project content",
-        mergedText: mergedProjectIndex
-      };
-    }
-    return { ...base, action: "skip", reason: "PROJECT_INDEX.md governance sections current and structurally unique" };
   }
   if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade") {
     const migratedHandoff = migrateSessionHandoff(targetText, sourceText, context);
@@ -6873,7 +6951,7 @@ function handoffContinuityAnchorPlacement(snippet, text) {
 }
 
 function projectIndexAnchorPlacement(snippet, text) {
-  if (snippet === "Agent Handoff Kit template version") return Boolean(projectIndexTemplateVersion(text));
+  if (snippet === "Agent Handoff Kit template version") return Boolean(parseProjectIndexTemplateVersion(text));
   return true;
 }
 
@@ -7056,8 +7134,8 @@ function mergeProjectDecisionsPreamble(targetText, sourceText, missing) {
 }
 
 function mergeProjectIndexTemplateVersionRow(targetText, sourceText) {
-  if (projectIndexTemplateVersion(targetText)) return targetText;
-  const sourceRow = sourceText.match(/^\| Agent Handoff Kit template version \| [\d.]+ \| [^|\n]+ \|$/m)?.[0];
+  if (parseProjectIndexTemplateVersion(targetText)) return targetText;
+  const sourceRow = projectIndexTemplateVersionRow(sourceText);
   if (!sourceRow) return null;
   const lines = targetText.split(/\r?\n/);
   const stackIndex = lines.findIndex((line) => line.trim() === "## Stack");
@@ -7099,37 +7177,9 @@ function mergeCommunicationNextStepDiscipline(targetText, sourceText, missing) {
 
 function parseMarkdownH2Sections(text) {
   const sections = [];
-  const linePattern = /.*(?:\r?\n|$)/g;
-  let fenced = false;
-  let fenceDelimiter = null;
-  let inComment = false;
-  let match;
-  while ((match = linePattern.exec(text)) && match[0] !== "") {
-    const raw = match[0];
-    const line = raw.replace(/\r?\n$/, "");
-    const trimmed = line.trim();
-    if (inComment) {
-      if (trimmed.includes("-->")) inComment = false;
-      continue;
-    }
-    if (trimmed.startsWith("<!--")) {
-      if (!trimmed.includes("-->")) inComment = true;
-      continue;
-    }
-    const fence = trimmed.match(/^(`{3,}|~{3,})/);
-    if (fence) {
-      if (!fenced) {
-        fenced = true;
-        fenceDelimiter = fence[1][0];
-      } else if (fence[1][0] === fenceDelimiter) {
-        fenced = false;
-        fenceDelimiter = null;
-      }
-      continue;
-    }
-    if (fenced) continue;
-    const headingMatch = line.match(/^## ([^#].*?)\s*$/);
-    if (headingMatch) sections.push({ title: headingMatch[1], start: match.index, end: text.length });
+  for (const line of markdownVisibleLinesOutsideHiddenBlocks(text)) {
+    const headingMatch = /^## ([^#].*?)\s*$/u.exec(line.text);
+    if (headingMatch) sections.push({ title: headingMatch[1], start: line.start, end: String(text).length });
   }
   for (let index = 0; index < sections.length - 1; index += 1) {
     sections[index].end = sections[index + 1].start;
@@ -7299,94 +7349,24 @@ function mergeProjectIndexGovernanceSections(targetText, sourceText) {
   const missing = requiredTitles.slice(0, 2).filter((title) => targetByTitle.get(title).length === 0);
   let merged = targetText;
   if (missing.length > 0) {
+    const newline = targetText.includes("\r\n") ? "\r\n" : "\n";
     const insertion = missing
-      .map((title) => sourceText.slice(sourceByTitle.get(title)[0].start, sourceByTitle.get(title)[0].end).trimEnd())
-      .join("\n\n");
-    merged = `${targetText.slice(0, localQc.start).trimEnd()}\n\n${insertion}\n\n${targetText.slice(localQc.start)}`;
+      .map((title) => sourceText
+        .slice(sourceByTitle.get(title)[0].start, sourceByTitle.get(title)[0].end)
+        .replace(/\r\n|\r|\n/g, newline)
+        .trimEnd())
+      .join(`${newline}${newline}`);
+    const prefix = targetText.slice(0, localQc.start);
+    const hasExistingBlankLineBeforeInsertion = /(?:\r\n|\r|\n)(?:[ \t]*(?:\r\n|\r|\n))+$/u.test(prefix);
+    const hasExistingLineBreakBeforeInsertion = /(?:\r\n|\r|\n)$/u.test(prefix);
+    const beforeInsertion = hasExistingBlankLineBeforeInsertion
+      ? ""
+      : hasExistingLineBreakBeforeInsertion
+      ? newline
+      : `${newline}${newline}`;
+    merged = `${prefix}${beforeInsertion}${insertion}${newline}${newline}${targetText.slice(localQc.start)}`;
   }
-  merged = mergeProjectIndexCredentialReferences(merged);
   return projectIndexGovernanceSectionsAreValid(merged) ? merged : null;
-}
-
-function mergeProjectIndexCredentialReferences(targetText) {
-  return targetText
-    .replace(
-      /`via` column 紀律：每行 External Sources 必引用 `## Installed Integrations`[^\r\n]*/,
-      "`via` column discipline: every External Sources row must reference an entry name under `## Installed Integrations`, such as `Notion Connector` or `Google Drive Connector`, so the access path is explicit. Sources without a declared integration use `manual paste`. Doctor and release QA enforce cross-section consistency."
-    )
-    .replace(
-      /⚠️ \*\*機密分離原則\*\*：本 section 只記錄[^\r\n]*/,
-      "**Credential Separation Principle**: this section records only project usage and public reference coordinates such as Notion database names, URLs, or folder paths. It must never record API keys, OAuth tokens, or credential values. Credentials belong in AI runtime secure storage, OS credential stores, tool configuration, or user-managed secret stores. If an environment variable is used, record only the variable name, never the value. Before writing this section, self-check that no credential value is being persisted. Doctor scans this section, `SESSION_HANDOFF`, and `SESSION_LOG` for common credential prefixes such as `sk-`, `ntn_`, `ya29.`, `xoxp-`, `ghp_`, `sl.`, `AKIA`, and `AIza`."
-    )
-    .replace(
-      /用途：新 AI session 開工讀本 section 知道[^\r\n]*/,
-      "Purpose: a new AI session reads this section to understand declared external-tool capabilities and their project roles. Declarations persist across sessions. Every entry must include `Declared` and `Last Verified` fields so stale capability assumptions can be detected."
-    )
-    .replace("### Connectors（Anthropic 官方 vetted）", "### Connectors")
-    .replace("### MCPs（community / custom）", "### MCPs")
-    .replace("### Plugins（Claude Code plugin bundle）", "### Plugins")
-    .replace("### Skills（SKILL.md instruction set）", "### Skills")
-    .replace("### Source-of-truth Architecture（多層持久化組合）", "### Source-of-truth Architecture")
-    .replace(
-      /當項目用多個整合構成 source-of-truth 架構[^\r\n]*/,
-      "When a project uses several integrations as a source-of-truth system, for example Notion index + local primary sources + Google Drive reference mirror, this table records each layer's role so agents do not cross write boundaries."
-    )
-    .replace(
-      "| TBD | TBD（譬如 DB Index 記真源 path / 持久化參考檔儲存） | read / read+write | TBD（譬如 DB 名 + URL / folder path） | TBD（譬如 `AI tool secure storage` / `OS credential store`） | TBD | TBD |",
-      "| TBD | TBD, for example an index of source paths or persistent reference storage | read / read+write | TBD, for example database name + URL or folder path | TBD, for example `AI tool secure storage` / `OS credential store` | TBD | TBD |"
-    )
-    .replace(
-      "| TBD | TBD（譬如 GitHub repo URL） | TBD | TBD（譬如 `tool config + env var name only` / `user-managed secret store`） | TBD | TBD |",
-      "| TBD | TBD, for example GitHub repository URL | TBD | TBD, for example `tool config + env var name only` / `user-managed secret store` | TBD | TBD |"
-    )
-    .replace(
-      "| TBD | TBD（譬如 plugin bundle / user-level install） | TBD | TBD |",
-      "| TBD | TBD, for example plugin bundle or user-level install | TBD | TBD |"
-    )
-    .replace(
-      "| 真源（source of truth） | TBD（譬如 本機 `~/project/reference/`） | 原始可審計 reference 內容 | 用戶手動置入；AI 不直接寫入 |",
-      "| Source of truth | TBD, for example local `~/project/reference/` | Original auditable reference content | User-controlled placement; agent does not write directly unless explicitly authorized |"
-    )
-    .replace(
-      "| Index | TBD（譬如 Notion DB「Project Index」） | 登記每份真源檔 metadata + 摘要 + tag | AI 經 Connector 直接讀寫 |",
-      "| Index | TBD, for example Notion database `Project Index` | Metadata, summaries, and tags for each source file | Agent may read/write through a verified Connector |"
-    )
-    .replace(
-      "| 持久化參考檔（mirror） | TBD（譬如 Drive folder「Project Reference/」） | 防本機 disk failure / 跨裝置 access | 用戶手動同步；AI 唔自動 push |",
-      "| Persistent mirror | TBD, for example Drive folder `Project Reference/` | Backup or cross-device reference mirror | User-controlled sync by default; agent does not push automatically |"
-    )
-    .replace(
-      "| Working draft | TBD（譬如 本機 `~/project/output/`） | AI 寫 task output | AI 直接 read + write 本機 |",
-      "| Working draft | TBD, for example local `~/project/output/` | Agent task output | Agent may read and write local files under normal safety rules |"
-    )
-    .replace(
-      "Credential 應由 AI 工具自身 secure storage 管理（譬如 Claude Desktop Extensions 嘅 OS Keychain / Claude Code MCP config）。",
-      "Credential 應由 AI 工具自身 secure storage / OS credential store / tool config / user-managed secret store 管理；若使用 env，只可記錄 env var name，不可讀取、貼出或保存 value。"
-    )
-    .replaceAll(
-      "Credential Location",
-      "Credential Reference（no value）"
-    )
-    .replaceAll(
-      "Credential Reference（no value）",
-      "Credential Reference (no value)"
-    )
-    .replaceAll(
-      "Bundle Content（Skills + MCP + hooks）",
-      "Bundle Content (Skills + MCP + hooks)"
-    )
-    .replaceAll(
-      "Surface（具體 instance）",
-      "Surface (specific instance)"
-    )
-    .replace(
-      "`Claude Desktop Extensions`",
-      "`AI tool secure storage` / `OS credential store`"
-    )
-    .replace(
-      "`Claude Code MCP config + env var`",
-      "`tool config + env var name only` / `user-managed secret store`"
-    );
 }
 
 function mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing) {
@@ -7632,14 +7612,6 @@ function textSectionBounds(text, startHeading, endHeading) {
   const endIndex = text.indexOf(endHeading, startIndex + startHeading.length);
   if (endIndex < 0) return null;
   return { start: startIndex, end: endIndex };
-}
-
-function projectIndexTemplateVersion(text) {
-  const bounds = textSectionBounds(text, "## Stack", "## Directory Map");
-  if (!bounds) return null;
-  const stack = text.slice(bounds.start, bounds.end);
-  const row = stack.match(/^\| Agent Handoff Kit template version \| ([\d.]+) \| [^|\n]+ \|$/m);
-  return row ? row[1] : null;
 }
 
 function migrateSessionHandoff(targetText, sourceText, context = {}) {
@@ -7991,7 +7963,7 @@ async function assessVersionAlignment(root, cliVersion, options = {}) {
   let rootVersion = null;
   try {
     const text = await readFile(indexPath, "utf8");
-    rootVersion = projectIndexTemplateVersion(text);
+    rootVersion = parseProjectIndexTemplateVersion(text);
   } catch {
     // file missing or unreadable; rootVersion stays null
   }

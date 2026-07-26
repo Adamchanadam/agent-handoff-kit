@@ -1,5 +1,15 @@
 # 變更紀錄
 
+## v0.3.53 — 2026-07-26
+
+狀態：source package version。本版把升級、健康檢查、交易寫入前重驗、歷史 witness 退役與單獨開工版本顯示收回到更小的可信邊界。正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- `upgrade`、`upgrade --dry-run` 與 `doctor` 不再掃描或依賴 Kit 管理範圍外的普通工作檔案；一般 docs、outputs、inline path、Markdown link、AGENTS generic reference 和 `RULE_PACKS.md` 自訂 row 會保留文字，不會被讀取、hash、journal 或誤當 blocker。
+- Gate 5 current inventory 只由 installed contract、正式 USER_RULES router/content、Kit transaction registry 與 session-log archive 等有類型來源推導；表頭已被改動、路徑越界、symlink/junction/reparse 或 typed source bytes 漂移時仍會 `conflict` 停手。
+- dry-run 與正式升級共用同一完整預檢；正式 apply 在取得 transaction lock 後、替換 target 前重建 scoped snapshot 與 candidate identity。若漂移或清理失敗，不會假報升級成功。
+- 舊版留下的 whole-root 或一般引用 witness，在 sealed metadata 證明它不再屬目前 typed scope 時可安全退役；真正 Kit-managed、transaction.json、archive、正式 USER_RULES 與 typed runtime edge 仍 fail closed。
+- 單獨 `Start Agent Handoff` /「開工」只為 startup card 讀 `dev/PROJECT_INDEX.md` 唯一真實 `## Stack` 版本列；fenced / commented / duplicate / malformed / prerelease 證據只顯示 `version unverified`，直接任務不為版本卡預讀 handoff 或 index。
+
 ## v0.3.52 — 2026-07-25
 
 狀態：source package version。本版修補正式來源正常演進後，既有 current-state witness 令 `doctor` 與 `closeout-status` 無法恢復健康的死結；同時讓明示開工在平台安全支援時，可用已載入事實改善過於籠統的對話標題。正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。

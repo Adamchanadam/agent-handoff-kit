@@ -48,8 +48,8 @@ async function main() {
 
   const beforeInventory = await buildUpgradeInventory({ root: project });
   assert(beforeInventory.status === "ready", `fixture inventory blocked before upgrade: ${JSON.stringify(beforeInventory.blockers)}`);
-  assert(hasReachability(beforeInventory, routerRel, "AGENTS.md"), "fixture AGENTS.md does not formally reach RULE_PACKS.md");
-  assert(hasReachability(beforeInventory, localRel, routerRel), "fixture local route is not mechanically reachable from RULE_PACKS.md");
+  assert(hasInventoryPath(beforeInventory, routerRel), "fixture inventory omitted the typed RULE_PACKS contract");
+  assert(!hasInventoryPath(beforeInventory, localRel), "fixture inventory treated an arbitrary RULE_PACKS row as filesystem authority");
   assert(read(path.join(project, agentsRel)).includes("Use `dev/RULE_PACKS.md` to decide"), "fixture AGENTS.md does not contain the active RULE_PACKS entry instruction");
   assert(beforeRouterText.includes(localRow) && !localRow.includes("ack:route:"), "fixture did not create an unmarked local route row");
 
@@ -67,7 +67,8 @@ async function main() {
 
   const afterInventory = await buildUpgradeInventory({ root: project });
   assert(afterInventory.status === "ready", `fixture inventory blocked after upgrade: ${JSON.stringify(afterInventory.blockers)}`);
-  assert(hasReachability(afterInventory, routerRel, "AGENTS.md") && hasReachability(afterInventory, localRel, routerRel), "whole-file preserve removed the AGENTS -> RULE_PACKS -> local route path");
+  assert(hasInventoryPath(afterInventory, routerRel), "whole-file preserve removed the typed RULE_PACKS contract");
+  assert(!hasInventoryPath(afterInventory, localRel), "whole-file preserve promoted an arbitrary RULE_PACKS row to inventory authority");
 
   const transaction = latestTransaction(project);
   const journalEntry = transaction.journal.entries.find((entry) => entry.targetRel === routerRel);
@@ -83,9 +84,7 @@ async function main() {
   assert(runtimeEntry.accepted.sha256 === sha(beforeRouterBytes) && runtimeEntry.sourceWitness.sha256 === sha(beforeRouterBytes) && runtimeEntry.accepted.bytes === beforeRouterBytes.length && runtimeEntry.sourceWitness.bytes === beforeRouterBytes.length, "direct RULE_PACKS acceptance lost its original-byte witness");
   assert(runtimeEntry.sourceByteRanges?.length === 1 && runtimeEntry.sourceByteRanges[0].start === 0 && runtimeEntry.sourceByteRanges[0].end === beforeRouterBytes.length && runtimeEntry.sourceByteRanges[0].sha256 === sha(beforeRouterBytes), "direct RULE_PACKS acceptance does not prove one complete non-overlapping source range");
   assert(runtimeEntry.originalReader.reader === "AGENTS.md" && runtimeEntry.originalReader.via === "direct-rule-packs-entry" && runtimeEntry.activeReader.reader === "AGENTS.md" && runtimeEntry.activeReader.via === "direct-rule-packs-entry", "direct RULE_PACKS acceptance omitted the formal reader");
-  const originalLocalRoute = runtimeEntry.originalReader.routes.find((route) => route.targetRel === localRel);
-  const activeLocalRoute = runtimeEntry.activeReader.routes.find((route) => route.targetRel === localRel);
-  assert(originalLocalRoute?.sha256 === sha(localBytes) && originalLocalRoute.bytes === localBytes.length && activeLocalRoute?.sha256 === sha(localBytes) && activeLocalRoute.bytes === localBytes.length, "direct RULE_PACKS acceptance omitted the local target bytes from the reader/effect witness");
+  assert(!runtimeEntry.originalReader.routes.some((route) => route.targetRel === localRel) && !runtimeEntry.activeReader.routes.some((route) => route.targetRel === localRel), "direct RULE_PACKS acceptance treated an arbitrary local row as route authority");
   assert(transaction.journal.currentStateWitness.runtimeAcceptance?.acceptanceDigest === transaction.journal.runtimeAcceptance.acceptanceDigest, "whole current-state witness did not bind direct RULE_PACKS acceptance");
   assert(transaction.journal.runtimeAcceptanceReadback?.reader?.includes("direct RULE_PACKS entry"), "post-transaction doctor did not fresh-read the direct RULE_PACKS acceptance");
   assert(transaction.journal.currentStateReadback?.runtimeAcceptanceDigest === transaction.journal.runtimeAcceptance.acceptanceDigest, "success state did not use the same direct RULE_PACKS acceptance digest");
@@ -93,28 +92,29 @@ async function main() {
   const doctor = cli(["doctor", "--root", project], "RULE_PACKS representative ordinary doctor");
   const doctorText = output(doctor);
   assert(doctor.status === 0 && doctorText.includes("status: passed") && doctorText.includes("direct RULE_PACKS entry"), "ordinary doctor did not fresh-read the same direct RULE_PACKS acceptance state");
-  assert(transaction.report.includes("## Runtime Acceptance") && transaction.report.includes(transaction.journal.runtimeAcceptance.acceptanceDigest) && transaction.report.includes(`dev/RULE_PACKS.md:${sha(beforeRouterBytes)}:preserve:preserve-unmodified-through-direct-rule-packs-entry:range=0-${beforeRouterBytes.length}`), "migration report did not consume the same complete direct RULE_PACKS acceptance witness");
+  assert(transaction.report.includes("## Runtime Acceptance") && transaction.report.includes(transaction.journal.runtimeAcceptance.acceptanceDigest) && transaction.report.includes(`dev/RULE_PACKS.md:${sha(beforeRouterBytes)}:preserve:preserve-unmodified-through-direct-rule-packs-entry:ranges=0-${beforeRouterBytes.length}`), "migration report did not consume the same complete direct RULE_PACKS acceptance witness");
   assert(transaction.report.includes("## Shared Current-State Witness") && transaction.report.includes(transaction.journal.currentStateWitness.currentStateDigest), "migration report did not consume the same whole current-state identity");
+  assert(!journalMentionsPath(transaction.journal, localRel), "transaction journal treated the arbitrary RULE_PACKS row target as current authority");
+  assert(!transaction.report.includes(localRel), "migration report mentioned the arbitrary RULE_PACKS row target");
 
-  // Directly affected regression: the local target is not a transaction output,
-  // so only the direct RULE_PACKS formal reader can detect this effect drift.
   writeFileSync(path.join(project, localRel), Buffer.from("LOCAL_RULE_PACK_ROUTE_EFFECT_DRIFT_v1\n", "utf8"));
   const driftDoctor = cli(["doctor", "--root", project], "RULE_PACKS local target drift regression");
-  assert(driftDoctor.status !== 0 && !output(driftDoctor).includes("status: passed"), "ordinary doctor accepted local route-target byte drift after the transaction");
-  writeFileSync(path.join(project, localRel), localBytes);
-  const restoredDoctor = cli(["doctor", "--root", project], "RULE_PACKS local target drift restoration");
-  assert(restoredDoctor.status === 0 && output(restoredDoctor).includes("status: passed"), "ordinary doctor did not recover after restoring the accepted local target bytes");
+  assert(driftDoctor.status === 0 && output(driftDoctor).includes("status: passed"), "ordinary doctor treated an inert arbitrary RULE_PACKS row target drift as a blocker");
+  assert(readBuffer(routerPath).equals(beforeRouterBytes), "doctor changed RULE_PACKS bytes while ignoring an inert arbitrary row target");
 
-  console.log("GREEN: the original RULE_PACKS red fixture preserves the complete non-exact table unchanged, keeps its unheaded AGENTS -> RULE_PACKS local route and target bytes effective, and binds one complete source range plus the ordered reader/effect witness to the same transaction, doctor, report, and success state. Local target drift fails doctor until restored.");
+  console.log("GREEN: the original RULE_PACKS red fixture preserves the complete non-exact table unchanged, keeps its arbitrary local row text, and binds one complete source range plus the ordered installed-route reader/effect witness to the same transaction, doctor, report, and success state. The arbitrary row target is inert and does not block doctor when changed.");
   console.log(`fixture: ${project}`);
   console.log(`RULE_PACKS before sha256: ${sha(beforeRouterBytes)}`);
   console.log(`RULE_PACKS after sha256:  ${sha(afterRouterBytes)}`);
   console.log(`transaction: ${transaction.journal.id}`);
 }
 
-function hasReachability(inventory, targetRel, from) {
-  const entry = inventory.entries.find((candidate) => candidate.path === targetRel);
-  return Boolean(entry?.reachability?.some((item) => item.from === from));
+function hasInventoryPath(inventory, targetRel) {
+  return inventory.entries.some((candidate) => candidate.path === targetRel);
+}
+
+function journalMentionsPath(journal, targetRel) {
+  return JSON.stringify(journal).includes(targetRel);
 }
 
 function cli(args, label) {
