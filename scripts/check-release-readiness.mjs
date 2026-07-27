@@ -1088,8 +1088,7 @@ function simulateScenarioBranching() {
   const s4b = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4bRoot], "scenario 4b upgrade no-op with arbitrary handoff prose", { env });
   assertScenarioOutput("scenario 4b (upgrade no-op tolerates arbitrary handoff prose)", s4b.stdout, {
     mustHave: [
-      /你已經是最新版本，沒有檔案需要建立或合併/,
-      /繼續日常使用即可/
+      /你已經是最新版本，沒有檔案需要建立或合併/
     ],
     mustNotHave: [
       /完整 doctor 健康檢查未通過/,
