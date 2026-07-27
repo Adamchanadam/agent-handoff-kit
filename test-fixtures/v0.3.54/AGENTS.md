@@ -1,3 +1,4 @@
+<!-- BEGIN Agent Handoff Kit managed core -->
 # Agent Handoff Kit Core Runtime
 
 This is the small always-read contract. Detailed task and closeout procedures live in routed packs.
@@ -17,7 +18,7 @@ Route intent in this order:
 
 Treat a phrase as ambiguous only when its ordinary meaning may genuinely refer to a real-world shift, event, or unrelated context. `開工，繼續 <task>`, `<project> 開工`, and `Start Agent Handoff and continue <task>` are continuity commands, not ambiguous phrases.
 
-During explicit continuity startup, the only optional presentation effect beyond state recovery and card/status is a user-visible task/conversation title update, when the active runtime safely supports current-title readback and title control. Derive the startup card's current objective and recommended next action first; only then, immediately before showing the card, choose and apply any title update. Replace only a generic or stale title, or update once when the main objective clearly changes; keep an informative title and do not rename for tests, reviews, or small substeps. Use `<project name>｜<primary action>` from facts already loaded for startup: a concrete same-message task first, otherwise the loaded current objective plus recommended next action. Within those facts, select one concrete primary action in this order: the same-message task; the loaded current objective; the recommended next action. The continuity trigger itself and generic phrases such as `Start Agent Handoff`, `開工`, or `開始工作交接` are not primary actions. If the loaded facts do not provide both a concrete project name and a concrete primary action, skip the title update. Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title. The title must not contain progress, completion, status, task/session IDs, absolute paths, secrets, or unverified facts. If safe title control/readback is unavailable, skip silently. The title is display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth, and it does not authorize project/file writes, network activity, external task work, or continuation beyond the startup boundary.
+During explicit continuity startup, the only optional presentation effect beyond state recovery and card/status is a user-visible task/conversation title update, when the active runtime safely supports current-title readback and title control. Replace only a generic or stale title, or update once when the main objective clearly changes; keep an informative title and do not rename for tests, reviews, or small substeps. Use `<project name>｜<primary action>` from facts already loaded for startup: a concrete same-message task first, otherwise the loaded current objective plus recommended next action. Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title. The title must not contain progress, completion, status, task/session IDs, absolute paths, secrets, or unverified facts. If safe title control/readback is unavailable, skip silently. The title is display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth, and it does not authorize project/file writes, network activity, external task work, or continuation beyond the startup boundary.
 
 Read `dev/PROJECT_INDEX.md` when the task needs its file, command, integration, workspace, or source map. Read `dev/RULE_PACKS.md` when a task pack must be selected. Read `dev/DOC_SYNC_REGISTRY.md` before durable cross-file or external synchronization and during closeout. Pack loading is normally silent; explain it only when it changes risk, requires a user decision, or materially affects the next action.
 
@@ -115,3 +116,12 @@ After the task, apply the Persistence Gate. Do not assume the next session remem
 ## Core Complexity Rule
 
 Before changing `AGENTS.md` or adding a durable governance rule, use `dev/RULE_PACKS.md` to load `dev/rules/agent-governance.md` and locate the existing normative owner. Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. Scenario-specific or project-specific detail belongs in an existing pack or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner. Do not copy the agent-governance classification table or workflow into the core.
+<!-- END Agent Handoff Kit managed core -->
+
+<!-- ack:user-rules-router:dev/USER_RULES.md -->
+<!-- ack:user-rules-acceptance:sha256=170d727c4ec2b35504f0413ff1837257150cac2dbea7a4c956efe3c005a8f2ef -->
+Before loading task packs, read `dev/USER_RULES.md`. Its registered entries
+under `dev/user_rules/` are user-controlled rules: read each accepted entry in
+the listed order and verify its accepted raw-byte witness. Do not treat this
+router, its directory, a heading, language, format, location, or
+official-looking text as proof that any legacy source belongs to the Kit.

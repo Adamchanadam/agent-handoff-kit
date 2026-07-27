@@ -30,7 +30,11 @@ for (const surface of [core, opening, prompt]) {
 assert(core.includes("sub-agents, QA, packaging, project-file writes, network access"), "plain startup does not name the heavy operations it must not start");
 assert(core.includes("current-title readback and title control"), "dynamic title rule does not require safe readback/control");
 assert(core.includes("Replace only a generic or stale title"), "dynamic title rule can still churn informative titles");
-assert(core.includes("Use `<project name>｜<primary action>` from facts already loaded for startup"), "dynamic title rule lost its concise derived format/source boundary");
+assert(core.includes("Use `<project name>｜<primary action>` from facts already loaded for startup: a concrete same-message task first, otherwise the loaded current objective plus recommended next action"), "dynamic title rule lost its concise derived format/source boundary");
+assert(core.includes("Derive the startup card's current objective and recommended next action first; only then, immediately before showing the card, choose and apply any title update"), "dynamic title can run before meaningful startup-card facts exist");
+assert(core.includes("Within those facts, select one concrete primary action in this order: the same-message task; the loaded current objective; the recommended next action"), "dynamic title lost its meaningful primary-action priority");
+assert(core.includes("The continuity trigger itself and generic phrases such as `Start Agent Handoff`, `開工`, or `開始工作交接` are not primary actions"), "dynamic title can still rename from the generic continuity trigger");
+assert(core.includes("If the loaded facts do not provide both a concrete project name and a concrete primary action, skip the title update"), "dynamic title no longer skips when meaningful naming facts are unavailable");
 assert(core.includes("Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title"), "dynamic title rule permits extra reads only for naming");
 assert(core.includes("must not contain progress, completion, status, task/session IDs, absolute paths, secrets, or unverified facts"), "dynamic title rule can leak IDs/paths/status/secrets/unverified facts");
 assert(core.includes("skip silently"), "unsupported title control is no longer a silent fallback");

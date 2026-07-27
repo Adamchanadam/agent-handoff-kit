@@ -15,10 +15,38 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help semantic command evidence for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
-## v0.3.54 candidate status
+## v0.3.55 candidate status
 
-- 狀態：Public clean product/source HEAD exists at `af0d1a377bc7c3b596e97ef262722bba7aca6a3c`；v0.3.54 的產品機制已由 fresh GPT-5.5 High reviewer 接受；reviewer agent provenance `019fa0eb-aa1b-71d3-8a60-97480eace09e`，final correction re-review returned `accepted_for_product_integration` with zero Critical / Major / Minor findings. This is product/source acceptance and clean source freeze evidence only, not full, release, npm publish, or postpublish evidence.
-- Final source review：fresh GPT-5.5 High reviewer agent `019fa14b-d338-7932-80b5-30831a99f9dd`，nonce `CER-AHK-R-V054-FINAL-SOURCE-20260727-01`，reviewed the exact 40-path Public source candidate at `main@f8495d444b369e13008435888c1b16e363ff49aa` with status SHA-256 `f1243c33b1dceb3edca824b292325aa36817d97143d94d365f841cd68d513fd3`; Critical 0 / Major 0 / Minor 0; verdict `accepted_for_clean_candidate`. Subsequent bounded product/source corrections converged operation-local receipts and Scenario 3c release-readiness assertions into clean HEAD `af0d1a377bc7c3b596e97ef262722bba7aca6a3c`; v0.3.54 remains unpublished, and full / release gates have not run.
+- 狀態：v0.3.55 是下一個 source package candidate，原因是 v0.3.54 已正式發布到 npm 與 GitHub Release；v0.3.54 發布後的任何 changed bytes 必須使用下一個 patch version。v0.3.55 目前只包含已接受的 startup title timing 兩檔產品修正，以及必要 release/version surface synchronization。它尚未 push、tag、GitHub Release、npm publish 或 postpublish。
+- 產品範圍：title rename 必須在 startup card current objective 與 recommended next action 已得出後、顯示 card 前才執行；primary action 依序取 concrete same-message task、concrete loaded objective、concrete recommended next action；generic continuity trigger 不得作 primary action；缺少 concrete project name + primary action 時跳過改名。
+- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.55 candidate；v0.3.54 保留為最新已發布 lineage，v0.3.55 不進 official-origin published catalog。
+- full / release 邊界：本段只準備 clean candidate、tarball 與 WAITING_INDEPENDENT_REVIEW evidence；不是 independent review PASS、formal full PASS、release authorization、npm publish 或 postpublish evidence。
+
+### pre-release final audit（v0.3.55，WAITING）
+
+- Clean artifact boundary：v0.3.55 clean candidate commit and tarball must be created from the source tree after the accepted title-timing fix and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
+- full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
+- Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
+- five-conclusion writer assessment currently records governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting as writer-passed conclusions. It is evidence-layer input, not independent review or full PASS.
+- 發布打包邊界：v0.3.55 remains unpublished until formal full, push, tag, GitHub Release, npm publish, and postpublish readback all pass under explicit authorization.
+
+### Cross-mind evidence 9-trigger table（v0.3.55）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | passed | The accepted title-timing correction prevents startup title selection from running before objective and recommended-next-action facts exist. |
+| 2. External side effects | yes | iterated | No external publication occurs in this candidate-prep batch; push, tag, GitHub Release, npm publish, and postpublish remain separate gates. |
+| 3. User-visible output | yes | passed | Plain startup can show a more meaningful conversation title when the runtime supports safe title control, without changing startup card or task authorization. |
+| 4. Complexity or boundary | yes | passed | The change stays inside existing startup-title wording and its existing checker; no new API, schema, title owner, or governance mechanism is added. |
+| 5. Documentation drift | yes | iterated | Source package surfaces are synchronized to v0.3.55 while v0.3.54 remains the latest published lineage until a later release readback supersedes it. |
+| 6. Semantic runtime effect | yes | passed | Title selection uses already-loaded startup facts only and never reads extra files, network, PROJECT_INDEX, or state solely for naming. |
+| 7. Cross-agent / role boundary | yes | iterated | This section prepares writer-side candidate evidence; independent review, formal full, and release publication remain pending gates. |
+| 8. Real user journey | yes | passed | Continuity triggers such as `Start Agent Handoff`, `開工`, and `開始工作交接` cannot become the primary action in the title. |
+| 9. Release statement | yes | iterated | v0.3.55 is a source candidate only; no full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
+## v0.3.54 release history
+
+- 狀態：正式發布歷史。v0.3.54 was released from commit `29a65abed761aec2ac17c247389722fc605947c4`; GitHub Release and npm `@latest` readback are v0.3.54. The source, bilingual, evidence, formal full, and postpublish records below are retained as release evidence history, not current v0.3.55 blockers.
+- Final source review：fresh GPT-5.5 High reviewer agent `019fa14b-d338-7932-80b5-30831a99f9dd`，nonce `CER-AHK-R-V054-FINAL-SOURCE-20260727-01`，reviewed the exact 40-path Public source candidate at `main@f8495d444b369e13008435888c1b16e363ff49aa` with status SHA-256 `f1243c33b1dceb3edca824b292325aa36817d97143d94d365f841cd68d513fd3`; Critical 0 / Major 0 / Minor 0; verdict `accepted_for_clean_candidate`. Subsequent bounded product/source corrections converged operation-local receipts and Scenario 3c release-readiness assertions into clean HEAD `af0d1a377bc7c3b596e97ef262722bba7aca6a3c`; v0.3.54 later completed formal full, release, npm publish, and postpublish readback.
 - Final evidence-merge review：fresh read-only reviewer Chandrasekhar（GPT-5.5 High），agent `019fa29d-cfff-7c22-9831-1cccdd873d1d`，reviewed clean Public `main@af0d1a377bc7c3b596e97ef262722bba7aca6a3c` and frozen tarball SHA-256 `2c955cd87a74e0484ccece733a088de53898acda163930021cb46c41401415e9` with 34 entries; Critical 0 / Major 0; verdict `accepted_for_evidence_merge`. Sole Minor was this current-state identity wording, corrected in place without adding a new evidence schema or QA layer.
 - 根修範圍：交易證據只在 active operation / lock 內作 no-clobber、rollback、recovery 與誠實報告；lock 清除後，`doctor` / `upgrade` 不再讀 committed historical journals 作 current workspace bytes authority。`reconcile-current-state` / `finalize-closeout` 與永久 witness / runtimeAcceptance authority 已移除；ordinary workspace files remain inert.
 - 真實 runtime replay：C / E1 使用 v0.3.52 live runtime 的隔離副本完成 dry-run → upgrade → doctor → legitimate mutable / ordinary / Unicode / new-file edits → second dry-run / upgrade or truthful no-op → doctor；原 live root only read-back / unchanged，未在原地 upgrade 或 doctor 寫入。
@@ -33,7 +61,7 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 - full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
 - Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
 - five-conclusion writer assessment currently records governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting as writer-passed conclusions. It is evidence-layer input, not independent review or full PASS.
-- 發布打包邊界：v0.3.54 product/source is frozen in clean HEAD `af0d1a377bc7c3b596e97ef262722bba7aca6a3c`; this final evidence merge is evidence-only and package-excluded. The final clean HEAD will be an evidence-only descendant bound by candidate evidence. v0.3.54 still requires accepted candidate evidence, formal full gate, push, tag, GitHub Release, npm publish, and postpublish readback before any release claim.
+- 發布打包邊界：v0.3.54 product/source is frozen in clean HEAD `af0d1a377bc7c3b596e97ef262722bba7aca6a3c`; this final evidence merge is evidence-only and package-excluded. The final clean HEAD will be an evidence-only descendant bound by candidate evidence. v0.3.54 later completed accepted candidate evidence, formal full gate, push, tag, GitHub Release, npm publish, and postpublish readback; this subsection is retained as pre-release audit history.
 
 ### Cross-mind evidence 9-trigger table（v0.3.54）
 
@@ -47,7 +75,7 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 | 6. Semantic runtime effect | yes | passed | No-lock historical journals are inert; active lock failures remain fail-closed; Kit-owned current lifecycle remains protected. |
 | 7. Cross-agent / role boundary | yes | passed | Fresh reviewers accepted product integration, final source review, bilingual evidence, and final evidence-merge identity binding. Formal full and release gate remain evidence-layer / authorization gates. |
 | 8. Real user journey | yes | passed | Isolated copy of the real v0.3.52 runtime path passed the daily mutable-workspace journey without rebind / reconcile / finalize / manual prep. |
-| 9. Release statement | yes | iterated | v0.3.54 product/source is clean at `af0d1a377bc7c3b596e97ef262722bba7aca6a3c` but remains unpublished; no formal full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. This evidence-only correction will create a package-excluded descendant for candidate evidence. |
+| 9. Release statement | yes | iterated | v0.3.54 completed formal full, push, tag, GitHub Release, npm publish, and postpublish readback; this table is retained as release-history evidence. |
 
 ### Bilingual README semantic gate（v0.3.54，PASS）
 
@@ -125,7 +153,7 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 | 6. Semantic runtime effect | yes | iterated | Runtime authority moves away from root walking and generic text dereference while preserving typed Kit / USER_RULES / transaction / archive fail-closed behavior. |
 | 7. Cross-agent / role boundary | yes | passed | R4 source-review acceptance, R5 bilingual evidence, clean commit, full gate, release decision, and postpublish evidence were separated in the release flow. |
 | 8. Real user journey | yes | iterated | Existing projects with ordinary docs, outputs, local links, or stale generic witnesses should no longer be blocked by unrelated user-owned files. |
-| 9. Release statement | yes | passed | v0.3.53 is release history; v0.3.54 is the current unpublished source candidate. |
+| 9. Release statement | yes | passed | v0.3.53 and v0.3.54 are release history; v0.3.55 is the current unpublished source candidate. |
 
 ## v0.3.52 candidate status
 

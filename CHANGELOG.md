@@ -1,8 +1,15 @@
 # 變更紀錄
 
+## v0.3.55 — 2026-07-27
+
+狀態：source package version。本版修正單獨開工時的對話標題更新時機；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- 標題改名只會在 startup card 的目前目標與推薦下一步已得出後、顯示 card 前執行，避免用尚未收斂的資訊命名。
+- 主要動作依序取同一句明確任務、已載入目前目標、推薦下一步；`Start Agent Handoff`、「開工」、「開始工作交接」等 generic continuity trigger 不會被當成標題主動作。
+- 若已載入事實沒有同時提供具體項目名稱與具體主動作，會跳過改名；標題仍只是 display-only，不授權任何工作、讀檔、連網或狀態聲稱。
 ## v0.3.54 — 2026-07-27
 
-狀態：source package version。本版把交易證據收回到單次 operation-local 邊界，移除把舊交易收據當成永久 workspace bytes 權威的模型。正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+狀態：正式發佈版本。本版把交易證據收回到單次 operation-local 邊界，移除把舊交易收據當成永久 workspace bytes 權威的模型；GitHub Release 與 npm `@latest` 已發佈為 v0.3.54。
 
 - 沒有 active `.upgrade.lock` 時，舊 `dev/governance_migrations/*/transaction.json` 只作歷史收據；`doctor` 與 `upgrade` 不再枚舉或讀取已完成舊 journal 來判斷目前 workspace bytes 是否仍匹配。
 - 有 active lock 時，recovery 只使用 lock 精確引用的 operation-local journal、stage、backup、target 與 archive 狀態；空白、半截、不可讀、malformed 或 schema 無效的 lock 會 fail closed、零寫入、保留原 lock，不掃歷史 journal，也不 quarantine。
