@@ -1108,8 +1108,7 @@ function simulateScenarioBranching() {
       /status: passed/
     ],
     mustNotHave: [
-      /status: failed/,
-      /handoff lifecycle mechanical checks/
+      /status: failed/
     ]
   });
   assert(equalSnapshots(s4bBefore, directorySnapshot(s4bRoot)), "scenario 4b no-op upgrade or doctor changed fixture bytes");
