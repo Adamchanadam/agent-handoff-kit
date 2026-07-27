@@ -1061,12 +1061,11 @@ function simulateScenarioBranching() {
   }
   console.log(`ok: scenario 4 output ${s4LineCount} lines (≤ 20 threshold)`);
 
-  // Scenario 4b: upgrade no-op, but handoff lifecycle field is still a placeholder
-  // after substantive AI-generated content exists. This guards the v0.3.7 real-user
-  // miss where upgrade said "繼續日常使用即可" while doctor failed immediately after.
-  // The fixture deliberately contains generic package-scope and pending wording; the
-  // product check must not infer lifecycle truth from arbitrary AI prose.
-  const s4bRoot = path.join(tempBase, "scenario-upgrade-noop-handoff-needs-closeout");
+  // Scenario 4b: upgrade no-op with arbitrary user-managed handoff prose.
+  // Doctor/upgrade may validate Kit-owned structural fields, but must not infer an
+  // unresolved lifecycle state from free prose in handoff sections. Full closeout
+  // lifecycle consistency remains owned by the separate closeout-status contract.
+  const s4bRoot = path.join(tempBase, "scenario-upgrade-noop-arbitrary-handoff-prose");
   const s4bInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
   if (s4bInit.status !== 0) {
     throw new Error(`Scenario 4b init prep failed: ${s4bInit.stderr || s4bInit.stdout}`);
@@ -1074,47 +1073,45 @@ function simulateScenarioBranching() {
   const s4bHandoffPath = path.join(s4bRoot, "dev/SESSION_HANDOFF.md");
   let s4bHandoff = readFileSync(s4bHandoffPath, "utf8");
   s4bHandoff = s4bHandoff
-    .replace("Record only work actually completed in the current session.\n\n1. TBD", "Record only work actually completed in the current session.\n\n1. Completed `@adamchanadam` package verification and upgrade UX review.")
-    .replace("## Next Priorities\n\n1. TBD", "## Next Priorities\n\n1. Pending maintainer publish decision; continue normal project work after closeout.")
-    .replace("- Checks run this session: TBD", "- Checks run this session: Verified package scope and no-op upgrade journey.")
-    .replace("## Next Session Opening Message\n\n📋 Next session: agent-managed startup content below", "## Next Session Opening Message\n\n📋 Next session: agent-managed startup content below");
+    .replace("Record only work actually completed in the current session.\n\n1. TBD", "Record only work actually completed in the current session.\n\n1. Completed `@adamchanadam` package verification and upgrade UX review; this is user-managed prose, not a doctor blocker.")
+    .replace("Recommended next step: TBD — reason: TBD", "Recommended next step: Pending maintainer publish decision; continue normal project work after closeout — reason: arbitrary prose is managed by the user and closeout, not by upgrade no-op.")
+    .replace("- Checks run this session: TBD", "- Checks run this session: Verified package scope, no-op upgrade journey, and pending wording tolerance.")
+    .replace("- Stale snapshots left in this handoff: TBD", "- Stale snapshots left in this handoff: no")
+    .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: TBD", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes — arbitrary prose reviewed outside the doctor/upgrade no-op path.")
+    .replace("- Persistence routing checked: TBD", "- Persistence routing checked: yes")
+    .replace("- Current blockers or risks: TBD", "- Current blockers or risks: none");
   writeFileSync(s4bHandoffPath, s4bHandoff, "utf8");
-  const s4b = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
-  if (s4b.status === 0) {
-    throw new Error(`scenario 4b upgrade no-op expected failure but exited 0\n${s4b.stdout}`);
-  }
-  assertScenarioOutput("scenario 4b (upgrade no-op, handoff needs closeout)", `${s4b.stdout}\n${s4b.stderr}`, {
+  const s4bBefore = directorySnapshot(s4bRoot);
+  const s4b = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4bRoot], "scenario 4b upgrade no-op with arbitrary handoff prose", { env });
+  assertScenarioOutput("scenario 4b (upgrade no-op tolerates arbitrary handoff prose)", s4b.stdout, {
     mustHave: [
-      /Kit 檔案已是最新版本，沒有檔案需要建立或合併/,
+      /你已經是最新版本，沒有檔案需要建立或合併/,
+      /繼續日常使用即可/
+    ],
+    mustNotHave: [
       /完整 doctor 健康檢查未通過/,
       /status: failed/,
       /handoff lifecycle mechanical checks/,
-      /不要重裝或覆寫用戶內容/
-    ],
-    mustNotHave: [
-      /繼續日常使用即可/,
-      /✅ 結果：你已經是最新版本/,
       /✅ 安裝完成：/,
       /✅ 升級完成：/,
       /I just installed agent-handoff-kit\. Help me get started\./,
-      /I just upgraded agent-handoff-kit/
+      /I just upgraded agent-handoff-kit/,
+      /migration report:/,
+      /migration committed/
     ]
   });
-  const s4bDoctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s4bRoot], { encoding: "utf8", env, cwd: root });
-  if (s4bDoctor.status === 0) {
-    throw new Error(`scenario 4b doctor expected failure but exited 0\n${s4bDoctor.stdout}`);
-  }
-  assertScenarioOutput("scenario 4b (doctor reports handoff closeout needed)", s4bDoctor.stdout, {
+  const s4bDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s4bRoot], "scenario 4b doctor with arbitrary handoff prose", { env });
+  assertScenarioOutput("scenario 4b (doctor tolerates arbitrary handoff prose)", s4bDoctor.stdout, {
     mustHave: [
-      /status: failed/,
-      /handoff lifecycle mechanical checks/,
-      /completed work is not carried forward as unresolved next work/
+      /status: passed/
     ],
     mustNotHave: [
-      /status: passed/,
-      /繼續日常使用即可/
+      /status: failed/,
+      /handoff lifecycle mechanical checks/
     ]
   });
+  assert(equalSnapshots(s4bBefore, directorySnapshot(s4bRoot)), "scenario 4b no-op upgrade or doctor changed fixture bytes");
+  console.log("ok: scenario 4b no-op with arbitrary handoff prose left fixture bytes unchanged");
 
   // Scenario 4f: upgrade no-op with a repairable schema failure. The handoff
   // opening message lost the root mismatch guard, which is Kit-owned startup
@@ -1580,6 +1577,32 @@ function assertScenarioOutput(label, output, contract) {
     }
   }
   console.log(`ok: ${label} output contract`);
+}
+
+function directorySnapshot(rootDir) {
+  const entries = [];
+  const visit = (dir, prefix = "") => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const abs = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        entries.push(`dir\t${rel}`);
+        visit(abs, rel);
+      } else if (entry.isFile()) {
+        entries.push(`file\t${rel}\t${createHash("sha256").update(readFileSync(abs)).digest("hex")}`);
+      } else if (entry.isSymbolicLink()) {
+        entries.push(`symlink\t${rel}`);
+      } else {
+        entries.push(`other\t${rel}`);
+      }
+    }
+  };
+  visit(rootDir);
+  return entries;
+}
+
+function equalSnapshots(left, right) {
+  return left.length === right.length && left.every((entry, index) => entry === right[index]);
 }
 
 function assertConciseUpgradeSuccessNarrative(label, output, expectedVersion) {
