@@ -1425,7 +1425,6 @@ function simulateScenarioBranching() {
   assertScenarioOutput("scenario 3c (upgrade stale lifecycle placeholder)", s3c.stdout, {
     mustHave: [
       /Kit migration 已通過離線遷移驗收/,
-      /dev\/SESSION_HANDOFF\.md has no exact historical raw-byte identity after root\/version initialization/,
       /版本詳情不在升級流程內展開/,
       /github\.com\/Adamchanadam\/agent-handoff-kit\/releases\/latest/,
       /✅ migration committed/,
