@@ -176,8 +176,8 @@ async function validatePostpublishEvidence(options) {
   assert(evidence.published.gitCommit.toLowerCase() === tagCommit, "postpublish published git commit does not match remote tag readback");
   assert(evidence.readbacks?.gitTag?.commit === tagCommit, "postpublish git tag evidence does not match remote tag readback");
 
-  const helpSha256 = await npxHelpSha256(options.version);
-  assert(evidence.readbacks?.npxHelp?.sha256 === helpSha256, "postpublish npx help evidence does not match ordinary consumer readback");
+  const helpEvidence = await npxHelpEvidence(options.version);
+  assertPostpublishNpxHelpEvidence(evidence.readbacks?.npxHelp, helpEvidence);
 }
 
 async function runClaim(claim) {
@@ -479,19 +479,58 @@ async function readRemoteTagCommit(version) {
   return commit.toLowerCase();
 }
 
-async function npxHelpSha256(version) {
-  if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_NPX_HELP_SHA256");
+async function npxHelpEvidence(version) {
+  if (evidenceContractSelfTest) return readSelfTestJson("AGENT_HANDOFF_KIT_QA_SELF_TEST_NPX_HELP_EVIDENCE");
+  const expected = expectedNpxHelpEvidence(version);
   const cache = mkdtempSync(path.join(tmpdir(), "ahk-postpublish-npx-cache-"));
   const cwd = mkdtempSync(path.join(tmpdir(), "ahk-postpublish-npx-cwd-"));
   try {
     const result = await runNpx(["--cache", cache, "--yes", `@adamchanadam/agent-handoff-kit@${version}`, "--help"], "npx published help", cwd);
-    const text = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+    const text = normalizeTerminalText(`${result.stdout ?? ""}\n${result.stderr ?? ""}`);
     assert(text.includes(`v${version}`), "npx help readback does not contain the published version");
-    return sha256(Buffer.from(text, "utf8"));
+    assert(text.includes(expected.productName), "npx help readback does not contain the CLI product identity");
+    assert(text.includes(expected.cli), "npx help readback does not contain the CLI command identity");
+    for (const command of expected.requiredCommands) {
+      assert(new RegExp(`\\b${escapeRegExp(command)}\\b`).test(text), `npx help readback does not contain required command: ${command}`);
+    }
+    return expected;
   } finally {
     rmSync(cache, { recursive: true, force: true });
     rmSync(cwd, { recursive: true, force: true });
   }
+}
+
+function expectedNpxHelpEvidence(version) {
+  return {
+    packageSpec: `@adamchanadam/agent-handoff-kit@${version}`,
+    packageName: "@adamchanadam/agent-handoff-kit",
+    cli: "agent-handoff-kit",
+    productName: "Agent Handoff Kit",
+    mode: "help",
+    version,
+    requiredCommands: ["init", "upgrade", "doctor", "closeout-status"]
+  };
+}
+
+function assertPostpublishNpxHelpEvidence(actual, expected) {
+  assert(actual && typeof actual === "object", "postpublish npx help evidence is missing");
+  for (const key of ["packageSpec", "packageName", "cli", "productName", "mode", "version"]) {
+    assert(actual[key] === expected[key], `postpublish npx help evidence ${key} mismatch`);
+  }
+  assert(Array.isArray(actual.requiredCommands), "postpublish npx help evidence requires requiredCommands");
+  assert(actual.requiredCommands.length === expected.requiredCommands.length, "postpublish npx help evidence requiredCommands length mismatch");
+  for (const command of expected.requiredCommands) {
+    assert(actual.requiredCommands.includes(command), `postpublish npx help evidence missing required command: ${command}`);
+  }
+}
+
+function normalizeTerminalText(text) {
+  return String(text)
+    .replace(/\x1B\[[0-?]*[ -/]*[@-~]/gu, "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .filter((line) => !/^npm (notice|warn|info)\b/i.test(line.trim()))
+    .join("\n");
 }
 
 function runGit(args, label) {
@@ -566,6 +605,10 @@ function runCommand(command, args, label, options = {}) {
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function escapeRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function requiredSelfTestValue(name) {

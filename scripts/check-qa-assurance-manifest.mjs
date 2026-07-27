@@ -404,8 +404,16 @@ function validateEvidenceContracts() {
   });
   const reviewBundleSha256 = sha256(readFileSync(reviewBundle));
   const publishedTarballSha256 = "b".repeat(64);
-  const npxHelpSha256 = "c".repeat(64);
   const gitCommit = "4".repeat(40);
+  const npxHelpEvidence = {
+    packageSpec: `@adamchanadam/agent-handoff-kit@${version}`,
+    packageName: "@adamchanadam/agent-handoff-kit",
+    cli: "agent-handoff-kit",
+    productName: "Agent Handoff Kit",
+    mode: "help",
+    version,
+    requiredCommands: ["init", "upgrade", "doctor", "closeout-status"]
+  };
   const npmMetadata = {
     version,
     latest: version,
@@ -426,7 +434,7 @@ function validateEvidenceContracts() {
     AGENT_HANDOFF_KIT_QA_EVIDENCE_CONTRACT_SELF_TEST: "1",
     AGENT_HANDOFF_KIT_QA_SELF_TEST_CANDIDATE_TARBALL_SHA256: candidateTarballSha256,
     AGENT_HANDOFF_KIT_QA_SELF_TEST_PUBLISHED_TARBALL_SHA256: publishedTarballSha256,
-    AGENT_HANDOFF_KIT_QA_SELF_TEST_NPX_HELP_SHA256: npxHelpSha256,
+    AGENT_HANDOFF_KIT_QA_SELF_TEST_NPX_HELP_EVIDENCE: JSON.stringify(npxHelpEvidence),
     AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_TAG_COMMIT: gitCommit,
     AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_LATEST_VERSION: latestCatalogVersion,
     AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_METADATA: JSON.stringify(npmMetadata),
@@ -642,7 +650,7 @@ function validateEvidenceContracts() {
       npmPack: { tarballSha256: publishedTarballSha256 },
       githubRelease,
       gitTag: { commit: gitCommit },
-      npxHelp: { sha256: npxHelpSha256 }
+      npxHelp: npxHelpEvidence
     }
   };
   const postpublish = path.join(fixtureRoot, "postpublish.json");
@@ -667,8 +675,11 @@ function validateEvidenceContracts() {
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, gitTag: { commit: "7".repeat(40) } } });
   invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish git tag mismatch", { env: selfTestEnv });
 
-  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npxHelp: { sha256: "3".repeat(64) } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help mismatch", { env: selfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npxHelp: { ...npxHelpEvidence, packageSpec: "@adamchanadam/agent-handoff-kit@0.0.0", version: "0.0.0" } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help version/package mismatch", { env: selfTestEnv });
+
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npxHelp: { ...npxHelpEvidence, requiredCommands: npxHelpEvidence.requiredCommands.filter((command) => command !== "doctor") } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help missing required command", { env: selfTestEnv });
   console.log("ok: near-valid full/postpublish evidence mismatches are rejected");
 }
 

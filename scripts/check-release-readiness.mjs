@@ -22,14 +22,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const tempRoot = path.join(tmpdir(), `ack-release-flow-${Date.now()}`);
 const cliNode = process.platform === "win32" ? "node" : process.execPath;
-const pinnedPublishedV041Artifact = {
-  packageRoot: process.env.AGENT_HANDOFF_KIT_PINNED_V041_PACKAGE_ROOT
-    || (process.platform === "win32" ? "C:\\tmp\\agent-handoff-kit-r034-gate4-reopen-artifact\\extract\\package" : null),
-  tarballPath: process.env.AGENT_HANDOFF_KIT_PINNED_V041_TGZ
-    || (process.platform === "win32" ? "C:\\tmp\\agent-handoff-kit-r034-gate4-reopen-artifact\\adamchanadam-agent-handoff-kit-0.3.41.tgz" : null),
-  sha1: "8b9238287485ef15208c4c339e8cdfe283ce1c23",
-  integrity: "sha512-2DQjMXhLigpW30vE0bb1aa7F5h1YYW5kXSfruzwg6IltyclvV9EBYPLUTOj49p6QIwmPWcetvJIB8zK0LZFH5Q=="
-};
 const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, one optional display-only title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out execution wording.";
 
 await main();
@@ -54,6 +46,7 @@ async function main() {
   checkReleaseStateCoherence(version);
   checkCandidateWorktreeIsClean();
   checkChangedBilingualCandidateEvidence(version);
+  assertLatestCrossMindTableComplete(version);
   checkUpgradeSuccessOutputSourceContract(version);
   checkRecommendedNextStepContract();
   checkCliHelpHotPathContract();
@@ -841,13 +834,23 @@ function checkScenarioBranchingDocAlignment() {
       id: "4b",
       snippets: [
         "upgrade no-op",
-        "handoff lifecycle",
-        "Kit 檔案已是最新版本，沒有檔案需要建立或合併",
+        "user-managed handoff prose"
+      ],
+      mustHaveCell: [
+        "你已經是最新版本，沒有檔案需要建立或合併",
+        "繼續日常使用即可",
+        "`doctor` `status: passed`",
+        "fixture bytes unchanged"
+      ],
+      mustNotCell: [
         "完整 doctor 健康檢查未通過",
         "status: failed",
         "handoff lifecycle mechanical checks",
-        "不要重裝或覆寫用戶內容",
-        "繼續日常使用即可"
+        "安裝完成",
+        "升級完成",
+        "I just installed",
+        "I just upgraded",
+        "migration report"
       ]
     },
     {
@@ -2330,20 +2333,46 @@ function previousPatch(v) {
 }
 
 function materializePinnedV041ArtifactInit(project) {
-  const { packageRoot, tarballPath, sha1, integrity } = pinnedPublishedV041Artifact;
-  assert(packageRoot && tarballPath, "set the pinned v0.3.41 artifact root and tarball path for packed upgrade smoke");
-  assert(existsSync(tarballPath), "pinned v0.3.41 artifact tarball is missing for packed upgrade smoke");
+  const fixtureManifest = JSON.parse(read("test-fixtures/v0.3.41/fixture-manifest.json"));
+  const npmIdentity = fixtureManifest?.source?.npm;
+  assert(npmIdentity?.spec === "@adamchanadam/agent-handoff-kit@0.3.41", "v0.3.41 fixture npm spec is missing or drifted");
+  assert(npmIdentity.shasum && npmIdentity.integrity && Number.isInteger(npmIdentity.entryCount), "v0.3.41 fixture npm identity is incomplete");
+
+  const artifactRoot = path.join(tempRoot, "published-v0.3.41-artifact");
+  mkdirSync(artifactRoot, { recursive: true });
+  const pack = runNpm(["pack", npmIdentity.spec, "--json", "--pack-destination", artifactRoot], "published v0.3.41 artifact retrieval");
+  let records;
+  try {
+    records = JSON.parse(pack.stdout);
+  } catch {
+    throw new Error(`published v0.3.41 artifact retrieval returned invalid JSON\n${outputText(pack)}`);
+  }
+  const record = records?.[0];
+  assert(record?.filename === "adamchanadam-agent-handoff-kit-0.3.41.tgz", "published v0.3.41 artifact filename mismatch");
+  assert(record.shasum === npmIdentity.shasum, "published v0.3.41 artifact npm shasum mismatch");
+  assert(record.integrity === npmIdentity.integrity, "published v0.3.41 artifact npm integrity mismatch");
+  assert(record.entryCount === npmIdentity.entryCount, "published v0.3.41 artifact npm entry count mismatch");
+  const tarballPath = path.join(artifactRoot, record.filename);
+  assert(existsSync(tarballPath), "published v0.3.41 artifact retrieval did not create its tarball");
   const artifactBytes = readFileSync(tarballPath);
-  assert(createHash("sha1").update(artifactBytes).digest("hex") === sha1, "pinned v0.3.41 artifact SHA-1 drifted for packed upgrade smoke");
-  assert(`sha512-${createHash("sha512").update(artifactBytes).digest("base64")}` === integrity, "pinned v0.3.41 artifact SHA-512 drifted for packed upgrade smoke");
+  assert(createHash("sha1").update(artifactBytes).digest("hex") === npmIdentity.shasum, "published v0.3.41 artifact SHA-1 drifted for packed upgrade smoke");
+  assert(`sha512-${createHash("sha512").update(artifactBytes).digest("base64")}` === npmIdentity.integrity, "published v0.3.41 artifact SHA-512 drifted for packed upgrade smoke");
+
+  const installRoot = path.join(artifactRoot, "install");
+  mkdirSync(installRoot, { recursive: true });
+  runNpm(["install", "--prefix", installRoot, "--ignore-scripts", tarballPath], "published v0.3.41 artifact extract");
+  const packageRoot = path.join(installRoot, "node_modules", "@adamchanadam", "agent-handoff-kit");
+  const metadata = JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8"));
+  assert(metadata.name === "@adamchanadam/agent-handoff-kit" && metadata.version === "0.3.41", "published v0.3.41 extracted package identity mismatch");
   const artifactCli = path.join(packageRoot, "bin", "agent-handoff-kit.mjs");
-  assert(existsSync(artifactCli), "pinned v0.3.41 artifact extraction is missing its formal CLI");
+  assert(existsSync(artifactCli), "published v0.3.41 artifact extraction is missing its formal CLI");
   const init = spawnSync(cliNode, [artifactCli, "init", "--yes", "--root", project], {
     cwd: packageRoot,
     encoding: "utf8",
     env: { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" }
   });
-  assert(!init.error && init.status === 0, `pinned v0.3.41 artifact fresh init failed for packed upgrade smoke\n${outputText(init)}`);
+  assert(!init.error && init.status === 0, `published v0.3.41 artifact fresh init failed for packed upgrade smoke\n${outputText(init)}`);
+  console.log("ok: published v0.3.41 artifact retrieved and verified for packed upgrade smoke");
 }
 
 function runNpm(args, label) {
