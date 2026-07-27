@@ -2640,8 +2640,14 @@ function checkGovernanceBridgeContract() {
   assertIncludes("scripts/check-upgrade-safety.mjs", [
     "long-lived lifecycle",
     "malformed historical receipt",
-    "ordinary workspace files are inert",
-    "SESSION_LOG_archive"
+    "ordinary workspace files are inert"
+  ]);
+
+  assertIncludes("scripts/check-upgrade-inventory.mjs", [
+    "dev/SESSION_LOG_archive/INDEX.md",
+    "dev/SESSION_LOG_archive/archive_001.md",
+    "typed current inventory is missing",
+    "ordinary or historical receipt drift changed current inventory digest"
   ]);
 
   assertIncludes("scripts/check-pack-scenarios.mjs", [
