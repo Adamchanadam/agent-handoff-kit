@@ -661,10 +661,8 @@ function parseArgs(args) {
   return { command, options };
 }
 
-// R-031.3 v0.3.4+: Helper to detect if PROJECT_INDEX template version metadata
-// row is stale relative to current CLI version. Used by plan-time no-op detection
-// guard to ensure metadata-only stale roots still trigger the upgrade ceremony
-// (otherwise plan-time short-circuit returns before inject can run).
+// Detect stale PROJECT_INDEX template version metadata before the plan-time no-op
+// path so a metadata-only root still enters the transaction ceremony.
 async function needsProjectIndexVersionInject(root, command, version) {
   if (command !== "upgrade") return false;
   const installedVersion = await readProjectIndexTemplateVersion(root);
@@ -720,11 +718,9 @@ async function runInstall(command, root, options, version) {
   const planMergeCount = plan.filter((item) => item.action === "merge").length;
   const planPreserveCount = plan.filter((item) => item.action === "preserve").length;
   const planSkipCount = plan.filter((item) => item.action === "skip").length;
-  // R-031.3 v0.3.4+: metadata-only stale guard. If PROJECT_INDEX template version
-  // row is stale but structure is fully current (all v0.2.0+ files already present),
-  // plan create/merge/conflict are all 0 — but inject still needs to run. Without
-  // this guard, plan-time short-circuit returns before inject can fire, leaving
-  // root on stale version forever.
+  // Metadata-only stale guard. If PROJECT_INDEX structure is fully current but
+  // the Stack version row is stale, the row still needs an operation-local
+  // transaction instead of the no-op short circuit.
   const projectIndexVersionNeedsInject = await needsProjectIndexVersionInject(root, command, version);
   const isUpgradeNoopAtPlanTime = command === "upgrade"
     && planConflictCount === 0
@@ -1115,7 +1111,7 @@ async function buildTransactionOutputs(command, root, plan, version, options = {
   let indexOutput = byTarget.get(indexRel);
   if (!indexOutput && (command === "upgrade" || await exists(indexAbs))) {
     const before = await readOptionalBuffer(indexAbs);
-    if (before) indexOutput = { targetRel: indexRel, targetAbs: indexAbs, before, afterText: decodeUtf8(before, indexRel).text, reason: "template version metadata" };
+    if (before) indexOutput = { targetRel: indexRel, targetAbs: indexAbs, before, afterText: decodeUtf8(before, indexRel).text, reason: projectIndexTemplateVersionMetadataReason };
   }
   if (indexOutput?.afterText != null) {
     const materializedText = materializeProjectIndexTemplateVersion(indexOutput.afterText, version);
@@ -5561,51 +5557,6 @@ async function confirmWrite() {
   }
 }
 
-async function writeMigrationReport(root, command, mode, plan, created, merged, conflicts, migrationDir, backupDir, metadataUpdated = null) {
-  const reportPath = path.join(migrationDir, "migration-report.md");
-  await mkdir(migrationDir, { recursive: true });
-  const skipped = plan.filter((item) => item.action === "skip").map((item) => item.targetRel);
-  const text = [
-    "# Agent Handoff Kit Migration Report",
-    "",
-    `Command: ${command}`,
-    `Mode: ${mode}`,
-    `Root: ${root}`,
-    `Created: ${new Date().toISOString()}`,
-    "",
-    "## Created",
-    ...listOrNone(created),
-    "",
-    "## Merged",
-    ...listOrNone(merged),
-    "",
-    "## Skipped Existing",
-    ...listOrNone(skipped),
-    "",
-    "## Conflicts",
-    ...listOrNone(conflicts.map((item) => `${item.targetRel} - ${item.reason}`)),
-    "",
-    // R-031.3 v0.3.4+: metadata updates are tracked separately from file create/merge
-    // because they mutate specific rows inside an otherwise user-owned file rather
-    // than replacing or merging the file as a whole. Audit trail completeness
-    // requires this section even when create/merge/conflict counts are all 0.
-    "## Metadata Updates",
-    metadataUpdated
-      ? `- ${metadataUpdated.file}: ${metadataUpdated.field} ${metadataUpdated.from} → ${metadataUpdated.to}`
-      : "- none",
-    "",
-    "## Backup",
-    merged.length > 0 ? `- ${path.relative(root, backupDir)}` : "- none",
-    "",
-    "## Notes",
-    "- Existing files are preserved unless the installer can perform a bounded merge.",
-    "- Files that cannot be safely merged are reported as conflicts and are not overwritten.",
-    "- Metadata Updates section tracks row-level mutations (R-031.3) distinct from file-level changes."
-  ].join("\n");
-  await writeFile(reportPath, `${text}\n`, "utf8");
-  return reportPath;
-}
-
 function migrationStamp() {
   return new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 }
@@ -5850,11 +5801,6 @@ function printUpgradeNoopShortCircuit(version, health = { ok: true }) {
   console.log("");
   console.log("🚀 下一步：把上方 doctor 輸出貼給能讀寫此資料夾的 AI，請它按失敗項修補；不要重裝或覆寫用戶內容。");
   console.log("");
-}
-
-function listOrNone(items) {
-  if (items.length === 0) return ["- none"];
-  return items.map((item) => `- ${item}`);
 }
 
 async function exists(filePath) {

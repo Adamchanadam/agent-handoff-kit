@@ -1312,13 +1312,9 @@ function simulateScenarioBranching() {
   const s4eHandoffPost = readFileSync(s4eHandoffPath, "utf8");
   assert(s4eHandoffPost.includes("do not create an archive directory by default"), "scenario 4e did not restore handoff archive continuity anchor");
 
-  // R-031.3 v0.3.4+: Scenario 3 split into 3a (metadata-only stale) + 3b (structurally
-  // stale via real test-fixtures/v0.1.7 fixture) per minimum-correct fix from cross-AI
-  // root-fix audit. Old single scenario used `init + rewrite version row` which left
-  // structure fully current — never tested the inject-vs-merge ordering bug because
-  // PROJECT_INDEX kept its v0.3.x `## Installed Integrations` section, so upgrade plan
-  // marked it `skip` not `merge`. Real-user case (Adam v0.3.3 first-test) had both
-  // metadata + structure stale; the new 3a + 3b split covers each axis independently.
+  // Scenario 3 keeps metadata-only and structurally stale PROJECT_INDEX upgrades
+  // separate so row materialization, H2 section migration, and operation-local
+  // journal/report evidence can be checked independently.
 
   // Scenario 3a — synthetic, metadata-only stale state: current init + only the
   // shared Stack version row materialized backward, then upgrade materializes it
@@ -1366,12 +1362,7 @@ function simulateScenarioBranching() {
     : "";
   assert(
     s3aDoctor.stdout.includes("status: passed")
-      && s3aEntry?.beforeHash !== s3aEntry?.afterHash
-      && s3aEntry?.reason?.includes("unique real PROJECT_INDEX Stack template-version row")
-      && !s3aJournal?.runtimeAcceptance
-      && !s3aJournal?.currentStateWitness
-      && s3aReport.includes(s3aEntry.afterHash)
-      && s3aReport.includes(s3aEntry.reason),
+      && assertProjectIndexOperationReceipt("scenario 3a", s3aJournal, s3aEntry, s3aReport),
     "scenario 3a did not disclose PROJECT_INDEX metadata transition through the operation-local journal/report"
   );
   console.log("ok: scenario 3a materializes only the PROJECT_INDEX Stack version row with operation-local journal/report evidence");
@@ -1418,8 +1409,8 @@ function simulateScenarioBranching() {
   console.log(`ok: scenario 3b (structurally stale) post-upgrade template version = v${s3bVersionMatch[1]}`);
 
   // Scenario 3c — stale lifecycle placeholder with older template metadata.
-  // SESSION_HANDOFF remains whole-file preserved; PROJECT_INDEX updates only its
-  // shared Stack version row and stays outside runtimeAcceptance.
+  // SESSION_HANDOFF may receive the bounded lifecycle/startup migration while
+  // preserving user state; PROJECT_INDEX updates only its shared Stack version row.
   const s3cRoot = path.join(tempBase, "scenario-upgrade-stale-lifecycle-placeholder");
   materializePinnedV041ArtifactInit(s3cRoot);
   const s3cIndexPath = path.join(s3cRoot, "dev/PROJECT_INDEX.md");
@@ -1430,7 +1421,6 @@ function simulateScenarioBranching() {
     .replace("- Checks run this session: TBD", "- Checks run this session: init succeeded; doctor had not been run before upgrade.");
   writeFileSync(s3cHandoffPath, s3cHandoff, "utf8");
   const s3cIndexBefore = readFileSync(s3cIndexPath);
-  const s3cHandoffBefore = readFileSync(s3cHandoffPath);
   const s3c = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s3cRoot], "scenario 3c upgrade stale lifecycle placeholder", { env });
   assertScenarioOutput("scenario 3c (upgrade stale lifecycle placeholder)", s3c.stdout, {
     mustHave: [
@@ -1453,7 +1443,12 @@ function simulateScenarioBranching() {
   });
   assertConciseUpgradeSuccessNarrative("scenario 3c (upgrade stale lifecycle placeholder)", s3c.stdout, currentVersion);
   assertProjectIndexMetadataTransition("scenario 3c", s3cIndexBefore, readFileSync(s3cIndexPath), currentVersion);
-  assert(readFileSync(s3cHandoffPath).equals(s3cHandoffBefore), "scenario 3c overwrote non-exact handoff bytes");
+  const s3cHandoffAfter = readFileSync(s3cHandoffPath, "utf8");
+  assert(
+    s3cHandoffAfter.includes("Installed Agent Handoff Kit v0.1.7 and filled project baseline fields.")
+      && s3cHandoffAfter.includes("init succeeded; doctor had not been run before upgrade."),
+    "scenario 3c lost user-authored handoff state during lifecycle migration"
+  );
   const s3cDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s3cRoot], "scenario 3c ordinary doctor after preserved-state upgrade", { env });
   const s3cMigrations = path.join(s3cRoot, "dev", "governance_migrations");
   const s3cTransactions = readdirSync(s3cMigrations)
@@ -1470,17 +1465,15 @@ function simulateScenarioBranching() {
     : "";
   assert(
     s3cDoctor.stdout.includes("status: passed")
-      && s3cHandoffEntry?.beforeHash === s3cHandoffEntry?.afterHash
-      && s3cHandoffEntry?.reason?.includes("preserve")
-      && s3cIndexEntry?.beforeHash !== s3cIndexEntry?.afterHash
-      && s3cIndexEntry?.reason?.includes("unique real PROJECT_INDEX Stack template-version row")
-      && !s3cJournal?.runtimeAcceptance
-      && !s3cJournal?.currentStateWitness
-      && s3cReport.includes(s3cIndexEntry.afterHash)
-      && s3cReport.includes(s3cIndexEntry.reason),
-    "scenario 3c did not disclose preserved handoff and PROJECT_INDEX metadata transition through the operation-local journal/report"
+      && s3cHandoffEntry?.beforeHash !== s3cHandoffEntry?.afterHash
+      && s3cHandoffEntry?.reason?.includes("handoff lifecycle/startup contracts")
+      && s3cReport.includes(`merge: dev/SESSION_HANDOFF.md - ${s3cHandoffEntry.reason}`)
+      && s3cReport.includes("dev/SESSION_HANDOFF.md")
+      && s3cReport.includes("committed=true")
+      && assertProjectIndexOperationReceipt("scenario 3c", s3cJournal, s3cIndexEntry, s3cReport),
+    "scenario 3c did not disclose handoff lifecycle migration and PROJECT_INDEX metadata transition through operation-local journal/report"
   );
-  console.log("ok: scenario 3c preserves handoff bytes and materializes PROJECT_INDEX Stack version row with operation-local journal/report evidence");
+  console.log("ok: scenario 3c preserves user handoff state and materializes PROJECT_INDEX Stack version row with operation-local journal/report evidence");
 
   // Scenario 5: upgrade with conflict. This guards the user-facing stop state:
   // when a bridge file cannot be safely merged, output must say the upgrade is
@@ -1640,6 +1633,16 @@ function assertProjectIndexMetadataTransition(label, beforeBytes, afterBytes, ex
   assert(parseProjectIndexTemplateVersion(beforeText) !== expectedVersion, `${label} PROJECT_INDEX fixture was not stale before upgrade`);
   assert(parseProjectIndexTemplateVersion(afterText) === expectedVersion, `${label} PROJECT_INDEX did not materialize package version`);
   assert(afterText === materializeProjectIndexTemplateVersion(beforeText, expectedVersion), `${label} PROJECT_INDEX changed bytes outside the shared Stack version-row materializer`);
+}
+
+function assertProjectIndexOperationReceipt(label, journal, entry, report) {
+  assert(entry, `${label} transaction journal lacks PROJECT_INDEX entry`);
+  assert(entry.beforeHash && entry.afterHash && entry.beforeHash !== entry.afterHash, `${label} PROJECT_INDEX entry lacks distinct before/after identity`);
+  assert(entry.reason?.includes("unique real PROJECT_INDEX Stack template-version row"), `${label} PROJECT_INDEX entry lacks canonical metadata reason`);
+  assert(!journal?.runtimeAcceptance && !journal?.currentStateWitness, `${label} journal recreated future current-state authority`);
+  assert(report.includes(`merge: dev/PROJECT_INDEX.md - ${entry.reason}`), `${label} report lacks PROJECT_INDEX target/reason summary`);
+  assert(report.includes("committed=true"), `${label} report lacks committed action state`);
+  return true;
 }
 
 function staleCoreFixture() {
