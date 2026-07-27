@@ -1,5 +1,15 @@
 # 變更紀錄
 
+## v0.3.54 — 2026-07-27
+
+狀態：source package version。本版把交易證據收回到單次 operation-local 邊界，移除把舊交易收據當成永久 workspace bytes 權威的模型。正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- 沒有 active `.upgrade.lock` 時，舊 `dev/governance_migrations/*/transaction.json` 只作歷史收據；`doctor` 與 `upgrade` 不再枚舉或讀取已完成舊 journal 來判斷目前 workspace bytes 是否仍匹配。
+- 有 active lock 時，recovery 只使用 lock 精確引用的 operation-local journal、stage、backup、target 與 archive 狀態；空白、半截、不可讀、malformed 或 schema 無效的 lock 會 fail closed、零寫入、保留原 lock，不掃歷史 journal，也不 quarantine。
+- `reconcile-current-state` 與 `finalize-closeout` 這類手動補綁命令已移除；正常日常 agent 修改 handoff、log、rule pack、archive、普通 docs、Unicode path 或新檔後，不需要 bless、repair 或 journal edit 才能再次升級或通過 `doctor`。
+- Kit-owned current lifecycle 仍保守處理：managed core、正式 USER_RULES、PROJECT_INDEX 結構、archive casing、active transaction recovery、credential 檢查與 typed unsafe state 仍 fail closed。
+- 普通 workspace 檔案不會因位於 root、被 Markdown 連結提到或被舊 journal 記錄過，就被 discovery、read、hash、report 或阻擋。
+
 ## v0.3.53 — 2026-07-26
 
 狀態：source package version。本版把升級、健康檢查、交易寫入前重驗、歷史 witness 退役與單獨開工版本顯示收回到更小的可信邊界。正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。

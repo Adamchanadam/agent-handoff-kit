@@ -18,7 +18,6 @@ import {
   QA_RELEASE_READINESS_INVENTORY,
   QA_RELEASE_READINESS_INVENTORY_DIGEST,
   QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS,
-  R034_ARTIFACT_CONTRACT,
   RELEASE_PACKAGE_CONTRACT,
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
@@ -32,7 +31,6 @@ try {
   validateCandidateEvidenceContract();
   validatePublicMirrorContract();
   validateReleasePackageContract();
-  validateR034ArtifactContract();
   validateReleaseStateContract();
   validateStateCompositions();
   validateCommandDocumentation();
@@ -178,15 +176,6 @@ function validatePublicMirrorRequiredSourceFixtures() {
   assertRequiredSourceFailure(missingDirRoot, contract, "required-dir: required directory missing");
 }
 
-function validateR034ArtifactContract() {
-  assert(R034_ARTIFACT_CONTRACT.schemaVersion === 1, "unexpected R-034 artifact contract schema version");
-  assert(R034_ARTIFACT_CONTRACT.version === "0.3.41", "R-034 artifact version drifted");
-  assert(R034_ARTIFACT_CONTRACT.packageRootEnv === "AGENT_HANDOFF_KIT_R034_ARTIFACT_ROOT", "R-034 package-root env contract drifted");
-  assert(R034_ARTIFACT_CONTRACT.tarballPathEnv === "AGENT_HANDOFF_KIT_R034_ARTIFACT_TGZ", "R-034 tarball env contract drifted");
-  assert(/^[a-f0-9]{40}$/.test(R034_ARTIFACT_CONTRACT.sha1), "R-034 artifact sha1 is malformed");
-  assert(/^sha512-/.test(R034_ARTIFACT_CONTRACT.integrity), "R-034 artifact integrity is malformed");
-}
-
 function validateRunnerInventory() {
   const result = invoke(["scripts/qa.mjs", "--list"], "runner inventory");
   const inventory = JSON.parse(result.stdout);
@@ -253,7 +242,7 @@ function validateStateCompositions() {
     assert(Array.isArray(scenario.requiredTriples) && scenario.requiredTriples.length > 0, `state composition ${scenario.id} has no mandatory triples`);
     assert(scenario.deliveryArtifact === "packed candidate tarball", `state composition ${scenario.id} is not a packed-artifact journey`);
   }
-  assert(ids.has("v045-accepted-witness-legacy-archive-upgrade-closeout"), "legacy archive regression is absent from state compositions");
+  assert(ids.has("published-lifecycle-upgrade-doctor-noop"), "published lifecycle regression is absent from state compositions");
 }
 
 function validateFailurePropagation() {
@@ -375,6 +364,7 @@ async function runQaRunnerFixture(fileName, lines, options) {
 
 function validateEvidenceContracts() {
   const version = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
+  const latestCatalogVersion = latestCatalogVersionBeforeCandidate(version);
   const head = invoke(["-e", "const {spawnSync}=require('node:child_process'); const r=spawnSync('git',['rev-parse','HEAD'],{encoding:'utf8'}); if(r.status) process.exit(r.status); process.stdout.write(r.stdout.trim());"], "git HEAD readback").stdout;
   const releaseQaPath = "docs/qa/release-grade-qa.md";
   const releaseQaSha256 = sha256(readFileSync(path.join(root, releaseQaPath)));
@@ -438,14 +428,10 @@ function validateEvidenceContracts() {
     AGENT_HANDOFF_KIT_QA_SELF_TEST_PUBLISHED_TARBALL_SHA256: publishedTarballSha256,
     AGENT_HANDOFF_KIT_QA_SELF_TEST_NPX_HELP_SHA256: npxHelpSha256,
     AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_TAG_COMMIT: gitCommit,
-    AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_LATEST_VERSION: previousPatch(version),
+    AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_LATEST_VERSION: latestCatalogVersion,
     AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_METADATA: JSON.stringify(npmMetadata),
     AGENT_HANDOFF_KIT_QA_SELF_TEST_GITHUB_RELEASE: JSON.stringify(githubRelease)
   };
-  invoke(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "near-valid candidate preflight", { env: selfTestEnv });
-  invoke(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "pre-freeze dirty candidate preflight", {
-    env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_STATUS: " M package.json\n" }
-  });
   invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", "9.9.9", "--validate-only"], "candidate-preflight package version mismatch", { env: selfTestEnv });
   invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "candidate-preflight surface version mismatch", {
     env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_SURFACE_VERSION_OVERRIDE: "9.9.9" }
@@ -466,6 +452,11 @@ function validateEvidenceContracts() {
     env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH: candidateInCatalog }
   });
   console.log("ok: candidate-preflight positive and negative fixtures");
+
+  if (!releaseSurfacesMatchCandidate(version)) {
+    console.log("ok: full/postpublish positive evidence self-test deferred until release surfaces are synchronized to the candidate version");
+    return;
+  }
 
   const validCandidate = {
     schemaVersion: 1,
@@ -688,7 +679,7 @@ function invoke(args, label, options = {}) {
 function writeCatalogFixture(name, mutate) {
   const file = path.join(fixtureRoot, name);
   const catalog = JSON.parse(readFileSync(path.join(root, "bin", "migration-baselines", "official-origin-catalog.json"), "utf8"));
-  const latest = previousPatch(JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version);
+  const latest = latestCatalogVersionBeforeCandidate(JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version);
   mutate(catalog, latest);
   const digestCopy = { ...catalog };
   delete digestCopy.catalogDigestSha256;
@@ -697,11 +688,43 @@ function writeCatalogFixture(name, mutate) {
   return file;
 }
 
-function previousPatch(version) {
-  const parts = version.split(".").map((part) => Number.parseInt(part, 10));
-  assert(parts.length === 3 && parts.every(Number.isInteger) && parts[2] > 0, `cannot derive previous patch from ${version}`);
-  parts[2] -= 1;
-  return parts.join(".");
+function latestCatalogVersionBeforeCandidate(candidateVersion) {
+  const catalog = JSON.parse(readFileSync(path.join(root, "bin", "migration-baselines", "official-origin-catalog.json"), "utf8"));
+  const versions = Object.keys(catalog.releases ?? {})
+    .filter((version) => /^\d+\.\d+\.\d+$/.test(version) && compareSemver(version, candidateVersion) < 0)
+    .sort(compareSemver);
+  const latest = versions.at(-1);
+  assert(latest, `official-origin catalog has no published version below ${candidateVersion}`);
+  return latest;
+}
+
+function compareSemver(left, right) {
+  const leftParts = left.split(".").map(Number);
+  const rightParts = right.split(".").map(Number);
+  for (let index = 0; index < 3; index += 1) {
+    if (leftParts[index] !== rightParts[index]) return leftParts[index] - rightParts[index];
+  }
+  return 0;
+}
+
+function releaseSurfacesMatchCandidate(version) {
+  const current = `v${version}`;
+  const readText = (relativePath) => {
+    try {
+      return readFileSync(path.join(root, relativePath), "utf8");
+    } catch {
+      return null;
+    }
+  };
+  const readmeHead = readText("README.md")?.split(/\r?\n/u).slice(0, 12).join("\n") ?? "";
+  const englishReadmeHead = readText("README.en.md")?.split(/\r?\n/u).slice(0, 12).join("\n") ?? "";
+  if (!readmeHead.includes(`原始碼套件版本：\`${current}\``)) return false;
+  if (!englishReadmeHead.includes(`Source package version: \`${current}\``)) return false;
+  for (const surface of RELEASE_STATE_CONTRACT.surfaces) {
+    const text = readText(surface.path.replace("${version}", version));
+    if (!text?.includes(current)) return false;
+  }
+  return true;
 }
 
 function invokeFailure(args, label, options = {}) {

@@ -11,10 +11,6 @@ import { assessPromptMirrorRoot, assessPromptMirrorTexts, extractOpeningMessage 
 import { freshInstallMappings, installedFileContract, installedMappings, requiredInstalledTargets, upgradeStateMappings, upgradeStateTargets } from "./installed-file-contract.mjs";
 import { getArtifactBoundManagedSegment, getOfficialBaseline, identifyOfficialOrigin, loadOfficialOriginCatalog } from "./official-origin-catalog.mjs";
 import {
-  assertGate5FrozenSet,
-  extractExplicitLocalReferences,
-  freezeGate5Set,
-  gate5SourceConservationItems,
   markdownVisibleLinesOutsideHiddenBlocks,
   materializeProjectIndexTemplateVersion,
   parseProjectIndexTemplateVersion,
@@ -43,21 +39,6 @@ const rulePackTargets = mappings
   .filter((target) => target.startsWith("dev/rules/"));
 const managedCoreStart = "<!-- BEGIN Agent Handoff Kit managed core -->";
 const managedCoreEnd = "<!-- END Agent Handoff Kit managed core -->";
-const directStatefulTargets = new Set([
-  "START_NEXT_SESSION_PROMPT.txt",
-  "dev/SESSION_HANDOFF.md",
-  "dev/PROJECT_INDEX.md",
-  "dev/SESSION_LOG.md"
-]);
-const closeoutFinalizeTargets = new Set([
-  ...directStatefulTargets,
-  "dev/DOC_SYNC_REGISTRY.md",
-  "dev/PROJECT_DECISIONS.md"
-]);
-const directCloseoutStateTargets = Object.freeze([...closeoutFinalizeTargets].sort((left, right) => left.localeCompare(right)));
-const directCloseoutStateTargetSet = new Set(directCloseoutStateTargets);
-const canonicalSessionLogArchiveRoot = "dev/SESSION_LOG_archive";
-const legacySessionLogArchiveRoot = "dev/session_log_archive";
 const credentialLeakPatterns = [
   { pattern: /sk-ant-[A-Za-z0-9_-]{20,}/, label: "Anthropic API key" },
   { pattern: /\bsk-[A-Za-z0-9_-]{20,}/, label: "sk-prefixed token" },
@@ -74,15 +55,6 @@ const credentialLeakPatterns = [
 ];
 const projectIndexTemplateVersionMetadataReason = "update only the unique real PROJECT_INDEX Stack template-version row while preserving every other PROJECT_INDEX byte";
 const projectIndexTemplateVersionMetadataTransition = "project-index-template-version";
-
-// Exact v0.3.38 continuity quick-fix packs observed in real projects before the
-// product migration shipped. They contain no project-specific state. Matching
-// is whole-file and newline-normalized so an extra local edit still takes the
-// conservative three-way merge/conflict path instead of being overwritten.
-const knownV038ContinuityQuickFixHashes = new Map([
-  ["packs/onboarding.md", "5dc32d9e164604379eb60f7ea0a731a2accb3da945ac5f28654ac253add187cf"],
-  ["packs/integrations.md", "8110bfb1e09fb503463072909c06027de0b39850c22a4f4c208c5752cf380826"]
-]);
 
 const requiredAnchors = [
   {
@@ -390,11 +362,6 @@ const schemaChecks = [
     target: "dev/SESSION_HANDOFF.md",
     label: "handoff lifecycle mechanical checks",
     checks: [
-      {
-        label: "completed work is not carried forward as unresolved next work",
-        test: (text) => assessHandoffLifecycleConsistency(text).ok,
-        explain: (text) => assessHandoffLifecycleConsistency(text).reason
-      }
     ]
   },
   {
@@ -609,16 +576,6 @@ async function main() {
     return;
   }
 
-  if (command === "finalize-closeout") {
-    await runFinalizeCloseout(root, version);
-    return;
-  }
-
-  if (command === "reconcile-current-state") {
-    await runReconcileCurrentState(root, options, version);
-    return;
-  }
-
   throw new Error(`unknown command "${command}"`);
 }
 
@@ -648,160 +605,6 @@ async function runCloseoutStatus(root, version) {
   const result = { ok: findings.length === 0, findings };
   printCloseoutStatusCard(version, result);
   if (!result.ok) process.exitCode = 1;
-}
-
-async function runFinalizeCloseout(root, version) {
-  await validateTransactionRoot(root, [], { createMissingRoot: false });
-  const archiveCasing = await checkSessionLogArchiveCasing(root);
-  if (!archiveCasing.ok) throw new Error(archiveCasing.finding);
-  const prior = await findCloseoutFinalizeBase(root);
-  if (!prior) {
-    console.log("closeout finalized: no post-upgrade current-state witness needed");
-    return;
-  }
-  const illegal = prior.mismatches.filter((item) => !isCloseoutFinalizeTarget(item.path));
-  if (illegal.length > 0) {
-    throw new Error(`non-closeout drift blocks finalize-closeout: ${illegal.map((item) => item.path).join(", ")}`);
-  }
-  if (prior.mismatches.length === 0) {
-    console.log("closeout finalized: current-state witness already matches project bytes");
-    return;
-  }
-  const transaction = await writeCloseoutFinalizeJournal(root, version, prior);
-  const doctorStatus = await runDoctor(root, version, {
-    silentCard: true,
-    context: "post-closeout-finalize-health",
-    skipVersionRegistryLookup: true,
-    expectedCurrentStateWitness: transaction.journal.currentStateWitness
-  });
-  if (doctorStatus !== "passed") throw new Error("post-closeout finalize doctor failed; finalize journal retained for inspection");
-  console.log(`closeout finalized: bound ${prior.mismatches.length} legal closeout state update(s)`);
-  console.log(`current-state digest: ${transaction.journal.currentStateWitness.currentStateDigest}`);
-}
-
-async function runReconcileCurrentState(root, options, version) {
-  await validateTransactionRoot(root, [], { createMissingRoot: false });
-  if (options.dryRun) await assertDryRunHasNoPendingTransaction(root);
-  else {
-    assertCurrentStateReconcileWriteIntent(options);
-    if (await recoverBoundCurrentStateReconciliation(root, options.manifest)) {
-      console.log("current-state reconciliation recovery completed; run a fresh dry-run before applying another reconciliation plan");
-      return;
-    }
-  }
-  const candidate = await findCurrentStateReconciliationBase(root, version);
-  if (!candidate) {
-    console.log("current-state reconciliation: no stale source-conservation witness needs reconciliation");
-    if (options.dryRun) console.log("dry-run: no files written");
-    return;
-  }
-  if (candidate.illegal.length > 0) {
-    throw new Error(`current-state reconciliation blocked: ${candidate.illegal.map((item) => `${item.path} (${item.reason})`).join(", ")}`);
-  }
-  if (candidate.reconcilable.length === 0) {
-    console.log("current-state reconciliation: current-state witness already matches project bytes");
-    if (options.dryRun) console.log("dry-run: no files written");
-    return;
-  }
-  console.log(`current-state reconciliation plan: ${candidate.reconcilable.length} path(s)`);
-  console.log(`manifest sha256: ${candidate.manifestSha256}`);
-  for (const item of candidate.reconcilable) console.log(`- ${item.path}: ${item.reason}`);
-  if (options.dryRun) {
-    console.log("dry-run: no files written");
-    return;
-  }
-  if (options.manifest !== candidate.manifestSha256) {
-    throw new Error("current-state reconciliation manifest mismatch before writes; no files written");
-  }
-  const verified = await findCurrentStateReconciliationBase(root, version);
-  if (!verified || verified.manifestSha256 !== candidate.manifestSha256 || JSON.stringify(verified.manifest) !== JSON.stringify(candidate.manifest)) {
-    throw new Error("current-state reconciliation manifest changed before transaction preparation; no files written");
-  }
-  await assertCurrentStateReconciliationVerifiedPlanStillCurrent(root, verified);
-  const transaction = await writeCurrentStateReconciliationJournal(root, version, verified);
-  if (!await journalMatchesCurrentState(root, transaction.journal)) {
-    throw new Error("post-reconciliation current-state readback failed; reconciliation journal retained for inspection");
-  }
-  transaction.journal.currentStateReadback = currentStateReadbackFromVerifiedProjectBytes(transaction.journal.currentStateWitness);
-  await writeSecureJson(transaction.journalPath, transaction.journal);
-  await writeCurrentStateReconciliationReport({ root, migrationDir: path.dirname(transaction.journalPath), journal: transaction.journal, reconciledPaths: candidate.reconcilable.map((item) => item.path) });
-  console.log(`current-state reconciled: bound ${candidate.reconcilable.length} current project path(s) without overwriting project files`);
-  console.log("project health: run upgrade/doctor next if this project predates the current Kit template");
-  console.log(`current-state digest: ${transaction.journal.currentStateWitness.currentStateDigest}`);
-}
-
-function assertCurrentStateReconcileWriteIntent(options) {
-  if (!options.yes || !options.manifest) {
-    throw new Error("current-state reconciliation requires --yes --manifest <dry-run manifest sha256>; no files written");
-  }
-  if (typeof options.manifest !== "string" || !/^[a-f0-9]{64}$/.test(options.manifest)) {
-    throw new Error("current-state reconciliation manifest must be a lowercase sha256 digest; no files written");
-  }
-}
-
-async function recoverBoundCurrentStateReconciliation(root, manifestSha256) {
-  const lockPath = path.join(root, "dev", "governance_migrations", ".upgrade.lock");
-  let rawLock;
-  try {
-    rawLock = await readFile(lockPath, "utf8");
-  } catch (error) {
-    if (error?.code === "ENOENT") return false;
-    throw new Error("current-state reconciliation recovery lock is unreadable or unsafe; no writes attempted");
-  }
-  let lock;
-  try {
-    lock = JSON.parse(rawLock);
-  } catch {
-    throw new Error("current-state reconciliation recovery lock is not bound to a verified reconciliation transaction; no writes attempted");
-  }
-  if (!lock || typeof lock !== "object" || Array.isArray(lock)
-    || typeof lock.id !== "string" || !lock.id
-    || typeof lock.journal !== "string" || !lock.journal
-    || typeof lock.host !== "string" || !lock.host
-    || !Number.isInteger(lock.pid) || lock.pid <= 0
-    || lock.command !== "reconcile-current-state") {
-    throw new Error("current-state reconciliation recovery lock is not bound to reconcile-current-state; no writes attempted");
-  }
-  if (lock.host === hostname() && processIsAlive(lock.pid)) {
-    throw new Error(`another current-state reconciliation process is active (pid ${lock.pid}); no writes attempted`);
-  }
-  if (lock.host && lock.host !== hostname()) {
-    throw new Error(`current-state reconciliation recovery lock belongs to another host (${lock.host}); no writes attempted`);
-  }
-  const journalPath = path.resolve(root, lock.journal);
-  if (!isInside(root, journalPath)) throw new Error("current-state reconciliation recovery journal path escapes selected root; no writes attempted");
-  let journal;
-  try {
-    journal = JSON.parse(await readFile(journalPath, "utf8"));
-  } catch {
-    throw new Error("current-state reconciliation recovery lock has no readable durable journal; no writes attempted");
-  }
-  await validateRecoveryJournal(root, journal, journalPath, lock.id);
-  if (journal.command !== "reconcile-current-state" || journal.mode !== "source-state-reconciliation") {
-    throw new Error("current-state reconciliation recovery journal has no reconciliation authority; no writes attempted");
-  }
-  if (!["prepared", "committed"].includes(journal.state)) {
-    throw new Error("current-state reconciliation recovery journal is not in a recoverable state; no writes attempted");
-  }
-  if (journal.reconciliationManifestSha256 !== manifestSha256) {
-    throw new Error("current-state reconciliation recovery manifest digest does not match the CLI manifest; no writes attempted");
-  }
-  if (!journal.reconciliationManifest || typeof journal.reconciliationManifest !== "object" || Array.isArray(journal.reconciliationManifest)) {
-    throw new Error("current-state reconciliation recovery journal has no durable manifest; no writes attempted");
-  }
-  if (journal.reconciliationManifest.command !== "reconcile-current-state") {
-    throw new Error("current-state reconciliation recovery manifest has no reconciliation command authority; no writes attempted");
-  }
-  const durableManifestSha256 = sha256(Buffer.from(`${JSON.stringify(journal.reconciliationManifest)}\n`, "utf8"));
-  if (durableManifestSha256 !== manifestSha256) {
-    throw new Error("current-state reconciliation recovery durable manifest digest does not match the CLI manifest; no writes attempted");
-  }
-  const rootReal = await realpath(root);
-  if (journal.reconciliationManifest.root?.realpath !== rootReal) {
-    throw new Error("current-state reconciliation recovery manifest root does not match the selected root; no writes attempted");
-  }
-  await recoverInterruptedTransaction(root, { reconciliationManifestSha256: manifestSha256 });
-  return true;
 }
 
 function closeoutOutcome(value) {
@@ -889,38 +692,6 @@ async function runInstall(command, root, options, version) {
     process.exitCode = 1;
     return;
   }
-  // A preserved historical version row may remain intentionally stale after an
-  // exact managed-core replacement.  Do not create a second preservation
-  // transaction merely because that user-owned row still names the older Kit.
-  // The only no-op authority here is the already committed whole current-state
-  // witness, freshly revalidated against every accepted byte, reader, route,
-  // priority, and effect by both loaders below.
-  let sourceConservationRebind = false;
-  if (command === "upgrade") {
-    let acceptedCurrentState = null;
-    try {
-      acceptedCurrentState = await loadCommittedCurrentStateWitness(root, { allowHistoricalEdgeRetirement: true });
-    } catch (error) {
-      if (!String(error?.message ?? error).includes("doctor refuses an unbound success state")) throw error;
-      await assertUnboundCurrentStateMayAttemptUpgradeRebind(root, error);
-      sourceConservationRebind = true;
-    }
-    if (acceptedCurrentState?.transaction?.command === "upgrade"
-      && acceptedCurrentState.transaction.attemptedVersion === version) {
-      const noOpHealth = await assessUpgradeNoopHealth(root, version);
-      console.log(`command: ${command}`);
-      console.log(`current directory: ${process.cwd()}`);
-      console.log(`selected root: ${root}`);
-      console.log(`version state: retained metadata ${installedVersion ? `v${installedVersion}` : "unverified"}; accepted current-state target v${version}`);
-      console.log("mode: accepted-current-state");
-      console.log("");
-      console.log("📋 已由同一個已提交 current-state witness 重新讀回所有受保護 bytes、reader、route、priority 與 effect；不建立第二筆交易。");
-      if (options.dryRun) console.log("dry-run: no files written");
-      printUpgradeNoopShortCircuit(version, noOpHealth);
-      if (!noOpHealth.ok) process.exitCode = 1;
-      return;
-    }
-  }
   const mode = await detectMode(root);
   const plan = await buildPlan(root, command, version);
   // Validate the operator-selected path before every exit path, including
@@ -987,8 +758,7 @@ async function runInstall(command, root, options, version) {
   if (planConflictCount === 0) {
     try {
       transactionPreflight = await buildInstallTransactionPreflight(command, root, plan, version, {
-        candidateOutputs,
-        sourceConservationRebind
+        candidateOutputs
       });
       candidateOutputs = transactionPreflight.outputs;
     } catch (error) {
@@ -1026,7 +796,7 @@ async function runInstall(command, root, options, version) {
     }
   }
 
-  await executeInstallTransaction(command, root, mode, plan, version, transactionPreflight, { sourceConservationRebind });
+  await executeInstallTransaction(command, root, mode, plan, version, transactionPreflight);
 }
 
 async function executeInstallTransaction(command, root, mode, plan, version, candidatePreflight = null, options = {}) {
@@ -1042,10 +812,10 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
   // The user has confirmed writes. Create and revalidate a missing root only
   // now, immediately before transaction artifacts are prepared.
   await validateTransactionRoot(root, plan, { createMissingRoot: true });
-  const transaction = await prepareTransaction(root, command, version, outputs, mode, plan, preflight.sourceConservation, preflight.supersedesCurrentStateDigests, preflight.archiveMigrations);
+  const transaction = await prepareTransaction(root, command, version, outputs, mode, plan, preflight.archiveMigrations);
   try {
     await injectBeforeLockRevalidationDrift(root, transaction.journal);
-    await assertPreparedTransactionPreflightStillCurrent(root, transaction, preflight, plan, { sourceConservationRebind: options.sourceConservationRebind === true });
+    await assertPreparedTransactionPreflightStillCurrent(root, transaction, preflight, plan);
   } catch (error) {
     await abortPreparedTransactionBeforeTargetWrites(root, transaction, error);
     throw error;
@@ -1096,15 +866,12 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
     await injectTransactionWindowDrift(root, transaction.journal);
 
     let formalRuntimeState = null;
-    let runtimeAcceptanceState = null;
     const doctorStatus = await runDoctor(root, version, {
       silentCard: true,
       context: "post-transaction-project-health",
       skipVersionRegistryLookup: true,
       allowActiveTransaction: true,
-      expectedCurrentStateWitness: transaction.journal.currentStateWitness,
       captureFormalUserRules: (state) => { formalRuntimeState = state; },
-      captureRuntimeAcceptance: (state) => { runtimeAcceptanceState = state; }
     });
     if (doctorStatus !== "passed") {
       throw new Error("post-transaction doctor failed; transaction is not committed");
@@ -1113,16 +880,6 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
       if (!formalRuntimeState) throw new Error("post-transaction doctor did not produce the required formal runtime readback");
       transaction.journal.runtimeReadback = formalUserRulesReadbackFromDoctorState(formalRuntimeState, transaction.journal.formalUserRules);
     }
-    if (transaction.journal.runtimeAcceptance) {
-      if (!runtimeAcceptanceState) throw new Error("post-transaction doctor did not produce the required formal runtime acceptance readback");
-      transaction.journal.runtimeAcceptanceReadback = runtimeAcceptanceReadbackFromDoctorState(runtimeAcceptanceState, transaction.journal.runtimeAcceptance);
-    }
-    transaction.journal.currentStateReadback = currentStateReadbackFromDoctorStates(
-      transaction.journal.currentStateWitness,
-      formalRuntimeState,
-      runtimeAcceptanceState
-    );
-
     transaction.journal.committedVersion = version;
     transaction.journal.state = "committed";
     transaction.journal.committedAt = new Date().toISOString();
@@ -1194,8 +951,6 @@ async function buildInstallTransactionPreflight(command, root, plan, version, op
     return Object.freeze({
       outputs,
       archiveMigrations: Object.freeze([]),
-      sourceConservation: null,
-      supersedesCurrentStateDigests: Object.freeze([]),
       identity: installTransactionPreflightIdentity({ command, version, outputs })
     });
   }
@@ -1209,47 +964,24 @@ async function buildInstallTransactionPreflight(command, root, plan, version, op
   const archiveMigrations = command === "upgrade"
     ? await prepareArchiveCasingMigrations(root)
     : [];
-  if (options.sourceConservationRebind === true) {
-    for (const output of outputs) delete output.runtimeAcceptance;
-  }
-  const runtimeAcceptance = command === "upgrade" && options.sourceConservationRebind !== true ? resolveRuntimeAcceptance(outputs) : null;
-  const sourceConservationAuthority = command === "upgrade"
-    ? await hasCommittedSourceConservationAuthority(root)
-    : false;
-  const sourceConservation = command === "upgrade" && (
-    runtimeAcceptance || sourceConservationAuthority
-  )
-    ? await createSourceConservation(root, outputs, archiveMigrations, {
-      excludeInFlightTransactionId: options.excludeInFlightTransactionId ?? null
-    })
-    : null;
-  const supersedesCurrentStateDigests = command === "upgrade"
-    ? await findRestoredCurrentStateDigests(root, outputs, archiveMigrations, { sourceConservation, archiveMigrations })
-    : [];
   const identity = installTransactionPreflightIdentity({
     command,
     version,
     outputs,
-    archiveMigrations,
-    sourceConservation,
-    supersedesCurrentStateDigests,
-    sourceConservationRebind: options.sourceConservationRebind === true
+    archiveMigrations
   });
   return Object.freeze({
     outputs,
     archiveMigrations: Object.freeze(archiveMigrations),
-    sourceConservation,
-    supersedesCurrentStateDigests: Object.freeze(supersedesCurrentStateDigests),
     identity
   });
 }
 
-function installTransactionPreflightIdentity({ command, version, outputs = [], archiveMigrations = [], sourceConservation = null, supersedesCurrentStateDigests = [], sourceConservationRebind = false }) {
+function installTransactionPreflightIdentity({ command, version, outputs = [], archiveMigrations = [] }) {
   const body = {
     schemaVersion: 1,
     command,
     version,
-    sourceConservationRebind,
     outputs: outputs.map((output) => ({
       targetRel: output.targetRel,
       existed: Boolean(output.before),
@@ -1258,22 +990,12 @@ function installTransactionPreflightIdentity({ command, version, outputs = [], a
       bytes: output.after.length,
       reason: output.reason ?? null
     })),
-    archiveMigrations: archiveMigrations.map(archiveMigrationWitness),
-    sourceConservation: normalizeSourceConservationForPreflightIdentity(sourceConservation),
-    supersedesCurrentStateDigests
+    archiveMigrations: archiveMigrations.map(archiveMigrationWitness)
   };
   return sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8"));
 }
 
-function normalizeSourceConservationForPreflightIdentity(sourceConservation) {
-  if (!sourceConservation) return null;
-  return {
-    schemaVersion: sourceConservation.schemaVersion,
-    entries: sourceConservation.entries
-  };
-}
-
-async function assertPreparedTransactionPreflightStillCurrent(root, transaction, expected, plan, options = {}) {
+async function assertPreparedTransactionPreflightStillCurrent(root, transaction, expected, plan) {
   let actual;
   try {
     actual = await buildInstallTransactionPreflight(
@@ -1283,7 +1005,6 @@ async function assertPreparedTransactionPreflightStillCurrent(root, transaction,
       transaction.journal.attemptedVersion,
       {
         allowActiveTransaction: true,
-        sourceConservationRebind: options.sourceConservationRebind === true,
         excludeInFlightTransactionId: transaction.id
       }
     );
@@ -1446,13 +1167,6 @@ async function buildTransactionOutputs(command, root, plan, version, options = {
     if (!item.forceTransaction && item.before && item.before.equals(after)) continue;
     outputs.push({ ...item, after, beforeHash: item.before ? sha256(item.before) : null, afterHash: sha256(after) });
   }
-  const runtimeAcceptance = await createRuntimeAcceptance(root, outputs);
-  if (runtimeAcceptance) {
-    const acceptanceTargets = new Set(runtimeAcceptance.entries.map((entry) => entry.targetRel));
-    for (const output of outputs) {
-      if (acceptanceTargets.has(output.targetRel)) output.runtimeAcceptance = runtimeAcceptance;
-    }
-  }
   return outputs;
 }
 
@@ -1563,7 +1277,7 @@ function createFormalUserRulesWitness(entries, state, acceptanceDigest) {
   });
 }
 
-async function prepareTransaction(root, command, version, outputs, mode, plan, sourceConservation = null, supersedesCurrentStateDigests = [], archiveMigrations = []) {
+async function prepareTransaction(root, command, version, outputs, mode, plan, archiveMigrations = []) {
   const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
   const migrationsRoot = path.join(root, "dev", "governance_migrations");
   const migrationDir = path.join(migrationsRoot, id);
@@ -1609,22 +1323,12 @@ async function prepareTransaction(root, command, version, outputs, mode, plan, s
     entries,
     formalUserRules: resolveFormalUserRulesWitness(outputs),
     runtimeReadback: null,
-    runtimeAcceptance: resolveRuntimeAcceptance(outputs),
-    runtimeAcceptanceReadback: null,
-    sourceConservation,
     archiveMigrations: archiveMigrations.map((migration, index) => ({
       ...migration,
       stageRel: `archive-backup/${index}`,
       state: "prepared"
-    })),
-    ...(supersedesCurrentStateDigests.length > 0 ? { supersedesCurrentStateDigests } : {}),
-    currentStateWitness: null,
-    currentStateReadback: null
+    }))
   };
-  // One journal-local identity binds every component that may certify this
-  // transaction.  Component digests remain useful evidence, but neither can
-  // independently authorise doctor/report/success.
-  journal.currentStateWitness = createCurrentStateWitness(journal);
   await writeSecureJson(journalPath, journal);
   return { id, migrationDir, backupDir, stageDir, escrowDir, archiveBackupDir, journalPath, lockPath, journal };
 }
@@ -1942,10 +1646,9 @@ async function validateTransactionRoot(root, plan, { createMissingRoot = true } 
 }
 
 async function validateTransactionOverlay(root, outputs) {
-  const runtimeAcceptance = resolveRuntimeAcceptance(outputs);
-  const preservedRuntimeTargets = new Set(runtimeAcceptance?.entries
-    .filter((entry) => entry.disposition === "preserve")
-    .map((entry) => entry.targetRel) ?? []);
+  const preservedRuntimeTargets = new Set(outputs
+    .filter((item) => item.preservedRuntimeItem?.disposition === "preserve")
+    .map((item) => item.targetRel));
   const outputMap = new Map(outputs
     .filter((item) => !item.formalUserRuleContent)
     .map((item) => [item.targetRel, decodeUtf8(item.after, item.targetRel).text]));
@@ -2163,8 +1866,9 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
 
   const seen = new Set();
   const formalWitness = validateFormalUserRulesWitness(journal.formalUserRules);
-  const runtimeAcceptance = validateRuntimeAcceptance(journal.runtimeAcceptance);
-  const zeroWriteReconciliation = journal.command === "reconcile-current-state" && journal.mode === "source-state-reconciliation";
+  if (!["init", "upgrade"].includes(journal.command)) {
+    throw new Error("upgrade journal command is not recoverable by this runtime; no recovery writes attempted");
+  }
   const hasArchiveMigrationField = journal.archiveMigrations !== undefined;
   const requiresArchiveBackup = journal.command === "upgrade" && hasArchiveMigrationField;
   if (journal.archiveMigrations != null && !Array.isArray(journal.archiveMigrations)) throw new Error("upgrade journal archive migrations are invalid; no recovery writes attempted");
@@ -2189,22 +1893,22 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   if (!migrationsStats?.isDirectory() || migrationsStats.isSymbolicLink()
     || !migrationStats?.isDirectory() || migrationStats.isSymbolicLink()
     || !journalStats?.isFile() || journalStats.isSymbolicLink()
-    || (!zeroWriteReconciliation && (!backupStats?.isDirectory() || backupStats.isSymbolicLink()))
-    || (!zeroWriteReconciliation && (!stageStats?.isDirectory() || stageStats.isSymbolicLink()))
+    || !backupStats?.isDirectory() || backupStats.isSymbolicLink()
+    || !stageStats?.isDirectory() || stageStats.isSymbolicLink()
     || (requiresArchiveBackup && (!archiveBackupStats?.isDirectory() || archiveBackupStats.isSymbolicLink()))) {
     throw new Error("upgrade transaction directories or journal are missing or unsafe; no recovery writes attempted");
   }
   const migrationsReal = await realpath(migrationsRoot);
   const migrationReal = await realpath(migrationDir);
   const journalReal = await realpath(journalPath);
-  const backupRealRoot = zeroWriteReconciliation ? null : await realpath(backupRoot);
-  const stageRealRoot = zeroWriteReconciliation ? null : await realpath(stageRoot);
+  const backupRealRoot = await realpath(backupRoot);
+  const stageRealRoot = await realpath(stageRoot);
   const archiveBackupRealRoot = requiresArchiveBackup ? await realpath(archiveBackupRoot) : null;
   if (!isInside(rootReal, migrationsReal) || !isInside(migrationsReal, migrationReal)
     || !isInside(migrationReal, journalReal)
-    || (!zeroWriteReconciliation && (!isInside(migrationReal, backupRealRoot) || !isInside(migrationReal, stageRealRoot)))
+    || !isInside(migrationReal, backupRealRoot) || !isInside(migrationReal, stageRealRoot)
     || !samePath(path.dirname(migrationReal), migrationsReal)
-    || (!zeroWriteReconciliation && (!samePath(path.dirname(backupRealRoot), migrationReal) || !samePath(path.dirname(stageRealRoot), migrationReal)))
+    || !samePath(path.dirname(backupRealRoot), migrationReal) || !samePath(path.dirname(stageRealRoot), migrationReal)
     || (requiresArchiveBackup && !samePath(path.dirname(archiveBackupRealRoot), migrationReal))) {
     throw new Error("upgrade transaction paths resolve outside the selected root or transaction; no recovery writes attempted");
   }
@@ -2234,34 +1938,25 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
       if (error?.code !== "ENOENT") throw error;
     }
 
-    if (zeroWriteReconciliation && entry.beforeHash !== entry.afterHash) {
-      throw new Error("current-state reconciliation journal cannot record project-content writes; no recovery writes attempted");
-    }
-    if (!zeroWriteReconciliation) {
-      const stageAbs = path.resolve(stageRoot, entry.targetRel);
-      const stageStats = await lstat(stageAbs).catch(() => null);
-      if (!stageStats?.isFile() || stageStats.isSymbolicLink()) throw new Error("upgrade journal stage is missing or unsafe; no recovery writes attempted");
-      const stageReal = await realpath(stageAbs);
-      if (!isInside(stageRealRoot, stageReal)) throw new Error("upgrade journal stage resolves outside this transaction; no recovery writes attempted");
-      if (sha256(await readFile(stageAbs)) !== entry.afterHash) throw new Error("upgrade journal stage hash does not match the recorded candidate; no recovery writes attempted");
-    }
+    const stageAbs = path.resolve(stageRoot, entry.targetRel);
+    const stageStats = await lstat(stageAbs).catch(() => null);
+    if (!stageStats?.isFile() || stageStats.isSymbolicLink()) throw new Error("upgrade journal stage is missing or unsafe; no recovery writes attempted");
+    const stageReal = await realpath(stageAbs);
+    if (!isInside(stageRealRoot, stageReal)) throw new Error("upgrade journal stage resolves outside this transaction; no recovery writes attempted");
+    if (sha256(await readFile(stageAbs)) !== entry.afterHash) throw new Error("upgrade journal stage hash does not match the recorded candidate; no recovery writes attempted");
 
     let backup = null;
     if (entry.existed) {
-      if (zeroWriteReconciliation) {
-        if (entry.backupRel !== null) throw new Error("current-state reconciliation journal must not record backup paths; no recovery writes attempted");
-      } else {
-        if (typeof entry.backupRel !== "string" || !entry.backupRel) throw new Error("upgrade journal backup path is missing; no recovery writes attempted");
-        const backupAbs = path.resolve(root, entry.backupRel);
-        const expectedBackup = path.resolve(backupRoot, entry.targetRel);
-        if (!samePath(backupAbs, expectedBackup) || !isInside(backupRoot, backupAbs)) throw new Error("upgrade journal backup path is outside this transaction; no recovery writes attempted");
-        const backupFileStats = await lstat(backupAbs).catch(() => null);
-        if (!backupFileStats?.isFile() || backupFileStats.isSymbolicLink()) throw new Error("upgrade journal backup is missing or unsafe; no recovery writes attempted");
-        const backupReal = await realpath(backupAbs);
-        if (!isInside(backupRealRoot, backupReal)) throw new Error("upgrade journal backup resolves outside this transaction; no recovery writes attempted");
-        backup = await readFile(backupAbs);
-        if (sha256(backup) !== entry.beforeHash) throw new Error("upgrade journal backup hash does not match the recorded input; no recovery writes attempted");
-      }
+      if (typeof entry.backupRel !== "string" || !entry.backupRel) throw new Error("upgrade journal backup path is missing; no recovery writes attempted");
+      const backupAbs = path.resolve(root, entry.backupRel);
+      const expectedBackup = path.resolve(backupRoot, entry.targetRel);
+      if (!samePath(backupAbs, expectedBackup) || !isInside(backupRoot, backupAbs)) throw new Error("upgrade journal backup path is outside this transaction; no recovery writes attempted");
+      const backupFileStats = await lstat(backupAbs).catch(() => null);
+      if (!backupFileStats?.isFile() || backupFileStats.isSymbolicLink()) throw new Error("upgrade journal backup is missing or unsafe; no recovery writes attempted");
+      const backupReal = await realpath(backupAbs);
+      if (!isInside(backupRealRoot, backupReal)) throw new Error("upgrade journal backup resolves outside this transaction; no recovery writes attempted");
+      backup = await readFile(backupAbs);
+      if (sha256(backup) !== entry.beforeHash) throw new Error("upgrade journal backup hash does not match the recorded input; no recovery writes attempted");
     } else if (entry.backupRel !== null) {
       throw new Error("upgrade journal has an unexpected backup for a created target; no recovery writes attempted");
     }
@@ -2282,22 +1977,6 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
         await assertDirectorySnapshotAtPath(stageAbs, migration.snapshot, "upgrade archive migration backup hash does not match the recorded input; no recovery writes attempted");
       }
     }
-  }
-  if (runtimeAcceptance) {
-    for (const accepted of runtimeAcceptance.entries) {
-      const transactionEntry = validated.find(({ entry }) => entry.targetRel === accepted.targetRel)?.entry;
-      if (!transactionEntry || transactionEntry.afterHash !== accepted.accepted.sha256) {
-        throw new Error("runtime acceptance entry is not bound to the transaction candidate; no recovery writes attempted");
-      }
-    }
-  }
-  if (journal.currentStateWitness) {
-    const currentStateWitness = validateCurrentStateWitness(journal);
-    validateCurrentStateReadback(journal.currentStateReadback, currentStateWitness, {
-      allowProjectByteReader: zeroWriteReconciliation
-    });
-  } else if (journal.currentStateReadback != null) {
-    throw new Error("shared current-state readback exists without a current-state witness; no recovery writes attempted");
   }
   return validated;
 }
@@ -2445,19 +2124,9 @@ async function removeArchiveSubsetNoClobber(root, migration, canonicalAbs, escro
   }
 }
 
-function assertRecoveryCallerMayHandleReconciliation(lock, journal, manifestSha256) {
-  const involvesReconciliation = lock.command === "reconcile-current-state" || journal.command === "reconcile-current-state";
-  if (!involvesReconciliation) return;
-  if (typeof manifestSha256 !== "string" || !/^[a-f0-9]{64}$/.test(manifestSha256)
-    || lock.command !== "reconcile-current-state"
-    || journal.command !== "reconcile-current-state"
-    || journal.mode !== "source-state-reconciliation"
-    || journal.reconciliationManifestSha256 !== manifestSha256
-    || !journal.reconciliationManifest
-    || typeof journal.reconciliationManifest !== "object"
-    || Array.isArray(journal.reconciliationManifest)
-    || sha256(Buffer.from(`${JSON.stringify(journal.reconciliationManifest)}\n`, "utf8")) !== manifestSha256) {
-    throw new Error("current-state reconciliation recovery requires reconcile-current-state --yes --manifest <freshly reviewed digest>; no automatic recovery attempted");
+function assertRecoveryCommandSupported(lock, journal) {
+  if (!["init", "upgrade"].includes(lock.command) || !["init", "upgrade"].includes(journal.command)) {
+    throw new Error("active transaction command is not supported by this runtime; no automatic recovery attempted");
   }
 }
 
@@ -2468,8 +2137,7 @@ async function recoverInterruptedTransaction(root, options = {}) {
     lock = JSON.parse(await readFile(lockPath, "utf8"));
   } catch (error) {
     if (error?.code === "ENOENT") return;
-    if (await quarantineUnboundUnreadableLock(root, lockPath)) return;
-    throw new Error("upgrade lock exists but is unreadable; no writes attempted");
+    throw new Error("upgrade lock exists but is unreadable or malformed; no writes attempted");
   }
   if (!lock || typeof lock !== "object" || Array.isArray(lock) || typeof lock.id !== "string" || typeof lock.journal !== "string"
     || typeof lock.host !== "string" || !Number.isInteger(lock.pid) || lock.pid <= 0) {
@@ -2485,51 +2153,28 @@ async function recoverInterruptedTransaction(root, options = {}) {
   } catch {
     throw new Error("incomplete upgrade lock has no readable journal; no automatic recovery attempted");
   }
-  assertRecoveryCallerMayHandleReconciliation(lock, journal, options.reconciliationManifestSha256);
+  assertRecoveryCommandSupported(lock, journal);
   await validateRecoveryJournal(root, journal, journalPath, lock.id);
   if (journal.state === "committed") {
     if (!journal.committedVersion) journal.committedVersion = journal.attemptedVersion;
     let formalRuntimeState = null;
-    let runtimeAcceptanceState = null;
     const doctorStatus = await runDoctor(root, journal.committedVersion, {
       silentCard: true,
       context: "recovered-committed-transaction-health",
       skipVersionRegistryLookup: true,
       allowActiveTransaction: true,
-      expectedCurrentStateWitness: journal.currentStateWitness,
-      captureFormalUserRules: (state) => { formalRuntimeState = state; },
-      captureRuntimeAcceptance: (state) => { runtimeAcceptanceState = state; }
+      captureFormalUserRules: (state) => { formalRuntimeState = state; }
     });
     if (doctorStatus !== "passed") throw new Error("committed upgrade recovery failed fresh doctor readback; recovery lock retained");
     if (journal.formalUserRules) {
       if (!formalRuntimeState) throw new Error("committed upgrade recovery has no formal doctor readback; recovery lock retained");
       journal.runtimeReadback = formalUserRulesReadbackFromDoctorState(formalRuntimeState, journal.formalUserRules);
     }
-    if (journal.runtimeAcceptance) {
-      if (!runtimeAcceptanceState) throw new Error("committed upgrade recovery has no formal runtime acceptance readback; recovery lock retained");
-      journal.runtimeAcceptanceReadback = runtimeAcceptanceReadbackFromDoctorState(runtimeAcceptanceState, journal.runtimeAcceptance);
-    }
-    if (journal.currentStateWitness) {
-      journal.currentStateReadback = currentStateReadbackFromDoctorStates(
-        journal.currentStateWitness,
-        formalRuntimeState,
-        runtimeAcceptanceState
-      );
-    }
     const migrationDir = path.dirname(journalPath);
     await writeSecureJson(journalPath, journal);
-    if (journal.command === "reconcile-current-state") {
-      const reconciledPaths = (journal.currentStateWitness?.sourceConservation?.entries ?? [])
-        .filter((entry) => ["user-owned-reconciliation", "session-log-archive-reconciliation"].includes(entry.disposition))
-        .map((entry) => entry.sourcePath);
-      await writeCurrentStateReconciliationReport({ migrationDir, journal, reconciledPaths });
-    } else {
-      await writeTransactionReport({ id: journal.id, migrationDir, journal });
-    }
+    await writeTransactionReport({ id: journal.id, migrationDir, journal });
     await unlinkIfExists(lockPath);
-    console.log(journal.command === "reconcile-current-state"
-      ? "⚠️ recovered committed current-state reconciliation: reconciliation report was verified or rebuilt before planning this run"
-      : "⚠️ recovered committed upgrade: migration report was verified or rebuilt before planning this run");
+    console.log("⚠️ recovered committed upgrade: migration report was verified or rebuilt before planning this run");
     return;
   }
   if (journal.state === "rolled-back") {
@@ -2540,35 +2185,6 @@ async function recoverInterruptedTransaction(root, options = {}) {
   if (!rollback.ok) throw new Error(`interrupted upgrade has third-state edits: ${rollback.conflicts.join("; ")}`);
   await unlinkIfExists(lockPath);
   console.log("⚠️ recovered interrupted upgrade: transaction-owned changes were safely rolled back before planning this run");
-}
-
-async function quarantineUnboundUnreadableLock(root, lockPath) {
-  let raw;
-  try {
-    raw = await readFile(lockPath, "utf8");
-  } catch {
-    return false;
-  }
-  const trimmed = raw.trim();
-  if (!(trimmed === "" || trimmed === "{" || trimmed === "[")) return false;
-  const migrationsRoot = path.join(root, "dev", "governance_migrations");
-  const entries = await readdir(migrationsRoot, { withFileTypes: true }).catch(() => []);
-  const activeStates = new Set(["prepared", "committing", "rollback-needed", "manual-recovery-required"]);
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const journalPath = path.join(migrationsRoot, entry.name, "transaction.json");
-    let journal = null;
-    try {
-      journal = JSON.parse(await readFile(journalPath, "utf8"));
-    } catch {
-      continue;
-    }
-    if (activeStates.has(journal?.state)) return false;
-  }
-  const quarantinePath = path.join(migrationsRoot, `.upgrade.lock.unbound-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`);
-  await rename(lockPath, quarantinePath);
-  console.log("⚠️ recovered unbound incomplete upgrade lock: quarantined empty or partial lock before planning this run");
-  return true;
 }
 
 async function writeTransactionReport(transaction) {
@@ -2595,35 +2211,9 @@ async function writeTransactionReport(transaction) {
     "## Formal User Rules Acceptance",
     ...renderFormalUserRulesReport(transaction.journal.formalUserRules, transaction.journal.runtimeReadback),
     "",
-    "## Runtime Acceptance",
-    ...renderRuntimeAcceptanceReport(transaction.journal.runtimeAcceptance, transaction.journal.runtimeAcceptanceReadback),
-    "",
-    "## Shared Current-State Witness",
-    ...renderCurrentStateWitnessReport(transaction.journal.currentStateWitness, transaction.journal.currentStateReadback)
-  ];
-  await writeFile(reportPath, `${lines.join("\n")}\n`, { mode: 0o600 });
-  await tightenPermissions(reportPath, 0o600);
-  return reportPath;
-}
-
-async function writeCurrentStateReconciliationReport({ migrationDir, journal, reconciledPaths }) {
-  const reportPath = path.join(migrationDir, "migration-report.md");
-  const lines = [
-    "# Agent Handoff Kit Current-State Reconciliation Report",
-    "",
-    `- Command: ${journal.command ?? "reconcile-current-state"}`,
-    `- Attempted version: ${journal.attemptedVersion}`,
-    `- Committed version: ${journal.committedVersion ?? "none"}`,
-    `- Transaction state: ${journal.state}`,
-    `- Supersedes current-state digest: ${(journal.supersedesCurrentStateDigests ?? []).join(", ")}`,
-    `- Current-state digest: ${journal.currentStateWitness?.currentStateDigest ?? "none"}`,
-    `- Reconciled paths: ${reconciledPaths.join(", ")}`,
-    ...(journal.reconciliationManifestSha256 ? [`- Reconciliation manifest sha256: ${journal.reconciliationManifestSha256}`] : []),
-    "- Project files overwritten: none",
-    "- Transaction-owned project content writes: none",
-    "",
-    "## Shared Current-State Witness",
-    ...renderCurrentStateWitnessReport(journal.currentStateWitness, journal.currentStateReadback)
+    "## Historical Authority",
+    "- Completed transaction journals are operation receipts only after their lock is cleared.",
+    "- Future doctor and upgrade runs validate current contracts rather than this receipt."
   ];
   await writeFile(reportPath, `${lines.join("\n")}\n`, { mode: 0o600 });
   await tightenPermissions(reportPath, 0o600);
@@ -2790,19 +2380,11 @@ async function runDoctor(root, version, options = {}) {
   if (options.allowActiveTransaction !== true && await hasActiveTransactionLock(root)) {
     throw new Error("current-state recovery is pending; doctor refuses a partial transaction state");
   }
-  // The transaction journal is the existing shared acceptance authority. A
-  // preserved non-exact rule pack may intentionally retain older/user bytes;
-  // its missing current-template anchors are acceptable only when this same
-  // authority can immediately read back the active AGENTS -> RULE_PACKS route
-  // and exact preserved bytes below. No journal record means no exemption.
-  const currentStateWitness = options.expectedCurrentStateWitness
-    ? validateCurrentStateWitnessValue(options.expectedCurrentStateWitness)
-    : await loadCommittedCurrentStateWitness(root);
-  const formalUserRulesWitness = currentStateWitness?.formalUserRules ?? null;
-  const runtimeAcceptanceWitness = currentStateWitness?.runtimeAcceptance ?? null;
-  const acceptedRuntimeTargets = new Set(runtimeAcceptanceWitness?.entries
-    .filter((entry) => entry.disposition === "preserve")
-    .map((entry) => entry.targetRel) ?? []);
+  // Historical committed transaction journals are operation receipts only.
+  // Once the lock is gone, doctor validates current contract structure instead
+  // of reusing a receipt as permanent workspace byte authority.
+  const formalUserRulesWitness = null;
+  const acceptedRuntimeTargets = new Set();
   const rows = [];
   for (const target of requiredTargets) {
     rows.push({ target, ok: await exists(path.join(root, target)) });
@@ -2847,23 +2429,9 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
-  const currentStateResult = await checkCurrentStateWitness(root, currentStateWitness);
-  console.log(`\nshared current-state checks: ${currentStateResult.checked}`);
-  const currentStateLabel = currentStateWitness?.sourceConservation
-    ? "ordered transaction and frozen-source bytes (same journal identity as report and success)"
-    : "ordered transaction bytes (same journal identity as report and success)";
-  console.log(`${currentStateResult.ok ? "ok" : "missing"}  ${currentStateLabel}`);
-  if (!currentStateResult.ok) console.log(`  missing: ${currentStateResult.finding}`);
-  if (!currentStateResult.ok) {
-    printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + currentStateResult.checked,
-      failedKind: "shared current-state checks",
-      failedCount: 1,
-      nextStep: "不要覆寫或接受目前狀態；先保留 recovery lock，並以同一 transaction journal 的完整有序 bytes witness 排除漂移。"
-    });
-    process.exitCode = 1;
-    return "failed";
-  }
+  const historicalReceiptChecks = 0;
+  console.log(`\nhistorical transaction receipt authority checks: 0`);
+  console.log("not-applicable  committed transaction journals are receipts only when no active lock exists");
 
   const anchorRows = await checkRequiredAnchors(root);
   const acceptedPreservedAnchorRows = anchorRows.filter((row) => !row.ok && acceptedRuntimeTargets.has(row.target));
@@ -2883,7 +2451,7 @@ async function runDoctor(root, version, options = {}) {
   if (anchorFailures.length > 0) {
     printAnchorRepairGuidance(anchorFailures, options.context);
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length,
+      checked: rows.length + historicalReceiptChecks + anchorRows.length,
       failedKind: "anchor checks",
       failedCount: anchorFailures.length,
       nextStep: anchorRepairNextStep(options.context)
@@ -2906,7 +2474,7 @@ async function runDoctor(root, version, options = {}) {
 
   if (schemaFailures.length > 0) {
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length,
+      checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length,
       failedKind: "schema checks",
       failedCount: schemaFailures.length,
       nextStep: "把這段 doctor 輸出貼給 AI，請它先修交接結構，不要直接重裝覆蓋。"
@@ -2924,7 +2492,7 @@ async function runDoctor(root, version, options = {}) {
   if (!userRulesResult.ok) console.log(`  missing: ${userRulesResult.finding}`);
   if (!userRulesResult.ok) {
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked,
+      checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length + userRulesResult.checked,
       failedKind: "formal user-rules checks",
       failedCount: 1,
       nextStep: "不要重跑 upgrade 或覆寫用戶規則；先還原或重新以完整接受紀錄登記 dev/USER_RULES.md 及其 user rule bytes。"
@@ -2933,31 +2501,13 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
-  const runtimeAcceptanceResult = await checkRuntimeAcceptance(root, { ...options, expectedRuntimeAcceptance: runtimeAcceptanceWitness });
-  console.log(`\nruntime acceptance checks: ${runtimeAcceptanceResult.checked}`);
-  console.log(`${runtimeAcceptanceResult.ok ? "ok" : "missing"}  ${runtimeAcceptanceSurfaceLabel(runtimeAcceptanceWitness)}`);
-  if (!runtimeAcceptanceResult.ok) console.log(`  missing: ${runtimeAcceptanceResult.finding}`);
-  if (!runtimeAcceptanceResult.ok) {
-    printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked,
-      failedKind: "runtime acceptance checks",
-      failedCount: 1,
-      nextStep: "不要覆寫或搬移 preserved runtime bytes；先還原由同一 transaction acceptance 記錄的 direct AGENTS 或 AGENTS → RULE_PACKS reader，或保留 recovery lock 並停止。"
-    });
-    process.exitCode = 1;
-    return "failed";
-  }
-
-  console.log(`\nshared current-state witness: ${currentStateWitness ? "1" : "0"}`);
-  console.log(`${currentStateWitness ? "ok" : "not-applicable"}  transaction journal whole identity (doctor reads the same accepted state as report and success)`);
-
   const bridgeFailures = await validateBridgeTexts(async (relative) => readOptionalText(path.join(root, relative)));
   console.log(`\nbridge checks: 2`);
   console.log(`${bridgeFailures.length === 0 ? "ok" : "missing"}  CLAUDE.md / GEMINI.md (active one-hop AGENTS.md bridges)`);
   for (const finding of bridgeFailures) console.log(`  missing: ${finding}`);
   if (bridgeFailures.length > 0) {
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + 2,
+      checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length + userRulesResult.checked + 2,
       failedKind: "bridge checks",
       failedCount: bridgeFailures.length,
       nextStep: "修正 CLAUDE.md / GEMINI.md 的有效橋接指令；註解、程式碼區塊或重複字樣不能代替真實路由。"
@@ -2974,7 +2524,7 @@ async function runDoctor(root, version, options = {}) {
       console.log(`  missing: ${finding}`);
     }
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + researchTraceResult.checked,
+      checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length + userRulesResult.checked + researchTraceResult.checked,
       failedKind: "research decision trace checks",
       failedCount: researchTraceResult.findings.length,
       nextStep: "把 research-derived decision 的 Evidence chain 補齊，並確認 Source=source:<id> token 已登記在 dev/PROJECT_INDEX.md 的 Fact Base 或 External Sources。"
@@ -2991,7 +2541,7 @@ async function runDoctor(root, version, options = {}) {
       console.log(`  missing: ${finding}`);
     }
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + researchTraceResult.checked + temperatureResult.checked,
+      checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length + userRulesResult.checked + researchTraceResult.checked + temperatureResult.checked,
       failedKind: "handoff temperature boundary checks",
       failedCount: temperatureResult.findings.length,
       nextStep: "把一次性驗收證據、舊版本狀態、source token 或 Evidence chain 從 Durable Anchors / Next Priorities / opening message 移回 SESSION_LOG、PROJECT_INDEX 或 PROJECT_DECISIONS。"
@@ -3012,7 +2562,7 @@ async function runDoctor(root, version, options = {}) {
 
   if (mirrorBlockingFailures.length > 0) {
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + mirrorRows.length,
+      checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length + userRulesResult.checked + mirrorRows.length,
       failedKind: "prompt mirror checks",
       failedCount: mirrorBlockingFailures.length,
       nextStep: "以 dev/SESSION_HANDOFF.md 的 Next Session Opening Message 為準，重生 START_NEXT_SESSION_PROMPT.txt。"
@@ -3046,10 +2596,7 @@ async function runDoctor(root, version, options = {}) {
   console.log("項目狀態速覽：");
   const versionAlignment = await assessVersionAlignment(root, version, {
     skipRegistryLookup: options.skipVersionRegistryLookup === true,
-    // checkCurrentStateWitness above has freshly verified both the journal
-    // identity and active bytes.  Only that verified transaction target may
-    // speak for a preserved project's current product state.
-    acceptedVersion: currentStateWitness?.transaction?.attemptedVersion ?? null
+    acceptedVersion: null
   });
   printVersionAlignment(versionAlignment);
   const versionNextStep = getVersionAlignmentNextStep(versionAlignment);
@@ -3072,7 +2619,7 @@ async function runDoctor(root, version, options = {}) {
   const overallHealthy = credentialResult.ok;
   if (overallHealthy && !options.silentCard) printCard(version, "doctor ready", "o.o");
   printDoctorSummary(version, root, overallHealthy ? "healthy" : "needs-attention", {
-      checked: rows.length + currentStateResult.checked + anchorRows.length + schemaRows.length + userRulesResult.checked + runtimeAcceptanceResult.checked + researchTraceResult.checked + temperatureResult.checked + mirrorRows.length + 2,
+    checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length + userRulesResult.checked + researchTraceResult.checked + temperatureResult.checked + mirrorRows.length + 2,
     failedKind: !credentialResult.ok ? "credential leak" : null,
     failedCount: !credentialResult.ok ? credentialResult.findings.length : 0,
     warningKind: mirrorWarnings.length > 0 ? "prompt mirror warning" : null,
@@ -3094,27 +2641,6 @@ function renderFormalUserRulesReport(witness, readback) {
     `- Kit base: ${witness.state.kitBase.packageVersion}; ${witness.state.kitBase.managedCoreSha256}`,
     `- Router: ${witness.state.router.path}; ${witness.state.router.contentRoot}`,
     `- Fresh runtime readback: ${readback ? `${readback.acceptanceDigest}; AGENTS=${readback.agentsSha256}; router=${readback.routerSha256}` : "missing"}`
-  ];
-}
-
-function renderRuntimeAcceptanceReport(witness, readback) {
-  if (!witness) return ["- not applicable"];
-  return [
-    `- Acceptance digest: ${witness.acceptanceDigest}`,
-    `- Ordered accepted entries: ${witness.entries.map((entry) => `${entry.targetRel}:${entry.accepted.sha256}:${entry.disposition}:${entry.effectDecision}${entry.sourceByteRanges ? `:ranges=${entry.sourceByteRanges.map((range) => `${range.start}-${range.end}`).join("+")}` : ""}`).join(", ")}`,
-    `- Fresh runtime readback: ${readback ? `${readback.acceptanceDigest}; ${readback.entries.map((entry) => `${entry.targetRel}:${entry.sha256}`).join(", ")}` : "missing"}`
-  ];
-}
-
-function renderCurrentStateWitnessReport(witness, readback) {
-  if (!witness) return ["- not applicable"];
-  return [
-    `- Current-state digest: ${witness.currentStateDigest}`,
-    `- Ordered transaction entries: ${witness.entries.map((entry) => `${entry.targetRel}:${entry.afterHash}`).join(", ")}`,
-    `- Frozen source-conservation entries: ${witness.sourceConservation?.entries.length ?? 0}`,
-    `- Formal user-rules component: ${witness.formalUserRules?.acceptanceDigest ?? "none"}`,
-    `- RULE_PACKS runtime component: ${witness.runtimeAcceptance?.acceptanceDigest ?? "none"}`,
-    `- Same fresh doctor readback: ${readback ? readback.currentStateDigest : "missing"}`
   ];
 }
 
@@ -3160,1012 +2686,8 @@ function resolveFormalUserRulesWitness(outputs) {
   return witnesses[0];
 }
 
-function resolveRuntimeAcceptance(outputs) {
-  const witnesses = outputs.map((item) => item.runtimeAcceptance).filter(Boolean);
-  if (witnesses.length === 0) return null;
-  const canonical = JSON.stringify(witnesses[0]);
-  if (witnesses.some((witness) => JSON.stringify(witness) !== canonical)) {
-    throw new Error("transaction outputs do not share one runtime acceptance witness");
-  }
-  return validateRuntimeAcceptance(witnesses[0]);
-}
-
-async function createSourceConservation(root, outputs, archiveMigrations = [], options = {}) {
-  // `freezeGate5Set` is an existing read-only discovery witness.  Reuse it
-  // here rather than creating a registry, pointer, or component authority.
-  // Its ordered source records become one component of the journal's existing
-  // whole current-state witness before this transaction creates any files.
-  const frozen = await freezeGate5Set({ root });
-  assertGate5FrozenSet(frozen);
-  const outputByTarget = new Map(outputs.map((item) => [item.targetRel, item]));
-  const pathRebindings = archiveMigrations.map((migration) => ({
-    originalRel: migration.originalRel,
-    canonicalRel: migration.canonicalRel,
-    sourcePrefix: `${migration.originalRel}/`,
-    targetPrefix: `${migration.canonicalRel}/`
-  }));
-  const excludedInFlightTransactionStatePath = options.excludeInFlightTransactionId
-    ? `dev/governance_migrations/${options.excludeInFlightTransactionId}/transaction.json`
-    : null;
-  const sourceItems = gate5SourceConservationItems(frozen).filter((item) => {
-    if (!excludedInFlightTransactionStatePath) return true;
-    return !(item.sourcePath === excludedInFlightTransactionStatePath && item.classifications.includes("transaction-state"));
-  });
-  const entriesByPath = new Map();
-  for (const item of sourceItems) {
-    const output = outputByTarget.get(item.sourcePath) ?? null;
-    const rebind = pathRebindings.find((candidate) => item.sourcePath.startsWith(candidate.sourcePrefix)) ?? null;
-    const sourcePath = rebind
-      ? `${rebind.targetPrefix}${item.sourcePath.slice(rebind.sourcePrefix.length)}`
-      : item.sourcePath;
-    const sourceWitness = Object.freeze({ sha256: item.sourceIdentity.sha256, bytes: item.sourceIdentity.bytes });
-    const accepted = output
-      ? Object.freeze({ sha256: output.afterHash, bytes: output.after.length })
-      : sourceWitness;
-    const disposition = rebind
-      ? "canonical-path-migration"
-      : output?.preservedRuntimeItem
-      ? "preserve"
-      : output
-        ? "transaction-output"
-        : item.classifications.includes("transaction-state")
-          ? "retained-historical-state"
-          : item.priorityConflict.status === "not-applicable-outside-known-kit-reachability"
-            ? "outside-known-kit-reachability"
-            : "unchanged-source";
-    const entry = Object.freeze({
-      sourcePath,
-      ...(rebind ? { sourceOriginPath: item.sourcePath } : {}),
-      sourceWitness,
-      accepted,
-      // A single exact whole-file range proves the source itself was not
-      // inferred from headings, path spelling, or a partial parser.
-      sourceByteRanges: Object.freeze([Object.freeze({ start: 0, end: sourceWitness.bytes, sha256: sourceWitness.sha256 })]),
-      disposition,
-      existingReaders: Object.freeze(item.existingReaders.map((reader) => Object.freeze({ reader: reader.reader, via: reader.via }))),
-      priorityRelation: item.priorityConflict.relation,
-      effectDecision: item.effect.decision,
-      classifications: Object.freeze([...item.classifications])
-    });
-    const record = { entry, sourceItemPath: item.sourcePath, rebind };
-    const existing = entriesByPath.get(entry.sourcePath);
-    if (!existing) {
-      entriesByPath.set(entry.sourcePath, record);
-    } else if (sourceConservationArchiveAliasCollisionMayCoalesce(existing, record)) {
-      entriesByPath.set(entry.sourcePath, record.rebind ? record : existing);
-    } else {
-      throw new Error(`${entry.sourcePath}: source conservation rebind collision; no recovery writes attempted`);
-    }
-  }
-  const entries = [...entriesByPath.values()]
-    .map((record) => record.entry)
-    .sort((left, right) => left.sourcePath.localeCompare(right.sourcePath));
-  return Object.freeze({
-    schemaVersion: archiveMigrations.length > 0 ? 2 : 1,
-    frozenSetSha256: frozen.frozenSetSha256,
-    entries: Object.freeze(entries)
-  });
-}
-
-function sourceConservationArchiveAliasCollisionMayCoalesce(left, right) {
-  if (Boolean(left.rebind) === Boolean(right.rebind)) return false;
-  const migrated = left.rebind ? left : right;
-  const alias = left.rebind ? right : left;
-  const suffix = migrated.sourceItemPath.slice(migrated.rebind.sourcePrefix.length);
-  if (!suffix
-    || migrated.sourceItemPath !== `${migrated.rebind.originalRel}/${suffix}`
-    || migrated.entry.sourceOriginPath !== migrated.sourceItemPath
-    || migrated.entry.sourcePath !== `${migrated.rebind.canonicalRel}/${suffix}`
-    || alias.sourceItemPath !== migrated.entry.sourcePath
-    || alias.entry.sourcePath !== migrated.entry.sourcePath
-    || alias.entry.sourceOriginPath !== undefined
-    || migrated.entry.disposition !== "canonical-path-migration"
-    || alias.entry.disposition !== "unchanged-source") {
-    return false;
-  }
-  return sameByteWitness(migrated.entry.sourceWitness, alias.entry.sourceWitness)
-    && sameByteWitness(migrated.entry.accepted, alias.entry.accepted)
-    && JSON.stringify(migrated.entry.sourceByteRanges) === JSON.stringify(alias.entry.sourceByteRanges)
-    && JSON.stringify(migrated.entry.existingReaders) === JSON.stringify(alias.entry.existingReaders)
-    && migrated.entry.priorityRelation === alias.entry.priorityRelation
-    && migrated.entry.effectDecision === alias.entry.effectDecision
-    && archiveAliasClassificationsMayCoalesce(migrated.entry.classifications, alias.entry.classifications);
-}
-
-function archiveAliasClassificationsMayCoalesce(migrated, alias) {
-  const migratedSet = new Set(migrated);
-  const aliasSet = new Set(alias);
-  return migratedSet.size === 2
-    && aliasSet.size === 2
-    && migratedSet.has("root-source")
-    && migratedSet.has("legacy-session-log-archive")
-    && aliasSet.has("root-source")
-    && aliasSet.has("session-log-archive");
-}
-
-function currentStateWitnessBody(journal) {
-  const transaction = {
-    id: journal.id,
-    command: journal.command,
-    mode: journal.mode,
-    attemptedVersion: journal.attemptedVersion
-  };
-  if (Array.isArray(journal.supersedesCurrentStateDigests) && journal.supersedesCurrentStateDigests.length > 0) {
-    transaction.supersedesCurrentStateDigests = journal.supersedesCurrentStateDigests;
-  }
-  const hasArchiveMigrations = Array.isArray(journal.archiveMigrations) && journal.archiveMigrations.length > 0;
-  const body = {
-    schemaVersion: hasArchiveMigrations ? 3 : journal.sourceConservation ? 2 : 1,
-    transaction,
-    // `committed` changes while the transaction runs.  The ordered target
-    // identities below do not, so they are safe to seal before the first
-    // replace and remain the exact state identity after commit/recovery.
-    entries: journal.entries.map((entry) => ({
-      targetRel: entry.targetRel,
-      existed: entry.existed,
-      beforeHash: entry.beforeHash,
-      afterHash: entry.afterHash,
-      backupRel: entry.backupRel
-    })),
-    formalUserRules: journal.formalUserRules ?? null,
-    runtimeAcceptance: journal.runtimeAcceptance ?? null
-  };
-  if (journal.sourceConservation) body.sourceConservation = journal.sourceConservation;
-  if (hasArchiveMigrations) body.archiveMigrations = journal.archiveMigrations.map(archiveMigrationWitness);
-  return body;
-}
-
-function createCurrentStateWitness(journal) {
-  const body = currentStateWitnessBody(journal);
-  return Object.freeze({
-    ...body,
-    currentStateDigest: sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8"))
-  });
-}
-
-function validateCurrentStateWitnessValue(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)
-    || ![1, 2, 3].includes(value.schemaVersion)
-    || !value.transaction || typeof value.transaction !== "object" || Array.isArray(value.transaction)
-    || typeof value.transaction.id !== "string" || !value.transaction.id
-    || !["init", "upgrade", "finalize-closeout", "reconcile-current-state"].includes(value.transaction.command)
-    || typeof value.transaction.mode !== "string" || !value.transaction.mode
-    || !isStableSemver(value.transaction.attemptedVersion ?? "")
-    || !Array.isArray(value.entries) || value.entries.length === 0
-    || typeof value.currentStateDigest !== "string" || !/^[a-f0-9]{64}$/.test(value.currentStateDigest)) {
-    throw new Error("shared current-state witness is invalid; no recovery writes attempted");
-  }
-  const supersedes = value.transaction.supersedesCurrentStateDigests;
-  if (supersedes !== undefined && (
-    !Array.isArray(supersedes)
-    || supersedes.length === 0
-    || supersedes.some((digest, index) => typeof digest !== "string" || !/^[a-f0-9]{64}$/.test(digest) || (index > 0 && supersedes[index - 1].localeCompare(digest) >= 0))
-  )) {
-    throw new Error("shared current-state supersession links are invalid; no recovery writes attempted");
-  }
-  const formalWitness = validateFormalUserRulesWitness(value.formalUserRules);
-  const runtimeAcceptance = validateRuntimeAcceptance(value.runtimeAcceptance);
-  if (value.schemaVersion === 1 && value.sourceConservation != null) {
-    throw new Error("legacy shared current-state witness cannot contain source conservation; no recovery writes attempted");
-  }
-  const sourceConservation = validateSourceConservation(value.sourceConservation, { required: value.schemaVersion >= 2 });
-  if (value.schemaVersion < 3 && value.archiveMigrations != null) {
-    throw new Error("legacy shared current-state witness cannot contain archive migrations; no recovery writes attempted");
-  }
-  const archiveMigrations = value.schemaVersion === 3
-    ? validateArchiveMigrations(value.archiveMigrations, { requireMaterialized: true })
-    : [];
-  const knownTargets = new Set([
-    ...requiredTargets,
-    ...upgradeStateTargets,
-    ...(formalWitness ? [...formalWitness.contentPaths] : [])
-  ]);
-  const seenTargets = new Set();
-  const zeroWriteReconciliation = value.transaction.command === "reconcile-current-state" && value.transaction.mode === "source-state-reconciliation";
-  for (const entry of value.entries) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)
-      || typeof entry.targetRel !== "string" || !knownTargets.has(entry.targetRel) || seenTargets.has(entry.targetRel)
-      || typeof entry.existed !== "boolean"
-      || typeof entry.afterHash !== "string" || !/^[a-f0-9]{64}$/.test(entry.afterHash)
-      || (entry.existed && (typeof entry.beforeHash !== "string" || !/^[a-f0-9]{64}$/.test(entry.beforeHash)
-        || (zeroWriteReconciliation
-          ? entry.backupRel !== null || entry.beforeHash !== entry.afterHash
-          : typeof entry.backupRel !== "string" || !entry.backupRel)))
-      || (!entry.existed && (entry.beforeHash !== null || entry.backupRel !== null))) {
-      throw new Error("shared current-state entry witness is invalid; no recovery writes attempted");
-    }
-    seenTargets.add(entry.targetRel);
-  }
-  if (sourceConservation) {
-    const conservedByPath = new Map(sourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
-    for (const entry of value.entries) {
-      if (!entry.existed) continue;
-      const conserved = conservedByPath.get(entry.targetRel);
-      if (!conserved || conserved.sourceWitness.sha256 !== entry.beforeHash || conserved.accepted.sha256 !== entry.afterHash) {
-        throw new Error("shared current-state source conservation is detached from a transaction entry; no recovery writes attempted");
-      }
-    }
-    for (const entry of runtimeAcceptance?.entries ?? []) {
-      const conserved = conservedByPath.get(entry.targetRel);
-      if (!conserved || conserved.sourceWitness.sha256 !== entry.sourceWitness.sha256 || conserved.accepted.sha256 !== entry.accepted.sha256) {
-        throw new Error("shared current-state source conservation is detached from runtime acceptance; no recovery writes attempted");
-      }
-    }
-  }
-  for (const migration of archiveMigrations) {
-    const migrated = sourceConservation?.entries.filter((entry) => entry.sourceOriginPath?.startsWith(`${migration.originalRel}/`) && entry.sourcePath.startsWith(`${migration.canonicalRel}/`)) ?? [];
-    if (migrated.length !== migration.snapshot.files.length) {
-      throw new Error("archive migration is detached from the rebound source witness; no recovery writes attempted");
-    }
-  }
-  const body = {
-    schemaVersion: value.schemaVersion,
-    transaction: value.transaction,
-    entries: value.entries,
-    formalUserRules: value.formalUserRules ?? null,
-    runtimeAcceptance: value.runtimeAcceptance ?? null
-  };
-  if (value.schemaVersion === 2) body.sourceConservation = value.sourceConservation;
-  if (value.schemaVersion === 3) {
-    body.sourceConservation = value.sourceConservation;
-    body.archiveMigrations = value.archiveMigrations;
-  }
-  if (sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8")) !== value.currentStateDigest) {
-    throw new Error("shared current-state witness digest does not match its ordered components; no recovery writes attempted");
-  }
-  return value;
-}
-
-function validateSourceConservation(value, { required = false } = {}) {
-  if (value == null) {
-    if (required) throw new Error("shared current-state witness omits required source conservation; no recovery writes attempted");
-    return null;
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)
-    || ![1, 2].includes(value.schemaVersion)
-    || typeof value.frozenSetSha256 !== "string" || !/^[a-f0-9]{64}$/.test(value.frozenSetSha256)
-    || !Array.isArray(value.entries) || value.entries.length === 0) {
-    throw new Error("shared current-state source conservation is invalid; no recovery writes attempted");
-  }
-  const seen = new Set();
-  let prior = null;
-  for (const entry of value.entries) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)
-      || !isSafeProjectRelative(entry.sourcePath) || seen.has(entry.sourcePath)
-      || !validByteWitness(entry.sourceWitness) || !validByteWitness(entry.accepted)
-      || !Array.isArray(entry.sourceByteRanges) || entry.sourceByteRanges.length !== 1
-      || entry.sourceByteRanges[0]?.start !== 0 || entry.sourceByteRanges[0]?.end !== entry.sourceWitness.bytes
-      || entry.sourceByteRanges[0]?.sha256 !== entry.sourceWitness.sha256
-      || !["preserve", "transaction-output", "unchanged-source", "retained-historical-state", "outside-known-kit-reachability", "closeout-state-finalize", "canonical-path-migration", "canonical-path-migration-closeout", "user-owned-reconciliation", "session-log-archive-reconciliation"].includes(entry.disposition)
-      || !Array.isArray(entry.existingReaders)
-      || entry.existingReaders.some((reader) => !reader || typeof reader !== "object" || Array.isArray(reader) || typeof reader.reader !== "string" || !reader.reader || typeof reader.via !== "string" || !reader.via)
-      || typeof entry.priorityRelation !== "string" || !entry.priorityRelation
-      || typeof entry.effectDecision !== "string" || !entry.effectDecision
-      || !Array.isArray(entry.classifications) || entry.classifications.length === 0 || entry.classifications.some((classification) => typeof classification !== "string" || !classification)) {
-      throw new Error("shared current-state source conservation entry is invalid; no recovery writes attempted");
-    }
-    if (["canonical-path-migration", "canonical-path-migration-closeout", "session-log-archive-reconciliation"].includes(entry.disposition) && entry.sourceOriginPath !== undefined) {
-      if (![2, 3].includes(value.schemaVersion) || !isSafeProjectRelative(entry.sourceOriginPath)
-        || entry.sourceOriginPath === entry.sourcePath
-        || !entry.sourceOriginPath.startsWith("dev/") || !entry.sourcePath.startsWith("dev/SESSION_LOG_archive/")) {
-        throw new Error("archive source-path rebinding is invalid; no recovery writes attempted");
-      }
-    } else if (entry.sourceOriginPath !== undefined) {
-      throw new Error("unexpected source-origin binding is invalid; no recovery writes attempted");
-    }
-    if (prior != null && prior.localeCompare(entry.sourcePath) >= 0) {
-      throw new Error("shared current-state source conservation entries are not in source-path order; no recovery writes attempted");
-    }
-    prior = entry.sourcePath;
-    seen.add(entry.sourcePath);
-  }
-  return value;
-}
-
-function isSafeProjectRelative(value) {
-  if (typeof value !== "string" || !value || value.includes("\\")) return false;
-  const normalized = path.posix.normalize(value);
-  return normalized === value && normalized !== "." && normalized !== ".." && !normalized.startsWith("../") && !path.posix.isAbsolute(normalized);
-}
-
-function validateCurrentStateWitness(journal) {
-  const witness = validateCurrentStateWitnessValue(journal.currentStateWitness);
-  const expected = currentStateWitnessBody(journal);
-  const actual = {
-    schemaVersion: witness.schemaVersion,
-    transaction: witness.transaction,
-    entries: witness.entries,
-    formalUserRules: witness.formalUserRules ?? null,
-    runtimeAcceptance: witness.runtimeAcceptance ?? null
-  };
-  if (witness.schemaVersion >= 2) actual.sourceConservation = witness.sourceConservation;
-  if (witness.schemaVersion === 3) actual.archiveMigrations = witness.archiveMigrations;
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error("shared current-state witness is detached from its transaction components; no recovery writes attempted");
-  }
-  return witness;
-}
-
-async function createRuntimeAcceptance(root, outputs) {
-  // The existing shared acceptance covers only the two already-proven Gate 5
-  // readers: direct AGENTS.md preservation or an artifact-bound exact core
-  // replacement, a directly preserved RULE_PACKS entry, and RULE_PACKS
-  // routes. It remains one transaction-local authority, not a generic
-  // ownership framework.
-  // It is intentionally not a generic ownership framework.
-  const directAgents = outputs.filter((item) => (
-    item.targetRel === "AGENTS.md"
-    && item.preservedRuntimeItem?.preservationKind === "whole-file-direct-agents"
-  ));
-  const managedSegmentAgents = outputs.filter((item) => (
-    item.targetRel === "AGENTS.md"
-    && item.managedSegmentRuntimeItem?.preservationKind === "artifact-bound-managed-core"
-  ));
-  const directRulePacks = outputs.filter((item) => (
-    item.targetRel === "dev/RULE_PACKS.md"
-    && item.preservedRuntimeItem?.preservationKind === "whole-file-direct-rule-packs"
-  ));
-  const directStateful = outputs.filter((item) => (
-    directStatefulTargets.has(item.targetRel)
-    && item.preservedRuntimeItem?.preservationKind === "whole-file-direct-stateful"
-  ));
-  // Runtime acceptance records a pre-existing reader and its preserved or
-  // replaced bytes. A fresh-init output has no such source state, so it must
-  // not be treated as though an old AGENTS -> RULE_PACKS route existed.
-  const governed = outputs.filter((item) => item.before != null
-    && installedFileContract(item.targetRel)?.strategy === "rule-pack");
-  if (directAgents.length === 0 && managedSegmentAgents.length === 0 && directRulePacks.length === 0 && directStateful.length === 0 && governed.length === 0) return null;
-  if (directAgents.length + managedSegmentAgents.length > 1) throw new Error("runtime acceptance has more than one direct AGENTS item");
-  if (directRulePacks.length > 1) throw new Error("runtime acceptance has more than one direct RULE_PACKS whole-file item");
-  if (new Set(directStateful.map((item) => item.targetRel)).size !== directStateful.length) throw new Error("runtime acceptance has duplicate direct stateful items");
-
-  const outputByTarget = new Map(outputs.map((item) => [item.targetRel, item]));
-  const needsAgents = directRulePacks.length > 0 || governed.length > 0 || directStateful.some((item) => item.targetRel !== "START_NEXT_SESSION_PROMPT.txt");
-  const needsRulePackRoute = directRulePacks.length > 0 || governed.length > 0;
-  const originalAgents = needsAgents ? await readRuntimeAcceptanceBytes(root, "AGENTS.md") : null;
-  const originalRouter = needsRulePackRoute ? await readRuntimeAcceptanceBytes(root, "dev/RULE_PACKS.md") : null;
-  const activeAgents = needsAgents ? (outputByTarget.get("AGENTS.md")?.after ?? originalAgents) : null;
-  const activeRouter = needsRulePackRoute ? (outputByTarget.get("dev/RULE_PACKS.md")?.after ?? originalRouter) : null;
-
-  const entries = [];
-  for (const item of directAgents) {
-    const digestTransition = item.reason === "formal user-rules acceptance digest transition";
-    if (!item.before || (!item.after.equals(item.before) && !digestTransition)) {
-      throw new Error("direct AGENTS preservation must retain identical whole-file bytes");
-    }
-    const sourceWitness = byteWitness(item.before);
-    const accepted = digestTransition ? byteWitness(item.after) : sourceWitness;
-    const originalReader = await directAgentsEntryWitness(root, item.before);
-    const activeReader = await directAgentsEntryWitness(root, item.after, outputByTarget);
-    entries.push(Object.freeze({
-      targetRel: item.targetRel,
-      accepted,
-      sourceWitness,
-      sourceByteRanges: Object.freeze([Object.freeze({ start: 0, end: item.before.length, sha256: sourceWitness.sha256 })]),
-      originalReader,
-      activeReader,
-      priorityRelation: digestTransition
-        ? "direct AGENTS.md formal-entry byte order retained except the acceptance digest line"
-        : "direct AGENTS.md formal-entry byte order unchanged (single complete source range 0..N)",
-      conflictDecision: item.preservedRuntimeItem.conflictDecision,
-      effectDecision: digestTransition
-        ? "update-formal-user-rules-digest-through-direct-formal-entry"
-        : "preserve-unmodified-through-direct-formal-entry",
-      disposition: digestTransition ? "formal-user-rules-digest-transition" : item.preservedRuntimeItem.disposition
-    }));
-  }
-
-  for (const item of managedSegmentAgents) {
-    const segment = item.managedSegmentRuntimeItem;
-    if (!item.before || !item.after) throw new Error("artifact-bound AGENTS replacement has no complete byte state");
-    const prior = findArtifactBoundManagedCoreSegment(item.before, segment.artifactSegment);
-    const activeBoundary = findUniqueManagedCoreBoundary(item.after, segment.artifactSegment.transform);
-    const active = activeBoundary && Object.freeze({
-      ...activeBoundary,
-      ...byteWitness(item.after.subarray(activeBoundary.start, activeBoundary.end))
-    });
-    if (!prior || prior.start !== segment.sourceSegment.start || prior.end !== segment.sourceSegment.end || !active) {
-      throw new Error("artifact-bound AGENTS replacement lost its exact managed segment boundary");
-    }
-    const replacementStart = prior.start;
-    const replacementEnd = replacementStart + active.bytes;
-    const sourceWitness = byteWitness(item.before);
-    const accepted = byteWitness(item.after);
-    const sourceByteRanges = Object.freeze([
-      Object.freeze({ start: 0, end: prior.start, sha256: sha256(item.before.subarray(0, prior.start)) }),
-      Object.freeze({ start: prior.start, end: prior.end, sha256: prior.sha256 }),
-      Object.freeze({ start: prior.end, end: item.before.length, sha256: sha256(item.before.subarray(prior.end)) })
-    ]);
-    if (!item.before.subarray(0, prior.start).equals(item.after.subarray(0, replacementStart))
-      || !item.before.subarray(prior.end).equals(item.after.subarray(replacementEnd))) {
-      throw new Error("artifact-bound AGENTS replacement changed a surrounding user byte");
-    }
-    const originalReader = await directAgentsEntryWitness(root, item.before);
-    const activeReader = await directAgentsEntryWitness(root, item.after, outputByTarget);
-    entries.push(Object.freeze({
-      targetRel: item.targetRel,
-      accepted,
-      sourceWitness,
-      sourceByteRanges,
-      managedSegment: Object.freeze({
-        version: segment.artifactSegment.version,
-        targetRel: segment.artifactSegment.targetRel,
-        sourceRel: segment.artifactSegment.sourceRel,
-        artifact: segment.artifactSegment.artifact,
-        transform: Object.freeze({
-          kind: segment.artifactSegment.transform.kind,
-          beginMarker: segment.artifactSegment.transform.beginMarker,
-          endMarker: segment.artifactSegment.transform.endMarker
-        }),
-        source: Object.freeze({ start: prior.start, end: prior.end, sha256: prior.sha256, bytes: prior.bytes }),
-        accepted: Object.freeze({ start: replacementStart, end: replacementEnd, sha256: active.sha256, bytes: active.bytes })
-      }),
-      originalReader,
-      activeReader,
-      priorityRelation: "direct AGENTS.md byte order preserved as prefix, artifact-bound core, suffix; all three source ranges reconstruct the original file",
-      conflictDecision: segment.conflictDecision,
-      effectDecision: "replace-artifact-bound-managed-core-through-direct-formal-entry",
-      disposition: segment.disposition
-    }));
-  }
-
-  for (const item of directStateful) {
-    if (!item.before || !item.after.equals(item.before)) {
-      throw new Error(`${item.targetRel}: direct stateful preservation must retain identical whole-file bytes`);
-    }
-    const sourceWitness = byteWitness(item.before);
-    const originalReader = await directStatefulEntryWitness(root, item.targetRel, item.before, originalAgents);
-    const activeReader = await directStatefulEntryWitness(root, item.targetRel, item.after, activeAgents);
-    entries.push(Object.freeze({
-      targetRel: item.targetRel,
-      accepted: sourceWitness,
-      sourceWitness,
-      sourceByteRanges: Object.freeze([Object.freeze({ start: 0, end: item.before.length, sha256: sourceWitness.sha256 })]),
-      originalReader,
-      activeReader,
-      priorityRelation: item.targetRel === "START_NEXT_SESSION_PROMPT.txt"
-        ? "formal startup entry byte order unchanged (single complete source range 0..N)"
-        : "AGENTS.md direct formal-entry reader byte order unchanged (single complete source range 0..N)",
-      conflictDecision: item.preservedRuntimeItem.conflictDecision,
-      effectDecision: "preserve-unmodified-through-direct-stateful-formal-entry",
-      disposition: item.preservedRuntimeItem.disposition
-    }));
-  }
-
-  for (const item of directRulePacks) {
-    if (!item.before || !item.after.equals(item.before)) {
-      throw new Error("direct RULE_PACKS preservation must retain identical whole-file bytes");
-    }
-    const sourceWitness = byteWitness(item.before);
-    const originalReader = await directRulePacksEntryWitness(root, originalAgents, originalRouter);
-    const activeReader = await directRulePacksEntryWitness(root, activeAgents, activeRouter, outputByTarget);
-    entries.push(Object.freeze({
-      targetRel: item.targetRel,
-      accepted: sourceWitness,
-      sourceWitness,
-      sourceByteRanges: Object.freeze([Object.freeze({ start: 0, end: item.before.length, sha256: sourceWitness.sha256 })]),
-      originalReader,
-      activeReader,
-      priorityRelation: "AGENTS.md formal entry and ordered RULE_PACKS table unchanged (single complete source range 0..N)",
-      conflictDecision: item.preservedRuntimeItem.conflictDecision,
-      effectDecision: "preserve-unmodified-through-direct-rule-packs-entry",
-      disposition: item.preservedRuntimeItem.disposition
-    }));
-  }
-
-  for (const item of governed) {
-    const originalRoute = rulePackRouteWitness(originalAgents, originalRouter, item.targetRel);
-    const activeRoute = rulePackRouteWitness(activeAgents, activeRouter, item.targetRel);
-    const preserved = Boolean(item.preservedRuntimeItem);
-    entries.push(Object.freeze({
-      targetRel: item.targetRel,
-      accepted: byteWitness(item.after),
-      sourceWitness: byteWitness(item.before ?? Buffer.alloc(0)),
-      originalReader: Object.freeze({ reader: "AGENTS.md", via: "dev/RULE_PACKS.md", routeWitness: originalRoute }),
-      activeReader: Object.freeze({ reader: "AGENTS.md", via: "dev/RULE_PACKS.md", routeWitness: activeRoute }),
-      priorityRelation: `existing ordered RULE_PACKS route(s): ${activeRoute.routes.map((route) => route.order).join(",")}`,
-      conflictDecision: preserved ? item.preservedRuntimeItem.conflictDecision : "exact-official-package-bytes",
-      effectDecision: preserved ? "preserve-unmodified-through-existing-rule-pack-route" : "replace-exact-official-bytes-through-existing-rule-pack-route",
-      disposition: preserved ? item.preservedRuntimeItem.disposition : "replace"
-    }));
-  }
-  const body = {
-    schemaVersion: managedSegmentAgents.length > 0 ? 5 : directStateful.length > 0 || directAgents.length > 0 ? 4 : directRulePacks.length > 0 ? 3 : 1,
-    entries
-  };
-  return Object.freeze({
-    ...body,
-    acceptanceDigest: sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8"))
-  });
-}
-
-async function readRuntimeAcceptanceBytes(root, targetRel) {
-  const targetAbs = path.join(root, targetRel);
-  await validateTransactionRoot(root, [{ action: "merge", targetRel, targetAbs }], { createMissingRoot: false });
-  const bytes = await readOptionalBuffer(targetAbs);
-  if (!bytes) throw new Error(`${targetRel}: runtime acceptance source is missing`);
-  return bytes;
-}
-
 function byteWitness(bytes) {
   return Object.freeze({ sha256: sha256(bytes), bytes: bytes.length });
-}
-
-async function directAgentsEntryWitness(root, bytes, outputByTarget = null) {
-  const text = decodeUtf8(bytes, "AGENTS.md").text;
-  if (!text.trim()) throw new Error("AGENTS.md direct formal entry is empty");
-  const references = [];
-  for (const reference of directFormalAgentReferences(text)) {
-    if (reference.path === "AGENTS.md") continue;
-    const targetBytes = outputByTarget?.get(reference.path)?.after ?? await readRuntimeAcceptanceBytes(root, reference.path);
-    references.push(Object.freeze({
-      targetRel: reference.path,
-      via: reference.via,
-      sha256: sha256(targetBytes),
-      bytes: targetBytes.length
-    }));
-  }
-  return Object.freeze({
-    reader: "AGENTS.md",
-    via: "direct-formal-entry",
-    agentsSha256: sha256(bytes),
-    bytes: bytes.length,
-    references: Object.freeze(references)
-  });
-}
-
-function directFormalAgentReferences(text) {
-  return extractExplicitLocalReferences(text).filter((reference) => (
-    Boolean(installedFileContract(reference.path))
-  ));
-}
-
-async function directStatefulEntryWitness(root, targetRel, targetBytes, agentsBytes = null) {
-  if (!directStatefulTargets.has(targetRel)) throw new Error(`${targetRel}: not a direct stateful acceptance target`);
-  const targetText = decodeUtf8(targetBytes, targetRel).text;
-  if (!targetText.trim()) throw new Error(`${targetRel}: direct stateful formal entry is empty`);
-  if (targetRel === "START_NEXT_SESSION_PROMPT.txt") {
-    return Object.freeze({
-      reader: "START_NEXT_SESSION_PROMPT.txt",
-      via: "formal-startup-entry",
-      targetRel,
-      targetSha256: sha256(targetBytes),
-      bytes: targetBytes.length
-    });
-  }
-  const activeAgents = agentsBytes ?? await readRuntimeAcceptanceBytes(root, "AGENTS.md");
-  const agentsText = decodeUtf8(activeAgents, "AGENTS.md").text;
-  if (!agentsText.includes(`\`${targetRel}\``)) {
-    throw new Error(`AGENTS.md has no active direct formal entry for ${targetRel}`);
-  }
-  return Object.freeze({
-    reader: "AGENTS.md",
-    via: "direct-formal-entry",
-    targetRel,
-    targetSha256: sha256(targetBytes),
-    bytes: targetBytes.length,
-    agentsSha256: sha256(activeAgents),
-    agentsBytes: activeAgents.length
-  });
-}
-
-function rulePackRouteWitness(agentsBytes, routerBytes, targetRel) {
-  const agentsText = decodeUtf8(agentsBytes, "AGENTS.md").text;
-  const routerText = decodeUtf8(routerBytes, "dev/RULE_PACKS.md").text;
-  const activeAgents = stripMarkdownCommentsAndFences(agentsText);
-  const entryPatterns = [
-    /\bRead\s+`dev\/RULE_PACKS\.md`\s+when\b/,
-    /\bUse\s+`dev\/RULE_PACKS\.md`\s+to\b/
-  ];
-  if (!entryPatterns.some((pattern) => pattern.test(activeAgents))) {
-    throw new Error(`AGENTS.md has no active formal RULE_PACKS instruction for ${targetRel}`);
-  }
-
-  const activeRouter = stripMarkdownCommentsAndFences(routerText);
-  const lines = activeRouter.split(/\r?\n/);
-  const headerIndexes = lines
-    .map((line, index) => line.trim() === "| Task signal | Pack | Purpose |" ? index : -1)
-    .filter((index) => index >= 0);
-  if (headerIndexes.length !== 1 || !/^\|[-\s|]+\|$/.test(lines[headerIndexes[0] + 1]?.trim() ?? "")) {
-    throw new Error("RULE_PACKS.md has no unique active routing table");
-  }
-  const routes = [];
-  for (let index = headerIndexes[0] + 2; index < lines.length && lines[index].startsWith("|"); index += 1) {
-    const cells = lines[index].split("|").slice(1, -1).map((cell) => cell.trim());
-    if (cells.length !== 3 || !cells[1].includes(`\`${targetRel}\``)) continue;
-    routes.push(Object.freeze({
-      order: index - (headerIndexes[0] + 2),
-      rowSha256: sha256(Buffer.from(lines[index].trim(), "utf8"))
-    }));
-  }
-  if (routes.length === 0) throw new Error(`RULE_PACKS.md has no active route to ${targetRel}`);
-  return Object.freeze({
-    agentsSha256: sha256(agentsBytes),
-    routerSha256: sha256(routerBytes),
-    routes: Object.freeze(routes)
-  });
-}
-
-async function directRulePacksEntryWitness(root, agentsBytes, routerBytes, outputByTarget = null) {
-  const agentsText = decodeUtf8(agentsBytes, "AGENTS.md").text;
-  const activeAgents = stripMarkdownCommentsAndFences(agentsText);
-  const entryPatterns = [
-    /\bRead\s+`dev\/RULE_PACKS\.md`\s+when\b/,
-    /\bUse\s+`dev\/RULE_PACKS\.md`\s+to\b/
-  ];
-  if (!entryPatterns.some((pattern) => pattern.test(activeAgents))) {
-    throw new Error("AGENTS.md has no active formal RULE_PACKS instruction");
-  }
-
-  const routerText = decodeUtf8(routerBytes, "dev/RULE_PACKS.md").text;
-  const activeRouter = stripMarkdownCommentsAndFences(routerText);
-  const lines = activeRouter.split(/\r?\n/);
-  const headerIndexes = lines
-    .map((line, index) => line.trim() === "| Task signal | Pack | Purpose |" ? index : -1)
-    .filter((index) => index >= 0);
-  if (headerIndexes.length !== 1 || !/^\|[-\s|]+\|$/.test(lines[headerIndexes[0] + 1]?.trim() ?? "")) {
-    throw new Error("RULE_PACKS.md has no unique active routing table");
-  }
-
-  const routes = [];
-  for (let index = headerIndexes[0] + 2; index < lines.length && lines[index].startsWith("|"); index += 1) {
-    const cells = lines[index].split("|").slice(1, -1).map((cell) => cell.trim());
-    if (cells.length !== 3) throw new Error("RULE_PACKS.md has an invalid active routing row");
-    const targets = [...cells[1].matchAll(/`([^`\r\n]+)`/g)]
-      .map((match) => match[1].trim())
-      .filter((targetRel) => installedFileContract(targetRel)?.strategy === "rule-pack");
-    if (targets.length === 0) continue;
-    for (const targetRel of targets) {
-      const bytes = outputByTarget?.get(targetRel)?.after ?? await readRuntimeAcceptanceBytes(root, targetRel);
-      routes.push(Object.freeze({
-        order: index - (headerIndexes[0] + 2),
-        rowSha256: sha256(Buffer.from(lines[index].trim(), "utf8")),
-        targetRel,
-        sha256: sha256(bytes),
-        bytes: bytes.length
-      }));
-    }
-  }
-  if (routes.length === 0) throw new Error("RULE_PACKS.md active routing table has no installed rule-pack contract targets");
-  return Object.freeze({
-    reader: "AGENTS.md",
-    via: "direct-rule-packs-entry",
-    agentsSha256: sha256(agentsBytes),
-    routerSha256: sha256(routerBytes),
-    routes: Object.freeze(routes)
-  });
-}
-
-function validateRuntimeAcceptance(value) {
-  if (value == null) return null;
-  if (!value || typeof value !== "object" || Array.isArray(value) || ![1, 2, 3, 4, 5].includes(value.schemaVersion)
-    || !Array.isArray(value.entries) || typeof value.acceptanceDigest !== "string" || !/^[a-f0-9]{64}$/.test(value.acceptanceDigest)) {
-    throw new Error("runtime acceptance witness is invalid; no recovery writes attempted");
-  }
-  const body = { schemaVersion: value.schemaVersion, entries: value.entries };
-  if (sha256(Buffer.from(`${JSON.stringify(body)}\n`, "utf8")) !== value.acceptanceDigest) {
-    throw new Error("runtime acceptance digest does not match its ordered witness; no recovery writes attempted");
-  }
-  const targets = new Set();
-  for (const entry of value.entries) {
-    const directAgents = entry?.targetRel === "AGENTS.md";
-    const directRulePacks = entry?.targetRel === "dev/RULE_PACKS.md";
-    const directStateful = directStatefulTargets.has(entry?.targetRel);
-    const validEntry = directAgents
-      ? value.schemaVersion >= 2
-        && validDirectAgentsAcceptanceEntry(entry, { requireReferences: value.schemaVersion >= 4 })
-      : directRulePacks
-        ? value.schemaVersion >= 3
-          && validDirectRulePacksAcceptanceEntry(entry)
-        : directStateful
-          ? value.schemaVersion >= 4
-            && validDirectStatefulAcceptanceEntry(entry)
-      : validRulePackAcceptanceEntry(entry);
-    if (targets.has(entry?.targetRel) || !validEntry) {
-      throw new Error("runtime acceptance entry is invalid; no recovery writes attempted");
-    }
-    targets.add(entry.targetRel);
-  }
-  if (value.entries.length === 0) throw new Error("runtime acceptance has no preserved entry; no recovery writes attempted");
-  return value;
-}
-
-function validRulePackAcceptanceEntry(entry) {
-  return Boolean(entry && typeof entry === "object" && !Array.isArray(entry)
-    && installedFileContract(entry.targetRel)?.strategy === "rule-pack"
-    && validRuntimeAcceptanceDecision(entry)
-    && !entry.sourceByteRanges
-    && validByteWitness(entry.accepted) && validByteWitness(entry.sourceWitness)
-    && validRulePackReader(entry.originalReader) && validRulePackReader(entry.activeReader)
-    && typeof entry.priorityRelation === "string" && entry.priorityRelation.trim());
-}
-
-function validDirectAgentsAcceptanceEntry(entry, { requireReferences = false } = {}) {
-  if (!entry || typeof entry !== "object" || Array.isArray(entry)
-    || installedFileContract(entry.targetRel)?.strategy !== "managed-core"
-    || !validRuntimeAcceptanceDecision(entry)
-    || !validDirectAgentsReader(entry.originalReader, { requireReferences }) || !validDirectAgentsReader(entry.activeReader, { requireReferences })
-    || entry.originalReader.agentsSha256 !== entry.sourceWitness.sha256
-    || entry.activeReader.agentsSha256 !== entry.accepted.sha256
-    || entry.originalReader.bytes !== entry.sourceWitness.bytes
-    || entry.activeReader.bytes !== entry.accepted.bytes
-    || typeof entry.priorityRelation !== "string" || !entry.priorityRelation.trim()) return false;
-  if (entry.managedSegment) return validArtifactBoundManagedAgentsEntry(entry);
-  if (!sameByteWitness(entry.accepted, entry.sourceWitness) && !validFormalUserRulesDigestTransitionEntry(entry)) return false;
-  const ranges = entry.sourceByteRanges;
-  return Array.isArray(ranges) && ranges.length === 1
-    && ranges[0]?.start === 0
-    && ranges[0]?.end === entry.sourceWitness.bytes
-    && ranges[0]?.sha256 === entry.sourceWitness.sha256;
-}
-
-function validFormalUserRulesDigestTransitionEntry(entry) {
-  return entry.disposition === "formal-user-rules-digest-transition"
-    && entry.conflictDecision === "non-exact-package-bytes"
-    && entry.effectDecision === "update-formal-user-rules-digest-through-direct-formal-entry"
-    && entry.accepted.bytes === entry.sourceWitness.bytes
-    && typeof entry.priorityRelation === "string"
-    && entry.priorityRelation.includes("acceptance digest line");
-}
-
-function validArtifactBoundManagedAgentsEntry(entry) {
-  const segment = entry.managedSegment;
-  if (!segment || typeof segment !== "object" || Array.isArray(segment)
-    || entry.disposition !== "replace-managed-segment"
-    || entry.conflictDecision !== "artifact-bound-exact-managed-core"
-    || entry.effectDecision !== "replace-artifact-bound-managed-core-through-direct-formal-entry"
-    || typeof segment.version !== "string" || !segment.version
-    || segment.targetRel !== "AGENTS.md"
-    || segment.sourceRel !== "runtime-core/AGENTS.core.md"
-    || typeof segment.artifact?.spec !== "string"
-    || !/^[a-f0-9]{40}$/.test(segment.artifact?.shasum ?? "")
-    || typeof segment.artifact?.integrity !== "string" || !segment.artifact.integrity.startsWith("sha512-")
-    || segment.transform?.kind !== "utf8-trim-wrapped-managed-core"
-    || typeof segment.transform.beginMarker !== "string" || !segment.transform.beginMarker
-    || typeof segment.transform.endMarker !== "string" || !segment.transform.endMarker
-    || !validManagedSegmentRange(segment.source, entry.sourceWitness.bytes)
-    || !validManagedSegmentRange(segment.accepted, entry.accepted.bytes)) return false;
-  const ranges = entry.sourceByteRanges;
-  return Array.isArray(ranges) && ranges.length === 3
-    && ranges.every((range) => Number.isInteger(range?.start) && Number.isInteger(range?.end)
-      && range.start >= 0 && range.end >= range.start && /^[a-f0-9]{64}$/.test(range.sha256 ?? ""))
-    && ranges[0].start === 0
-    && ranges[0].end === segment.source.start
-    && ranges[1].start === segment.source.start
-    && ranges[1].end === segment.source.end
-    && ranges[1].sha256 === segment.source.sha256
-    && ranges[2].start === segment.source.end
-    && ranges[2].end === entry.sourceWitness.bytes;
-}
-
-function validManagedSegmentRange(range, totalBytes) {
-  return Boolean(range && typeof range === "object" && !Array.isArray(range)
-    && Number.isInteger(range.start) && Number.isInteger(range.end)
-    && range.start >= 0 && range.end >= range.start && range.end <= totalBytes
-    && /^[a-f0-9]{64}$/.test(range.sha256 ?? "")
-    && Number.isInteger(range.bytes) && range.bytes === range.end - range.start);
-}
-
-function validDirectRulePacksAcceptanceEntry(entry) {
-  if (!entry || typeof entry !== "object" || Array.isArray(entry)
-    || installedFileContract(entry.targetRel)?.strategy !== "marked-routing-table"
-    || !validRuntimeAcceptanceDecision(entry)
-    || !sameByteWitness(entry.accepted, entry.sourceWitness)
-    || !validDirectRulePacksReader(entry.originalReader) || !validDirectRulePacksReader(entry.activeReader)
-    || entry.originalReader.routerSha256 !== entry.sourceWitness.sha256
-    || entry.activeReader.routerSha256 !== entry.accepted.sha256
-    || typeof entry.priorityRelation !== "string" || !entry.priorityRelation.trim()) return false;
-  const ranges = entry.sourceByteRanges;
-  return Array.isArray(ranges) && ranges.length === 1
-    && ranges[0]?.start === 0
-    && ranges[0]?.end === entry.sourceWitness.bytes
-    && ranges[0]?.sha256 === entry.sourceWitness.sha256;
-}
-
-function validDirectStatefulAcceptanceEntry(entry) {
-  if (!entry || typeof entry !== "object" || Array.isArray(entry)
-    || !directStatefulTargets.has(entry.targetRel)
-    || !validRuntimeAcceptanceDecision(entry)
-    || !sameByteWitness(entry.accepted, entry.sourceWitness)
-    || !validDirectStatefulReader(entry.originalReader, entry.targetRel)
-    || !validDirectStatefulReader(entry.activeReader, entry.targetRel)
-    || entry.originalReader.targetSha256 !== entry.sourceWitness.sha256
-    || entry.activeReader.targetSha256 !== entry.accepted.sha256
-    || entry.originalReader.bytes !== entry.sourceWitness.bytes
-    || entry.activeReader.bytes !== entry.accepted.bytes
-    || typeof entry.priorityRelation !== "string" || !entry.priorityRelation.trim()) return false;
-  const ranges = entry.sourceByteRanges;
-  return Array.isArray(ranges) && ranges.length === 1
-    && ranges[0]?.start === 0
-    && ranges[0]?.end === entry.sourceWitness.bytes
-    && ranges[0]?.sha256 === entry.sourceWitness.sha256;
-}
-
-function validRuntimeAcceptanceDecision(entry) {
-  if (entry.targetRel === "AGENTS.md") {
-    return (entry.disposition === "preserve"
-      && entry.conflictDecision === "non-exact-package-bytes"
-      && entry.effectDecision === "preserve-unmodified-through-direct-formal-entry")
-      || (entry.disposition === "formal-user-rules-digest-transition"
-        && entry.conflictDecision === "non-exact-package-bytes"
-        && entry.effectDecision === "update-formal-user-rules-digest-through-direct-formal-entry")
-      || (entry.disposition === "replace-managed-segment"
-        && entry.conflictDecision === "artifact-bound-exact-managed-core"
-        && entry.effectDecision === "replace-artifact-bound-managed-core-through-direct-formal-entry");
-  }
-  if (entry.targetRel === "dev/RULE_PACKS.md") {
-    return entry.disposition === "preserve"
-      && entry.conflictDecision === "non-exact-package-bytes"
-      && entry.effectDecision === "preserve-unmodified-through-direct-rule-packs-entry";
-  }
-  if (directStatefulTargets.has(entry.targetRel)) {
-    return entry.disposition === "preserve"
-      && entry.conflictDecision === "non-exact-package-bytes"
-      && entry.effectDecision === "preserve-unmodified-through-direct-stateful-formal-entry";
-  }
-  return (entry.disposition === "preserve"
-      && entry.conflictDecision === "non-exact-package-bytes"
-      && entry.effectDecision === "preserve-unmodified-through-existing-rule-pack-route")
-    || (entry.disposition === "replace"
-      && entry.conflictDecision === "exact-official-package-bytes"
-      && entry.effectDecision === "replace-exact-official-bytes-through-existing-rule-pack-route");
-}
-
-function validByteWitness(value) {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value)
-    && typeof value.sha256 === "string" && /^[a-f0-9]{64}$/.test(value.sha256)
-    && Number.isInteger(value.bytes) && value.bytes >= 0);
-}
-
-function sameByteWitness(left, right) {
-  return validByteWitness(left) && validByteWitness(right) && left.sha256 === right.sha256 && left.bytes === right.bytes;
-}
-
-function validRulePackReader(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)
-    || value.reader !== "AGENTS.md" || value.via !== "dev/RULE_PACKS.md") return false;
-  const witness = value.routeWitness;
-  return Boolean(witness && typeof witness === "object" && !Array.isArray(witness)
-    && typeof witness.agentsSha256 === "string" && /^[a-f0-9]{64}$/.test(witness.agentsSha256)
-    && typeof witness.routerSha256 === "string" && /^[a-f0-9]{64}$/.test(witness.routerSha256)
-    && Array.isArray(witness.routes) && witness.routes.length > 0
-    && witness.routes.every((route) => Number.isInteger(route.order) && route.order >= 0 && typeof route.rowSha256 === "string" && /^[a-f0-9]{64}$/.test(route.rowSha256)));
-}
-
-function validDirectAgentsReader(value, { requireReferences = false } = {}) {
-  const validReferences = !requireReferences
-    ? !Object.hasOwn(value ?? {}, "references") || validDirectAgentReferences(value.references)
-    : validDirectAgentReferences(value?.references);
-  return Boolean(value && typeof value === "object" && !Array.isArray(value)
-    && value.reader === "AGENTS.md" && value.via === "direct-formal-entry"
-    && typeof value.agentsSha256 === "string" && /^[a-f0-9]{64}$/.test(value.agentsSha256)
-    && Number.isInteger(value.bytes) && value.bytes >= 0
-    && validReferences);
-}
-
-function validDirectAgentReferences(value) {
-  return Array.isArray(value)
-    && value.every((reference) => reference && typeof reference === "object" && !Array.isArray(reference)
-      && typeof reference.targetRel === "string" && reference.targetRel
-      && typeof reference.via === "string" && reference.via
-      && typeof reference.sha256 === "string" && /^[a-f0-9]{64}$/.test(reference.sha256)
-      && Number.isInteger(reference.bytes) && reference.bytes >= 0);
-}
-
-function validDirectRulePacksReader(value) {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value)
-    && value.reader === "AGENTS.md" && value.via === "direct-rule-packs-entry"
-    && typeof value.agentsSha256 === "string" && /^[a-f0-9]{64}$/.test(value.agentsSha256)
-    && typeof value.routerSha256 === "string" && /^[a-f0-9]{64}$/.test(value.routerSha256)
-    && Array.isArray(value.routes) && value.routes.length > 0
-    && value.routes.every((route) => Number.isInteger(route.order) && route.order >= 0
-      && typeof route.rowSha256 === "string" && /^[a-f0-9]{64}$/.test(route.rowSha256)
-      && typeof route.targetRel === "string" && route.targetRel
-      && typeof route.sha256 === "string" && /^[a-f0-9]{64}$/.test(route.sha256)
-      && Number.isInteger(route.bytes) && route.bytes >= 0));
-}
-
-function validDirectStatefulReader(value, targetRel) {
-  if (!value || typeof value !== "object" || Array.isArray(value)
-    || value.targetRel !== targetRel
-    || typeof value.targetSha256 !== "string" || !/^[a-f0-9]{64}$/.test(value.targetSha256)
-    || !Number.isInteger(value.bytes) || value.bytes < 0) return false;
-  if (targetRel === "START_NEXT_SESSION_PROMPT.txt") {
-    return value.reader === "START_NEXT_SESSION_PROMPT.txt" && value.via === "formal-startup-entry"
-      && !Object.hasOwn(value, "agentsSha256") && !Object.hasOwn(value, "agentsBytes");
-  }
-  return value.reader === "AGENTS.md" && value.via === "direct-formal-entry"
-    && typeof value.agentsSha256 === "string" && /^[a-f0-9]{64}$/.test(value.agentsSha256)
-    && Number.isInteger(value.agentsBytes) && value.agentsBytes >= 0;
-}
-
-function runtimeAcceptanceSurfaceLabel(witness) {
-  const entries = witness?.entries ?? [];
-  const directAgentsEntry = entries.find((entry) => entry.targetRel === "AGENTS.md");
-  const directAgents = Boolean(directAgentsEntry);
-  const directAgentsUsesSegment = Boolean(directAgentsEntry?.managedSegment);
-  const directAgentsLabel = directAgentsEntry?.managedSegment
-    ? "direct AGENTS artifact-bound managed-core entry"
-    : "direct AGENTS whole-file entry";
-  const directRulePacks = entries.some((entry) => entry.targetRel === "dev/RULE_PACKS.md");
-  const directStateful = entries.some((entry) => directStatefulTargets.has(entry.targetRel));
-  const routedRulePacks = entries.some((entry) => entry.targetRel !== "AGENTS.md" && entry.targetRel !== "dev/RULE_PACKS.md" && !directStatefulTargets.has(entry.targetRel));
-  if (directStateful) {
-    const additions = [
-      directAgents ? directAgentsLabel : null,
-      directRulePacks ? "direct RULE_PACKS entry" : null,
-      routedRulePacks ? "AGENTS -> RULE_PACKS routes" : null
-    ].filter(Boolean);
-    return `formal startup/direct AGENTS stateful entries${additions.length ? ` + ${additions.join(" + ")}` : ""} (${directAgentsUsesSegment ? "accepted bytes" : "accepted whole-file bytes"}, readers, priority, and effect)`;
-  }
-  if (directAgents && directRulePacks && routedRulePacks) return "AGENTS.md direct formal entry + direct RULE_PACKS entry + AGENTS.md -> dev/RULE_PACKS.md routes (accepted bytes, readers, priority, and effect)";
-  if (directAgents && directRulePacks) return "AGENTS.md direct formal entry + direct RULE_PACKS entry (accepted whole-file bytes, readers, priority, and effect)";
-  if (directRulePacks && routedRulePacks) return "AGENTS.md -> direct RULE_PACKS entry and routes (accepted bytes, readers, priority, and effect)";
-  if (directRulePacks) return "AGENTS.md -> direct RULE_PACKS entry (accepted whole-file bytes, reader, priority, and effect)";
-  if (directAgents && routedRulePacks) return "AGENTS.md direct formal entry + AGENTS.md -> dev/RULE_PACKS.md (accepted bytes, readers, priority, and effect)";
-  if (directAgents) return `AGENTS.md ${directAgentsEntry?.managedSegment ? "artifact-bound managed-core" : "direct formal"} entry (accepted bytes, reader, priority, and effect)`;
-  return "AGENTS.md -> dev/RULE_PACKS.md (accepted preserved runtime bytes and route)";
-}
-
-async function readRuntimeAcceptance(root, witness, { allowActiveTransaction = false } = {}) {
-  const accepted = validateRuntimeAcceptance(witness);
-  if (!allowActiveTransaction && await hasActiveTransactionLock(root)) {
-    throw new Error("runtime acceptance is pending recovery; normal entry refuses to read a partial transaction state");
-  }
-  const needsAgents = accepted.entries.some((entry) => entry.targetRel !== "AGENTS.md" && entry.targetRel !== "START_NEXT_SESSION_PROMPT.txt");
-  const needsRulePackRoute = accepted.entries.some((entry) => entry.targetRel !== "AGENTS.md" && !directStatefulTargets.has(entry.targetRel));
-  const agentsBytes = needsAgents ? await readRuntimeAcceptanceBytes(root, "AGENTS.md") : null;
-  const routerBytes = needsRulePackRoute ? await readRuntimeAcceptanceBytes(root, "dev/RULE_PACKS.md") : null;
-  const entries = [];
-  for (const entry of accepted.entries) {
-    const bytes = await readRuntimeAcceptanceBytes(root, entry.targetRel);
-    if (!sameByteWitness(byteWitness(bytes), entry.accepted)) {
-      throw new Error(`${entry.targetRel}: active bytes differ from the accepted preserved witness`);
-    }
-    if (entry.targetRel === "AGENTS.md") {
-      if (entry.managedSegment) assertAcceptedArtifactBoundManagedSegment(bytes, entry);
-      const directReader = await directAgentsEntryWitness(root, bytes);
-      if (JSON.stringify(directReader) !== JSON.stringify(entry.activeReader)) {
-        throw new Error("AGENTS.md direct formal-entry reader differs from the accepted witness");
-      }
-    } else if (directStatefulTargets.has(entry.targetRel)) {
-      const directReader = await directStatefulEntryWitness(root, entry.targetRel, bytes, agentsBytes);
-      if (JSON.stringify(directReader) !== JSON.stringify(entry.activeReader)) {
-        throw new Error(`${entry.targetRel}: direct stateful formal reader differs from the accepted witness`);
-      }
-    } else if (entry.targetRel === "dev/RULE_PACKS.md") {
-      const directReader = await directRulePacksEntryWitness(root, agentsBytes, bytes);
-      if (JSON.stringify(directReader) !== JSON.stringify(entry.activeReader)) {
-        throw new Error("AGENTS.md direct RULE_PACKS reader or routed target effect differs from the accepted witness");
-      }
-    } else {
-      const routeWitness = rulePackRouteWitness(agentsBytes, routerBytes, entry.targetRel);
-      if (JSON.stringify(routeWitness) !== JSON.stringify(entry.activeReader.routeWitness)) {
-        throw new Error(`${entry.targetRel}: AGENTS -> RULE_PACKS runtime route differs from the accepted witness`);
-      }
-    }
-    entries.push(Object.freeze({ targetRel: entry.targetRel, sha256: sha256(bytes), bytes: bytes.length, activeReader: entry.activeReader, priorityRelation: entry.priorityRelation, effectDecision: entry.effectDecision, disposition: entry.disposition }));
-  }
-  return Object.freeze({ acceptanceDigest: accepted.acceptanceDigest, entries: Object.freeze(entries) });
-}
-
-function assertAcceptedArtifactBoundManagedSegment(bytes, entry) {
-  const active = findUniqueManagedCoreBoundary(bytes, entry.managedSegment.transform);
-  if (!active || active.start !== entry.managedSegment.accepted.start || active.end !== entry.managedSegment.accepted.end) {
-    throw new Error("AGENTS.md artifact-bound managed segment range differs from the accepted witness");
-  }
-  const acceptedCore = bytes.subarray(active.start, active.end);
-  if (sha256(acceptedCore) !== entry.managedSegment.accepted.sha256 || acceptedCore.length !== entry.managedSegment.accepted.bytes) {
-    throw new Error("AGENTS.md artifact-bound managed segment bytes differ from the accepted witness");
-  }
-  const ranges = entry.sourceByteRanges;
-  const suffixStart = entry.managedSegment.accepted.end;
-  if (sha256(bytes.subarray(0, active.start)) !== ranges[0].sha256
-    || sha256(bytes.subarray(suffixStart)) !== ranges[2].sha256
-    || bytes.subarray(0, active.start).length !== ranges[0].end - ranges[0].start
-    || bytes.subarray(suffixStart).length !== ranges[2].end - ranges[2].start) {
-    throw new Error("AGENTS.md artifact-bound managed segment changed surrounding preserved bytes");
-  }
 }
 
 async function hasActiveTransactionLock(root) {
@@ -4176,1279 +2698,6 @@ async function hasActiveTransactionLock(root) {
     if (error?.code === "ENOENT") return false;
     throw error;
   }
-}
-
-async function loadCommittedCurrentStateWitness(root, options = {}) {
-  const migrationsRoot = path.join(root, "dev", "governance_migrations");
-  let names;
-  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
-  const records = [];
-  for (const name of names) {
-    if (name === ".upgrade.lock") continue;
-    const journalPath = path.join(migrationsRoot, name, "transaction.json");
-    try {
-      const stats = await lstat(journalPath);
-      if (!stats.isFile() || stats.isSymbolicLink()) continue;
-      const journal = JSON.parse(await readFile(journalPath, "utf8"));
-      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
-      await validateRecoveryJournal(root, journal, journalPath);
-      const witness = validateCurrentStateWitness(journal);
-      const matches = options.allowHistoricalEdgeRetirement === true
-        ? await journalMatchesCurrentStateForHistoricalRebind(root, journal)
-        : await journalMatchesCurrentState(root, journal);
-      records.push({ journal, journalPath, witness, matches });
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
-    }
-  }
-  const superseded = effectiveCurrentStateSupersededDigests(records);
-  const staleSourceConservation = records.filter((record) => (
-    !record.matches
-    && record.witness.sourceConservation
-    && !superseded.has(record.witness.currentStateDigest)
-  ));
-  if (staleSourceConservation.length > 0) {
-    throw new Error("committed Gate 5 current-state source witness no longer matches project bytes; doctor refuses an unbound success state");
-  }
-  const candidates = records.filter((record) => record.matches);
-  if (candidates.length === 0) return null;
-  // A later repair can deliberately restore the exact bytes of an earlier
-  // state. Its sealed supersession link is the only permitted tie-breaker:
-  // filesystem timestamps remain untrusted and an unlinked tie stays fatal.
-  const currentCandidates = candidates.filter(({ witness }) => !superseded.has(witness.currentStateDigest));
-  if (currentCandidates.length !== 1) {
-    throw new Error("multiple committed journals match the current filesystem state; doctor refuses ambiguous current-state authority");
-  }
-  return validateCurrentStateWitness(currentCandidates[0].journal);
-}
-
-function effectiveCurrentStateSupersededDigests(records) {
-  const byDigest = new Map(records.map((record) => [record.witness.currentStateDigest, record]));
-  const superseded = new Set();
-  for (const record of records) {
-    for (const digest of record.witness.transaction.supersedesCurrentStateDigests ?? []) {
-      const prior = byDigest.get(digest);
-      if (!prior) continue;
-      if (canSupersedeCurrentStateWitness(record.witness, prior.witness)) superseded.add(digest);
-    }
-  }
-  return superseded;
-}
-
-async function hasCommittedSourceConservationAuthority(root) {
-  const migrationsRoot = path.join(root, "dev", "governance_migrations");
-  let names;
-  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return false; throw error; }
-  const records = [];
-  for (const name of names) {
-    if (name === ".upgrade.lock") continue;
-    const journalPath = path.join(migrationsRoot, name, "transaction.json");
-    try {
-      const stats = await lstat(journalPath);
-      if (!stats.isFile() || stats.isSymbolicLink()) continue;
-      const journal = JSON.parse(await readFile(journalPath, "utf8"));
-      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
-      await validateRecoveryJournal(root, journal, journalPath);
-      records.push({ journal, journalPath, witness: validateCurrentStateWitness(journal), matches: await journalMatchesCurrentStateForHistoricalRebind(root, journal) });
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
-    }
-  }
-  const superseded = effectiveCurrentStateSupersededDigests(records);
-  let hasSourceConservation = false;
-  for (const record of records) {
-    if (!record.witness.sourceConservation || superseded.has(record.witness.currentStateDigest)) continue;
-    hasSourceConservation = true;
-    if (record.matches) continue;
-    const { illegalNonCloseout } = await classifyCurrentStateRebindMismatches(root, record.journal);
-    if (illegalNonCloseout.length > 0) {
-      throw new Error(`conflict: non-closeout drift blocks upgrade source-conservation rebind: ${illegalNonCloseout.map((item) => item.path).join(", ")}`);
-    }
-  }
-  if (hasSourceConservation) return true;
-  return false;
-}
-
-async function assertUnboundCurrentStateMayAttemptUpgradeRebind(root, cause) {
-  const migrationsRoot = path.join(root, "dev", "governance_migrations");
-  let names;
-  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") throw cause; throw error; }
-  const records = [];
-  for (const name of names) {
-    if (name === ".upgrade.lock") continue;
-    const journalPath = path.join(migrationsRoot, name, "transaction.json");
-    try {
-      const stats = await lstat(journalPath);
-      if (!stats.isFile() || stats.isSymbolicLink()) continue;
-      const journal = JSON.parse(await readFile(journalPath, "utf8"));
-      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
-      await validateRecoveryJournal(root, journal, journalPath);
-      records.push({ journal, journalPath, witness: validateCurrentStateWitness(journal), matches: await journalMatchesCurrentStateForHistoricalRebind(root, journal) });
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
-    }
-  }
-  const superseded = effectiveCurrentStateSupersededDigests(records);
-  for (const record of records) {
-    if (record.matches || !record.witness.sourceConservation || superseded.has(record.witness.currentStateDigest)) continue;
-    const { mismatches, illegalNonCloseout } = await classifyCurrentStateRebindMismatches(root, record.journal);
-    if (illegalNonCloseout.length > 0) throw cause;
-    const managedCore = mismatches.filter((mismatch) => installedFileContract(mismatch.path)?.strategy === "managed-core");
-    if (managedCore.length > 0) throw cause;
-  }
-}
-
-async function classifyCurrentStateRebindMismatches(projectRoot, journal) {
-  const mismatches = await currentStateMismatches(projectRoot, journal, { allowHistoricalEdgeRetirement: true });
-  const illegalNonCloseout = [];
-  for (const mismatch of mismatches) {
-    if (isCloseoutFinalizeTarget(mismatch.path)) continue;
-    if (await mismatchMatchesCurrentInstalledSource(projectRoot, mismatch)) continue;
-    illegalNonCloseout.push(mismatch);
-  }
-  return { mismatches, illegalNonCloseout };
-}
-
-async function mismatchMatchesCurrentInstalledSource(projectRoot, mismatch) {
-  const contract = installedFileContract(mismatch.path);
-  if (!contract || contract.strategy === "managed-core") return false;
-  const current = await readOptionalBuffer(path.join(projectRoot, mismatch.path));
-  const source = await readOptionalBuffer(path.join(packageRoot, contract.sourceRel));
-  return Boolean(current && source && current.length === source.length && sha256(current) === sha256(source));
-}
-
-async function findRestoredCurrentStateDigests(root, outputs, archiveMigrations = [], replacement = {}) {
-  const migrationsRoot = path.join(root, "dev", "governance_migrations");
-  let names;
-  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return []; throw error; }
-  const outputWitnesses = new Map(outputs.map((item) => [item.targetRel, { sha256: item.afterHash, bytes: item.after.length }]));
-  const restored = [];
-  for (const name of names) {
-    if (name === ".upgrade.lock") continue;
-    const journalPath = path.join(migrationsRoot, name, "transaction.json");
-    try {
-      const stats = await lstat(journalPath);
-      if (!stats.isFile() || stats.isSymbolicLink()) continue;
-      const journal = JSON.parse(await readFile(journalPath, "utf8"));
-      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
-      await validateRecoveryJournal(root, journal, journalPath);
-      const priorWitness = validateCurrentStateWitness(journal);
-      const sourceConservationRebind = sourceConservationEntriesRebindPrior(priorWitness, replacement.sourceConservation, archiveMigrations, {
-        allowArchiveState: sourceConservationHasArchiveReconciliation(priorWitness.sourceConservation)
-          || sourceConservationHasArchiveReconciliation(replacement.sourceConservation)
-      });
-      if (sourceConservationRebind
-        || (await journalMatchesCurrentState(root, journal) && (!priorWitness.sourceConservation || sourceConservationRebind))
-        || await journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations, replacement.sourceConservation)
-      ) {
-        if (!canSupersedeCurrentStateWitness(replacement, priorWitness)) continue;
-        restored.push(journal.currentStateWitness.currentStateDigest);
-      }
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
-    }
-  }
-  return [...new Set(restored)].sort((left, right) => left.localeCompare(right));
-}
-
-function currentStateWitnessCapability(value = {}) {
-  return {
-    sourceConservation: Boolean(value.sourceConservation),
-    archiveMigrations: Array.isArray(value.archiveMigrations) && value.archiveMigrations.length > 0
-  };
-}
-
-function canSupersedeCurrentStateWitness(replacement, priorWitness) {
-  const replacementCapability = currentStateWitnessCapability(replacement);
-  if (priorWitness.sourceConservation && !replacementCapability.sourceConservation) return false;
-  const archiveAuthority = sourceConservationHasArchiveReconciliation(replacement.sourceConservation)
-    || sourceConservationHasArchiveReconciliation(priorWitness.sourceConservation);
-  if (Array.isArray(priorWitness.archiveMigrations) && priorWitness.archiveMigrations.length > 0
-    && !replacementCapability.archiveMigrations
-    && !sourceConservationEntriesRebindPrior(priorWitness, replacement.sourceConservation, [], { allowArchiveState: archiveAuthority })
-    && !(archiveAuthority && archiveMigrationHistoryIsRebound(priorWitness, replacement.sourceConservation))) {
-    return false;
-  }
-  return true;
-}
-
-function sourceConservationHasArchiveReconciliation(sourceConservation) {
-  return Boolean(sourceConservation?.entries?.some((entry) => entry.disposition === "session-log-archive-reconciliation"));
-}
-
-function canRetireHistoricalEdge(entry, currentTypedProtection = null) {
-  if (!entry || currentTypedProtection) return false;
-  if (!isSafeProjectRelative(entry.sourcePath)) return false;
-  if (installedFileContract(entry.sourcePath)
-    || directStatefulTargets.has(entry.sourcePath)
-    || sourceConservationEntryIsTransactionRegistryJournal(entry)
-    || sourceConservationEntryIsSessionLogArchive(entry)
-    || isSessionLogArchivePath(entry.sourcePath)
-    || entry.sourcePath === USER_RULES_ROUTER_PATH
-    || isFormalUserRulesContentPath(entry.sourcePath)) {
-    return false;
-  }
-  if (!Array.isArray(entry.classifications) || !entry.classifications.includes("root-source")) return false;
-  if (entry.classifications.some((classification) => [
-    "managed-contract",
-    "legacy-session-log-archive",
-    "session-log-archive",
-    "formal-user-rules-router",
-    "formal-user-rule-content"
-  ].includes(classification))) {
-    return false;
-  }
-  const outsideKnownKitReachability = entry.disposition === "outside-known-kit-reachability"
-    && entry.priorityRelation === "outside-known-kit-reachability"
-    && entry.effectDecision === "outside-known-kit-reachability"
-    && Array.isArray(entry.existingReaders)
-    && entry.existingReaders.length === 0;
-  const genericFormalReference = entry.classifications.includes("formal-reference")
-    && entry.effectDecision === "preserve-existing-route-or-stop"
-    && Array.isArray(entry.existingReaders)
-    && entry.existingReaders.length > 0;
-  const nonRegistryTransactionArtifact = entry.classifications.includes("transaction-state")
-    && entry.disposition === "retained-historical-state"
-    && entry.priorityRelation === "no-verified-reader"
-    && entry.effectDecision === "unresolved"
-    && Array.isArray(entry.existingReaders)
-    && entry.existingReaders.length === 0;
-  return outsideKnownKitReachability || genericFormalReference || nonRegistryTransactionArtifact;
-}
-
-function sourceConservationEntryIsTransactionRegistryJournal(entry) {
-  return Boolean(entry
-    && /^dev\/governance_migrations\/[^/]+\/transaction\.json$/u.test(entry.sourcePath));
-}
-
-function sourceConservationEntryAcceptedMatches(entry, accepted) {
-  return Boolean(accepted
-    && accepted.sha256 === entry.accepted?.sha256
-    && accepted.bytes === entry.accepted?.bytes);
-}
-
-function sourceConservationEntryHasAcceptedCoverage(entry) {
-  return Boolean(entry
-    && entry.accepted
-    && typeof entry.accepted.sha256 === "string"
-    && Number.isInteger(entry.accepted.bytes));
-}
-
-function sourceConservationEntriesRebindPrior(priorWitness, replacementSourceConservation, archiveMigrations = [], options = {}) {
-  if (!priorWitness.sourceConservation) return true;
-  if (!replacementSourceConservation) return false;
-  const replacementByPath = new Map(replacementSourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
-  const archiveRebindings = new Map();
-  for (const migration of [...(priorWitness.archiveMigrations ?? []), ...archiveMigrations]) {
-    for (const file of migration.snapshot.files ?? []) {
-      archiveRebindings.set(`${migration.originalRel}/${file.path}`, `${migration.canonicalRel}/${file.path}`);
-    }
-  }
-  return priorWitness.sourceConservation.entries.every((entry) => {
-    const archiveState = sourceConservationEntryIsSessionLogArchive(entry)
-      || isSessionLogArchivePath(entry.sourcePath)
-      || (entry.sourceOriginPath && isSessionLogArchivePath(entry.sourceOriginPath));
-    if (archiveState && options.allowArchiveState !== true) return false;
-    const replacement = replacementByPath.get(entry.sourcePath);
-    if (canRetireHistoricalEdge(entry, replacement)) return true;
-    if (sourceConservationEntryHasAcceptedCoverage(replacement)) return true;
-    const reboundPath = archiveRebindings.get(entry.sourcePath);
-    const rebound = reboundPath ? replacementByPath.get(reboundPath) : null;
-    return sourceConservationEntryAcceptedMatches(entry, rebound?.accepted);
-  });
-}
-
-function sourceConservationRebindsPrior(priorWitness, replacementSourceConservation) {
-  if (!replacementSourceConservation) return false;
-  const replacementByPath = new Map(replacementSourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
-  const coversTransactionEntries = priorWitness.entries.every((entry) => {
-    const replacement = replacementByPath.get(entry.targetRel);
-    return replacement
-      && replacement.accepted
-      && typeof replacement.accepted.sha256 === "string"
-      && Number.isInteger(replacement.accepted.bytes);
-  });
-  if (!coversTransactionEntries) return false;
-  return sourceConservationEntriesRebindPrior(priorWitness, replacementSourceConservation);
-}
-
-function archiveMigrationHistoryIsRebound(priorWitness, replacementSourceConservation) {
-  if (!replacementSourceConservation || !Array.isArray(priorWitness.archiveMigrations) || priorWitness.archiveMigrations.length === 0) return false;
-  const replacementByPath = new Map(replacementSourceConservation.entries.map((entry) => [entry.sourcePath, entry]));
-  for (const migration of priorWitness.archiveMigrations) {
-    for (const file of migration.snapshot.files ?? []) {
-      const conserved = replacementByPath.get(`${migration.canonicalRel}/${file.path}`);
-      if (!conserved
-        || !conserved.accepted
-        || conserved.accepted.sha256 !== file.sha256
-        || conserved.accepted.bytes !== file.bytes) {
-        return false;
-      }
-    }
-  }
-  return sourceConservationEntriesRebindPrior(priorWitness, replacementSourceConservation, [], { allowArchiveState: true });
-}
-
-async function journalIsRestoredByOutputs(root, journal, outputWitnesses, archiveMigrations = [], replacementSourceConservation = null) {
-  const witness = validateCurrentStateWitness(journal);
-  const replacementByPath = new Map((replacementSourceConservation?.entries ?? []).map((entry) => [entry.sourcePath, entry]));
-  for (const entry of journal.entries) {
-    const replacement = outputWitnesses.get(entry.targetRel);
-    if (replacement) {
-      if (replacement.sha256 !== entry.afterHash) return false;
-      continue;
-    }
-    const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
-    if (!bytes || sha256(bytes) !== entry.afterHash) return false;
-  }
-  for (const entry of witness.sourceConservation?.entries ?? []) {
-    const replacement = outputWitnesses.get(entry.sourcePath);
-    if (replacement) {
-      if (replacement.sha256 !== entry.accepted.sha256 || replacement.bytes !== entry.accepted.bytes) return false;
-      continue;
-    }
-    const sourceReplacement = replacementByPath.get(entry.sourcePath);
-    if (sourceReplacement) {
-      if (!sourceConservationEntryHasAcceptedCoverage(sourceReplacement)) return false;
-      continue;
-    }
-    if (sourceConservationEntryIsSessionLogArchive(entry) || isSessionLogArchivePath(entry.sourcePath)) return false;
-    if (canRetireHistoricalEdge(entry, sourceReplacement)) continue;
-    const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
-    if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) return false;
-  }
-  return true;
-}
-
-async function checkCurrentStateWitness(root, witness) {
-  if (!witness) return { ok: true, checked: 0, finding: null };
-  try {
-    const accepted = validateCurrentStateWitnessValue(witness);
-    const plan = accepted.entries.map((entry) => ({
-      action: "merge",
-      targetRel: entry.targetRel,
-      targetAbs: path.join(root, entry.targetRel)
-    }));
-    await validateTransactionRoot(root, plan, { createMissingRoot: false });
-    for (const entry of accepted.entries) {
-      const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
-      if (!bytes || sha256(bytes) !== entry.afterHash) {
-        return { ok: false, checked: accepted.entries.length, finding: `${entry.targetRel}: current bytes differ from the shared transaction witness` };
-      }
-    }
-    for (const entry of accepted.sourceConservation?.entries ?? []) {
-      const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
-      if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) {
-        return {
-          ok: false,
-          checked: accepted.entries.length + accepted.sourceConservation.entries.length,
-          finding: `${entry.sourcePath}: current bytes differ from the shared frozen-source witness`
-        };
-      }
-    }
-    return { ok: true, checked: accepted.entries.length + (accepted.sourceConservation?.entries.length ?? 0), finding: null };
-  } catch (error) {
-    return { ok: false, checked: (witness.entries?.length ?? 0) + (witness.sourceConservation?.entries?.length ?? 0) || 1, finding: String(error?.message ?? error) };
-  }
-}
-
-async function journalMatchesCurrentState(root, journal) {
-  const witness = validateCurrentStateWitness(journal);
-  const plan = journal.entries.map((entry) => ({
-    action: "merge",
-    targetRel: entry.targetRel,
-    targetAbs: path.join(root, entry.targetRel)
-  }));
-  await validateTransactionRoot(root, plan, { createMissingRoot: false });
-  for (const entry of journal.entries) {
-    const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
-    if (!bytes || sha256(bytes) !== entry.afterHash) return false;
-  }
-  for (const entry of witness.sourceConservation?.entries ?? []) {
-    const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
-    if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) return false;
-  }
-  return true;
-}
-
-async function journalMatchesCurrentStateForHistoricalRebind(root, journal) {
-  const witness = validateCurrentStateWitness(journal);
-  if (!witness.sourceConservation) return await journalMatchesCurrentState(root, journal);
-  const currentFrozen = await freezeGate5Set({ root });
-  assertGate5FrozenSet(currentFrozen);
-  const currentTypedByPath = new Map(gate5SourceConservationItems(currentFrozen).map((item) => [item.sourcePath, item]));
-  const plan = journal.entries.map((entry) => ({
-    action: "merge",
-    targetRel: entry.targetRel,
-    targetAbs: path.join(root, entry.targetRel)
-  }));
-  await validateTransactionRoot(root, plan, { createMissingRoot: false });
-  for (const entry of journal.entries) {
-    const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
-    if (!bytes || sha256(bytes) !== entry.afterHash) return false;
-  }
-  for (const entry of witness.sourceConservation?.entries ?? []) {
-    if (canRetireHistoricalEdge(entry, currentTypedByPath.get(entry.sourcePath))) {
-      continue;
-    }
-    const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
-    if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) return false;
-  }
-  return true;
-}
-
-async function findCloseoutFinalizeBase(root) {
-  const migrationsRoot = path.join(root, "dev", "governance_migrations");
-  let names;
-  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
-  const inspected = [];
-  const superseded = new Set();
-  for (const name of names) {
-    if (name === ".upgrade.lock") continue;
-    const journalPath = path.join(migrationsRoot, name, "transaction.json");
-    try {
-      const stats = await lstat(journalPath);
-      if (!stats.isFile() || stats.isSymbolicLink()) continue;
-      const journal = JSON.parse(await readFile(journalPath, "utf8"));
-      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
-      await validateRecoveryJournal(root, journal, journalPath);
-      inspected.push({ journal, journalPath });
-      for (const digest of journal.currentStateWitness.transaction.supersedesCurrentStateDigests ?? []) superseded.add(digest);
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
-    }
-  }
-  const records = [];
-  for (const item of inspected) {
-    const witness = validateCurrentStateWitness(item.journal);
-    const isSuperseded = superseded.has(witness.currentStateDigest);
-    const mismatches = await currentStateMismatches(root, item.journal, { allowHistoricalEdgeRetirement: isSuperseded });
-    const closeoutOnly = mismatches.every((mismatch) => isCloseoutFinalizeTarget(mismatch.path));
-    records.push({
-      ...item,
-      witness,
-      mismatches,
-      closeoutOnly,
-      isSuperseded,
-      additionalSupersedes: []
-    });
-  }
-  const current = records.filter((item) => !item.isSuperseded);
-  const illegal = current.filter((item) => item.mismatches.length > 0 && !item.closeoutOnly);
-  if (illegal.length > 0) return illegal.sort((left, right) => right.mismatches.length - left.mismatches.length)[0];
-
-  const staleStrong = current.filter((item) => item.mismatches.length > 0 && item.closeoutOnly && item.witness.sourceConservation);
-  const unsupportedStale = current.filter((item) => item.mismatches.length > 0 && item.closeoutOnly && !item.witness.sourceConservation);
-  if (staleStrong.length > 0 && unsupportedStale.length > 0) {
-    const digests = [...staleStrong, ...unsupportedStale].map(({ witness }) => witness.currentStateDigest).join(", ");
-    throw new Error(`multiple closeout-finalize stale witness authorities exist: ${digests}`);
-  }
-  if (staleStrong.length > 1) {
-    const digests = staleStrong.map(({ witness }) => witness.currentStateDigest).join(", ");
-    throw new Error(`multiple closeout-finalize candidate witnesses are stale: ${digests}`);
-  }
-  if (staleStrong.length === 1) {
-    return withAdditionalCloseoutSupersedes(staleStrong[0], current);
-  }
-
-  if (unsupportedStale.length > 0) {
-    if (unsupportedStale.length > 1) {
-      const digests = unsupportedStale.map(({ witness }) => witness.currentStateDigest).join(", ");
-      throw new Error(`multiple closeout-finalize unsupported stale witnesses exist: ${digests}`);
-    }
-    const bridged = closeoutFinalizeBridgeCandidates(records, unsupportedStale);
-    if (bridged.length === 1) return withAdditionalCloseoutSupersedes(bridged[0], current);
-    if (bridged.length > 1) {
-      const digests = bridged.map(({ witness }) => witness.currentStateDigest).join(", ");
-      throw new Error(`multiple closeout-finalize source-conservation bridge witnesses are stale: ${digests}`);
-    }
-    const digests = unsupportedStale.map(({ witness }) => witness.currentStateDigest).join(", ");
-    throw new Error(`post-upgrade current-state witness is stale but lacks source-conservation evidence for closeout finalize: ${digests}`);
-  }
-
-  const matching = current.filter((item) => item.mismatches.length === 0);
-  if (matching.length > 1) {
-    const digests = matching.map(({ witness }) => witness.currentStateDigest).join(", ");
-    throw new Error(`multiple committed journals match the current filesystem state; finalize-closeout refuses ambiguous current-state authority: ${digests}`);
-  }
-  return matching[0] ?? null;
-}
-
-function closeoutFinalizeBridgeCandidates(records, unsupportedStale) {
-  const byDigest = new Map(records.map((item) => [item.witness.currentStateDigest, item]));
-  const candidates = new Map();
-  for (const unsupported of unsupportedStale) {
-    const traced = traceCloseoutFinalizeBridge(unsupported, byDigest);
-    for (const candidate of traced) {
-      const existing = candidates.get(candidate.strong.witness.currentStateDigest) ?? { ...candidate.strong, additionalSupersedes: [] };
-      existing.additionalSupersedes.push(...candidate.weakChain);
-      candidates.set(candidate.strong.witness.currentStateDigest, existing);
-    }
-  }
-  return [...candidates.values()];
-}
-
-function traceCloseoutFinalizeBridge(start, byDigest) {
-  const candidates = new Map();
-  const visit = (record, weakChain, pathStack) => {
-    const digest = record.witness.currentStateDigest;
-    if (pathStack.includes(digest)) {
-      throw new Error(`cycle in closeout-finalize supersession chain: ${[...pathStack, digest].join(", ")}`);
-    }
-    if (record.mismatches.length > 0 && !record.closeoutOnly) {
-      throw new Error(`non-closeout drift in closeout-finalize supersession chain: ${record.mismatches.map((item) => item.path).join(", ")}`);
-    }
-    if (record.witness.sourceConservation) {
-      if (record.mismatches.length === 0) {
-        throw new Error(`closeout-finalize source-conservation bridge is not stale: ${digest}`);
-      }
-      candidates.set(digest, { strong: record, weakChain });
-      return;
-    }
-    const supersedes = record.witness.transaction.supersedesCurrentStateDigests ?? [];
-    if (supersedes.length === 0) {
-      throw new Error(`post-upgrade current-state witness is stale but has no source-conservation bridge: ${digest}`);
-    }
-    if (supersedes.length > 1) {
-      throw new Error(`branching closeout-finalize supersession chain: ${digest} -> ${supersedes.join(", ")}`);
-    }
-    for (const supersededDigest of supersedes) {
-      const next = byDigest.get(supersededDigest);
-      if (!next) {
-        throw new Error(`missing closeout-finalize supersession link: ${digest} -> ${supersededDigest}`);
-      }
-      visit(next, [...weakChain, digest], [...pathStack, digest]);
-    }
-  };
-  visit(start, [], []);
-  return [...candidates.values()];
-}
-
-function withAdditionalCloseoutSupersedes(base, current) {
-  const additional = current
-    .filter((item) => item.witness.currentStateDigest !== base.witness.currentStateDigest)
-    .filter((item) => !item.witness.sourceConservation)
-    .filter((item) => item.mismatches.length === 0 || item.closeoutOnly)
-    .map((item) => item.witness.currentStateDigest);
-  return {
-    ...base,
-    additionalSupersedes: [...new Set([...(base.additionalSupersedes ?? []), ...additional])]
-      .filter((digest) => digest !== base.witness.currentStateDigest)
-      .sort((left, right) => left.localeCompare(right))
-  };
-}
-
-async function currentStateMismatches(root, journal, options = {}) {
-  const witness = validateCurrentStateWitness(journal);
-  const mismatches = new Map();
-  let currentFrozen = null;
-  let currentTypedByPath = null;
-  if (witness.sourceConservation) {
-    currentFrozen = await freezeGate5Set({ root });
-    assertGate5FrozenSet(currentFrozen);
-    currentTypedByPath = new Map(gate5SourceConservationItems(currentFrozen).map((item) => [item.sourcePath, item]));
-  }
-  for (const entry of journal.entries) {
-    const bytes = await readOptionalBuffer(path.join(root, entry.targetRel));
-    if (!bytes || sha256(bytes) !== entry.afterHash) mismatches.set(entry.targetRel, { path: entry.targetRel, kind: "transaction-entry" });
-  }
-  for (const entry of witness.sourceConservation?.entries ?? []) {
-    if (options.allowHistoricalEdgeRetirement === true && canRetireHistoricalEdge(entry, currentTypedByPath.get(entry.sourcePath))) continue;
-    const bytes = await readOptionalBuffer(path.join(root, entry.sourcePath));
-    if (!bytes || sha256(bytes) !== entry.accepted.sha256 || bytes.length !== entry.accepted.bytes) {
-      mismatches.set(entry.sourcePath, { path: entry.sourcePath, kind: "source-conservation", sourceConservationEntry: entry });
-    }
-  }
-  if (witness.sourceConservation) {
-    const conserved = new Set(witness.sourceConservation.entries.map((entry) => entry.sourcePath));
-    for (const item of gate5SourceConservationItems(currentFrozen)) {
-      if (conserved.has(item.sourcePath) || isFinalizeJournalState(item.sourcePath)) continue;
-      mismatches.set(item.sourcePath, { path: item.sourcePath, kind: "new-source" });
-    }
-  }
-  return [...mismatches.values()].sort((left, right) => left.path.localeCompare(right.path));
-}
-
-async function findCurrentStateReconciliationBase(root, version) {
-  const migrationsRoot = path.join(root, "dev", "governance_migrations");
-  let names;
-  try { names = await readdir(migrationsRoot); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
-  const records = [];
-  const superseded = new Set();
-  for (const name of names) {
-    if (name === ".upgrade.lock") continue;
-    const journalPath = path.join(migrationsRoot, name, "transaction.json");
-    try {
-      const stats = await lstat(journalPath);
-      if (!stats.isFile() || stats.isSymbolicLink()) continue;
-      const journal = JSON.parse(await readFile(journalPath, "utf8"));
-      if (journal.state !== "committed" || !journal.currentStateWitness) continue;
-      await validateRecoveryJournal(root, journal, journalPath);
-      const witness = validateCurrentStateWitness(journal);
-      for (const digest of witness.transaction.supersedesCurrentStateDigests ?? []) superseded.add(digest);
-      records.push({ journal, journalPath, witness, matches: await journalMatchesCurrentState(root, journal) });
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
-    }
-  }
-  const stale = records
-    .filter((record) => !record.matches && record.witness.sourceConservation && !superseded.has(record.witness.currentStateDigest));
-  if (stale.length === 0) return null;
-  if (stale.length > 1) {
-    const digests = stale.map((record) => record.witness.currentStateDigest).join(", ");
-    throw new Error(`current-state reconciliation refuses ambiguous stale source-conservation authorities: ${digests}`);
-  }
-  const currentFrozen = await freezeGate5Set({ root });
-  assertGate5FrozenSet(currentFrozen);
-  const classified = await classifyCurrentStateReconciliationMismatches(root, stale[0].journal, currentFrozen);
-  const candidate = { ...stale[0], currentFrozen, ...classified };
-  if (candidate.illegal.length > 0 || candidate.reconcilable.length === 0) return candidate;
-  return await createCurrentStateReconciliationVerifiedPlan(root, version, candidate);
-}
-
-async function classifyCurrentStateReconciliationMismatches(root, journal, currentFrozen) {
-  const currentByPath = new Map(gate5SourceConservationItems(currentFrozen).map((item) => [item.sourcePath, item]));
-  const mismatches = await currentStateMismatches(root, journal);
-  const reconcilable = [];
-  const archive = [];
-  const illegal = [];
-  const archiveQualification = await qualifySessionLogArchive(root, currentFrozen);
-  for (const mismatch of mismatches) {
-    if (isCloseoutFinalizeTarget(mismatch.path)) {
-      reconcilable.push({ ...mismatch, reason: "legal closeout state readback" });
-      continue;
-    }
-    if (mismatchIsSessionLogArchiveDelta(mismatch, currentByPath.get(mismatch.path))) {
-      if (archiveQualification.ok) {
-        archive.push({ ...mismatch, reason: "qualified session-log archive maintenance readback" });
-      } else {
-        illegal.push({ ...mismatch, reason: archiveQualification.reason });
-      }
-      continue;
-    }
-    illegal.push({ ...mismatch, reason: currentStateReconciliationBlockReason(mismatch, currentByPath.get(mismatch.path)) });
-  }
-  return {
-    mismatches,
-    currentByPath,
-    archive,
-    archiveQualification,
-    reconcilable: [...reconcilable, ...archive].sort((left, right) => left.path.localeCompare(right.path)),
-    illegal
-  };
-}
-
-function mismatchIsSessionLogArchiveDelta(mismatch, currentItem) {
-  return Boolean(isSessionLogArchivePath(mismatch.path)
-    || sourceConservationEntryIsSessionLogArchive(mismatch.sourceConservationEntry)
-    || (currentItem?.classifications ?? []).some((classification) => ["session-log-archive", "legacy-session-log-archive"].includes(classification)));
-}
-
-async function qualifySessionLogArchive(root, currentFrozen) {
-  const archiveCasing = await checkSessionLogArchiveCasing(root);
-  if (!archiveCasing.ok) return { ok: false, reason: archiveCasing.finding, inventory: null };
-  const archiveRoot = path.join(root, canonicalSessionLogArchiveRoot);
-  const archiveStats = await lstat(archiveRoot).catch((error) => error?.code === "ENOENT" ? null : Promise.reject(error));
-  if (!archiveStats) return { ok: false, reason: "canonical session-log archive root is missing", inventory: null };
-  if (!archiveStats.isDirectory() || archiveStats.isSymbolicLink()) return { ok: false, reason: "canonical session-log archive root is not a safe real directory", inventory: null };
-  const rootReal = await realpath(root);
-  const archiveReal = await realpath(archiveRoot);
-  if (!isInside(rootReal, archiveReal)) return { ok: false, reason: "canonical session-log archive root resolves outside selected root", inventory: null };
-  const route = gate5SourceConservationItems(currentFrozen).find((item) => item.sourcePath === "dev/SESSION_LOG.md");
-  if (!sessionLogCloseoutRouteIsTypedKitContract(route)) {
-    return { ok: false, reason: "current non-archive SESSION_LOG closeout contract is not mechanically verifiable", inventory: null };
-  }
-  const inventory = await inventorySessionLogArchiveTree(root, archiveRoot, archiveReal);
-  const index = inventory.files.find((file) => file.path === "INDEX.md");
-  if (!index) return { ok: false, reason: "session-log archive INDEX.md is missing", inventory };
-  const indexText = await readFile(path.join(archiveRoot, "INDEX.md"), "utf8");
-  const listed = extractArchiveIndexBatchList(indexText);
-  if (listed.includes("INDEX.md")) return { ok: false, reason: "session-log archive INDEX.md must not self-reference", inventory };
-  const duplicates = listed.filter((item, indexOfItem) => listed.indexOf(item) !== indexOfItem);
-  if (duplicates.length > 0) return { ok: false, reason: `session-log archive INDEX.md has duplicate archive entries: ${[...new Set(duplicates)].join(", ")}`, inventory };
-  const actualArchiveItems = inventory.files
-    .map((file) => file.path)
-    .filter((filePath) => filePath !== "INDEX.md")
-    .sort((left, right) => left.localeCompare(right));
-  const listedSorted = [...listed].sort((left, right) => left.localeCompare(right));
-  if (JSON.stringify(actualArchiveItems) !== JSON.stringify(listedSorted)) {
-    return {
-      ok: false,
-      reason: `session-log archive INDEX/list mismatch: listed=${listedSorted.join(", ") || "none"} actual=${actualArchiveItems.join(", ") || "none"}`,
-      inventory
-    };
-  }
-  return {
-    ok: true,
-    reason: "canonical session-log archive inventory and INDEX are bidirectionally verified",
-    inventory: {
-      ...inventory,
-      indexSha256: index.sha256,
-      listedArchiveItems: listedSorted,
-      inventorySha256: sha256(Buffer.from(`${JSON.stringify({
-        root: canonicalSessionLogArchiveRoot,
-        directories: inventory.directories,
-        files: inventory.files,
-        listedArchiveItems: listedSorted
-      })}\n`, "utf8"))
-    }
-  };
-}
-
-function sessionLogCloseoutRouteIsTypedKitContract(route) {
-  return Boolean(route
-    && route.sourcePath === "dev/SESSION_LOG.md"
-    && directCloseoutStateTargetSet.has(route.sourcePath)
-    && route.packageContract?.targetRel === "dev/SESSION_LOG.md"
-    && route.classifications?.includes("managed-contract")
-    && !sourceConservationEntryIsSessionLogArchive({ classifications: route.classifications }));
-}
-
-async function inventorySessionLogArchiveTree(root, archiveRoot, archiveReal) {
-  const directories = [];
-  const files = [];
-  async function visit(currentAbs, relative) {
-    const entries = await readdir(currentAbs, { withFileTypes: true });
-    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-      const childAbs = path.join(currentAbs, entry.name);
-      const childRel = relative ? `${relative}/${entry.name}` : entry.name;
-      const stats = await lstat(childAbs);
-      if (stats.isSymbolicLink()) throw new Error(`${canonicalSessionLogArchiveRoot}/${childRel}: archive qualification rejects symbolic links, junctions, and reparse points`);
-      const childReal = await realpath(childAbs);
-      if (!isInside(archiveReal, childReal) || !isInside(root, childReal)) {
-        throw new Error(`${canonicalSessionLogArchiveRoot}/${childRel}: archive item resolves outside the canonical archive root`);
-      }
-      if (stats.isDirectory()) {
-        directories.push(childRel);
-        await visit(childAbs, childRel);
-      } else if (stats.isFile()) {
-        const bytes = await readFile(childAbs);
-        files.push({ path: childRel, sha256: sha256(bytes), bytes: bytes.length });
-      } else {
-        throw new Error(`${canonicalSessionLogArchiveRoot}/${childRel}: archive qualification accepts only regular files and directories`);
-      }
-    }
-  }
-  await visit(archiveRoot, "");
-  return {
-    root: canonicalSessionLogArchiveRoot,
-    directories: directories.sort((left, right) => left.localeCompare(right)),
-    files: files.sort((left, right) => left.path.localeCompare(right.path))
-  };
-}
-
-function extractArchiveIndexBatchList(indexText) {
-  const matches = [...indexText.matchAll(/\b([A-Za-z0-9._-]*archive[A-Za-z0-9._-]*\.md)\b/gu)]
-    .map((match) => match[1])
-    .filter((name) => !name.includes("/") && !name.includes("\\"));
-  return matches.sort((left, right) => left.localeCompare(right));
-}
-
-async function createCurrentStateReconciliationVerifiedPlan(root, version, candidate) {
-  const rootReal = await realpath(root);
-  const activeWitness = validateCurrentStateWitness(candidate.journal);
-  const currentByPath = new Map(gate5SourceConservationItems(candidate.currentFrozen).map((item) => [item.sourcePath, item]));
-  const transactionEntries = [];
-  for (const entry of activeWitness.entries) {
-    const current = await readOptionalBuffer(path.join(root, entry.targetRel));
-    if (!current) throw new Error(`${entry.targetRel}: cannot reconcile missing transaction target`);
-    const witness = { sha256: sha256(current), bytes: current.length };
-    transactionEntries.push({
-      targetRel: entry.targetRel,
-      existed: true,
-      beforeHash: witness.sha256,
-      afterHash: witness.sha256,
-      backupRel: null,
-      committed: false,
-      witness
-    });
-  }
-  const archiveReconcilePaths = new Set((candidate.archive ?? []).map((item) => item.path));
-  const oldSourceByPath = new Map((activeWitness.sourceConservation?.entries ?? []).map((entry) => [entry.sourcePath, entry]));
-  const sourceEntries = [];
-  for (const item of gate5SourceConservationItems(candidate.currentFrozen).filter((entry) => !isFinalizeJournalState(entry.sourcePath))) {
-    const entry = oldSourceByPath.get(item.sourcePath) ?? null;
-    const current = await readOptionalBuffer(path.join(root, item.sourcePath));
-    if (!current) throw new Error(`${item.sourcePath}: cannot reconcile missing source`);
-    const currentWitness = { sha256: sha256(current), bytes: current.length };
-    const priorAccepted = entry?.accepted ?? currentWitness;
-    const changedFromPrior = currentWitness.sha256 !== priorAccepted.sha256 || currentWitness.bytes !== priorAccepted.bytes;
-    const disposition = isCloseoutFinalizeTarget(item.sourcePath) && changedFromPrior
-      ? entry?.sourceOriginPath
-        ? "canonical-path-migration-closeout"
-        : "closeout-state-finalize"
-      : archiveReconcilePaths.has(item.sourcePath)
-        ? "session-log-archive-reconciliation"
-        : entry?.disposition ?? (item.classifications.includes("transaction-state") ? "retained-historical-state" : "unchanged-source");
-    sourceEntries.push({
-      sourcePath: item.sourcePath,
-      ...(entry?.sourceOriginPath && ["canonical-path-migration", "canonical-path-migration-closeout", "session-log-archive-reconciliation"].includes(disposition) ? { sourceOriginPath: entry.sourceOriginPath } : {}),
-      sourceWitness: currentWitness,
-      accepted: currentWitness,
-      sourceByteRanges: [{ start: 0, end: currentWitness.bytes, sha256: currentWitness.sha256 }],
-      disposition,
-      existingReaders: entry?.existingReaders ?? item.existingReaders.map((reader) => ({ reader: reader.reader, via: reader.via })),
-      priorityRelation: entry?.priorityRelation ?? item.priorityConflict.relation,
-      effectDecision: entry?.effectDecision ?? item.effect.decision,
-      classifications: entry?.classifications ?? [...item.classifications]
-    });
-  }
-  const deltas = [];
-  for (const item of candidate.reconcilable) {
-    const prior = item.sourceConservationEntry?.accepted ?? null;
-    const currentWitness = sourceEntries.find((entry) => entry.sourcePath === item.path)?.accepted
-      ?? transactionEntries.find((entry) => entry.targetRel === item.path)?.witness
-      ?? { missing: true };
-    const currentItem = currentByPath.get(item.path) ?? null;
-    deltas.push({
-      path: item.path,
-      kind: item.kind,
-      prior: prior ?? { missing: true },
-      current: currentWitness,
-      classification: currentItem?.classifications ?? item.sourceConservationEntry?.classifications ?? [],
-      existingReaders: currentItem?.existingReaders ?? item.sourceConservationEntry?.existingReaders ?? [],
-      priorityRelation: currentItem?.priorityConflict?.relation ?? item.sourceConservationEntry?.priorityRelation ?? null,
-      effectDecision: currentItem?.effect?.decision ?? item.sourceConservationEntry?.effectDecision ?? null,
-      reason: item.reason,
-      authority: mismatchIsSessionLogArchiveDelta(item, currentItem) ? "session-log-archive-qualification" : "legal-closeout-state-finalize",
-      archiveQualification: mismatchIsSessionLogArchiveDelta(item, currentItem)
-        ? {
-            ok: candidate.archiveQualification.ok,
-            reason: candidate.archiveQualification.reason,
-            inventorySha256: candidate.archiveQualification.inventory?.inventorySha256 ?? null
-          }
-        : null
-    });
-  }
-  const manifest = {
-    schemaVersion: 1,
-    command: "reconcile-current-state",
-    root: {
-      selected: path.resolve(root),
-      realpath: rootReal
-    },
-    toolVersion: version,
-    activeWitness: {
-      digest: activeWitness.currentStateDigest,
-      command: activeWitness.transaction.command,
-      attemptedVersion: activeWitness.transaction.attemptedVersion,
-      schemaVersion: activeWitness.schemaVersion
-    },
-    supersededWitnessDigests: activeWitness.transaction.supersedesCurrentStateDigests ?? [],
-    directCloseoutStateTargets,
-    archiveInventory: candidate.archiveQualification.inventory
-      ? {
-          root: canonicalSessionLogArchiveRoot,
-          inventorySha256: candidate.archiveQualification.inventory.inventorySha256,
-          indexSha256: candidate.archiveQualification.inventory.indexSha256,
-          files: candidate.archiveQualification.inventory.files,
-          directories: candidate.archiveQualification.inventory.directories,
-          listedArchiveItems: candidate.archiveQualification.inventory.listedArchiveItems
-        }
-      : null,
-    archiveQualification: {
-      ok: candidate.archiveQualification.ok,
-      reason: candidate.archiveQualification.reason
-    },
-    deltas: deltas.sort((left, right) => left.path.localeCompare(right.path))
-  };
-  return {
-    ...candidate,
-    transactionEntries,
-    sourceConservation: {
-      schemaVersion: activeWitness.sourceConservation.schemaVersion,
-      frozenSetSha256: candidate.currentFrozen.frozenSetSha256,
-      entries: sourceEntries.sort((left, right) => left.sourcePath.localeCompare(right.sourcePath))
-    },
-    manifest,
-    manifestSha256: sha256(Buffer.from(`${JSON.stringify(manifest)}\n`, "utf8"))
-  };
-}
-
-async function assertCurrentStateReconciliationVerifiedPlanStillCurrent(root, plan) {
-  const activeWitness = validateCurrentStateWitness(plan.journal);
-  if (activeWitness.currentStateDigest !== plan.manifest.activeWitness.digest) {
-    throw new Error("current-state reconciliation active witness changed before writes; no files written");
-  }
-  for (const entry of plan.transactionEntries) {
-    const current = await readOptionalBuffer(path.join(root, entry.targetRel));
-    if (!current || sha256(current) !== entry.afterHash || current.length !== entry.witness.bytes) {
-      throw new Error(`${entry.targetRel}: current-state reconciliation target changed before writes; no files written`);
-    }
-  }
-  for (const entry of plan.sourceConservation.entries) {
-    const current = await readOptionalBuffer(path.join(root, entry.sourcePath));
-    if (!current || sha256(current) !== entry.accepted.sha256 || current.length !== entry.accepted.bytes) {
-      throw new Error(`${entry.sourcePath}: current-state reconciliation source changed before writes; no files written`);
-    }
-  }
-}
-
-function currentStateReconciliationBlockReason(mismatch, currentItem) {
-  if (mismatch.kind === "transaction-entry") return "transaction entry is not a legal closeout target";
-  if (installedFileContract(mismatch.path)) return "installed Kit contract remains fail-closed";
-  if (isSessionLogArchivePath(mismatch.path)
-    || sourceConservationEntryIsSessionLogArchive(mismatch.sourceConservationEntry)
-    || currentItem?.classifications?.some((classification) => ["session-log-archive", "legacy-session-log-archive"].includes(classification))) {
-    return "session-log archive state remains fail-closed until the canonical archive group qualifies";
-  }
-  if (currentItem?.classifications?.some((classification) => ["managed-contract", "transaction-state", "legacy-session-log-archive", "session-log-archive"].includes(classification))) {
-    return "Kit-managed, transaction, or archive state remains fail-closed";
-  }
-  return "not a legal closeout or qualified session-log archive reconciliation entry";
-}
-
-async function writeCurrentStateReconciliationJournal(root, version, candidate, options = {}) {
-  const command = "reconcile-current-state";
-  const mode = "source-state-reconciliation";
-  const oldWitness = validateCurrentStateWitness(candidate.journal);
-  const retainedArchiveMigrations = oldWitness.archiveMigrations ?? [];
-  const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
-  const migrationsRoot = path.join(root, "dev", "governance_migrations");
-  const migrationDir = path.join(migrationsRoot, id);
-  const journalPath = path.join(migrationDir, "transaction.json");
-  const lockPath = path.join(migrationsRoot, ".upgrade.lock");
-  await mkdir(migrationDir, { recursive: true });
-  await tightenPermissions(migrationsRoot, 0o700);
-  await tightenPermissions(migrationDir, 0o700);
-
-  let journal = null;
-  let lockCreated = false;
-  let durableJournalPhase = null;
-  try {
-    journal = {
-      id,
-      command,
-      mode,
-      attemptedVersion: version,
-      committedVersion: null,
-      plannedSkips: 0,
-      host: hostname(),
-      pid: process.pid,
-      state: "prepared",
-      createdAt: new Date().toISOString(),
-      committedAt: null,
-      entries: candidate.transactionEntries.map(({ witness, ...entry }) => ({ ...entry })),
-      formalUserRules: null,
-      runtimeReadback: null,
-      runtimeAcceptance: null,
-      runtimeAcceptanceReadback: null,
-      sourceConservation: candidate.sourceConservation,
-      archiveMigrations: [],
-      supersedesCurrentStateDigests: [oldWitness.currentStateDigest],
-      currentStateWitness: null,
-      currentStateReadback: null,
-      reconciliationManifest: candidate.manifest,
-      reconciliationManifestSha256: candidate.manifestSha256
-    };
-    await writeSecureJson(journalPath, journal);
-    durableJournalPhase = "prepared";
-    if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_RECONCILE_PREPARED_JOURNAL === "1") {
-      throw new Error("QA generic failure after reconcile prepared journal");
-    }
-
-    if (process.env.AGENT_HANDOFF_KIT_QA_CREATE_FOREIGN_RECONCILE_LOCK_BEFORE_LOCK === "1") {
-      await publishTransactionLock(root, lockPath, {
-        id: `qa-owner-${id}`,
-        host: hostname(),
-        pid: process.pid,
-        journal: path.relative(root, journalPath),
-        command: "qa-owner-lock"
-      });
-    }
-    await publishTransactionLock(root, lockPath, { id, host: hostname(), pid: process.pid, journal: path.relative(root, journalPath), command });
-    lockCreated = true;
-    if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_RECONCILE_LOCK === "1"
-      || process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_RECONCILE_LOCK === "1") {
-      throw new Error("QA generic failure after reconcile lock with prepared journal");
-    }
-
-    journal.entries = journal.entries.map((entry) => ({ ...entry, committed: true }));
-    journal.state = "committed";
-    journal.committedVersion = version;
-    journal.committedAt = new Date().toISOString();
-    journal.archiveMigrations = retainedArchiveMigrations;
-    journal.currentStateWitness = createCurrentStateWitness(journal);
-    await writeSecureJson(journalPath, journal);
-    durableJournalPhase = "committed";
-    if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_RECONCILE_COMMITTED_JOURNAL === "1"
-      || process.env.AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_RECONCILE_JOURNAL_COMMIT === "1") {
-      throw new Error("QA generic failure after committed reconcile journal");
-    }
-    if (!await journalMatchesCurrentState(root, journal)) {
-      throw new Error("post-reconciliation current-state readback failed; reconciliation journal retained for inspection");
-    }
-    journal.currentStateReadback = currentStateReadbackFromVerifiedProjectBytes(journal.currentStateWitness);
-    await writeSecureJson(journalPath, journal);
-    await writeCurrentStateReconciliationReport({ root, migrationDir, journal, reconciledPaths: candidate.reconcilable.map((item) => item.path) });
-    if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_AFTER_RECONCILE_REPORT === "1") {
-      throw new Error("QA generic failure after reconcile report");
-    }
-    if (process.env.AGENT_HANDOFF_KIT_QA_FAIL_BEFORE_RECONCILE_UNLOCK === "1") {
-      throw new Error("QA generic failure before reconcile unlock");
-    }
-    await unlinkIfExists(lockPath);
-    lockCreated = false;
-    return { journalPath, journal };
-  } catch (error) {
-    if (lockCreated && durableJournalPhase) throw error;
-    if (!lockCreated && durableJournalPhase === "prepared" && journal) {
-      journal.state = "rolled-back";
-      journal.rollbackAt = new Date().toISOString();
-      journal.recoveryConflicts = [];
-      await writeSecureJson(journalPath, journal).catch(() => {});
-    }
-    throw error;
-  }
-}
-
-async function writeCloseoutFinalizeJournal(root, version, prior) {
-  const oldWitness = validateCurrentStateWitness(prior.journal);
-  const supersedesCurrentStateDigests = [...new Set([
-    oldWitness.currentStateDigest,
-    ...(prior.additionalSupersedes ?? [])
-  ])].sort((left, right) => left.localeCompare(right));
-  const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
-  const migrationsRoot = path.join(root, "dev", "governance_migrations");
-  const migrationDir = path.join(migrationsRoot, id);
-  const backupDir = path.join(migrationDir, "backup");
-  const stageDir = path.join(migrationDir, "stage");
-  const journalPath = path.join(migrationDir, "transaction.json");
-  const lockPath = path.join(migrationsRoot, ".upgrade.lock");
-  await mkdir(backupDir, { recursive: true });
-  await mkdir(stageDir, { recursive: true });
-  await tightenPermissions(migrationsRoot, 0o700);
-  await tightenPermissions(migrationDir, 0o700);
-  await publishTransactionLock(root, lockPath, { id, host: hostname(), pid: process.pid, journal: path.relative(root, journalPath), command: "finalize-closeout" });
-
-  try {
-    const priorEntryByTarget = new Map(prior.journal.entries.map((entry) => [entry.targetRel, entry]));
-    const entries = [];
-    for (const oldEntry of oldWitness.entries) {
-      const targetRel = oldEntry.targetRel;
-      const current = await readOptionalBuffer(path.join(root, targetRel));
-      if (!current) throw new Error(`${targetRel}: cannot finalize missing closeout target`);
-      const previous = await readPriorAcceptedBytes(root, prior.journalPath, priorEntryByTarget.get(targetRel), oldEntry.afterHash);
-      const backupRel = path.relative(root, path.join(backupDir, targetRel)).replaceAll("\\", "/");
-      await writeJournalFile(backupDir, targetRel, previous);
-      await writeJournalFile(stageDir, targetRel, current);
-      entries.push({
-        targetRel,
-        existed: true,
-        beforeHash: sha256(previous),
-        afterHash: sha256(current),
-        backupRel,
-        committed: true
-      });
-    }
-
-    const currentFrozen = oldWitness.sourceConservation ? await freezeGate5Set({ root }) : null;
-    if (currentFrozen) assertGate5FrozenSet(currentFrozen);
-    const oldSourceByPath = new Map((oldWitness.sourceConservation?.entries ?? []).map((entry) => [entry.sourcePath, entry]));
-    const sourceConservation = oldWitness.sourceConservation
-      ? {
-          schemaVersion: oldWitness.sourceConservation.schemaVersion,
-          frozenSetSha256: currentFrozen.frozenSetSha256,
-          entries: await Promise.all(gate5SourceConservationItems(currentFrozen)
-            .filter((item) => !isFinalizeJournalState(item.sourcePath))
-            .map(async (item) => {
-            const entry = oldSourceByPath.get(item.sourcePath) ?? null;
-            const current = await readOptionalBuffer(path.join(root, item.sourcePath));
-            if (!current) throw new Error(`${item.sourcePath}: cannot finalize missing source`);
-            const currentWitness = { sha256: sha256(current), bytes: current.length };
-            const sourceWitness = entry?.accepted ?? currentWitness;
-            const changed = currentWitness.sha256 !== sourceWitness.sha256 || currentWitness.bytes !== sourceWitness.bytes;
-            return {
-              sourcePath: item.sourcePath,
-              ...(entry?.sourceOriginPath ? { sourceOriginPath: entry.sourceOriginPath } : {}),
-              sourceWitness,
-              accepted: currentWitness,
-              sourceByteRanges: [{ start: 0, end: sourceWitness.bytes, sha256: sourceWitness.sha256 }],
-              disposition: isCloseoutFinalizeTarget(item.sourcePath) && changed
-                ? entry?.sourceOriginPath
-                  ? "canonical-path-migration-closeout"
-                  : "closeout-state-finalize"
-                : entry?.disposition ?? (item.classifications.includes("transaction-state") ? "retained-historical-state" : "unchanged-source"),
-              existingReaders: entry?.existingReaders ?? item.existingReaders.map((reader) => ({ reader: reader.reader, via: reader.via })),
-              priorityRelation: entry?.priorityRelation ?? item.priorityConflict.relation,
-              effectDecision: entry?.effectDecision ?? item.effect.decision,
-              classifications: entry?.classifications ?? [...item.classifications]
-            };
-          }))
-        }
-      : null;
-
-    const journal = {
-      id,
-      command: "finalize-closeout",
-      mode: "stateful-closeout",
-      attemptedVersion: version,
-      committedVersion: version,
-      plannedSkips: 0,
-      host: hostname(),
-      pid: process.pid,
-      state: "committed",
-      createdAt: new Date().toISOString(),
-      committedAt: new Date().toISOString(),
-      entries,
-      formalUserRules: null,
-      runtimeReadback: null,
-      runtimeAcceptance: null,
-      runtimeAcceptanceReadback: null,
-      sourceConservation,
-      archiveMigrations: oldWitness.archiveMigrations ?? [],
-      supersedesCurrentStateDigests,
-      currentStateWitness: null,
-      currentStateReadback: null
-    };
-    journal.currentStateWitness = createCurrentStateWitness(journal);
-    journal.currentStateReadback = currentStateReadbackFromDoctorStates(journal.currentStateWitness, null, null);
-    await writeSecureJson(journalPath, journal);
-    await writeFile(path.join(migrationDir, "migration-report.md"), [
-      "# Agent Handoff Kit Closeout Finalize Report",
-      "",
-      `- Command: finalize-closeout`,
-      `- Attempted version: ${version}`,
-      `- Supersedes current-state digest: ${supersedesCurrentStateDigests.join(", ")}`,
-      `- Current-state digest: ${journal.currentStateWitness.currentStateDigest}`,
-      `- Finalized paths: ${prior.mismatches.map((item) => item.path).join(", ") || "none"}`,
-      ""
-    ].join("\n"), { mode: 0o600 });
-    await unlinkIfExists(lockPath);
-    return { journalPath, journal };
-  } catch (error) {
-    await unlinkIfExists(lockPath).catch(() => {});
-    throw error;
-  }
-}
-
-async function readPriorAcceptedBytes(root, priorJournalPath, priorEntry, expectedHash) {
-  if (priorEntry) {
-    const stageBytes = await readOptionalBuffer(path.join(path.dirname(priorJournalPath), "stage", priorEntry.targetRel));
-    if (stageBytes && sha256(stageBytes) === expectedHash) return stageBytes;
-  }
-  const current = await readOptionalBuffer(path.join(root, priorEntry?.targetRel ?? ""));
-  if (current && sha256(current) === expectedHash) return current;
-  throw new Error(`cannot reconstruct prior accepted bytes for closeout finalize: ${priorEntry?.targetRel ?? "unknown"}`);
-}
-
-async function writeJournalFile(base, targetRel, bytes) {
-  const filePath = path.join(base, targetRel);
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, bytes, { mode: 0o600 });
-}
-
-function isCloseoutFinalizeTarget(relative) {
-  return directCloseoutStateTargetSet.has(relative);
-}
-
-function isFinalizeJournalState(relative) {
-  return relative.startsWith("dev/governance_migrations/");
-}
-
-function isSessionLogArchivePath(relative) {
-  return relative === canonicalSessionLogArchiveRoot
-    || relative.startsWith(`${canonicalSessionLogArchiveRoot}/`)
-    || relative === legacySessionLogArchiveRoot
-    || relative.startsWith(`${legacySessionLogArchiveRoot}/`);
-}
-
-function sourceConservationEntryIsSessionLogArchive(entry) {
-  return Boolean(entry
-    && Array.isArray(entry.classifications)
-    && entry.classifications.some((classification) => ["session-log-archive", "legacy-session-log-archive"].includes(classification)));
-}
-
-async function checkRuntimeAcceptance(root, options = {}) {
-  const witness = options.expectedRuntimeAcceptance ?? null;
-  if (!witness) return { ok: true, checked: 0, finding: null, state: null };
-  try {
-    const state = await readRuntimeAcceptance(root, witness, { allowActiveTransaction: options.allowActiveTransaction === true });
-    if (typeof options.captureRuntimeAcceptance === "function") options.captureRuntimeAcceptance(state);
-    return { ok: true, checked: 1, finding: null, state };
-  } catch (error) {
-    return { ok: false, checked: 1, finding: String(error?.message ?? error), state: null };
-  }
-}
-
-function runtimeAcceptanceReadbackFromDoctorState(state, witness) {
-  if (!state || state.acceptanceDigest !== witness.acceptanceDigest || state.entries.length !== witness.entries.length) {
-    throw new Error("runtime acceptance doctor readback does not match the transaction witness");
-  }
-  for (let index = 0; index < witness.entries.length; index += 1) {
-    const expected = witness.entries[index];
-    const actual = state.entries[index];
-    if (actual.targetRel !== expected.targetRel || actual.sha256 !== expected.accepted.sha256 || actual.bytes !== expected.accepted.bytes
-      || actual.disposition !== expected.disposition || actual.priorityRelation !== expected.priorityRelation || actual.effectDecision !== expected.effectDecision
-      || JSON.stringify(actual.activeReader) !== JSON.stringify(expected.activeReader)) {
-      throw new Error("runtime acceptance doctor readback order, route, metadata, or effect differs from the transaction witness");
-    }
-  }
-  const hasDirectAgents = witness.entries.some((entry) => entry.targetRel === "AGENTS.md");
-  const hasDirectRulePacks = witness.entries.some((entry) => entry.targetRel === "dev/RULE_PACKS.md");
-  const hasDirectStateful = witness.entries.some((entry) => directStatefulTargets.has(entry.targetRel));
-  return {
-    reader: hasDirectStateful
-      ? `doctor ${runtimeAcceptanceSurfaceLabel(witness)}`
-      : hasDirectAgents && hasDirectRulePacks
-      ? "doctor direct AGENTS and RULE_PACKS formal-entry runtime acceptance check"
-      : hasDirectAgents
-        ? "doctor direct AGENTS formal-entry runtime acceptance check"
-        : hasDirectRulePacks
-          ? "doctor AGENTS -> direct RULE_PACKS formal-entry runtime acceptance check"
-          : "doctor AGENTS -> RULE_PACKS runtime acceptance check",
-    acceptanceDigest: state.acceptanceDigest,
-    entries: state.entries.map((entry) => ({ targetRel: entry.targetRel, sha256: entry.sha256, bytes: entry.bytes, disposition: entry.disposition }))
-  };
-}
-
-function currentStateReadbackFromDoctorStates(witness, formalState, runtimeAcceptanceState) {
-  const accepted = validateCurrentStateWitnessValue(witness);
-  const formalReadback = accepted.formalUserRules
-    ? formalUserRulesReadbackFromDoctorState(formalState, accepted.formalUserRules)
-    : null;
-  const runtimeReadback = accepted.runtimeAcceptance
-    ? runtimeAcceptanceReadbackFromDoctorState(runtimeAcceptanceState, accepted.runtimeAcceptance)
-    : null;
-  return {
-    reader: "doctor shared current-state witness check",
-    currentStateDigest: accepted.currentStateDigest,
-    sourceConservationEntryCount: accepted.sourceConservation?.entries.length ?? 0,
-    formalUserRulesAcceptanceDigest: formalReadback?.acceptanceDigest ?? null,
-    runtimeAcceptanceDigest: runtimeReadback?.acceptanceDigest ?? null,
-    formalUserRules: formalReadback,
-    runtimeAcceptance: runtimeReadback
-  };
-}
-
-function currentStateReadbackFromVerifiedProjectBytes(witness) {
-  const accepted = validateCurrentStateWitnessValue(witness);
-  return {
-    reader: "current-state project byte readback",
-    currentStateDigest: accepted.currentStateDigest,
-    sourceConservationEntryCount: accepted.sourceConservation?.entries.length ?? 0,
-    formalUserRulesAcceptanceDigest: accepted.formalUserRules?.acceptanceDigest ?? null,
-    runtimeAcceptanceDigest: accepted.runtimeAcceptance?.acceptanceDigest ?? null,
-    formalUserRules: null,
-    runtimeAcceptance: null
-  };
-}
-
-function validateCurrentStateReadback(value, witness, options = {}) {
-  if (value == null) return null;
-  const projectByteReaderAllowed = options.allowProjectByteReader === true;
-  const readerAllowed = value.reader === "doctor shared current-state witness check"
-    || (projectByteReaderAllowed && value.reader === "current-state project byte readback");
-  if (!value || typeof value !== "object" || Array.isArray(value)
-    || !readerAllowed
-    || value.currentStateDigest !== witness.currentStateDigest
-    || (witness.sourceConservation && value.sourceConservationEntryCount !== witness.sourceConservation.entries.length)
-    || (!witness.sourceConservation && value.sourceConservationEntryCount != null && value.sourceConservationEntryCount !== 0)
-    || value.formalUserRulesAcceptanceDigest !== (witness.formalUserRules?.acceptanceDigest ?? null)
-    || value.runtimeAcceptanceDigest !== (witness.runtimeAcceptance?.acceptanceDigest ?? null)) {
-    throw new Error("shared current-state readback is detached from the accepted witness; no recovery writes attempted");
-  }
-  return value;
 }
 
 async function checkFormalUserRules(root, options = {}) {
@@ -6254,14 +3503,6 @@ function selectTrustedOfficialBaseline(context) {
   return !contradiction && baselineSupport >= 2 ? version : null;
 }
 
-function isUncatalogedHistoricalBaseline(context) {
-  const version = context.rootTemplateVersion;
-  return isStableSemver(version)
-    && isStableSemver(context.currentVersion)
-    && compareSemver(version, context.currentVersion) < 0
-    && !context.officialCatalog?.releases?.[version];
-}
-
 function trustedOfficialOrigin(targetRel, context) {
   const origin = context.officialOrigins?.get(targetRel);
   if (!origin) return null;
@@ -6307,11 +3548,9 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   const base = { sourceRel, targetRel, sourceAbs, targetAbs };
   if (targetText.replace(/\r\n/g, "\n") === sourceText.replace(/\r\n/g, "\n") && targetRel !== "AGENTS.md") return { ...base, action: "skip", reason: "already current" };
   if (targetRel === "AGENTS.md") {
-    // R-034 Gate 5: marker shape, titles, and pathname are never ownership
-    // evidence. An upgrade may replace the AGENTS core only when the whole
-    // current file has exact package identity. A known legacy base with any
-    // non-exact bytes remains the direct formal entry, so preserve the entire
-    // file as one accepted range rather than trying to infer a managed slice.
+    // Marker shape, titles, and pathname are never ownership evidence. Exact
+    // official bytes may be replaced; otherwise current managed-core structure
+    // decides whether a bounded merge is possible.
     if (command === "upgrade") {
       const officialOrigin = trustedOfficialOrigin(targetRel, context);
       if (officialOrigin) {
@@ -6359,41 +3598,6 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
           reason: "replace only the artifact-bound exact AGENTS core; reconstruct and preserve every surrounding byte"
         };
       }
-      if (context.trustedBaselineVersion) {
-        const baselineRecord = getOfficialBaseline({
-          version: context.trustedBaselineVersion,
-          targetRel,
-          catalog: context.officialCatalog
-        });
-        if (baselineRecord?.state === "present") {
-          return {
-            ...base,
-            action: "preserve",
-            preservedRuntimeItem: {
-              disposition: "preserve",
-              targetRel,
-              sourceIdentity: { version: context.trustedBaselineVersion, packageTarget: targetRel },
-              conflictDecision: "non-exact-package-bytes",
-              preservationKind: "whole-file-direct-agents"
-            },
-            reason: "AGENTS.md is not exact official package content; preserve its complete original bytes and direct formal-entry effect in the same transaction acceptance/readback"
-          };
-        }
-      }
-      if (isUncatalogedHistoricalBaseline(context)) {
-        return {
-          ...base,
-          action: "preserve",
-          preservedRuntimeItem: {
-            disposition: "preserve",
-            targetRel,
-            sourceIdentity: { declaredVersion: context.rootTemplateVersion, packageTarget: targetRel, trust: "uncataloged-historical-version-not-replacement-authority" },
-            conflictDecision: "non-exact-package-bytes",
-            preservationKind: "whole-file-direct-agents"
-          },
-          reason: "AGENTS.md is non-exact content from an uncataloged historical version; root metadata is not replacement authority, so preserve complete bytes and direct formal-entry effect"
-        };
-      }
     }
     const health = assessAgentsMdHealth(targetText);
     if (health.state === "conflict") {
@@ -6434,57 +3638,6 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       mergedText: mergeManagedBlock(targetText, sourceText)
     };
   }
-  // Root/version-generated state has no stable catalog raw hash after fresh
-  // init. A normalized or canonical match is evidence for baseline selection,
-  // never byte-for-byte replacement authority. Preserve it whole until its
-  // direct reader/effect has been fresh-read through the shared acceptance.
-  if (command === "upgrade" && directStatefulTargets.has(targetRel) && context.trustedBaselineVersion) {
-    const baselineRecord = getOfficialBaseline({
-      version: context.trustedBaselineVersion,
-      targetRel,
-      catalog: context.officialCatalog
-    });
-    if (baselineRecord?.state === "present") {
-      const projectIndexGovernanceCurrent = targetRel === "dev/PROJECT_INDEX.md"
-        ? mergeProjectIndexGovernanceSections(targetText, sourceText) === targetText
-        : true;
-      if (targetRel === "dev/PROJECT_INDEX.md" && !projectIndexGovernanceCurrent) {
-        // PROJECT_INDEX metadata-only transition is safe only after the
-        // existing governance section owner says the structure is current.
-        // Older exact or CRLF-only indexes that still need section migration
-        // must continue to the normal PROJECT_INDEX merge/replacement path.
-      } else {
-      return {
-        ...base,
-        action: "preserve",
-        preservedRuntimeItem: {
-          disposition: "preserve",
-          targetRel,
-          sourceIdentity: { version: context.trustedBaselineVersion, packageTarget: targetRel },
-          conflictDecision: "non-exact-package-bytes",
-          preservationKind: "whole-file-direct-stateful"
-        },
-        reason: targetRel === "dev/SESSION_LOG.md"
-          ? "dev/SESSION_LOG.md is not exact official package content; preserve its complete original bytes and AGENTS direct formal reader in the same transaction acceptance/readback"
-          : `${targetRel} has no exact historical raw-byte identity after root/version initialization; preserve its complete original bytes and direct formal reader/effect in the same transaction acceptance/readback`
-      };
-      }
-    }
-  }
-  if (command === "upgrade" && directStatefulTargets.has(targetRel) && isUncatalogedHistoricalBaseline(context)) {
-    return {
-      ...base,
-      action: "preserve",
-      preservedRuntimeItem: {
-        disposition: "preserve",
-        targetRel,
-        sourceIdentity: { declaredVersion: context.rootTemplateVersion, packageTarget: targetRel, trust: "uncataloged-historical-version-not-replacement-authority" },
-        conflictDecision: "non-exact-package-bytes",
-        preservationKind: "whole-file-direct-stateful"
-      },
-      reason: `${targetRel} is non-exact historical state with no catalog raw-byte identity; root metadata is not replacement authority, so preserve complete bytes and direct formal reader/effect in the same transaction acceptance/readback`
-    };
-  }
   if (targetRel === "dev/PROJECT_INDEX.md" && command === "upgrade") {
     const mergedProjectIndex = mergeProjectIndexGovernanceSections(targetText, sourceText);
     if (!mergedProjectIndex) {
@@ -6503,6 +3656,26 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
     return { ...base, action: "skip", reason: "PROJECT_INDEX.md governance sections current and structurally unique" };
+  }
+  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade") {
+    const migratedHandoff = migrateSessionHandoff(targetText, sourceText, context);
+    if (!migratedHandoff) {
+      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md lacks unique trusted state/opening boundaries; migration stopped without replacing project state" };
+    }
+    if (migratedHandoff.replace(/\r\n/g, "\n") !== targetText.replace(/\r\n/g, "\n")) {
+      return { ...base, action: "merge", reason: "update handoff lifecycle/startup contracts while preserving current project state", mergedText: migratedHandoff };
+    }
+    return { ...base, action: "skip", reason: "SESSION_HANDOFF.md lifecycle and startup contracts current" };
+  }
+  if (targetRel === "dev/SESSION_LOG.md" && command === "upgrade") {
+    const migratedLog = migrateSessionLog(targetText, sourceText);
+    if (!migratedLog) {
+      return { ...base, action: "conflict", reason: "SESSION_LOG.md lacks a unique trusted entry-template boundary; migration stopped without replacing trace history" };
+    }
+    if (migratedLog !== targetText) {
+      return { ...base, action: "merge", reason: "update only the trusted current log preamble/template while preserving every historical trace entry", mergedText: migratedLog };
+    }
+    return { ...base, action: "skip", reason: "SESSION_LOG.md trace/template boundary current" };
   }
   const officialOrigin = command === "upgrade" ? trustedOfficialOrigin(targetRel, context) : null;
   if (officialOrigin) {
@@ -6529,28 +3702,6 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   // user-added rows. Missing maintainer rows are merged into the existing table
   // instead of replacing the whole file.
   if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade") {
-    const officialOrigin = trustedOfficialOrigin(targetRel, context);
-    if (!officialOrigin && context.trustedBaselineVersion) {
-      const baselineRecord = getOfficialBaseline({
-        version: context.trustedBaselineVersion,
-        targetRel,
-        catalog: context.officialCatalog
-      });
-      if (baselineRecord?.state === "present") {
-        return {
-          ...base,
-          action: "preserve",
-          preservedRuntimeItem: {
-            disposition: "preserve",
-            targetRel,
-            sourceIdentity: { version: context.trustedBaselineVersion, packageTarget: targetRel },
-            conflictDecision: "non-exact-package-bytes",
-            preservationKind: "whole-file-direct-rule-packs"
-          },
-          reason: "RULE_PACKS.md is not exact official package content; preserve its complete original bytes and AGENTS -> RULE_PACKS reader/effect in the same transaction acceptance/readback"
-        };
-      }
-    }
     const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
     if (!mergedRulePacks) {
       return { ...base, action: "conflict", reason: "RULE_PACKS.md must contain one valid routing table; marked official rows and local rows could not be separated safely" };
@@ -6564,46 +3715,6 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       };
     }
     return { ...base, action: "skip", reason: "official marked routes current; local rows preserved" };
-  }
-  if (targetRel === "dev/SESSION_HANDOFF.md" && command === "upgrade") {
-    const migratedHandoff = migrateSessionHandoff(targetText, sourceText, context);
-    if (!migratedHandoff) {
-      return { ...base, action: "conflict", reason: "SESSION_HANDOFF.md lacks unique trusted state/opening boundaries; migration stopped without replacing project state" };
-    }
-    if (migratedHandoff.replace(/\r\n/g, "\n") !== targetText.replace(/\r\n/g, "\n")) {
-      return { ...base, action: "merge", reason: "update handoff lifecycle/startup contracts while preserving current project state", mergedText: migratedHandoff };
-    }
-    return { ...base, action: "skip", reason: "SESSION_HANDOFF.md lifecycle and startup contracts current" };
-  }
-  if (targetRel === "dev/SESSION_LOG.md" && command === "upgrade") {
-    const migratedLog = migrateSessionLog(targetText, sourceText);
-    if (!migratedLog) {
-      return { ...base, action: "conflict", reason: "SESSION_LOG.md lacks a unique trusted entry-template boundary; migration stopped without replacing trace history" };
-    }
-    if (migratedLog !== targetText) {
-      return { ...base, action: "merge", reason: "update only the trusted current log preamble/template while preserving every historical trace entry", mergedText: migratedLog };
-    }
-    return { ...base, action: "skip", reason: "SESSION_LOG.md trace/template boundary current" };
-  }
-  if (command === "upgrade" && installedFileContract(targetRel)?.strategy === "rule-pack" && context.trustedBaselineVersion) {
-    const baselineRecord = getOfficialBaseline({
-      version: context.trustedBaselineVersion,
-      targetRel,
-      catalog: context.officialCatalog
-    });
-    if (baselineRecord?.state === "present") {
-      return {
-        ...base,
-        action: "preserve",
-        preservedRuntimeItem: {
-          disposition: "preserve",
-          targetRel,
-          sourceIdentity: { version: context.trustedBaselineVersion, packageTarget: targetRel },
-          conflictDecision: "non-exact-package-bytes"
-        },
-        reason: `${targetRel} is not exact official package content; preserve its original bytes in the existing runtime route and include that route in the same transaction acceptance/readback`
-      };
-    }
   }
   // Governance bridge v0.3.27+: add the triggered review workflow to the
   // agent-governance pack only when the pack still has a trusted Checks section.
@@ -6676,13 +3787,13 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
   if (command === "upgrade" && hasAnchorRepairMarkerDrift(targetText)) {
     return { ...base, action: "conflict", reason: "legacy anchor repair block markers are incomplete or obsolete; manual semantic cleanup required before upgrade can safely continue" };
   }
-  if (command === "upgrade" && hasMisplacedRequiredAnchor(targetRel, targetText)) {
-    return { ...base, action: "conflict", reason: "required Kit anchors are present outside trusted semantic sections; upgrade stopped to avoid accepting naked anchor text as valid state" };
-  }
-  if (command === "upgrade" && hasMissingRequiredAnchor(targetRel, targetText)) {
+  if (command === "upgrade" && (hasMissingRequiredAnchor(targetRel, targetText) || hasMisplacedRequiredAnchor(targetRel, targetText))) {
     const semanticRepair = mergeMissingRequiredAnchorsSemantically(targetRel, targetText, sourceText);
     if (semanticRepair) {
       return { ...base, ...semanticRepair };
+    }
+    if (hasMisplacedRequiredAnchor(targetRel, targetText)) {
+      return { ...base, action: "conflict", reason: "required Kit anchors are present outside trusted semantic sections; upgrade stopped to avoid accepting naked anchor text as valid state" };
     }
     return { ...base, action: "conflict", reason: "required Kit anchors are missing but no safe semantic repair path exists; upgrade stopped without appending naked anchor text" };
   }
@@ -6893,7 +4004,6 @@ function missingRequiredAnchorSnippets(targetRel, targetText) {
   return [...new Set(requiredAnchors
     .filter((rule) => rule.target === targetRel)
     .flatMap((rule) => requiredAnchorFailures(rule, targetText)
-      .filter((failure) => failure.kind === "missing")
       .map((failure) => failure.snippet)))];
 }
 
@@ -7430,7 +4540,6 @@ function mergeSafetyRulesByMissingAnchors(targetText, sourceText, missing) {
     if (!ruleNumber) return null;
     const targetIndex = targetLines.findIndex((line, index) => index >= targetRuleStart && line.startsWith(`${ruleNumber}. `));
     if (targetIndex < 0) return null;
-    if (!sameRuleShape(targetLines[targetIndex], sourceLine, snippet)) return null;
     targetLines[targetIndex] = sourceLine;
     changed = true;
   }
@@ -7505,17 +4614,6 @@ function hasTrustedSafetyPackShape(text) {
     && text.includes("## Scope")
     && Boolean(sectionBounds(text, "## Rules", "## Checks"))
     && text.includes("## Closeout");
-}
-
-function sameRuleShape(targetLine, sourceLine, snippet) {
-  const snippetIndex = sourceLine.indexOf(snippet);
-  if (snippetIndex < 0) return false;
-  const prefix = sourceLine.slice(0, snippetIndex);
-  const suffix = sourceLine.slice(snippetIndex + snippet.length);
-  return prefix.length >= 12
-    && suffix.length >= 8
-    && targetLine.startsWith(prefix)
-    && targetLine.endsWith(suffix);
 }
 
 function safetyAnchorHasTrustedRuleShape(text, snippet) {
@@ -8777,16 +5875,12 @@ Usage:
   agent-handoff-kit upgrade [--dry-run] [--yes] [--root <path>]
   agent-handoff-kit doctor [--root <path>]
   agent-handoff-kit closeout-status [--root <path>]
-  agent-handoff-kit finalize-closeout [--root <path>]
-  agent-handoff-kit reconcile-current-state [--dry-run] [--yes] --manifest <sha256> [--root <path>]
 
 Commands:
   init      Plan or install missing core files and rule packs.
   upgrade   Preserve existing files; merge safe core updates or report conflicts.
   doctor    Check required installed files.
   closeout-status  Render the state-bound closeout card after a full closeout.
-  finalize-closeout  Bind legal post-upgrade closeout state edits before doctor.
-  reconcile-current-state  Bind intentional current-state source changes without overwriting project files.
 
 中文速讀：
   ✅ 第一次用：先在項目資料夾執行 init。

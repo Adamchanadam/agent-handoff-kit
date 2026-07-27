@@ -2,7 +2,7 @@
 
 English: [README.en.md](README.en.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-原始碼套件版本：`v0.3.53`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
+原始碼套件版本：`v0.3.54`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">

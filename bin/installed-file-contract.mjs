@@ -1,6 +1,7 @@
-// Single source of truth for the historical files Agent Handoff Kit installs
-// and upgrades. Fresh-only files are declared separately so their new path
-// cannot silently become legacy ownership or upgrade evidence.
+// Single source of truth for the current file lifecycle Agent Handoff Kit
+// installs and upgrades. Fresh-only files are declared separately so their
+// path cannot silently become current lifecycle authority before that route is
+// explicitly present.
 
 export const INSTALLED_FILE_CONTRACT_SCHEMA = 1;
 
@@ -33,9 +34,8 @@ export const installedMappings = Object.freeze(
 );
 
 // The router is installed on fresh roots, but is not evidence that an arbitrary
-// legacy or mixed file is Kit-managed. Its upgrade treatment lives in a
-// separate, state-bound transition contract below rather than the historical
-// file catalog.
+// mixed file is Kit-managed. Its upgrade treatment lives in a separate current
+// transition contract below rather than broad path ownership.
 export const freshInstallFileContracts = Object.freeze([
   ...installedFileContracts,
   contract("runtime-core/USER_RULES.md", "dev/USER_RULES.md", "fresh-user-router")
@@ -45,10 +45,10 @@ export const freshInstallMappings = Object.freeze(
   freshInstallFileContracts.map(({ sourceRel, targetRel }) => Object.freeze([sourceRel, targetRel]))
 );
 
-// R-034: formal user-rule state is part of an upgrade only when the existing
-// AGENTS.md entry and router form one verifiable formal state. This separate
-// contract deliberately does not reclassify a path, title, or directory as
-// historical Kit ownership.
+// Formal user-rule state is part of an upgrade only when the existing AGENTS.md
+// entry and router form one verifiable current formal state. This separate
+// contract deliberately does not reclassify a path, title, or directory as Kit
+// authority.
 export const upgradeStateFileContracts = Object.freeze([
   contract("runtime-core/USER_RULES.md", "dev/USER_RULES.md", "accepted-user-rules-router")
 ]);

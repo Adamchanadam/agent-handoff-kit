@@ -15,13 +15,67 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
-## v0.3.53 candidate status
+## v0.3.54 candidate status
 
-- 狀態：Public source candidate；source-review freeze commit `afc49fc2346c2b4709f60184106bf8fae0e7f1d8` is clean and R4 product accepted. Formal full previously stopped only because the v0.3.53 bilingual independent-review sections were missing; R5 independently accepted the four changed bilingual pairs below. This evidence-only correction is not full PASS, release PASS, push, tag, GitHub Release, npm publish, or postpublish readback.
+- 狀態：Public source candidate。v0.3.54 的產品機制已由 fresh GPT-5.5 High reviewer 接受；reviewer agent provenance `019fa0eb-aa1b-71d3-8a60-97480eace09e`，final correction re-review returned `accepted_for_product_integration` with zero Critical / Major / Minor findings. This is product-integration acceptance only, not clean commit, full, release, npm publish, or postpublish evidence.
+- Final source review：fresh GPT-5.5 High reviewer agent `019fa14b-d338-7932-80b5-30831a99f9dd`，nonce `CER-AHK-R-V054-FINAL-SOURCE-20260727-01`，reviewed the exact 40-path Public source candidate at `main@f8495d444b369e13008435888c1b16e363ff49aa` with status SHA-256 `f1243c33b1dceb3edca824b292325aa36817d97143d94d365f841cd68d513fd3`; Critical 0 / Major 0 / Minor 0; verdict `accepted_for_clean_candidate`. This is source acceptance only; candidate remains uncommitted / unpublished, and full / release gates have not run.
+- 根修範圍：交易證據只在 active operation / lock 內作 no-clobber、rollback、recovery 與誠實報告；lock 清除後，`doctor` / `upgrade` 不再讀 committed historical journals 作 current workspace bytes authority。`reconcile-current-state` / `finalize-closeout` 與永久 witness / runtimeAcceptance authority 已移除；ordinary workspace files remain inert.
+- 真實 runtime replay：C / E1 使用 v0.3.52 live runtime 的隔離副本完成 dry-run → upgrade → doctor → legitimate mutable / ordinary / Unicode / new-file edits → second dry-run / upgrade or truthful no-op → doctor；原 live root only read-back / unchanged，未在原地 upgrade 或 doctor 寫入。
+- access observation：ordinary locked-decoy / no-read proof 已覆蓋，驗證普通 workspace paths 不因舊 journal、Markdown text 或 root placement 被 discovery、read、hash、journal、report 或 block。
+- current lifecycle evidence：67 published historical single-hop upgrades passed；PROJECT_INDEX legal transforms、SESSION_HANDOFF / SESSION_LOG current migration、rule-pack / archive mutable lifecycle、formal USER_RULES route、credential preflight、typed unsafe fail-closed、active transaction recovery、rollback / interruption windows and no-lock historical journal inertness均已由 current QA owners 覆蓋。
+- active-lock correction：empty / `{` / `[` / malformed JSON lock、parsable invalid schema lock、missing / unreadable exact journal all fail closed with byte-exact fixture snapshots, original lock retained, no quarantine, no historical-journal fallback, no new transaction / report / stage / backup. Supported active recovery still uses the exact lock / journal references.
+- official-origin lineage：v0.3.53 is now the latest published lineage recorded in the official-origin catalog / fixture: npm shasum `362b1e555d3b72c2996c333fddc52a38a1e7f293`, integrity `sha512-HJ/Xy8ExkarwaxMNeQm43dmjvtgIHCecU5kZqFxgqMisejnaGNFvCTWnWqtL7ze4pXdzqMj+Fu99VricJv58Tg==`, remote tag / commit `f8495d444b369e13008435888c1b16e363ff49aa`, GitHub Release publishedAt `2026-07-26T21:40:40Z`.
+- 發布打包邊界：v0.3.54 source candidate still requires clean source commit, candidate evidence, full gate, push, tag, GitHub Release, npm publish, and postpublish readback before any release claim.
+
+### Cross-mind evidence 9-trigger table（v0.3.54）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | passed | Released v0.3.53 could still block a real mutable workspace by reusing committed transaction witness bytes as permanent current authority; v0.3.54 source review accepted the operation-local replacement. |
+| 2. External side effects | yes | iterated | No external side effect has been performed in this candidate: no push, tag, GitHub Release, npm publish, or postpublish. Those remain separate authorization steps. |
+| 3. User-visible output | yes | passed | Users no longer need reconcile / finalize / manual journal repair after ordinary valid workspace evolution, as proven by isolated lifecycle replay and accepted source review. |
+| 4. Complexity or boundary | yes | passed | Operation-local transaction evidence, active-lock recovery, current lifecycle validation, and ordinary-file inertness are separated. |
+| 5. Documentation drift | yes | iterated | README, active HTML, whatsnew, CHANGELOG, release QA and runtime Stack version surfaces are synchronized to v0.3.54 source-package state. |
+| 6. Semantic runtime effect | yes | passed | No-lock historical journals are inert; active lock failures remain fail-closed; Kit-owned current lifecycle remains protected. |
+| 7. Cross-agent / role boundary | yes | passed | Fresh reviewers accepted product integration, final source review, and bilingual evidence. Clean commit, full gate, and release gate are still later authorization steps. |
+| 8. Real user journey | yes | passed | Isolated copy of the real v0.3.52 runtime path passed the daily mutable-workspace journey without rebind / reconcile / finalize / manual prep. |
+| 9. Release statement | yes | iterated | v0.3.54 is a source candidate; no clean commit, full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
+
+### Bilingual README semantic gate（v0.3.54，PASS）
+
+- Reviewer：agent `019fa14b-d338-7932-80b5-30831a99f9dd`；nonce `CER-AHK-R-V054-BILINGUAL-20260727-01`；fresh independent read-only semantic review；Critical 0 / Major 0 / Minor 0；verdict `accepted_for_bilingual_evidence`.
+- `README.md` SHA-256 `8B5CA914D64EDA38ACEAF298E1974D301EBA71AB2F978211DAE304A7085AA07B`
+- `README.en.md` SHA-256 `41B8338E9DC42CF9E9331827780F94D8DC0F1D63B63C43379E938B966B0E9E92`
+- Verdict: **PASS** — English preserves equivalent purpose, three-step start, local-folder boundary, startup/closeout, ordinary workspace scan candidate-only/no automatic change, and release-state readback boundary.
+
+### Bilingual practical-guide semantic gate（v0.3.54，PASS）
+
+- Reviewer：agent `019fa14b-d338-7932-80b5-30831a99f9dd`；nonce `CER-AHK-R-V054-BILINGUAL-20260727-01`；fresh independent read-only semantic review；Critical 0 / Major 0 / Minor 0；verdict `accepted_for_bilingual_evidence`.
+- `agent-handoff-kit-guide.html` SHA-256 `DC05AA54DE9EA52715407FF80D65BF65DBB377974683D2457C9671692FB0CE32`
+- `agent-handoff-kit-guide.en.html` SHA-256 `6E91F3A00A1AB66B46A66882E996BA77327AFDEA171483E59DE06DD89AA506A3`
+- Verdict: **PASS** — English preserves the three flows, bare startup versus task authorization, install/doctor/upgrade, safety preview, closeout, and release confirmation; candidate diff is version synchronization without promise expansion.
+
+### Bilingual AI-install semantic gate（v0.3.54，PASS）
+
+- Reviewer：agent `019fa14b-d338-7932-80b5-30831a99f9dd`；nonce `CER-AHK-R-V054-BILINGUAL-20260727-01`；fresh independent read-only semantic review；Critical 0 / Major 0 / Minor 0；verdict `accepted_for_bilingual_evidence`.
+- `agent-handoff-kit-ai-install.html` SHA-256 `17B1F6F9D4499C01CA555D8DD1057BB5F69779B6D70FCDB86A757C97DC5A9324`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `E8A39B3F759AB8081115F67EB0298EB813EDC938D5FB5478FC97B26532D27CC3`
+- Verdict: **PASS** — English preserves root confirmation, zero-write conflict stop, dry-run before yes, no reinstall/whole-file overwrite bypass, and credentials/Git/publish outside authorization.
+
+### Bilingual introduction semantic gate（v0.3.54，PASS）
+
+- Reviewer：agent `019fa14b-d338-7932-80b5-30831a99f9dd`；nonce `CER-AHK-R-V054-BILINGUAL-20260727-01`；fresh independent read-only semantic review；Critical 0 / Major 0 / Minor 0；verdict `accepted_for_bilingual_evidence`.
+- `agent-handoff-kit-intro.html` SHA-256 `A86B6D950199E8334049CFEFD48A6C2560268BB984CB8131A9069AD7F60C65AA`
+- `agent-handoff-kit-intro.en.html` SHA-256 `ADBCA4AE7017E077B9673D606A03E6AAAADDB6C3A923B3F5944EEFDDED1B5050`
+- Verdict: **PASS** — English preserves beginner problem/purpose, local-agent-only boundary, startup/closeout, document layers, repo-wide ordinary file scan candidate-only/no auto-change, and v0.3.54 state.
+
+## v0.3.53 release history
+
+- 狀態：正式發布歷史。v0.3.53 was released from commit `f8495d444b369e13008435888c1b16e363ff49aa`; GitHub Release was published at `2026-07-26T21:40:40Z`; npm `@latest` readback is `0.3.53` until a later release supersedes it. The source-review and bilingual gates below are retained as pre-release evidence history, not current v0.3.54 blockers.
 - 已接受產品 source review：R4 final frozen review receipt nonce `CER-AHK-R4-BATCH14-CORR2-REVIEW-20260726-01` returned `accepted_for_product_integration` with zero Critical / Major / Minor findings. It accepts the v0.3.53 Public product integration candidate after the BATCH14 / CORR2 PROJECT_INDEX byte-preservation correction, including scoped typed inventory / inert generic references / doctor non-discovery、dry-run/apply preflight parity and lock revalidation、legacy witness retirement、single Stack version parser/startup boundary、PROJECT_INDEX visible-Markdown authority / legal transforms, and the related obsolete QA-owner convergence.
-- Frozen scope / C matrix：R4 accepted the product candidate at source level, then Phase A froze it as clean commit `afc49fc2346c2b4709f60184106bf8fae0e7f1d8` for review. C reports the affected product matrix passed, including syntax, upgrade-safety, startup-status-only, stateful raw, Gate 5 closure / transaction-window, post-upgrade closeout/finalize, public-prototype, inventory, QA assurance, quick, candidate-preflight `0.3.53`, npm pack dry-run with 34 files, and diff-check. This is still source-candidate / evidence-prep history, not full release evidence.
-- 發布打包邊界：本候選只把已接受產品變更包裝成 v0.3.53 source candidate。55-item ledger 現在 53 項完成；剩餘 34 Public clean export-ready / clean candidate identity 與 36 commit / push / tag / release / publish / installable v0.3.53。正式 release 仍須 clean candidate commit、candidate evidence、full gate、push、tag、GitHub Release、npm publish 與 postpublish readback 逐項重綁。
-- official-origin lineage：v0.3.52 已由既有 generator 從 npm package、remote tag 與 GitHub Release 重建到 official-origin catalog / fixture；v0.3.53 仍不可進入 catalog，直到它成為正式發布來源。
+- Frozen scope / C matrix：R4 accepted the product candidate at source level, then Phase A froze it as clean commit `afc49fc2346c2b4709f60184106bf8fae0e7f1d8` for review. C reports the affected product matrix passed, including syntax, upgrade-safety, startup-status-only, stateful raw, Gate 5 closure / transaction-window, post-upgrade closeout/finalize, public-prototype, inventory, QA assurance, quick, candidate-preflight `0.3.53`, npm pack dry-run with 34 files, and diff-check. This row records the historical source-candidate matrix that preceded the final release.
+- 發布讀回邊界：v0.3.53 completed clean candidate identity, formal full, push, tag, GitHub Release, npm publish, and postpublish readback in the release flow. It remains release history; v0.3.54 has a separate current source-candidate section above.
+- official-origin lineage：v0.3.53 has now been regenerated by the official-origin fixture generator from npm package, remote tag, and GitHub Release readback. v0.3.54 must not enter the catalog until it becomes a published source.
 
 ### Bilingual README semantic gate（v0.3.53，PASS）
 
@@ -56,14 +110,14 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 | Trigger | Applies | Status | Notes |
 |---|---|---|---|
 | 1. Failure or blocker | yes | iterated | Whole-root / generic-reference inventory, recursive doctor discovery, transaction-window drift, obsolete historical witness authority, and startup version spoofing were accepted as product defects to close. |
-| 2. External side effects | yes | iterated | This candidate keeps release/publish/tag/push outside the batch; external lineage readback is limited to v0.3.52 official-origin regeneration. |
+| 2. External side effects | yes | passed | Release/publish/tag/push completed later in the release flow; v0.3.53 external lineage is now official-origin fixture input. |
 | 3. User-visible output | yes | iterated | Upgrade, doctor, and bare startup should stop misreporting ordinary files, hidden version evidence, or transaction drift as safe success. |
 | 4. Complexity or boundary | yes | iterated | Scope is limited to typed inventory, transaction preflight parity, historical witness retirement, and one Stack-version parser. |
-| 5. Documentation drift | yes | iterated | README, active HTML, whatsnew, CHANGELOG and this release QA index are synchronized to v0.3.53 source-package state without claiming publication. |
+| 5. Documentation drift | yes | passed | README, active HTML, whatsnew, CHANGELOG and this release QA index were synchronized for v0.3.53 and later superseded by v0.3.54 source-candidate surfaces. |
 | 6. Semantic runtime effect | yes | iterated | Runtime authority moves away from root walking and generic text dereference while preserving typed Kit / USER_RULES / transaction / archive fail-closed behavior. |
-| 7. Cross-agent / role boundary | yes | accepted source / release pending | R4 final source-review acceptance is recorded separately from clean commit, full gate, release decision, and postpublish evidence. |
+| 7. Cross-agent / role boundary | yes | passed | R4 source-review acceptance, R5 bilingual evidence, clean commit, full gate, release decision, and postpublish evidence were separated in the release flow. |
 | 8. Real user journey | yes | iterated | Existing projects with ordinary docs, outputs, local links, or stale generic witnesses should no longer be blocked by unrelated user-owned files. |
-| 9. Release statement | yes | iterated | v0.3.53 is source candidate only; no clean commit, full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
+| 9. Release statement | yes | passed | v0.3.53 is release history; v0.3.54 is the current unpublished source candidate. |
 
 ## v0.3.52 candidate status
 

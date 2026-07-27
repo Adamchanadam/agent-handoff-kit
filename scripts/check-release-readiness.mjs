@@ -13,7 +13,6 @@ import {
   commandDocumentation,
   QA_RELEASE_READINESS_INVENTORY,
   QA_RELEASE_READINESS_INVENTORY_DIGEST,
-  R034_ARTIFACT_CONTRACT,
   RELEASE_PACKAGE_CONTRACT,
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
@@ -23,13 +22,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const tempRoot = path.join(tmpdir(), `ack-release-flow-${Date.now()}`);
 const cliNode = process.platform === "win32" ? "node" : process.execPath;
-const pinnedV041Artifact = {
-  packageRoot: process.env[R034_ARTIFACT_CONTRACT.packageRootEnv]
-    || (process.platform === "win32" ? R034_ARTIFACT_CONTRACT.windowsDefaultPackageRoot : null),
-  tarballPath: process.env[R034_ARTIFACT_CONTRACT.tarballPathEnv]
-    || (process.platform === "win32" ? R034_ARTIFACT_CONTRACT.windowsDefaultTarballPath : null),
-  sha1: R034_ARTIFACT_CONTRACT.sha1,
-  integrity: R034_ARTIFACT_CONTRACT.integrity
+const pinnedPublishedV041Artifact = {
+  packageRoot: process.env.AGENT_HANDOFF_KIT_PINNED_V041_PACKAGE_ROOT
+    || (process.platform === "win32" ? "C:\\tmp\\agent-handoff-kit-r034-gate4-reopen-artifact\\extract\\package" : null),
+  tarballPath: process.env.AGENT_HANDOFF_KIT_PINNED_V041_TGZ
+    || (process.platform === "win32" ? "C:\\tmp\\agent-handoff-kit-r034-gate4-reopen-artifact\\adamchanadam-agent-handoff-kit-0.3.41.tgz" : null),
+  sha1: "8b9238287485ef15208c4c339e8cdfe283ce1c23",
+  integrity: "sha512-2DQjMXhLigpW30vE0bb1aa7F5h1YYW5kXSfruzwg6IltyclvV9EBYPLUTOj49p6QIwmPWcetvJIB8zK0LZFH5Q=="
 };
 const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, one optional display-only title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out execution wording.";
 
@@ -1364,7 +1363,6 @@ function simulateScenarioBranching() {
     ? JSON.parse(readFileSync(path.join(s3aMigrations, s3aTransaction, "transaction.json"), "utf8"))
     : null;
   const s3aEntry = s3aJournal?.entries?.find((entry) => entry.targetRel === "dev/PROJECT_INDEX.md");
-  const s3aDigest = s3aJournal?.currentStateWitness?.currentStateDigest;
   const s3aReport = s3aTransaction
     ? readFileSync(path.join(s3aMigrations, s3aTransaction, "migration-report.md"), "utf8")
     : "";
@@ -1372,15 +1370,13 @@ function simulateScenarioBranching() {
     s3aDoctor.stdout.includes("status: passed")
       && s3aEntry?.beforeHash !== s3aEntry?.afterHash
       && s3aEntry?.reason?.includes("unique real PROJECT_INDEX Stack template-version row")
-      && !s3aJournal?.runtimeAcceptance?.entries?.some((entry) => entry.targetRel === "dev/PROJECT_INDEX.md")
-      && s3aDigest
-      && s3aJournal.currentStateReadback?.currentStateDigest === s3aDigest
-      && s3aReport.includes(s3aDigest)
+      && !s3aJournal?.runtimeAcceptance
+      && !s3aJournal?.currentStateWitness
       && s3aReport.includes(s3aEntry.afterHash)
       && s3aReport.includes(s3aEntry.reason),
-    "scenario 3a did not bind PROJECT_INDEX metadata transition to the shared doctor/report current-state readback"
+    "scenario 3a did not disclose PROJECT_INDEX metadata transition through the operation-local journal/report"
   );
-  console.log("ok: scenario 3a materializes only the PROJECT_INDEX Stack version row and doctor/report read the same current state");
+  console.log("ok: scenario 3a materializes only the PROJECT_INDEX Stack version row with operation-local journal/report evidence");
 
   // Scenario 3b — structurally stale via real test-fixtures/v0.1.7 fixture:
   // PROJECT_INDEX comes from actual v0.1.7 init output, lacks v0.2.0+
@@ -1469,30 +1465,24 @@ function simulateScenarioBranching() {
   const s3cJournal = s3cTransaction
     ? JSON.parse(readFileSync(path.join(s3cMigrations, s3cTransaction, "transaction.json"), "utf8"))
     : null;
-  const s3cEntries = s3cJournal?.runtimeAcceptance?.entries ?? [];
-  const s3cHandoffEntry = s3cEntries.find((entry) => entry.targetRel === "dev/SESSION_HANDOFF.md");
+  const s3cHandoffEntry = s3cJournal?.entries?.find((entry) => entry.targetRel === "dev/SESSION_HANDOFF.md");
   const s3cIndexEntry = s3cJournal?.entries?.find((entry) => entry.targetRel === "dev/PROJECT_INDEX.md");
-  const s3cDigest = s3cJournal?.currentStateWitness?.currentStateDigest;
   const s3cReport = s3cTransaction
     ? readFileSync(path.join(s3cMigrations, s3cTransaction, "migration-report.md"), "utf8")
     : "";
   assert(
     s3cDoctor.stdout.includes("status: passed")
-      && s3cHandoffEntry?.disposition === "preserve"
-      && s3cHandoffEntry?.activeReader?.reader === "AGENTS.md"
-      && s3cHandoffEntry?.activeReader?.via === "direct-formal-entry"
-      && s3cHandoffEntry?.effectDecision === "preserve-unmodified-through-direct-stateful-formal-entry"
+      && s3cHandoffEntry?.beforeHash === s3cHandoffEntry?.afterHash
+      && s3cHandoffEntry?.reason?.includes("preserve")
       && s3cIndexEntry?.beforeHash !== s3cIndexEntry?.afterHash
       && s3cIndexEntry?.reason?.includes("unique real PROJECT_INDEX Stack template-version row")
-      && !s3cEntries.some((entry) => entry.targetRel === "dev/PROJECT_INDEX.md")
-      && s3cDigest
-      && s3cJournal.currentStateReadback?.currentStateDigest === s3cDigest
-      && s3cReport.includes(s3cDigest)
+      && !s3cJournal?.runtimeAcceptance
+      && !s3cJournal?.currentStateWitness
       && s3cReport.includes(s3cIndexEntry.afterHash)
       && s3cReport.includes(s3cIndexEntry.reason),
-    "scenario 3c did not bind preserved handoff and PROJECT_INDEX metadata transition to the shared doctor/report current-state readback"
+    "scenario 3c did not disclose preserved handoff and PROJECT_INDEX metadata transition through the operation-local journal/report"
   );
-  console.log("ok: scenario 3c preserves handoff bytes, materializes PROJECT_INDEX Stack version row, and doctor/report read the same current state");
+  console.log("ok: scenario 3c preserves handoff bytes and materializes PROJECT_INDEX Stack version row with operation-local journal/report evidence");
 
   // Scenario 5: upgrade with conflict. This guards the user-facing stop state:
   // when a bridge file cannot be safely merged, output must say the upgrade is
@@ -2197,10 +2187,10 @@ function checkPackedPackageUpgradeSmoke(version) {
   assert(transactionNames.length > 0, "packed upgrade smoke did not create an accepted transaction");
   const transactionName = transactionNames.at(-1);
   const journal = JSON.parse(readFileSync(path.join(migrations, transactionName, "transaction.json"), "utf8"));
-  assert(journal.currentStateWitness?.transaction?.attemptedVersion === version, "packed upgrade smoke journal does not bind the target version to its current-state witness");
-  assert(journal.currentStateReadback?.currentStateDigest === journal.currentStateWitness.currentStateDigest, "packed upgrade smoke report/readback is detached from the current-state witness");
+  assert(journal.attemptedVersion === version && journal.committedVersion === version && journal.state === "committed", "packed upgrade smoke journal does not bind the target version to the committed transaction");
+  assert(!journal.currentStateWitness && !journal.runtimeAcceptance, "packed upgrade smoke journal created future current-state authority");
   const report = readFileSync(path.join(migrations, transactionName, "migration-report.md"), "utf8");
-  assert(report.includes(journal.currentStateWitness.currentStateDigest), "packed upgrade smoke report does not cite the same current-state witness");
+  assert(report.includes("- Completed transaction journals are operation receipts only after their lock is cleared."), "packed upgrade smoke report does not disclose operation-local historical authority");
 
   const firstDoctor = run(process.execPath, [packedBin, "doctor", "--root", upgradeRoot], "packed package doctor after upgrade smoke");
   assertAcceptedCurrentStateDoctorOutput(outputText(firstDoctor), version, "packed package first doctor");
@@ -2299,7 +2289,6 @@ function checkChangedBilingualCandidateEvidence(version) {
 
 function assertAcceptedCurrentStateDoctorOutput(output, version, label) {
   assert(output.includes("status: passed"), `${label} did not pass`);
-  assert(output.includes(`已接受目前狀態 v${version}`), `${label} did not display the verified accepted current-state version`);
   assert(!/項目版本記錄未與目前工具對齊|建議先執行 .*upgrade --dry-run/u.test(output), `${label} told the user to repeat upgrade despite the accepted current state`);
   assert(/🚀 下一步[:：][\s\S]*(?:Start Agent Handoff|開工|繼續使用)/u.test(output), `${label} did not provide a normal, non-upgrade next step for an accepted current state`);
 }
@@ -2318,7 +2307,7 @@ function previousPatch(v) {
 }
 
 function materializePinnedV041ArtifactInit(project) {
-  const { packageRoot, tarballPath, sha1, integrity } = pinnedV041Artifact;
+  const { packageRoot, tarballPath, sha1, integrity } = pinnedPublishedV041Artifact;
   assert(packageRoot && tarballPath, "set the pinned v0.3.41 artifact root and tarball path for packed upgrade smoke");
   assert(existsSync(tarballPath), "pinned v0.3.41 artifact tarball is missing for packed upgrade smoke");
   const artifactBytes = readFileSync(tarballPath);
@@ -2648,10 +2637,10 @@ function checkGovernanceBridgeContract() {
     "unmarked local RULE_PACKS row was not preserved"
   ]);
 
-  assertIncludes("scripts/check-post-upgrade-closeout-finalize.mjs", [
-    "doctor after normal closeout before finalize",
-    "finalize-closeout",
-    "non-closeout drift",
+  assertIncludes("scripts/check-upgrade-safety.mjs", [
+    "long-lived lifecycle",
+    "malformed historical receipt",
+    "ordinary workspace files are inert",
     "SESSION_LOG_archive"
   ]);
 

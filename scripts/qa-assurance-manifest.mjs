@@ -11,13 +11,10 @@ export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
   releaseReadinessCheck("closeout-efficiency", "check-closeout-efficiency.mjs", "closeout efficiency and terminal-state QA", 120_000),
   releaseReadinessCheck("public-mirror", "build-public-mirror.mjs", "public mirror QA", 180_000),
   releaseReadinessCheck("pack-scenarios", "check-pack-scenarios.mjs", "pack scenario QA", 120_000),
-  releaseReadinessCheck("r034-inventory", "check-r034-inventory.mjs", "R-034 inventory QA", 120_000),
+  releaseReadinessCheck("upgrade-inventory", "check-upgrade-inventory.mjs", "upgrade inventory QA", 120_000),
+  releaseReadinessCheck("upgrade-transaction-window", "check-upgrade-transaction-window.mjs", "upgrade transaction-window QA", 180_000),
   releaseReadinessCheck("official-origin-catalog", "check-official-origin-catalog.mjs", "official-origin catalog QA", 180_000),
-  releaseReadinessCheck("r034-gate5-closure", "check-r034-gate5-closure.mjs", "R-034 Gate 5 whole-set closure QA", 240_000),
-  releaseReadinessCheck("r034-vertical", "check-r034-vertical.mjs", "artifact-backed R-034 vertical QA", 360_000),
-  releaseReadinessCheck("r034-final-closure", "check-r034-final-closure.mjs", "R-034 Phase-0 five-file final closure QA", 240_000),
   releaseReadinessCheck("upgrade-safety", "check-upgrade-safety.mjs", "upgrade safety QA", 360_000),
-  releaseReadinessCheck("post-upgrade-closeout-finalize", "check-post-upgrade-closeout-finalize.mjs", "post-upgrade closeout finalize QA", 360_000),
   releaseReadinessCheck("prompt-mirror", "check-prompt-mirror.mjs", "prompt mirror checker", 60_000)
 ]);
 
@@ -202,17 +199,6 @@ export const PUBLIC_MIRROR_CONTRACT = Object.freeze({
   ])
 });
 
-export const R034_ARTIFACT_CONTRACT = Object.freeze({
-  schemaVersion: 1,
-  version: "0.3.41",
-  packageRootEnv: "AGENT_HANDOFF_KIT_R034_ARTIFACT_ROOT",
-  tarballPathEnv: "AGENT_HANDOFF_KIT_R034_ARTIFACT_TGZ",
-  windowsDefaultPackageRoot: "C:\\tmp\\agent-handoff-kit-r034-gate4-reopen-artifact\\extract\\package",
-  windowsDefaultTarballPath: "C:\\tmp\\agent-handoff-kit-r034-gate4-reopen-artifact\\adamchanadam-agent-handoff-kit-0.3.41.tgz",
-  sha1: "8b9238287485ef15208c4c339e8cdfe283ce1c23",
-  integrity: "sha512-2DQjMXhLigpW30vE0bb1aa7F5h1YYW5kXSfruzwg6IltyclvV9EBYPLUTOj49p6QIwmPWcetvJIB8zK0LZFH5Q=="
-});
-
 export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
   schemaVersion: 1,
   manualVerdictKeys: Object.freeze([
@@ -288,58 +274,19 @@ export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
 export const QA_RELEASE_READINESS_INVENTORY_DIGEST = digest(QA_RELEASE_READINESS_INVENTORY);
 
 export const POST_UPGRADE_STATE_COMPOSITIONS = Object.freeze([
-  composition("adjacent-published-pristine-upgrade-closeout", {
+  composition("published-lifecycle-upgrade-doctor-noop", {
     baseline: "previous published npm artifact",
-    ownershipDelta: "none",
-    transactionPhase: "committed upgrade",
-    filesystemSemantics: "canonical archive or absent archive",
-    postUpgradeAction: "normal closeout, finalize-closeout, and restart",
-    deliveryArtifact: "packed candidate tarball",
-    requiredTriples: ["published lineage x packed candidate artifact x closeout/finalize"],
-    expected: "upgrade, normal closeout, finalize-closeout, and re-run remain healthy"
-  }),
-  composition("v045-accepted-witness-legacy-archive-upgrade-closeout", {
-    baseline: "published v0.3.41 npm artifact upgraded by published v0.3.45 npm artifact",
-    ownershipDelta: "v0.3.45 accepted current-state witness plus legacy lowercase archive",
-    transactionPhase: "dry-run then committed upgrade",
-    filesystemSemantics: "legacy dev/session_log_archive is historical evidence, not generic current-state acceptance",
-    postUpgradeAction: "generic doctor/rebind remains fail-closed; reconcile-current-state rejects uncontrolled nested/unlisted legacy inventory",
+    ownershipDelta: "normal mutable state, rule-pack, archive, ordinary, Unicode, and new-file edits after the first committed upgrade",
+    transactionPhase: "dry-run, committed upgrade, doctor, second dry-run/upgrade or truthful no-op",
+    filesystemSemantics: "ordinary workspace files are inert; current Kit lifecycle structures remain validated",
+    postUpgradeAction: "doctor and repeated upgrade validate current structure without committed historical journal authority",
     deliveryArtifact: "packed candidate tarball",
     requiredTriples: [
-      "transaction phase x ownership delta x post-upgrade action",
-      "published lineage x packed candidate artifact x closeout/finalize",
-      "filesystem semantics x path/casing migration x recovery",
-      "archive migration history x generic rebind rejection x qualified archive group fail-closed"
+      "published lineage x packed candidate artifact x repeated upgrade",
+      "normal mutable workspace edits x ordinary file inertness x doctor",
+      "operation-local transaction evidence x active-lock recovery x no future authority"
     ],
-    expected: "dry-run is non-mutating; uncontrolled legacy nested/unlisted archive inventory remains blocked until the single current-state reconciliation plan can verify a canonical archive group"
-  }),
-  composition("schema2-state-only-supersession-closeout", {
-    baseline: "published v0.3.41 npm artifact upgraded by published v0.3.45 npm artifact and packed candidate",
-    ownershipDelta: "source-conservation schema 2 witness followed by a multi-hop state-only schema 1 supersession chain",
-    transactionPhase: "committed upgrade plus committed state-only witness chain",
-    filesystemSemantics: "normal closeout changes only closeout-finalize state paths",
-    postUpgradeAction: "doctor blocks before finalize, finalize rebinds through the stronger witness, doctor and closeout-status pass after finalize",
-    deliveryArtifact: "packed candidate tarball",
-    requiredTriples: [
-      "witness schema x supersession x closeout/finalize",
-      "published lineage x packed candidate artifact x stale witness bridge",
-      "failure semantics x ambiguous witness x non-closeout drift"
-    ],
-    expected: "schema 1 cannot become doctor authority over an unretired stronger witness; existing multi-hop downgraded closeout-only roots get a hash-bound transitive finalize bridge; non-closeout drift fails before writes until an authorized repair lets upgrade create a fresh strong rebind; branching, missing links, invalid cycles, ambiguity, and non-closeout drift remain fail-closed"
-  }),
-  composition("source-conservation-bounded-root-scope", {
-    baseline: "published v0.3.46 source-conservation witness plus current packed candidate witness",
-    ownershipDelta: "ordinary root source files outside known Kit reachability change after committed witness",
-    transactionPhase: "committed historical upgrade, committed candidate rebind, and committed current candidate upgrade",
-    filesystemSemantics: "ordinary project root files stay read-only evidence and do not become current-state authority",
-    postUpgradeAction: "doctor, legal rebind, normal closeout, finalize-closeout, and closeout-status",
-    deliveryArtifact: "packed candidate tarball",
-    requiredTriples: [
-      "published lineage x ordinary root source mutation x source-conservation rebind",
-      "current candidate x arbitrary user-owned source mutation x doctor authority",
-      "failure semantics x managed/formal drift x bounded current-state authority"
-    ],
-    expected: "ordinary root-only sources can be retired from legacy all-root witnesses and are excluded from new current-state source conservation; managed core, rule-pack, formal-route, bridge, archive, and state-only rejection paths remain fail-closed"
+    expected: "completed journals remain operation receipts after unlock; current doctor and upgrade ignore malformed historical journals, preserve ordinary files, and fail closed only on active transaction or current typed contract problems"
   })
 ]);
 
@@ -349,7 +296,6 @@ export const QA_ASSURANCE_MANIFEST_DIGEST = digest({
   publicMirrorContract: PUBLIC_MIRROR_CONTRACT,
   releasePackageContract: RELEASE_PACKAGE_CONTRACT,
   releaseStateContract: RELEASE_STATE_CONTRACT,
-  r034ArtifactContract: R034_ARTIFACT_CONTRACT,
   releaseReadinessInventory: QA_RELEASE_READINESS_INVENTORY,
   postUpgradeStateCompositions: POST_UPGRADE_STATE_COMPOSITIONS
 });

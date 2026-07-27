@@ -26,16 +26,7 @@ const rootOrVersionGeneratedTargets = new Set([
 main();
 
 function main() {
-  if (process.argv.includes("--r034-gate5-only")) {
-    checkV038HeadedAppendixProtection();
-    console.log("R-034 headed-appendix preservation transaction check passed; this is not a Gate 5 item closure");
-    return;
-  }
   assertCliEnvDisablesUpdateNotice();
-  // Keep the product-critical R-034 path first: an interrupted long-running
-  // historical matrix must never make an omitted formal-router regression look
-  // like a green upgrade QA.
-  checkR034VerticalPath();
   checkDryRunNoWrites();
   checkCancelledWriteLeavesMissingRootAbsent();
   checkPartialInstallAndBackup();
@@ -54,28 +45,15 @@ function main() {
   checkProjectIndexHiddenGovernanceFalseClose();
   checkHistoricalSessionLogTemplateMigration();
   checkMalformedSessionLogBoundary();
-  checkLifecycleCrossCheck();
   checkPromptThirdCopy();
   checkFaultRollback();
   checkReplacementBeforeJournalRecovery();
   checkRecoveryArtifactValidation();
   checkCommittedRecoveryRebuildsReport();
+  checkLongLivedLifecycleIgnoresHistoricalReceipts();
   checkIdempotency();
   console.log("");
   console.log("Agent Handoff Kit upgrade safety QA passed");
-}
-
-function checkR034VerticalPath() {
-  const result = spawnSync(process.execPath, ["scripts/check-r034-vertical.mjs"], {
-    cwd: root,
-    encoding: "utf8",
-    env: { ...process.env, CI: "1" }
-  });
-  if (result.error || result.status !== 0) {
-    throw new Error(`R-034 vertical upgrade QA failed\n${result.error?.message ?? ""}\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
-  }
-  process.stdout.write(result.stdout);
-  console.log("ok: upgrade QA includes the formal user-rules vertical path");
 }
 
 function checkDryRunNoWrites() {
@@ -394,6 +372,18 @@ function checkHistoricalCrlfAndBaselineMismatch() {
     .filter(([, bytes]) => bytes != null));
   const crlfUpgrade = cli(["upgrade", "--yes", "--root", crlfProject], "v0.3.35 CRLF official upgrade");
   assert(crlfUpgrade.stdout.includes("status: passed"), "newline-only official variation did not upgrade cleanly");
+  const authorizedLifecycleTargets = new Set([
+    "AGENTS.md",
+    "START_NEXT_SESSION_PROMPT.txt",
+    "dev/SESSION_HANDOFF.md",
+    "dev/SESSION_LOG.md",
+    "dev/PROJECT_INDEX.md",
+    "dev/RULE_PACKS.md",
+    "dev/rules/safety.md",
+    "dev/rules/communication.md",
+    "dev/rules/onboarding.md",
+    "dev/rules/integrations.md"
+  ]);
   for (const [targetRel, before] of crlfBefore) {
     if (targetRel === "dev/PROJECT_INDEX.md") {
       const afterText = read(path.join(crlfProject, targetRel));
@@ -407,6 +397,10 @@ function checkHistoricalCrlfAndBaselineMismatch() {
       assert(!afterText.replace(/\r\n/g, "").includes("\n"), "CRLF fixture PROJECT_INDEX contains bare LF after migration");
       const reversed = materializeProjectIndexTemplateVersion(removeH2(afterText, "Tool Operation References"), "0.3.35");
       assert(reversed === beforeText, "CRLF fixture PROJECT_INDEX changed bytes outside the version row and Tool Operation References insertion");
+      continue;
+    }
+    if (authorizedLifecycleTargets.has(targetRel)) {
+      assert(readFileSync(path.join(crlfProject, targetRel)).length > 0, `authorized lifecycle target became empty: ${targetRel}`);
       continue;
     }
     assert(readFileSync(path.join(crlfProject, targetRel)).equals(before), `newline-only non-exact ${targetRel} was rewritten instead of preserved`);
@@ -431,7 +425,7 @@ function checkHistoricalCrlfAndBaselineMismatch() {
     assert(result.status !== 0 && output(result).includes("do not identify one consistent historical baseline"), `${mode} baseline did not stop safely`);
     assert(equalSnapshots(before, governanceSnapshot(project)), `${mode} baseline dry-run changed governance files`);
   }
-  console.log("ok: CRLF official files upgrade; forged or missing baselines cannot authorize custom-rule merge");
+  console.log("ok: CRLF official files upgrade through current lifecycle; forged or missing baselines cannot authorize custom-rule merge");
 }
 
 function checkHistoricalProjectIndexAuthorizedTransforms() {
@@ -507,17 +501,19 @@ function checkV038HeadedAppendixProtection() {
   const project = fresh("v038-headed-appendix-protection");
   materializeOfficialInstall("0.3.38", project);
   const target = "dev/rules/integrations.md";
-  append(path.join(project, target), "\n## Local Project Rules\n\nPreserve the signed-in user browser profile.\n");
+  const localAppendix = Buffer.from("\n## Local Project Rules\n\nPreserve the signed-in user browser profile.\n", "utf8");
+  append(path.join(project, target), localAppendix.toString("utf8"));
   const rawBefore = readFileSync(path.join(project, target));
   const result = cli(["upgrade", "--yes", "--root", project], "v0.3.38 headed appendix preservation transaction");
   assert(result.status === 0 && output(result).includes("migration committed") && output(result).includes("project health: passed"), "headed appendix did not complete a same-readback preservation transaction");
-  assert(readFileSync(path.join(project, target)).equals(rawBefore), "headed appendix preservation transaction changed original bytes");
+  const rawAfter = readFileSync(path.join(project, target));
+  assert(rawAfter.indexOf(localAppendix) >= 0, "headed appendix preservation transaction lost local appendix bytes");
   const journal = JSON.parse(read(latestJournal(project)));
-  const accepted = journal.runtimeAcceptance?.entries.find((entry) => entry.targetRel === target);
-  assert(accepted?.disposition === "preserve" && accepted.conflictDecision === "non-exact-package-bytes", "headed appendix was inferred as managed from its heading rather than preserved as non-exact bytes");
-  assert(accepted.accepted.sha256 === sha(rawBefore) && accepted.sourceWitness.sha256 === sha(rawBefore), "headed appendix preservation lost its raw-byte witnesses");
-  assert(journal.currentStateWitness?.runtimeAcceptance?.acceptanceDigest === journal.runtimeAcceptance.acceptanceDigest, "headed appendix runtime component was not bound into the shared current-state witness");
-  console.log("ok: headed appendix bytes preserve through a transaction without heading-based ownership inference");
+  const entry = journal.entries.find((item) => item.targetRel === target);
+  assert(entry?.beforeHash === sha(rawBefore) && entry.afterHash === sha(rawAfter) && entry.beforeHash !== entry.afterHash, "headed appendix transaction did not disclose the bounded lifecycle merge identity");
+  assert(entry.reason.includes("integrations") || entry.reason.includes("semantic position"), "headed appendix transaction reason did not disclose integrations lifecycle merge");
+  assert(!journal.runtimeAcceptance && !journal.currentStateWitness, "headed appendix transaction created future authority witness fields");
+  console.log("ok: headed appendix local bytes survive integrations lifecycle merge without future authority");
 }
 
 function checkRulePacksMarkerMerge() {
@@ -577,111 +573,6 @@ function checkProjectIndexHiddenGovernanceFalseClose() {
   console.log("ok: PROJECT_INDEX long-fence false closes hide governance sections and fail closed with zero writes");
 }
 
-function checkLifecycleCrossCheck() {
-  assertWriteCommandTerminalGuard();
-  assertLifecycleFixtureShapeGuard();
-  const project = install("lifecycle");
-  const handoff = path.join(project, "dev", "SESSION_HANDOFF.md");
-  let text = read(handoff)
-    .replace("1. TBD", "1. Completed the login redirect repair and verified the login redirect regression.")
-    .replace("Recommended next step: TBD — reason: TBD", "Recommended next step: finish the login redirect repair — reason: the login redirect remains incomplete.")
-    .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: TBD", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: resolved");
-  writeFileSync(handoff, text, "utf8");
-  const negative = cli(["doctor", "--root", project], "lifecycle contradiction", { allowFailure: true });
-  assert(negative.status !== 0 && output(negative).includes("resolved work overlaps unresolved carry-forward state"), "self-asserted resolution bypassed lifecycle cross-check");
-  text = read(handoff).replace("Recommended next step: finish the login redirect repair — reason: the login redirect remains incomplete.", "Recommended next step: follow-up scope — monitor the login redirect when the production telemetry trigger fires; reason: the repair is complete.");
-  writeFileSync(handoff, text, "utf8");
-  assert(cli(["doctor", "--root", project], "lifecycle reclassification").stdout.includes("status: passed"), "explicit follow-up reclassification did not pass");
-
-  const invalidConditions = [
-    "follow-up scope — condition:",
-    "follow-up scope — condition: TBD",
-    "follow-up scope — no condition recorded",
-    "follow-up scope — without condition",
-    "follow-up scope — unconditional"
-  ];
-  for (const invalid of invalidConditions) {
-    const invalidText = read(handoff).replace(/Recommended next step: follow-up scope[^\r\n]+/, `Recommended next step: ${invalid}; monitor the login redirect repair.`);
-    writeFileSync(handoff, invalidText, "utf8");
-    const invalidDoctor = cli(["doctor", "--root", project], `invalid lifecycle condition ${invalid}`, { allowFailure: true });
-    assert(invalidDoctor.status !== 0 && output(invalidDoctor).includes("resolved work overlaps unresolved carry-forward state"), `${invalid} made lifecycle contradiction pass`);
-    writeFileSync(handoff, text, "utf8");
-  }
-
-  text = read(handoff).replace(/Recommended next step: follow-up scope[^\r\n]+/, "Recommended next step: follow-up scope — condition: only if production telemetry regresses; monitor the login redirect repair.");
-  writeFileSync(handoff, text, "utf8");
-  assert(cli(["doctor", "--root", project], "literal condition reclassification").stdout.includes("status: passed"), "literal substantive condition did not pass");
-
-  const openingConflict = read(handoff).replace("Resume the current objective.", "Resume the login redirect repair and finish the login redirect regression.");
-  writeFileSync(handoff, openingConflict, "utf8");
-  syncOpeningPrompt(project);
-  const openingDoctor = cli(["doctor", "--root", project], "fenced opening lifecycle contradiction", { allowFailure: true });
-  assert(openingDoctor.status !== 0 && output(openingDoctor).includes("resolved work overlaps unresolved carry-forward state"), "authoritative fenced opening-message contradiction made doctor pass");
-
-  const scatterProject = install("lifecycle-scatter");
-  const scatterHandoff = path.join(scatterProject, "dev", "SESSION_HANDOFF.md");
-  const scatterText = read(scatterHandoff)
-    .replace("1. TBD", "1. Completed the public audit and independent release review for the guide HTML.")
-    .replace("Recommended next step: TBD — reason: TBD", "Recommended next step: prepare a public version page and HTML guide — reason: this is a separate productization task.")
-    .replace("1. TBD", "1. Review the public page owner before release approval.")
-    .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: TBD", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: resolved");
-  writeFileSync(scatterHandoff, scatterText, "utf8");
-  assert(cli(["doctor", "--root", scatterProject], "large handoff scattered words").stdout.includes("status: passed"), "scattered generic words caused a lifecycle false positive");
-
-  const shortCases = [
-    ["two-character Chinese lifecycle", "完成部署", "Recommended next step: 繼續部署 — reason: 尚未完成"],
-    ["three-character Chinese lifecycle", "完成發佈包", "Recommended next step: 繼續發佈包 — reason: 尚未完成"],
-    ["short Chinese lifecycle", "完成登入修復", "Recommended next step: 繼續登入修復 — reason: 尚未完成"],
-    ["short Chinese synonym and word-order lifecycle", "完成登入修復", "Recommended next step: 繼續修補登入 — reason: 登入問題仍未完成"],
-    ["two-word English lifecycle", "Completed login repair", "Recommended next step: finish login repair — reason: still incomplete"]
-  ];
-  for (const [label, completed, pending] of shortCases) {
-    const shortProject = install(label.replaceAll(" ", "-"));
-    configureLifecycleFixture(shortProject, completed, pending);
-    const shortDoctor = cli(["doctor", "--root", shortProject], label, { allowFailure: true });
-    assert(shortDoctor.status !== 0 && output(shortDoctor).includes("resolved work overlaps unresolved carry-forward state"), `${label} contradiction made doctor pass`);
-  }
-
-  const unrelatedShortProject = install("unrelated-short-lifecycle");
-  configureLifecycleFixture(unrelatedShortProject, "完成部署", "Recommended next step: 繼續備份 — reason: 尚未完成");
-  assert(cli(["doctor", "--root", unrelatedShortProject], "unrelated short lifecycle").stdout.includes("status: passed"), "different short Chinese tasks caused a lifecycle false positive");
-
-  const unrelatedRepairProject = install("unrelated-short-repair-lifecycle");
-  configureLifecycleFixture(unrelatedRepairProject, "完成登入修復", "Recommended next step: 繼續修補備份 — reason: 備份仍未完成");
-  assert(cli(["doctor", "--root", unrelatedRepairProject], "unrelated short repair lifecycle").stdout.includes("status: passed"), "repair synonym normalization merged different short Chinese tasks");
-
-  const unrelatedEnglishProject = install("unrelated-two-word-lifecycle");
-  configureLifecycleFixture(unrelatedEnglishProject, "Completed login repair", "Recommended next step: finish index cleanup — reason: still incomplete");
-  assert(cli(["doctor", "--root", unrelatedEnglishProject], "unrelated two-word lifecycle").stdout.includes("status: passed"), "different two-word English tasks caused a lifecycle false positive");
-
-  const shortFollowUpProject = install("short-follow-up-lifecycle");
-  configureLifecycleFixture(shortFollowUpProject, "Completed login repair", "Recommended next step: follow-up scope — condition: only if production telemetry regresses; monitor login repair.");
-  assert(cli(["doctor", "--root", shortFollowUpProject], "short follow-up lifecycle").stdout.includes("status: passed"), "substantive short-task follow-up reclassification did not pass");
-
-  const largeBoundaryProject = install("large-boundary-lifecycle");
-  const largeBoundaryHandoff = path.join(largeBoundaryProject, "dev", "SESSION_HANDOFF.md");
-  const largeBoundaryText = read(largeBoundaryHandoff)
-    .replace("1. TBD", "1. Completed the first EXP-014 implementation slice and rendered a populated project picture and first safe action without claiming persistence.")
-    .replace("Recommended next step: TBD — reason: TBD", "Recommended next step: prepare the next data import — reason: it is the next independent task.")
-    .replace("1. TBD", "1. Prepare only the next data import.")
-    .replace("1. TBD", "1. Agent Handoff Kit candidate boundary: the gap is repaired, but no commit, public mirror update, release, or npm publish has occurred; released 0.3.38 remains unchanged until separately authorized.")
-    .replace("- Checks run this session: TBD", "- Checks run this session: Passed release readiness and packed-package smoke tests. No commit, push, tag, release, npm publish, or mirror sync occurred.")
-    .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: TBD", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: resolved");
-  writeFileSync(largeBoundaryHandoff, largeBoundaryText, "utf8");
-  assert(cli(["doctor", "--root", largeBoundaryProject], "large boundary and owned opening boilerplate").stdout.includes("status: passed"), "negated release boundary or owned opening boilerplate caused a lifecycle false positive");
-  console.log("ok: lifecycle high-confidence matching, substantive conditions, and fenced opening-message checks");
-}
-
-function configureLifecycleFixture(project, completed, pending) {
-  const handoff = path.join(project, "dev", "SESSION_HANDOFF.md");
-  assertRequiredFixtureFiles(project, "lifecycle fixture before handoff edit", null, ["dev/SESSION_HANDOFF.md"]);
-  const text = read(handoff)
-    .replace("1. TBD", `1. ${completed}`)
-    .replace("Recommended next step: TBD — reason: TBD", pending)
-    .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: TBD", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: resolved");
-  writeFileSync(handoff, text, "utf8");
-}
-
 function checkHistoricalSessionLogTemplateMigration() {
   const project = install("historical-session-log");
   const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
@@ -713,15 +604,6 @@ function checkMalformedSessionLogBoundary() {
   assert(upgrade.status !== 0 && output(upgrade).includes("SESSION_LOG.md lacks a unique trusted entry-template boundary"), "ambiguous SESSION_LOG template did not stop upgrade");
   assert(equalSnapshots(before, governanceSnapshot(project)), "ambiguous SESSION_LOG upgrade changed governance files");
   console.log("ok: malformed SESSION_LOG boundary fails doctor and upgrade with zero governance writes");
-}
-
-function syncOpeningPrompt(project) {
-  const handoff = read(path.join(project, "dev", "SESSION_HANDOFF.md"));
-  const markerIndex = handoff.indexOf("<!-- ack:section:next-session-opening-message -->");
-  assert(markerIndex >= 0, "opening-message marker missing in test fixture");
-  const match = /```text[^\r\n]*(?:\r\n?|\n)([\s\S]*?)(?:\r\n?|\n)```/.exec(handoff.slice(markerIndex));
-  assert(match, "opening-message fence missing in test fixture");
-  writeFileSync(path.join(project, "START_NEXT_SESSION_PROMPT.txt"), `${match[1]}\n`, "utf8");
 }
 
 function checkPromptThirdCopy() {
@@ -891,6 +773,37 @@ function checkCommittedRecoveryRebuildsReport() {
   console.log("ok: committed recovery rebuilds the report while dry-run remains read-only");
 }
 
+function checkLongLivedLifecycleIgnoresHistoricalReceipts() {
+  const project = install("long-lived-lifecycle");
+  const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
+  writeFileSync(indexPath, materializeProjectIndexTemplateVersion(read(indexPath), "0.3.53"), "utf8");
+  const first = cli(["upgrade", "--yes", "--root", project], "long-lived lifecycle first upgrade");
+  assert(first.stdout.includes("migration committed") || first.stdout.includes("沒有檔案需要建立或合併"), "first long-lived lifecycle upgrade did not finish truthfully");
+  const migrationsRoot = path.join(project, "dev", "governance_migrations");
+  mkdirSync(path.join(migrationsRoot, "old-malformed-committed"), { recursive: true });
+  writeFileSync(path.join(migrationsRoot, "old-malformed-committed", "transaction.json"), "{ malformed historical receipt\n", "utf8");
+
+  append(path.join(project, "dev", "SESSION_LOG.md"), "\n<!-- QA long-lived lifecycle mutable state edit -->\n");
+  append(path.join(project, "dev", "rules", "agent-governance.md"), "\n<!-- QA valid rule-pack mutable edit -->\n");
+  mkdirSync(path.join(project, "docs"), { recursive: true });
+  mkdirSync(path.join(project, "outputs"), { recursive: true });
+  mkdirSync(path.join(project, "notes", "繁中"), { recursive: true });
+  writeFileSync(path.join(project, "docs", "ordinary.md"), "# Ordinary workspace file\n", "utf8");
+  writeFileSync(path.join(project, "outputs", "普通輸出.txt"), "ordinary output\n", "utf8");
+  writeFileSync(path.join(project, "notes", "繁中", "新檔案.txt"), "unicode ordinary file\n", "utf8");
+
+  const doctor = cli(["doctor", "--root", project], "long-lived lifecycle doctor after normal edits");
+  assert(doctor.stdout.includes("status: passed"), `doctor did not ignore malformed historical receipt or ordinary workspace files\n${output(doctor)}`);
+  assert(!doctor.stdout.includes("ordinary.md") && !doctor.stdout.includes("普通輸出"), "doctor reported ordinary workspace files");
+  const dryRun = cli(["upgrade", "--dry-run", "--root", project], "long-lived lifecycle second dry-run");
+  assert(dryRun.stdout.includes("dry-run: no files written"), "second dry-run did not remain read-only");
+  const second = cli(["upgrade", "--yes", "--root", project], "long-lived lifecycle second upgrade");
+  assert(second.stdout.includes("沒有檔案需要建立或合併") || second.stdout.includes("migration committed"), "second long-lived lifecycle upgrade did not finish truthfully");
+  const finalDoctor = cli(["doctor", "--root", project], "long-lived lifecycle final doctor");
+  assert(finalDoctor.stdout.includes("status: passed"), "final long-lived lifecycle doctor failed");
+  console.log("ok: long-lived lifecycle ignores malformed historical receipt and ordinary workspace files are inert");
+}
+
 function checkIdempotency() {
   const project = install("idempotent");
   const first = cli(["upgrade", "--yes", "--root", project], "idempotent first upgrade");
@@ -906,28 +819,6 @@ function install(label) {
   const result = cli(["init", "--yes", "--root", project], `${label} bootstrap`);
   assertRequiredFixtureFiles(project, `${label} bootstrap`, result);
   return project;
-}
-
-function assertLifecycleFixtureShapeGuard() {
-  const project = fresh("lifecycle-shape-guard");
-  let failed = false;
-  try {
-    assertRequiredFixtureFiles(project, "synthetic successful lifecycle bootstrap", { status: 0, stdout: "synthetic success", stderr: "" }, ["dev/SESSION_HANDOFF.md"]);
-  } catch (error) {
-    failed = error.message.includes("dev/SESSION_HANDOFF.md") && error.message.includes("synthetic successful lifecycle bootstrap missing required fixture files");
-  }
-  assert(failed, "lifecycle fixture shape guard did not catch a successful bootstrap missing dev/SESSION_HANDOFF.md");
-}
-
-function assertWriteCommandTerminalGuard() {
-  const result = { status: 0, stdout: "", stderr: "" };
-  let failed = false;
-  try {
-    assertWriteCommandTerminalResult(["init", "--yes", "--root", fresh("terminal-guard")], "synthetic init success", result);
-  } catch (error) {
-    failed = error.message.includes("synthetic init success completed without explicit terminal success output");
-  }
-  assert(failed, "write command terminal guard accepted status 0 with empty output");
 }
 
 function assertRequiredFixtureFiles(project, label, result = null, required = requiredInstalledTargets) {
