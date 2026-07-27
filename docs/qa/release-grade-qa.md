@@ -43,6 +43,34 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 | 7. Cross-agent / role boundary | yes | iterated | This section prepares writer-side candidate evidence; independent review, formal full, and release publication remain pending gates. |
 | 8. Real user journey | yes | passed | Continuity triggers such as `Start Agent Handoff`, `開工`, and `開始工作交接` cannot become the primary action in the title. |
 | 9. Release statement | yes | iterated | v0.3.55 is a source candidate only; no full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
+
+### Bilingual README semantic gate（v0.3.55，PASS）
+
+- Reviewer：task/thread `019fa342-53c5-78f3-ae90-8bea8513eae3`；nonce `CER-AHK-R1-V055-TITLE-REVIEW-20260727-01`；fresh independent read-only semantic review；Critical 0 / Major 0 / Minor 0；verdict `accepted_for_full_gate`.
+- `README.md` SHA-256 `D54CEBE4921652955F093BDE66D801164407E86D6728FC0587838DBB0C479607`
+- `README.en.md` SHA-256 `6089B82E4AAFD9FF6FE449E1FDADF39805FEF8DD180CFF723554DC4AAC2E4405`
+- Verdict: **PASS** — English preserves equivalent purpose, three-step start, local-folder boundary, startup/closeout, ordinary workspace scan candidate-only/no automatic change, and release-state readback boundary. No omitted or altered safety instruction, unsafe expansion, release-state mismatch, broken counterpart navigation, or unintended untranslated visible material was found; v0.3.55 version claims are aligned and `@latest` wording remains readback-bound. This is evidence-only and is not formal full, release, npm publish, or postpublish PASS.
+
+### Bilingual practical-guide semantic gate（v0.3.55，PASS）
+
+- Reviewer：task/thread `019fa342-53c5-78f3-ae90-8bea8513eae3`；nonce `CER-AHK-R1-V055-TITLE-REVIEW-20260727-01`；fresh independent read-only semantic review；Critical 0 / Major 0 / Minor 0；verdict `accepted_for_full_gate`.
+- `agent-handoff-kit-guide.html` SHA-256 `F2317E4AA3193A8CAFDEDF8969C58AA18E4B465C3FA824D6B69AFCB889A87624`
+- `agent-handoff-kit-guide.en.html` SHA-256 `801C3E36A8395677F3120C0683DB1E99C9CEFB013A28ADB9071FA95DAFAF7535`
+- Verdict: **PASS** — English preserves the three flows, bare startup versus task authorization, install/doctor/upgrade, safety preview, closeout, and release confirmation; candidate diff is version synchronization without promise expansion. No omitted or altered safety instruction, unsafe expansion, release-state mismatch, broken counterpart navigation, or unintended untranslated visible material was found; v0.3.55 version claims are aligned and `@latest` wording remains readback-bound.
+
+### Bilingual AI-install semantic gate（v0.3.55，PASS）
+
+- Reviewer：task/thread `019fa342-53c5-78f3-ae90-8bea8513eae3`；nonce `CER-AHK-R1-V055-TITLE-REVIEW-20260727-01`；fresh independent read-only semantic review；Critical 0 / Major 0 / Minor 0；verdict `accepted_for_full_gate`.
+- `agent-handoff-kit-ai-install.html` SHA-256 `66C777C0FA7E07B61C3CED14A56B2C827E0B75BFADA6AF8E73621131FAC95CC3`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `B2C1E560C1985E1EF8A57C7FE57D1C5BB6B61F05B13E29297D3CEC421D62C0F6`
+- Verdict: **PASS** — English preserves root confirmation, zero-write conflict stop, dry-run before yes, no reinstall/whole-file overwrite bypass, and credentials/Git/publish outside authorization. No omitted or altered safety instruction, unsafe expansion, release-state mismatch, broken counterpart navigation, or unintended untranslated visible material was found; v0.3.55 version claims are aligned and `@latest` wording remains readback-bound.
+
+### Bilingual introduction semantic gate（v0.3.55，PASS）
+
+- Reviewer：task/thread `019fa342-53c5-78f3-ae90-8bea8513eae3`；nonce `CER-AHK-R1-V055-TITLE-REVIEW-20260727-01`；fresh independent read-only semantic review；Critical 0 / Major 0 / Minor 0；verdict `accepted_for_full_gate`.
+- `agent-handoff-kit-intro.html` SHA-256 `29AF86F22C8C787B1A7DDB7EED73B3CC4FD1C70A1E7A622B569068B7361903E0`
+- `agent-handoff-kit-intro.en.html` SHA-256 `0A48FBBB75F3258843D00B8978FD1642DA612EBAFE8797AA5F13DFEF38C1412B`
+- Verdict: **PASS** — English preserves beginner problem/purpose, local-agent-only boundary, startup/closeout, document layers, repo-wide ordinary file scan candidate-only/no auto-change, and v0.3.55 state. No omitted or altered safety instruction, unsafe expansion, release-state mismatch, broken counterpart navigation, or unintended untranslated visible material was found; v0.3.55 version claims are aligned and `@latest` wording remains readback-bound.
 ## v0.3.54 release history
 
 - 狀態：正式發布歷史。v0.3.54 was released from commit `29a65abed761aec2ac17c247389722fc605947c4`; GitHub Release and npm `@latest` readback are v0.3.54. The source, bilingual, evidence, formal full, and postpublish records below are retained as release evidence history, not current v0.3.55 blockers.
