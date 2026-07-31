@@ -22,7 +22,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const tempRoot = path.join(tmpdir(), `ack-release-flow-${Date.now()}`);
 const cliNode = process.platform === "win32" ? "node" : process.execPath;
-const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, one optional display-only title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out execution wording.";
+const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, one optional display-only current-thread title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out execution wording.";
 
 await main();
 
@@ -144,14 +144,19 @@ async function main() {
     "Pack loading is normally silent",
     "Show the startup card only for explicit continuity startup",
     "A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery",
-    "one optional display-only title update when safely supported",
+    "one optional display-only current-thread title update when safely supported",
     "the end of the turn",
     "It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out wording",
     "A concrete objective found only in loaded state is not authority to complete it",
-    "current-title readback and title control",
+    "current-thread title control",
+    "Current-title readback is useful when available",
+    "not required when the tool safely targets the calling/current thread",
+    "Do not title from the raw continuity trigger or before handoff-derived startup facts are final",
+    "last presentation side effect before returning the startup response",
     "Replace only a generic or stale title",
     "keep an informative title",
     "Use `<project name>｜<primary action>` from facts already loaded for startup",
+    "`開始交接工作`",
     "Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title",
     "must not contain progress, completion, status, task/session IDs, absolute paths, secrets, or unverified facts",
     "skip silently",
@@ -223,7 +228,9 @@ async function main() {
   assertIncludes("packs/closeout.md", [
     "apply the integrations and safety ownership rules",
     "Close only task-owned resources",
-    "Retain shared, user-owned, other-agent-owned, system, or ambiguous resources unless separately authorized"
+    "Retain shared, user-owned, other-agent-owned, system, or ambiguous resources unless separately authorized",
+    "The semantic lifecycle gate is `agent-handoff-kit closeout-status`",
+    "first `Resolved [...]` / `Carry-forward [...]` pair"
   ]);
 
   assertIncludes("packs/integrations.md", [

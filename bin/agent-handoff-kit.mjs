@@ -362,6 +362,20 @@ const schemaChecks = [
     target: "dev/SESSION_HANDOFF.md",
     label: "handoff lifecycle mechanical checks",
     checks: [
+      {
+        label: "lifecycle reconciliation field is readable by closeout-status",
+        test: (text) => fieldValueAfterMarker(text, "lifecycle-conflicts-resolved").length > 0
+      },
+      {
+        label: "lifecycle read-back sections are mechanically addressable",
+        test: (text) => [
+          extractSectionText(text, "completed-this-session", "Completed This Session"),
+          extractSectionText(text, "validation-qc", "Validation / QC"),
+          extractSectionText(text, "next-priorities", "Next Priorities"),
+          extractSectionText(text, "risks-blockers", "Risks / Blockers"),
+          extractOpeningMessage(text) ?? ""
+        ].every((sectionText) => sectionText.trim().length > 0)
+      }
     ]
   },
   {
@@ -590,11 +604,16 @@ async function runCloseoutStatus(root, version) {
   }
 
   const findings = [];
+  const details = [];
   const outcome = closeoutOutcome(fieldValueAfterMarker(handoffText, "closeout-outcome"));
   const persistence = projectRequiredPersistence(fieldValueAfterMarker(handoffText, "project-required-persistence"));
   if (outcome !== "complete") findings.push("closeout outcome is not complete");
   if (!new Set(["complete", "not_required"]).has(persistence)) findings.push("project-required persistence is not complete or not required");
-  if (!assessHandoffLifecycleConsistency(handoffText).ok) findings.push("handoff lifecycle read-back is not healthy");
+  const lifecycle = assessHandoffLifecycleConsistency(handoffText);
+  if (!lifecycle.ok) {
+    findings.push("handoff lifecycle read-back is not healthy");
+    details.push(...handoffLifecycleDiagnosticDetails(lifecycle));
+  }
   if (!assessPromptMirrorRoot(root).ok) findings.push("opening-message mirror is not current");
 
   // A closeout card needs a fresh local health readback, not a version-notice
@@ -602,7 +621,7 @@ async function runCloseoutStatus(root, version) {
   const doctor = await assessUpgradeNoopHealth(root, version, { skipVersionRegistryLookup: true });
   if (!doctor.ok) findings.push("fresh doctor read-back did not pass");
 
-  const result = { ok: findings.length === 0, findings };
+  const result = { ok: findings.length === 0, findings, details };
   printCloseoutStatusCard(version, result);
   if (!result.ok) process.exitCode = 1;
 }
@@ -636,6 +655,7 @@ function printCloseoutStatusCard(version, result) {
   console.log("");
   console.log("status: blocked");
   console.log(`⚠️ Blocker: ${result.findings.join("; ")}`);
+  for (const detail of result.details ?? []) console.log(`   ${detail}`);
   console.log("💬 說明：這不是失敗；只是還有事未保存、未提交、未驗證或需要處理。先照 Blocker 行處理，不要把本輪當作已完成交接。");
   console.log("📌 Handoff: keep the current state resumable; do not call this closeout complete");
 }
@@ -3080,17 +3100,29 @@ async function checkPromptMirror(root) {
 
 function assessHandoffLifecycleConsistency(text) {
   const fieldValue = fieldValueAfterMarker(text, "lifecycle-conflicts-resolved");
+  const contradictions = findHandoffLifecycleContradictions(text);
+  const conflict = contradictions[0];
   if (isUnresolvedLifecycleFieldValue(fieldValue)) {
-    return { ok: false, reason: "lifecycle field is explicitly unresolved" };
+    return { ok: false, reason: "lifecycle field is explicitly unresolved", conflict };
   }
   if (isPlaceholderLifecycleFieldValue(fieldValue) && hasSubstantiveHandoffState(text)) {
-    return { ok: false, reason: "lifecycle field is still placeholder after handoff content changed" };
+    return { ok: false, reason: "lifecycle field is still placeholder after handoff content changed", conflict };
   }
-  const contradictions = findHandoffLifecycleContradictions(text);
-  if (contradictions.length > 0) {
-    return { ok: false, reason: `resolved work overlaps unresolved carry-forward state: ${contradictions[0]}` };
+  if (conflict) {
+    return { ok: false, reason: "resolved work overlaps unresolved carry-forward state", conflict };
   }
   return { ok: true, reason: "" };
+}
+
+function handoffLifecycleDiagnosticDetails(lifecycle) {
+  if (lifecycle.conflict) {
+    const { resolved, carryForward } = lifecycle.conflict;
+    return [
+      `Resolved [${resolved.section}]: "${compactLifecycleDiagnosticLine(resolved.line)}"`,
+      `Carry-forward [${carryForward.section}]: "${compactLifecycleDiagnosticLine(carryForward.line)}"`
+    ];
+  }
+  return lifecycle.reason ? [`Lifecycle: ${lifecycle.reason}`] : [];
 }
 
 function handoffStateLines(text, markerId, headingTitle) {
@@ -3183,22 +3215,32 @@ function isSubstantiveLifecycleCondition(value) {
 
 function findHandoffLifecycleContradictions(text) {
   const resolved = [
-    ...handoffStateLines(text, "completed-this-session", "Completed This Session"),
-    ...handoffStateLines(text, "validation-qc", "Validation / QC").filter((line) => /(pass|passed|verified|complete|success|通過|完成|已驗證|已核對)/i.test(line))
+    ...handoffStateLines(text, "completed-this-session", "Completed This Session")
+      .map((line) => ({ section: "Completed This Session", line })),
+    ...handoffStateLines(text, "validation-qc", "Validation / QC")
+      .filter((line) => /(pass|passed|verified|complete|success|通過|完成|已驗證|已核對)/i.test(line))
+      .map((line) => ({ section: "Validation / QC", line }))
   ];
   const carryForward = [
-    ...handoffStateLines(text, "next-priorities", "Next Priorities"),
-    ...handoffStateLines(text, "risks-blockers", "Risks / Blockers"),
+    ...handoffStateLines(text, "next-priorities", "Next Priorities")
+      .map((line) => ({ section: "Next Priorities", line })),
+    ...handoffStateLines(text, "risks-blockers", "Risks / Blockers")
+      .map((line) => ({ section: "Risks / Blockers", line })),
     ...handoffStateLines(text, "next-session-opening-message", "Next Session Opening Message")
+      .map((line) => ({ section: "Next Session Opening Message", line }))
   ];
   const findings = [];
   for (const pending of carryForward) {
-    if (isExplicitLifecycleReclassification(pending)) continue;
+    if (isExplicitLifecycleReclassification(pending.line)) continue;
     for (const done of resolved) {
-      if (lifecycleTopicsOverlap(done, pending)) findings.push(`${done} <> ${pending}`);
+      if (lifecycleTopicsOverlap(done.line, pending.line)) findings.push({ resolved: done, carryForward: pending });
     }
   }
   return findings;
+}
+
+function compactLifecycleDiagnosticLine(line) {
+  return line.length > 180 ? `${line.slice(0, 177)}...` : line;
 }
 
 function isAffirmativeLifecycleFieldValue(value) {

@@ -21,23 +21,25 @@ for (const surface of [core, opening, prompt]) {
   assert(surface.includes("and then the end of the turn"), "plain startup can still continue work after its card");
   assert(surface.includes("It does not authorize task-specific reads"), "plain startup does not deny task-specific work");
   assert(surface.includes("A same-message task may begin normally"), "explicit same-message task no longer has a work path");
-  assert(surface.includes("one optional display-only title update when safely supported"), "plain startup does not keep the title update presentation-only and optional");
+  assert(surface.includes("one optional display-only") && surface.includes("title update when safely supported"), "plain startup does not keep the title update presentation-only and optional");
   assert(surface.includes("project-file writes, network access, other external actions"), "plain startup does not deny writes/network/external actions after title update");
   for (const prohibited of ["at most one bounded", "one permitted bounded", "begin its first safe action in this response"]) {
     assert(!surface.includes(prohibited), `obsolete plain-start authority remains: ${prohibited}`);
   }
 }
 assert(core.includes("sub-agents, QA, packaging, project-file writes, network access"), "plain startup does not name the heavy operations it must not start");
-assert(core.includes("current-title readback and title control"), "dynamic title rule does not require safe readback/control");
+assert(core.includes("current-thread title control"), "dynamic title rule does not require safe current-thread title control");
+assert(core.includes("Current-title readback is useful when available") && core.includes("it is not required when the tool safely targets the calling/current thread"), "dynamic title rule still makes readback a hard blocker for safe current-thread rename");
 assert(core.includes("Replace only a generic or stale title"), "dynamic title rule can still churn informative titles");
 assert(core.includes("Use `<project name>｜<primary action>` from facts already loaded for startup: a concrete same-message task first, otherwise the loaded current objective plus recommended next action"), "dynamic title rule lost its concise derived format/source boundary");
-assert(core.includes("Derive the startup card's current objective and recommended next action first; only then, immediately before showing the card, choose and apply any title update"), "dynamic title can run before meaningful startup-card facts exist");
+assert(core.includes("Do not title from the raw continuity trigger or before handoff-derived startup facts are final"), "dynamic title can still run before meaningful startup-card facts exist");
+assert(core.includes("First derive the startup card's current objective, risk/boundary, and recommended next action") && core.includes("as the last presentation side effect before returning the startup response"), "dynamic title is not sequenced as the last startup presentation step");
 assert(core.includes("Within those facts, select one concrete primary action in this order: the same-message task; the loaded current objective; the recommended next action"), "dynamic title lost its meaningful primary-action priority");
-assert(core.includes("The continuity trigger itself and generic phrases such as `Start Agent Handoff`, `開工`, or `開始工作交接` are not primary actions"), "dynamic title can still rename from the generic continuity trigger");
+assert(core.includes("The continuity trigger itself and generic phrases such as `Start Agent Handoff`, `開工`, `開始交接工作`, or `開始工作交接` are not primary actions"), "dynamic title can still rename from the generic continuity trigger");
 assert(core.includes("If the loaded facts do not provide both a concrete project name and a concrete primary action, skip the title update"), "dynamic title no longer skips when meaningful naming facts are unavailable");
 assert(core.includes("Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title"), "dynamic title rule permits extra reads only for naming");
 assert(core.includes("must not contain progress, completion, status, task/session IDs, absolute paths, secrets, or unverified facts"), "dynamic title rule can leak IDs/paths/status/secrets/unverified facts");
-assert(core.includes("skip silently"), "unsupported title control is no longer a silent fallback");
+assert(core.includes("If safe current-thread title control is unavailable, skip silently"), "unsupported title control is no longer a silent fallback");
 assert(core.includes("display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth"), "dynamic title rule became authority or evidence");
 assert(core.includes("does not authorize project/file writes, network activity, external task work, or continuation beyond the startup boundary"), "dynamic title rule weakens the no-auto-execute boundary");
 assert(core.includes("A direct ordinary task begins without a startup card"), "ordinary direct tasks were accidentally put behind startup ceremony");

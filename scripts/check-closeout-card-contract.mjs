@@ -29,6 +29,24 @@ try {
   assert(passed.stdout.includes("status: complete"), "complete closeout card omitted machine-readable complete state");
   assert(!passed.stdout.includes("handoff blocked"), "complete closeout card showed a blocked state");
 
+  const lifecycleConflict = complete.replace(
+    "1. follow-up scope — monitor only if a new reproducible failure occurs.",
+    "1. Completed fixture closeout and read-back."
+  );
+  writeFixtureHandoff(lifecycleConflict);
+  invoke(["bin/agent-handoff-kit.mjs", "doctor", "--root", fixtureRoot], "lifecycle-conflict fixture doctor");
+  const lifecycleRejected = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!lifecycleRejected.error && lifecycleRejected.status !== 0, "lifecycle conflict produced a successful closeout card");
+  assert(lifecycleRejected.stdout.includes("handoff lifecycle read-back is not healthy"), "lifecycle conflict omitted lifecycle blocker");
+  assert(
+    lifecycleRejected.stdout.includes('Resolved [Completed This Session]: "Completed fixture closeout and read-back."'),
+    "lifecycle conflict omitted the resolved line"
+  );
+  assert(
+    lifecycleRejected.stdout.includes('Carry-forward [Next Priorities]: "Completed fixture closeout and read-back."'),
+    "lifecycle conflict omitted the carry-forward line"
+  );
+
   const blocked = complete.replace(
     /- Project-required persistence:[^\r\n]*/,
     "- Project-required persistence: blocked — project policy requires a Git push that is not authorized."
