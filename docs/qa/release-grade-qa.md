@@ -20,9 +20,9 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 - 狀態：v0.3.56 是下一個 source package candidate，原因是 v0.3.55 已正式發布到 npm 與 GitHub Release；v0.3.55 發布後的 changed bytes 包括 closeout-status lifecycle diagnostic opacity root-fix、doctor lifecycle mechanical scope reset、closeout pack diagnostic readback guidance，以及 startup current-thread title final-step / safe current-thread control alignment。它尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
 - 產品範圍：closeout-status blocked lifecycle now prints the first conflicting `Resolved [...]` / `Carry-forward [...]` pair；doctor lifecycle check remains a mechanical readability floor, not semantic lifecycle judgment；closeout pack routes agents to the closeout-status diagnostic instead of Kit-internal inspection；startup title naming runs after current objective / boundary / recommended next action are finalized and skips generic titles.
 - release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.56 candidate；v0.3.55 保留為最新已發布 lineage，v0.3.56 不進 official-origin published catalog。
-- full / release 邊界：本段只準備 clean candidate、tarball 與 WAITING_INDEPENDENT_REVIEW evidence；不是 independent review PASS、formal full PASS、release authorization、npm publish 或 postpublish evidence。
+- full / release 邊界：本段記錄 clean product candidate、tarball 與 accepted independent review evidence；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
 
-### pre-release final audit（v0.3.56，WAITING）
+### pre-release final audit（v0.3.56，REVIEW_ACCEPTED）
 
 - Clean artifact boundary：v0.3.56 clean candidate commit and tarball must be created from the source tree after the accepted closeout diagnostic and startup-title fixes, generated official-origin v0.3.55 fixture, and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
 - full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
@@ -43,6 +43,34 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 | 7. Cross-agent / role boundary | yes | iterated | This section prepares writer-side candidate evidence; independent review, formal full, and release publication remain pending gates. |
 | 8. Real user journey | yes | passed | A normal 收工 no longer requires Kit-internal inspection to find the first conflicting lifecycle line; 開工 titles are no longer based on generic startup wording. |
 | 9. Release statement | yes | iterated | v0.3.56 is a source candidate only; no full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
+
+### Bilingual README semantic gate（v0.3.56，PASS）
+
+- Reviewer：agent `019fb7c9-42fd-7331-8c4c-74666291205a`；fresh independent read-only semantic review；receipt `2026-07-31T10:56:49Z`；verdict `accepted`.
+- `README.md` SHA-256 `32EDD8AC28AAA89D2CA0A51158F47B07664FE8C01454105EC6C81B2051F07EEB`
+- `README.en.md` SHA-256 `F19FC90D1D42B04B8B59FA186C1B48EF856FA2A681FCCC3928B6E455B3C7F4D1`
+- Verdict: **PASS** — The English README preserves the Chinese quick-start, source-package version, postpublish readback boundary, local-folder requirement, startup/closeout behavior, and current-thread title rule: title naming uses finalized startup-card facts, generic continuity triggers cannot be the primary action, and the title is display-only.
+
+### Bilingual practical-guide semantic gate（v0.3.56，PASS）
+
+- Reviewer：agent `019fb7c9-42fd-7331-8c4c-74666291205a`；fresh independent read-only semantic review；receipt `2026-07-31T10:56:49Z`；verdict `accepted`.
+- `agent-handoff-kit-guide.html` SHA-256 `72C90940B14C2CE47983C7D28D5629FFFC77F57A86053D5878AF901163D46B0A`
+- `agent-handoff-kit-guide.en.html` SHA-256 `63A1B81736D34BF7A94451B4DB80C089DE4577B6BA790C0D1839D4A5F887C1CA`
+- Verdict: **PASS** — English preserves the three practical journeys, install / startup / closeout flow, versioned examples, and npm registry boundary without widening task authorization or release-state claims.
+
+### Bilingual AI-install semantic gate（v0.3.56，PASS）
+
+- Reviewer：agent `019fb7c9-42fd-7331-8c4c-74666291205a`；fresh independent read-only semantic review；receipt `2026-07-31T10:56:49Z`；verdict `accepted`.
+- `agent-handoff-kit-ai-install.html` SHA-256 `00E1080C486F1CE373E3205C235F0ED9F739EA2F9FF7264BC0D28B6E21B0C0AC`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `35605112ED65502E4679BDE95EC5FEDBE2B1334648D8B4BDF9DB5632F6D722C5`
+- Verdict: **PASS** — English preserves the Chinese install safeguards: confirm the root first, stop on conflict, preview dry-run before yes, avoid reinstall / whole-file overwrite bypass, and keep credentials / Git / publishing outside install authorization.
+
+### Bilingual introduction semantic gate（v0.3.56，PASS）
+
+- Reviewer：agent `019fb7c9-42fd-7331-8c4c-74666291205a`；fresh independent read-only semantic review；receipt `2026-07-31T10:56:49Z`；verdict `accepted`.
+- `agent-handoff-kit-intro.html` SHA-256 `D279F512CDBC8E27FF38362BFD8E5EB371E71765C4C2BC227374EF49C882F048`
+- `agent-handoff-kit-intro.en.html` SHA-256 `5F7F44BFE7C9844E618378FDE931E911E0DEC7536ABB1173B5BB316D492633A3`
+- Verdict: **PASS** — English preserves the Chinese beginner purpose, local-agent-only boundary, startup / closeout framing, document-layer explanation, and v0.3.56 / npm registry distinction.
 
 ## v0.3.55 release history
 
