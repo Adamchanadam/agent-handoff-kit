@@ -2,7 +2,7 @@
 
 [繁體中文](README.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-Source package version: `v0.3.55`. npm `@latest` and GitHub Release are verified by post-publish readback.
+Source package version: `v0.3.56`. npm `@latest` and GitHub Release are verified by post-publish readback.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit overview animation" width="720">
@@ -89,7 +89,7 @@ Start Agent Handoff
 
 You may also say `開工`.
 
-When the active platform can safely read and control the conversation title, a plain start may replace a generic or stale title with a concise `<project name>｜<primary action>` title. It uses only facts already loaded for startup, performs no extra file or network reads, keeps an informative title, and skips silently when title control is unavailable. The title is display-only: it is not project state, progress, completion evidence, or additional authority.
+When the active platform can safely control the current conversation title, a plain start may replace a generic or stale title with a concise `<project name>｜<primary action>` title. The title is generated from the startup card's already-finalized current objective or recommended next action; generic triggers such as `Start Agent Handoff`, `開工`, or "start handoff" cannot be the primary action. It performs no extra file or network reads, keeps an informative title, and skips silently when title control is unavailable. The title is display-only: it is not project state, progress, completion evidence, or additional authority.
 
 If the AI is not yet pointed at the project folder, use the path-bearing startup sentence:
 

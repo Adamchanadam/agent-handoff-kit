@@ -15,20 +15,48 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help semantic command evidence for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
-## v0.3.55 candidate status
+## v0.3.56 candidate status
 
-- 狀態：v0.3.55 是下一個 source package candidate，原因是 v0.3.54 已正式發布到 npm 與 GitHub Release；v0.3.54 發布後的任何 changed bytes 必須使用下一個 patch version。v0.3.55 目前只包含已接受的 startup title timing 兩檔產品修正，以及必要 release/version surface synchronization。它尚未 push、tag、GitHub Release、npm publish 或 postpublish。
-- 產品範圍：title rename 必須在 startup card current objective 與 recommended next action 已得出後、顯示 card 前才執行；primary action 依序取 concrete same-message task、concrete loaded objective、concrete recommended next action；generic continuity trigger 不得作 primary action；缺少 concrete project name + primary action 時跳過改名。
-- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.55 candidate；v0.3.54 保留為最新已發布 lineage，v0.3.55 不進 official-origin published catalog。
+- 狀態：v0.3.56 是下一個 source package candidate，原因是 v0.3.55 已正式發布到 npm 與 GitHub Release；v0.3.55 發布後的 changed bytes 包括 closeout-status lifecycle diagnostic opacity root-fix、doctor lifecycle mechanical scope reset、closeout pack diagnostic readback guidance，以及 startup current-thread title final-step / safe current-thread control alignment。它尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
+- 產品範圍：closeout-status blocked lifecycle now prints the first conflicting `Resolved [...]` / `Carry-forward [...]` pair；doctor lifecycle check remains a mechanical readability floor, not semantic lifecycle judgment；closeout pack routes agents to the closeout-status diagnostic instead of Kit-internal inspection；startup title naming runs after current objective / boundary / recommended next action are finalized and skips generic titles.
+- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.56 candidate；v0.3.55 保留為最新已發布 lineage，v0.3.56 不進 official-origin published catalog。
 - full / release 邊界：本段只準備 clean candidate、tarball 與 WAITING_INDEPENDENT_REVIEW evidence；不是 independent review PASS、formal full PASS、release authorization、npm publish 或 postpublish evidence。
 
-### pre-release final audit（v0.3.55，WAITING）
+### pre-release final audit（v0.3.56，WAITING）
 
-- Clean artifact boundary：v0.3.55 clean candidate commit and tarball must be created from the source tree after the accepted title-timing fix and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
+- Clean artifact boundary：v0.3.56 clean candidate commit and tarball must be created from the source tree after the accepted closeout diagnostic and startup-title fixes, generated official-origin v0.3.55 fixture, and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
 - full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
 - Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
 - five-conclusion writer assessment currently records governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting as writer-passed conclusions. It is evidence-layer input, not independent review or full PASS.
-- 發布打包邊界：v0.3.55 remains unpublished until formal full, push, tag, GitHub Release, npm publish, and postpublish readback all pass under explicit authorization.
+- 發布打包邊界：v0.3.56 remains unpublished until formal full, push, tag, GitHub Release, npm publish, and postpublish readback all pass under explicit authorization.
+
+### Cross-mind evidence 9-trigger table（v0.3.56）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | passed | Real closeout-status lifecycle blocking was diagnostically opaque; the CLI now prints the first conflicting Resolved / Carry-forward pair so agents can fix SESSION_HANDOFF directly. |
+| 2. External side effects | yes | iterated | No external publication occurs in this candidate-prep batch; push, tag, GitHub Release, npm publish, and postpublish remain separate authorized gates. |
+| 3. User-visible output | yes | passed | Blocked closeout output now identifies the first lifecycle conflict, and plain startup can get a meaningful title after startup facts are finalized. |
+| 4. Complexity or boundary | yes | passed | Lifecycle semantics remain owned by closeout-status, doctor is reset to a mechanical floor, and startup title remains display-only; no second lifecycle rule owner or diagnostic command is added. |
+| 5. Documentation drift | yes | iterated | Source package surfaces are synchronized to v0.3.56 while v0.3.55 remains the latest published lineage until a later release readback supersedes it. |
+| 6. Semantic runtime effect | yes | passed | closeout-status reads existing handoff lifecycle fields and reports the first pair without mutating project files; startup title uses already-loaded facts only. |
+| 7. Cross-agent / role boundary | yes | iterated | This section prepares writer-side candidate evidence; independent review, formal full, and release publication remain pending gates. |
+| 8. Real user journey | yes | passed | A normal 收工 no longer requires Kit-internal inspection to find the first conflicting lifecycle line; 開工 titles are no longer based on generic startup wording. |
+| 9. Release statement | yes | iterated | v0.3.56 is a source candidate only; no full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
+
+## v0.3.55 release history
+
+- 狀態：正式發布歷史。v0.3.55 was released from commit `53e8d095d7149f6461e6c8a7aa336058d6c59b39`; GitHub Release was published at `2026-07-27T11:44:49Z`; npm package `0.3.55` was published at `2026-07-27T11:45:06Z`. The source, bilingual, and candidate evidence below are retained as release evidence history, not current v0.3.56 blockers.
+- 發布內容：startup title timing moved naming after startup facts are finalized, and the title must use concrete project / action facts instead of generic continuity triggers.
+- official-origin lineage：v0.3.55 is now the latest published lineage recorded in the generated official-origin catalog / fixture until v0.3.56 is published.
+
+### pre-release final audit（v0.3.55，HISTORY）
+
+- Clean artifact boundary：v0.3.55 later completed formal full, push, tag, GitHub Release, npm publish, and postpublish readback from commit `53e8d095d7149f6461e6c8a7aa336058d6c59b39`. This subsection is retained as pre-release evidence history.
+- full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
+- Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
+- five-conclusion writer assessment currently records governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting as writer-passed conclusions. It is evidence-layer input, not independent review or full PASS.
+- 發布打包邊界：v0.3.55 completed formal release publication and is now prior published lineage for the v0.3.56 candidate.
 
 ### Cross-mind evidence 9-trigger table（v0.3.55）
 
@@ -38,11 +66,11 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 | 2. External side effects | yes | iterated | No external publication occurs in this candidate-prep batch; push, tag, GitHub Release, npm publish, and postpublish remain separate gates. |
 | 3. User-visible output | yes | passed | Plain startup can show a more meaningful conversation title when the runtime supports safe title control, without changing startup card or task authorization. |
 | 4. Complexity or boundary | yes | passed | The change stays inside existing startup-title wording and its existing checker; no new API, schema, title owner, or governance mechanism is added. |
-| 5. Documentation drift | yes | iterated | Source package surfaces are synchronized to v0.3.55 while v0.3.54 remains the latest published lineage until a later release readback supersedes it. |
+| 5. Documentation drift | yes | iterated | Source package surfaces were synchronized to v0.3.55 before release; the generated official-origin catalog now carries v0.3.55 as prior published lineage. |
 | 6. Semantic runtime effect | yes | passed | Title selection uses already-loaded startup facts only and never reads extra files, network, PROJECT_INDEX, or state solely for naming. |
 | 7. Cross-agent / role boundary | yes | iterated | This section prepares writer-side candidate evidence; independent review, formal full, and release publication remain pending gates. |
 | 8. Real user journey | yes | passed | Continuity triggers such as `Start Agent Handoff`, `開工`, and `開始工作交接` cannot become the primary action in the title. |
-| 9. Release statement | yes | iterated | v0.3.55 is a source candidate only; no full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
+| 9. Release statement | yes | passed | v0.3.55 completed formal full, push, tag, GitHub Release, npm publish, and postpublish readback; this table is retained as release-history evidence. |
 
 ### Bilingual README semantic gate（v0.3.55，PASS）
 

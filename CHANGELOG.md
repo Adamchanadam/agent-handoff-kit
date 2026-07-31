@@ -1,5 +1,15 @@
 # 變更紀錄
 
+## v0.3.56 — 2026-07-31
+
+狀態：source package version。本版修補收工診斷不透明與單獨開工標題時序；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- `closeout-status` 不再只輸出 `handoff lifecycle read-back is not healthy`；若偵測到 lifecycle 衝突，會列出第一組 `Resolved [...]` / `Carry-forward [...]` 原文，讓 AI 可直接修正 handoff。
+- `doctor` 的 handoff lifecycle 組改為機械可讀檢查；語義 lifecycle gate 留在 `closeout-status`，避免把尚未收工的正常工作誤報成專案不健康。
+- Closeout Pack 明確收斂：blocked 時按 `closeout-status` 顯示的第一組衝突修，不用重跑 doctor、查 Kit 內部，或擴大成專案治理修補。
+- 單獨 `Start Agent Handoff` /「開工」的標題改名改在 startup facts 定稿後才做，作為回覆前最後 presentation step，避免用 `開工` 或「開始交接工作」這類泛稱命名。
+- 支援安全當前對話標題控制的平台，不再因缺少 title readback 就放棄命名；讀回仍可用來避免覆寫已有清楚標題。
+
 ## v0.3.55 — 2026-07-27
 
 狀態：source package version。本版修正單獨開工時的對話標題更新時機；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
