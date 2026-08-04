@@ -3246,8 +3246,10 @@ function isExplicitLifecycleReclassification(line) {
 
   const labelled = normalized.match(/(?:\bcondition|\btrigger|\bmissing evidence|條件|觸發條件|缺少證據|證據|原因|\breason)\s*[:：-]\s*([^;；\n]+)/i);
   if (labelled) return isSubstantiveLifecycleCondition(labelled[1]);
-  const temporal = normalized.match(/(?:\bwhen|\buntil|待)(?:\s+|：|:)([^;；\n]+)/i);
-  return temporal ? isSubstantiveLifecycleCondition(temporal[1]) : false;
+  const temporal = normalized.match(/(?:\bwhen|\buntil|\bif|待)(?:\s+|：|:)([^;；\n]+)/i);
+  if (temporal) return isSubstantiveLifecycleCondition(temporal[1]);
+  const chineseConditional = normalized.match(/(?:如有|若有|如果|若|一旦|當|只在|只有|除非)([^;；\n]+)/i);
+  return chineseConditional ? isSubstantiveLifecycleCondition(chineseConditional[1]) : false;
 }
 
 function isSubstantiveLifecycleCondition(value) {
@@ -3256,6 +3258,31 @@ function isSubstantiveLifecycleCondition(value) {
   if (/^(TBD|todo|pending|unknown|unverified|none|n\/a|待定|待確認|未知|無)$/i.test(normalized)) return false;
   if (/\b(no condition|without condition|unconditional)\b|無條件|沒有條件/i.test(normalized)) return false;
   return true;
+}
+
+function isResolvedCarryForwardStatement(line) {
+  const normalized = line.trim();
+  if (/(?:\b(?:but|however|except|unless|still)\b|但|不過|除非|仍需|仍然需要)/i.test(normalized)) return false;
+  return /\bno\s+(?:known\s+)?(?:active\s+)?(?:blockers?|risks?|unresolved|pending|open items?)\b.{0,80}\b(?:remain|remains|remaining|left|known|active)?/i.test(normalized)
+    || /\b(?:blockers?|risks?|unresolved|pending|open items?)\b.{0,80}\b(?:none|not required|no longer|resolved|cleared|complete)\b/i.test(normalized)
+    || /(?:無|沒有|未有)(?:已知|現有|active|明確)?(?:阻擋|阻塞|blocker|風險|未解|待辦|未完成)/i.test(normalized)
+    || /(?:阻擋|阻塞|blocker|風險|未解|待辦|未完成).{0,30}(?:無|沒有|未有|已清除|已解決|不再|不用|無需)/i.test(normalized);
+}
+
+function openingLifecycleDirectiveText(line) {
+  return line
+    .replace(/^recommended next step\s*[:：-]\s*/i, "")
+    .replace(/^(?:next action|next step|current objective|objective)\s*[:：-]\s*/i, "")
+    .replace(/^(?:下一步|目前目標|當前目標)\s*[:：-]\s*/i, "")
+    .trim();
+}
+
+function isOpeningLifecycleCarryForwardLine(line) {
+  const normalized = openingLifecycleDirectiveText(line);
+  if (!normalized || isResolvedCarryForwardStatement(normalized) || isExplicitLifecycleReclassification(normalized)) return false;
+  if (/^(?:completed|finished|verified|passed|done|resolved)\b|^(?:已完成|完成|已驗證|已核對|通過|已處理|已解決)/i.test(normalized)) return false;
+  if (/^(?:continue|resume|finish|complete|fix|repair|run|update|write|review|prepare|implement|publish|release|push|tag|deploy|deliver|import|read|authorize|decide|go to)\b/i.test(normalized)) return true;
+  return /^(?:繼續|續|處理|修補|修正|修復|完成|執行|跑|更新|撰寫|寫|審閱|核對|驗證|發佈|發布|提交|推送|匯入|讀取|前往|去|授權|決定|先|請|要|需要|仍需|尚需|待)/i.test(normalized);
 }
 
 function findHandoffLifecycleContradictions(text) {
@@ -3272,11 +3299,12 @@ function findHandoffLifecycleContradictions(text) {
     ...handoffStateLines(text, "risks-blockers", "Risks / Blockers")
       .map((line) => ({ section: "Risks / Blockers", line })),
     ...handoffStateLines(text, "next-session-opening-message", "Next Session Opening Message")
+      .filter((line) => isOpeningLifecycleCarryForwardLine(line))
       .map((line) => ({ section: "Next Session Opening Message", line }))
   ];
   const findings = [];
   for (const pending of carryForward) {
-    if (isExplicitLifecycleReclassification(pending.line)) continue;
+    if (isResolvedCarryForwardStatement(pending.line) || isExplicitLifecycleReclassification(pending.line)) continue;
     for (const done of resolved) {
       if (lifecycleTopicsOverlap(done.line, pending.line)) findings.push({ resolved: done, carryForward: pending });
     }

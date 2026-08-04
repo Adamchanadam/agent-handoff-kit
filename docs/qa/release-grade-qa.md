@@ -18,13 +18,13 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 ## v0.3.57 candidate status
 
 - 狀態：v0.3.57 是下一個 source package candidate，原因是 v0.3.56 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.57 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
-- 產品範圍：closeout-status 在 fresh doctor read-back 失敗時回報第一個安全、可操作的 doctor blocker；舊 schema-2 committed `currentStateWitness` 加後續 witnessless migration 的回歸情境進入 upgrade-safety；continuity startup title 在 runtime 需要延遲工具 discovery 時，只允許一次窄範圍 title / rename / current-thread discovery，並且只可呼叫安全的 current-thread title tool。
+- 產品範圍：closeout-status 在 fresh doctor read-back 失敗時回報第一個安全、可操作的 doctor blocker；lifecycle classifier 不再把開場白背景資料、已清除 blocker 句，或有條件 monitor-only 重開句誤判成 unresolved carry-forward，但真正叫下一輪繼續已完成工作的 opening instruction 仍會 blocked；舊 schema-2 committed `currentStateWitness` 加後續 witnessless migration 的回歸情境進入 upgrade-safety；continuity startup title 在 runtime 需要延遲工具 discovery 時，只允許一次窄範圍 title / rename / current-thread discovery，並且只可呼叫安全的 current-thread title tool。
 - release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.57 candidate；v0.3.56 保留為最新已發布 lineage，v0.3.57 不進 official-origin published catalog。
 - full / release 邊界：本段記錄 clean product candidate、tarball 與 accepted independent review evidence；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
 
 ### pre-release final audit（v0.3.57，REVIEW_ACCEPTED）
 
-- Clean artifact boundary：v0.3.57 clean candidate commit and tarball must be created from the source tree after the accepted closeout diagnostic, schema-2 witness regression, startup-title discovery fixes, generated official-origin v0.3.56 fixture, and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
+- Clean artifact boundary：v0.3.57 clean candidate commit and tarball must be created from the source tree after the accepted closeout diagnostic, lifecycle carry-forward classifier regression, schema-2 witness regression, startup-title discovery fixes, generated official-origin v0.3.56 fixture, and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
 - full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
 - Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
 - five-conclusion writer assessment currently records governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting as writer-passed conclusions. It is evidence-layer input, not independent review or full PASS.
@@ -34,14 +34,14 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 | Trigger | Applies | Status | Notes |
 |---|---|---|---|
-| 1. Failure or blocker | yes | passed | Real closeout-status doctor read-back failure was diagnostically opaque; the CLI now surfaces the first safe doctor blocker line for direct repair. |
+| 1. Failure or blocker | yes | passed | Real closeout-status doctor read-back failure was diagnostically opaque, and a separate runtime report showed lifecycle carry-forward false positives; the CLI now surfaces the first safe doctor blocker line and filters resolved/background monitor cases without hiding true continuation conflicts. |
 | 2. External side effects | yes | iterated | No external publication occurs in this candidate-prep batch; push, tag, GitHub Release, npm publish, and postpublish remain separate authorized gates. |
 | 3. User-visible output | yes | passed | Plain startup can now find a deferred safe current-thread title tool before deciding title control is unavailable. |
-| 4. Complexity or boundary | yes | passed | The title fix stays display-only and forbids unrelated thread listing or task management; closeout diagnostics stay with closeout-status rather than doctor. |
+| 4. Complexity or boundary | yes | passed | The title fix stays display-only and forbids unrelated thread listing or task management; closeout diagnostics and semantic lifecycle carry-forward classification stay with closeout-status rather than doctor. |
 | 5. Documentation drift | yes | iterated | Source package surfaces are synchronized to v0.3.57 while v0.3.56 remains the latest published lineage until a later release readback supersedes it. |
-| 6. Semantic runtime effect | yes | passed | Historical schema-2 witness receipts remain operation evidence, not current-state authority, and startup title discovery cannot authorize task work. |
+| 6. Semantic runtime effect | yes | passed | Historical schema-2 witness receipts remain operation evidence, not current-state authority; closeout-status distinguishes background / no-blocker / conditional-monitor text from unresolved carry-forward; startup title discovery cannot authorize task work. |
 | 7. Cross-agent / role boundary | yes | iterated | This section prepares writer-side candidate evidence; independent review, formal full, and release publication remain separate gates. |
-| 8. Real user journey | yes | passed | A normal 收工 should show the actionable doctor blocker, and a normal 開工 can get a meaningful task title when the runtime exposes title control through discovery. |
+| 8. Real user journey | yes | passed | A normal 收工 should show the actionable doctor blocker without falsely blocking on already resolved opening background, and a normal 開工 can get a meaningful task title when the runtime exposes title control through discovery. |
 | 9. Release statement | yes | iterated | v0.3.57 is a source candidate only; no full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
 
 ### Bilingual README semantic gate（v0.3.57，PASS）

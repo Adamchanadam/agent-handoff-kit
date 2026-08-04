@@ -47,6 +47,45 @@ try {
     "lifecycle conflict omitted the carry-forward line"
   );
 
+  const openingBackground = insertCompletedLine(
+    insertOpeningLine(
+      complete,
+      "延續性背景資訊喺開場白重複提及，方便下一輪不再重問資料路徑。"
+    ),
+    "已完成核對：延續性背景資訊喺開場白重複提及，五大區段一致無矛盾。"
+  );
+  assertCloseoutComplete(openingBackground, "opening background lifecycle text");
+
+  const contextualOpeningRoute = insertCompletedLine(
+    insertOpeningLine(
+      complete,
+      "下次你話「開工」或者新一輪 AI 讀返 AGENTS.md + dev/SESSION_HANDOFF.md，就會知道:去 Doc\\00_原始資料 攞新一個月兩份匯出檔，延伸 Doc\\01_報告 最新底稿，唔使再由頭問一次規則。"
+    ),
+    "已完成核對 Doc\\00_原始資料 同 Doc\\01_報告 開場白背景路徑。"
+  );
+  assertCloseoutComplete(contextualOpeningRoute, "contextual opening route text");
+
+  const noBlockerRisk = replaceRisksLine(
+    insertCompletedLine(complete, "Completed v0.3.57 release candidate full gate."),
+    "No blocker remains for v0.3.57 release candidate full gate."
+  );
+  assertCloseoutComplete(noBlockerRisk, "resolved no-blocker risk text");
+
+  const monitorOnlyCondition = replaceRisksLine(
+    insertCompletedLine(complete, "已完成 Doc 報告資料匯入驗證。"),
+    "只監察：Doc 報告資料匯入如有新失敗才重開。"
+  );
+  assertCloseoutComplete(monitorOnlyCondition, "Chinese conditional monitor-only text");
+
+  const openingContinuation = insertOpeningLine(
+    insertCompletedLine(complete, "Completed Doc\\01_報告 latest draft final review."),
+    "Continue Doc\\01_報告 latest draft final review before delivery."
+  );
+  writeFixtureHandoff(openingContinuation);
+  const openingContinuationRejected = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!openingContinuationRejected.error && openingContinuationRejected.status !== 0, "opening continuation conflict produced a successful closeout card");
+  assert(openingContinuationRejected.stdout.includes("handoff lifecycle read-back is not healthy"), "opening continuation conflict omitted lifecycle blocker");
+
   const blocked = complete.replace(
     /- Project-required persistence:[^\r\n]*/,
     "- Project-required persistence: blocked — project policy requires a Git push that is not authorized."
@@ -90,6 +129,34 @@ function closeoutReadyHandoff(text) {
 function writeFixtureHandoff(text) {
   writeFileSync(path.join(fixtureRoot, "dev", "SESSION_HANDOFF.md"), text, "utf8");
   writeFileSync(path.join(fixtureRoot, "START_NEXT_SESSION_PROMPT.txt"), `${extractOpeningMessage(text)}\n`, "utf8");
+}
+
+function insertCompletedLine(text, line) {
+  return text.replace(
+    "1. Completed fixture closeout and read-back.",
+    `1. Completed fixture closeout and read-back.\n2. ${line}`
+  );
+}
+
+function replaceRisksLine(text, line) {
+  return text.replace(
+    /## Risks \/ Blockers\r?\n\r?\n1\. none/,
+    `## Risks / Blockers\n\n1. ${line}`
+  );
+}
+
+function insertOpeningLine(text, line) {
+  return text.replace(
+    "Resume the current objective. A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery",
+    `${line}\n\nResume the current objective. A plain \`Start Agent Handoff\` / \`開工\` with no same-message task or explicit long-run instruction only authorizes minimum state recovery`
+  );
+}
+
+function assertCloseoutComplete(text, label) {
+  writeFixtureHandoff(text);
+  const result = invoke(["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], label);
+  assert(result.stdout.includes("status: complete"), `${label} omitted machine-readable complete state`);
+  assert(!result.stdout.includes("handoff blocked"), `${label} showed a blocked state`);
 }
 
 function invoke(args, label) {
