@@ -73,6 +73,8 @@ try {
   writeFileSync(agentsPath, "broken AGENTS for isolated red evidence\n", "utf8");
   const doctorFailure = await invoke(["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], noUpdateEnv);
   assert(doctorFailure.status !== 0 && doctorFailure.stdout.includes("fresh doctor read-back did not pass"), `doctor failure produced a false closeout success\n${output(doctorFailure)}`);
+  assert(doctorFailure.stdout.includes("Doctor: status: failed"), `doctor failure omitted the doctor status detail\n${output(doctorFailure)}`);
+  assert(doctorFailure.stdout.includes("Doctor first problem:") && doctorFailure.stdout.includes("AGENTS.md"), `doctor failure omitted the first actionable doctor problem\n${output(doctorFailure)}`);
   writeFileSync(agentsPath, agentsBytes);
 
   const mirrorPath = path.join(fixtureRoot, "START_NEXT_SESSION_PROMPT.txt");

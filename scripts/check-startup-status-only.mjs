@@ -30,6 +30,9 @@ for (const surface of [core, opening, prompt]) {
 assert(core.includes("sub-agents, QA, packaging, project-file writes, network access"), "plain startup does not name the heavy operations it must not start");
 assert(core.includes("current-thread title control"), "dynamic title rule does not require safe current-thread title control");
 assert(core.includes("Current-title readback is useful when available") && core.includes("it is not required when the tool safely targets the calling/current thread"), "dynamic title rule still makes readback a hard blocker for safe current-thread rename");
+assert(core.includes("bounded runtime tool-discovery mechanism") && core.includes("narrow title/rename/current-thread query"), "dynamic title rule does not discover deferred title tooling before silently skipping");
+assert(core.includes("call only the discovered safe current-thread title tool"), "dynamic title rule can use unrelated discovered thread tools");
+assert(core.includes("Do not list or inspect unrelated threads solely for naming") && core.includes("do not create, fork, navigate, message, archive, pin"), "dynamic title rule can still inspect or mutate unrelated threads");
 assert(core.includes("Replace only a generic or stale title"), "dynamic title rule can still churn informative titles");
 assert(core.includes("Use `<project name>｜<primary action>` from facts already loaded for startup: a concrete same-message task first, otherwise the loaded current objective plus recommended next action"), "dynamic title rule lost its concise derived format/source boundary");
 assert(core.includes("Do not title from the raw continuity trigger or before handoff-derived startup facts are final"), "dynamic title can still run before meaningful startup-card facts exist");
@@ -39,7 +42,7 @@ assert(core.includes("The continuity trigger itself and generic phrases such as 
 assert(core.includes("If the loaded facts do not provide both a concrete project name and a concrete primary action, skip the title update"), "dynamic title no longer skips when meaningful naming facts are unavailable");
 assert(core.includes("Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title"), "dynamic title rule permits extra reads only for naming");
 assert(core.includes("must not contain progress, completion, status, task/session IDs, absolute paths, secrets, or unverified facts"), "dynamic title rule can leak IDs/paths/status/secrets/unverified facts");
-assert(core.includes("If safe current-thread title control is unavailable, skip silently"), "unsupported title control is no longer a silent fallback");
+assert(core.includes("If safe current-thread title control is unavailable after the bounded discovery above, skip silently"), "unsupported title control is no longer a silent fallback after bounded discovery");
 assert(core.includes("display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth"), "dynamic title rule became authority or evidence");
 assert(core.includes("does not authorize project/file writes, network activity, external task work, or continuation beyond the startup boundary"), "dynamic title rule weakens the no-auto-execute boundary");
 assert(core.includes("A direct ordinary task begins without a startup card"), "ordinary direct tasks were accidentally put behind startup ceremony");
@@ -79,7 +82,7 @@ assert(parseProjectIndexTemplateVersion(validAfterClosedFence) === "0.3.52", "sh
 assert(parseProjectIndexTemplateVersion(materializeProjectIndexTemplateVersion(validAfterClosedFence, "0.3.53")) === "0.3.53", "materializer failed to update the real Stack row after a valid long-fence close");
 
 console.log("ok: plain continuity startup is status-only with optional display-only title update; explicit continuation and ordinary direct tasks retain their normal work paths");
-console.log("ok: dynamic title is concise, derived from already-loaded facts, silently skipped when unsupported, and never authority/evidence/progress");
+console.log("ok: dynamic title is concise, discovers deferred title control narrowly, uses already-loaded facts, silently skips when unsupported, and never authority/evidence/progress");
 console.log("ok: bare startup version display uses only the shared Stack-row parser and falls back to version unverified without adding duplicate sources");
 
 function read(relative) {

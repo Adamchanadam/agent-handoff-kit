@@ -619,11 +619,56 @@ async function runCloseoutStatus(root, version) {
   // A closeout card needs a fresh local health readback, not a version-notice
   // network request.  The caller has already completed the closeout workflow.
   const doctor = await assessUpgradeNoopHealth(root, version, { skipVersionRegistryLookup: true });
-  if (!doctor.ok) findings.push("fresh doctor read-back did not pass");
+  if (!doctor.ok) {
+    findings.push("fresh doctor read-back did not pass");
+    details.push(...closeoutDoctorFailureDetails(doctor));
+  }
 
   const result = { ok: findings.length === 0, findings, details };
   printCloseoutStatusCard(version, result);
   if (!result.ok) process.exitCode = 1;
+}
+
+function closeoutDoctorFailureDetails(doctor) {
+  const output = [doctor.stdout, doctor.stderr, doctor.error ? `error: ${doctor.error}` : ""]
+    .filter(Boolean)
+    .join("\n");
+  const lines = output.split(/\r?\n/u).map((line) => line.trimEnd()).filter(Boolean);
+  const details = [];
+  const seen = new Set();
+  const add = (label, value) => {
+    const safe = safeCloseoutDoctorLine(value);
+    if (!safe) return;
+    const detail = `${label}${safe}`;
+    if (seen.has(detail)) return;
+    seen.add(detail);
+    details.push(detail);
+  };
+
+  add("Doctor: ", lines.find((line) => /^status:\s*failed\b/iu.test(line)));
+  const firstProblemIndex = lines.findIndex((line) => /^(missing|warn|failed)\s{2,}\S/iu.test(line.trim()));
+  if (firstProblemIndex >= 0) {
+    add("Doctor first problem: ", lines[firstProblemIndex].trim());
+    for (let offset = 1; offset <= 3 && firstProblemIndex + offset < lines.length; offset += 1) {
+      const line = lines[firstProblemIndex + offset].trim();
+      if (/^(missing|reason|error|warning|blocked|缺|missing anchor text):/iu.test(line)) {
+        add("Doctor detail: ", line);
+      }
+    }
+  }
+  add("Doctor next step: ", lines.find((line) => /^🚀\s*下一步：/u.test(line)));
+  if (details.length === 0 && doctor.error) add("Doctor error: ", `error: ${doctor.error}`);
+  if (details.length === 0) add("Doctor: ", "fresh doctor failed before producing a readable blocker");
+  return details.slice(0, 6);
+}
+
+function safeCloseoutDoctorLine(value) {
+  if (!value) return "";
+  let line = String(value).replace(/\s+/gu, " ").trim();
+  for (const { pattern, label } of credentialLeakPatterns) {
+    line = line.replace(pattern, `<REDACTED:${label}>`);
+  }
+  return line.slice(0, 500);
 }
 
 function closeoutOutcome(value) {

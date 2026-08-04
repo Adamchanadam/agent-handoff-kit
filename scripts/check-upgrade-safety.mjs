@@ -782,6 +782,7 @@ function checkLongLivedLifecycleIgnoresHistoricalReceipts() {
   const migrationsRoot = path.join(project, "dev", "governance_migrations");
   mkdirSync(path.join(migrationsRoot, "old-malformed-committed"), { recursive: true });
   writeFileSync(path.join(migrationsRoot, "old-malformed-committed", "transaction.json"), "{ malformed historical receipt\n", "utf8");
+  writeHistoricalSchema2CurrentStateWitness(project);
 
   append(path.join(project, "dev", "SESSION_LOG.md"), "\n<!-- QA long-lived lifecycle mutable state edit -->\n");
   append(path.join(project, "dev", "rules", "agent-governance.md"), "\n<!-- QA valid rule-pack mutable edit -->\n");
@@ -794,6 +795,8 @@ function checkLongLivedLifecycleIgnoresHistoricalReceipts() {
 
   const doctor = cli(["doctor", "--root", project], "long-lived lifecycle doctor after normal edits");
   assert(doctor.stdout.includes("status: passed"), `doctor did not ignore malformed historical receipt or ordinary workspace files\n${output(doctor)}`);
+  assert(doctor.stdout.includes("historical transaction receipt authority checks: 0"), "doctor reintroduced committed historical receipt authority");
+  assert(!doctor.stdout.includes("committed Gate 5 current-state"), "doctor reported a stale Gate 5 historical witness as current authority");
   assert(!doctor.stdout.includes("ordinary.md") && !doctor.stdout.includes("普通輸出"), "doctor reported ordinary workspace files");
   const dryRun = cli(["upgrade", "--dry-run", "--root", project], "long-lived lifecycle second dry-run");
   assert(dryRun.stdout.includes("dry-run: no files written"), "second dry-run did not remain read-only");
@@ -801,7 +804,130 @@ function checkLongLivedLifecycleIgnoresHistoricalReceipts() {
   assert(second.stdout.includes("沒有檔案需要建立或合併") || second.stdout.includes("migration committed"), "second long-lived lifecycle upgrade did not finish truthfully");
   const finalDoctor = cli(["doctor", "--root", project], "long-lived lifecycle final doctor");
   assert(finalDoctor.stdout.includes("status: passed"), "final long-lived lifecycle doctor failed");
-  console.log("ok: long-lived lifecycle ignores malformed historical receipt and ordinary workspace files are inert");
+  console.log("ok: long-lived lifecycle ignores malformed and stale schema-2 historical receipts, and ordinary workspace files are inert");
+}
+
+function writeHistoricalSchema2CurrentStateWitness(project) {
+  const id = "2026-07-26T06-25-32-260Z-qa-stale-schema2-witness";
+  const migrationDir = path.join(project, "dev", "governance_migrations", id);
+  const backupRoot = path.join(migrationDir, "backup");
+  const stageRoot = path.join(migrationDir, "stage");
+  const targetRel = "dev/SESSION_HANDOFF.md";
+  const targetPath = path.join(project, targetRel);
+  const backupRel = `dev/governance_migrations/${id}/backup/${targetRel}`;
+  const before = Buffer.from("legacy handoff bytes before schema-2 witness\n", "utf8");
+  const after = readFileSync(targetPath);
+  const ordinaryRel = "outputs/stale-current-state-witness-product.txt";
+  const ordinaryPath = path.join(project, ordinaryRel);
+  const ordinaryBefore = Buffer.from("ordinary project-owned output v1\n", "utf8");
+
+  mkdirSync(path.dirname(path.join(backupRoot, targetRel)), { recursive: true });
+  mkdirSync(path.dirname(path.join(stageRoot, targetRel)), { recursive: true });
+  mkdirSync(path.dirname(ordinaryPath), { recursive: true });
+  writeFileSync(path.join(backupRoot, targetRel), before);
+  writeFileSync(path.join(stageRoot, targetRel), after);
+  writeFileSync(ordinaryPath, ordinaryBefore);
+
+  const entry = {
+    targetRel,
+    existed: true,
+    beforeHash: sha(before),
+    afterHash: sha(after),
+    backupRel,
+    committed: true
+  };
+  const sourceConservationEntries = [
+    conservationEntry(targetRel, before, after, "transaction-output"),
+    conservationEntry(ordinaryRel, ordinaryBefore, ordinaryBefore, "unchanged-source")
+  ];
+  const sourceConservation = {
+    schemaVersion: 1,
+    frozenSetSha256: sha(Buffer.from(`${JSON.stringify(sourceConservationEntries)}\n`, "utf8")),
+    entries: sourceConservationEntries
+  };
+  const journal = {
+    id,
+    command: "upgrade",
+    mode: "upgrade-existing",
+    attemptedVersion: "0.3.52",
+    committedVersion: "0.3.52",
+    state: "committed",
+    entries: [entry],
+    archiveMigrations: [],
+    sourceConservation,
+    formalUserRules: null,
+    runtimeAcceptance: null,
+    createdAt: "2026-07-26T06:25:32.260Z",
+    committedAt: "2026-07-26T06:25:33.260Z"
+  };
+  const witnessBody = {
+    schemaVersion: 2,
+    transaction: {
+      id: journal.id,
+      command: journal.command,
+      mode: journal.mode,
+      attemptedVersion: journal.attemptedVersion
+    },
+    entries: [{
+      targetRel: entry.targetRel,
+      existed: entry.existed,
+      beforeHash: entry.beforeHash,
+      afterHash: entry.afterHash,
+      backupRel: entry.backupRel
+    }],
+    formalUserRules: null,
+    runtimeAcceptance: null,
+    sourceConservation
+  };
+  journal.currentStateWitness = {
+    ...witnessBody,
+    currentStateDigest: sha(Buffer.from(`${JSON.stringify(witnessBody)}\n`, "utf8"))
+  };
+  journal.currentStateReadback = {
+    reader: "doctor shared current-state witness check",
+    currentStateDigest: journal.currentStateWitness.currentStateDigest,
+    sourceConservationEntryCount: sourceConservation.entries.length,
+    formalUserRulesAcceptanceDigest: null,
+    runtimeAcceptanceDigest: null,
+    formalUserRules: null,
+    runtimeAcceptance: null
+  };
+  writeFileSync(path.join(migrationDir, "transaction.json"), `${JSON.stringify(journal, null, 2)}\n`, "utf8");
+  writeWitnesslessCommittedMigration(project, "2026-07-27T09-01-44-269Z-qa-v054-witnessless", "0.3.54");
+  writeWitnesslessCommittedMigration(project, "2026-07-31T18-05-34-891Z-qa-v056-witnessless", "0.3.56");
+
+  writeFileSync(ordinaryPath, "ordinary project-owned output v2\n", "utf8");
+}
+
+function conservationEntry(sourcePath, sourceBytes, acceptedBytes, disposition) {
+  return {
+    sourcePath,
+    sourceWitness: { sha256: sha(sourceBytes), bytes: sourceBytes.length },
+    accepted: { sha256: sha(acceptedBytes), bytes: acceptedBytes.length },
+    sourceByteRanges: [{ start: 0, end: sourceBytes.length, sha256: sha(sourceBytes) }],
+    disposition,
+    existingReaders: [],
+    priorityRelation: "qa-priority-not-proven",
+    effectDecision: "preserve-existing-route-or-stop",
+    classifications: ["formal-reference"]
+  };
+}
+
+function writeWitnesslessCommittedMigration(project, id, version) {
+  const dir = path.join(project, "dev", "governance_migrations", id);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, "transaction.json"), `${JSON.stringify({
+    id,
+    command: "upgrade",
+    mode: "upgrade-existing",
+    attemptedVersion: version,
+    committedVersion: version,
+    state: "committed",
+    entries: [],
+    archiveMigrations: [],
+    createdAt: "2026-07-31T00:00:00.000Z",
+    committedAt: "2026-07-31T00:00:01.000Z"
+  }, null, 2)}\n`, "utf8");
 }
 
 function checkIdempotency() {
