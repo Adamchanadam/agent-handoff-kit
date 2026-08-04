@@ -44,6 +44,34 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 | 8. Real user journey | yes | passed | A normal 收工 should show the actionable doctor blocker, and a normal 開工 can get a meaningful task title when the runtime exposes title control through discovery. |
 | 9. Release statement | yes | iterated | v0.3.57 is a source candidate only; no full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
 
+### Bilingual README semantic gate（v0.3.57，PASS）
+
+- Reviewer：agent `019fcbfd-e19b-7301-ab49-2daeebae9daf`；provenance `codex-gpt-5-2026-08-04-readonly-fullgate`；fresh independent read-only semantic review；verdict `accepted`.
+- `README.md` SHA-256 `2FF0398E22EF6183FE4209F12FD06807F073354C677349CD451AD9C1E6E4456B`
+- `README.en.md` SHA-256 `865E55FE2D88D9266F536631126B94819944510794CDFC1CAD797FE4DE9AC5F1`
+- Verdict: **PASS** — English preserves the Chinese source package / npm and GitHub readback boundary, three-step user path, startup / closeout behavior, status card, external-tool ownership, candidate-only scan, and separate authorization for publish, deletion, and permission changes.
+
+### Bilingual practical-guide semantic gate（v0.3.57，PASS）
+
+- Reviewer：agent `019fcbfd-e19b-7301-ab49-2daeebae9daf`；provenance `codex-gpt-5-2026-08-04-readonly-fullgate`；fresh independent read-only semantic review；verdict `accepted`.
+- `agent-handoff-kit-guide.html` SHA-256 `1AAB1B453FAA75CEB4945B33BCBA2FC3F1D74FEEC917F3F606A588DD705CF2D6`
+- `agent-handoff-kit-guide.en.html` SHA-256 `FD477335594BD648B4C49C203DA86D2A629FA6D0A723ECC81411B8A6EB6CED82`
+- Verdict: **PASS** — English preserves the three cases, install / upgrade / doctor examples, bare startup no-task boundary, confirmation-before-high-risk rule, Drive / Notion readback, durable decisions, and archive consequences.
+
+### Bilingual AI-install semantic gate（v0.3.57，PASS）
+
+- Reviewer：agent `019fcbfd-e19b-7301-ab49-2daeebae9daf`；provenance `codex-gpt-5-2026-08-04-readonly-fullgate`；fresh independent read-only semantic review；verdict `accepted`.
+- `agent-handoff-kit-ai-install.html` SHA-256 `F25524E4D3F38BAB452066D00575A12C651BF7EEC65C8A43EA947B0021044C19`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `2A7ABF1B8F3BB5214B060206202DCA3F262C73240A9F73BA03EB12468A45F178`
+- Verdict: **PASS** — English preserves folder confirmation first, zero-write behavior before confirmation, fresh install / upgrade dry-run / conflict stop, no Git / npm / GitHub publication, doctor / hash readback, and completion report boundaries.
+
+### Bilingual introduction semantic gate（v0.3.57，PASS）
+
+- Reviewer：agent `019fcbfd-e19b-7301-ab49-2daeebae9daf`；provenance `codex-gpt-5-2026-08-04-readonly-fullgate`；fresh independent read-only semantic review；verdict `accepted`.
+- `agent-handoff-kit-intro.html` SHA-256 `F50A8FA10CF667C5105C2442184F09FFCCAFA1AF4F0CD9F92D43BEEBFAF9EA29`
+- `agent-handoff-kit-intro.en.html` SHA-256 `9FD8060634D7CAB148B42A1640D25AC1FC1B4E6225F3B7057947A25451E46FAA`
+- Verdict: **PASS** — English preserves the v0.3.57 source / npm registry boundary, local-agent-only scope, startup status-only behavior, closeout, document bridge, safety, and external resource ownership.
+
 ## v0.3.56 release history
 
 - 狀態：正式發布歷史。v0.3.56 was released from commit `a13ad3fcf6c629545630471fce6280043ffeb014`; GitHub Release was published at `2026-07-31T11:22:10Z`; npm package `0.3.56` was published at `2026-07-31T11:22:20.140Z` and is npm `@latest` at this candidate-prep readback. The source, bilingual, and candidate evidence below are retained as release evidence history, not current v0.3.57 blockers.
