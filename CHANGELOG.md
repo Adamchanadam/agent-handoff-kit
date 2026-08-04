@@ -1,5 +1,14 @@
 # 變更紀錄
 
+## v0.3.57 — 2026-08-04
+
+狀態：source package version。本版修補收工診斷讀回不透明、舊 schema-2 歷史 witness 回歸覆蓋，以及 Codex 類 runtime 中開工標題工具需要延遲發現時未能改名的問題；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- `closeout-status` 在 fresh doctor read-back 失敗時，會顯示第一個安全、可操作的 doctor blocker，而不是只顯示籠統的 `fresh doctor read-back did not pass`。
+- 升級安全 QA 加入有效的舊 schema-2 committed `currentStateWitness` 加後續 witnessless migration 情景，防止歷史交易收據再次變成 current-state authority。
+- 單獨 `Start Agent Handoff` /「開工」若 runtime 的標題控制工具需要先 discovery，現在規則要求只做一次窄範圍 title/rename/current-thread 工具搜尋，找到安全的 current-thread title tool 才改名。
+- 開工標題命名仍不得讀取或管理無關 thread，不得 create/fork/navigate/message/archive/pin，也不得把標題當成進度、完成證據或任務授權。
+
 ## v0.3.56 — 2026-07-31
 
 狀態：source package version。本版修補收工診斷不透明與單獨開工標題時序；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
