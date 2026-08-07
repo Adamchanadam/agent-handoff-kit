@@ -5925,7 +5925,7 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
   }
   console.log("------------------------------------------------------------");
   console.log("⚠️  下面這句不是終端機指令。");
-  console.log("📋 請打開能讀寫此資料夾的 AI agent。若 AI 已在此資料夾內，新增對話後輸入：");
+  console.log("📋 不用再留在終端機；請打開能讀寫此資料夾的 AI agent。若 AI 已在此資料夾內，新增對話後輸入：");
   console.log("   例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity。");
   console.log("   普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具。");
   console.log("------------------------------------------------------------");

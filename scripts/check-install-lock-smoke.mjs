@@ -26,6 +26,8 @@ function checkFreshInstallNoMigrationArtifacts() {
   const project = fresh("fresh");
   const result = cli(["init", "--yes", "--root", project], "fresh init");
   assertRequiredFiles(project, "fresh init", result);
+  assert(result.stdout.includes("不用再留在終端機"), "fresh init output did not tell the user to leave the terminal");
+  assert(result.stdout.includes("簡短新手歡迎"), "fresh init output did not mention the first-use welcome");
   assert(!existsSync(migrationsRoot(project)), "fresh init created dev/governance_migrations");
   assert(read(path.join(project, "dev", "SESSION_HANDOFF.md")).includes("First-use guidance state: eligible"), "fresh init did not keep first-use guidance eligible");
   assert(cli(["doctor", "--root", project], "fresh doctor").stdout.includes("status: passed"), "fresh init doctor did not pass");
