@@ -2,7 +2,7 @@
 
 ## Scope
 
-Use this transient pack for first-time Agent Handoff Kit users who request guidance, or when the user's first-task intent remains genuinely unresolved after reading the available project state.
+Use this transient pack for first-time Agent Handoff Kit users after a fresh install, users who request guidance, or when the user's first-task intent remains genuinely unresolved after reading the available project state.
 
 The goal is to help the user complete a small first task without requiring them to read README, guide pages, `AGENTS.md`, or internal Kit rules first. After the onboarding walk-through finishes, unload this pack and continue with the regular scenario pack such as coding, research, writing, knowledge, or integrations.
 
@@ -20,16 +20,16 @@ Load this pack when the user message contains an onboarding signal such as:
 - vague project intent such as "I want to do a project"
 - equivalent Chinese user phrases such as "新手", "教我用", "點開始", "能力", or "能做甚麼"
 
-`I just installed` / "我剛安裝" alone records first-use eligibility; it does not load this pack when the same message or handoff already contains an executable objective.
+`I just installed` / "我剛安裝" is a first-use signal. When `SESSION_HANDOFF` says `First-use guidance state: eligible` and no executable objective remains, load this pack and give the first-use welcome. It does not override a same-message concrete task with enough material facts.
 
 ### Continuity startup boundary
 
-`Start Agent Handoff` / "開工" starts continuity and reads the minimum current handoff state; it is not an onboarding signal. A plain startup stops after its status card and recommended next action; a loaded objective alone does not authorize work. A same-message concrete task may begin normally. Only when no executable objective remains after state reading should the AI ask one concise question or offer the guided onboarding path. Explicit requests such as "新手，教我用" enter onboarding directly.
+`Start Agent Handoff` / "開工" starts continuity and reads the minimum current handoff state; it is not an onboarding signal by itself. A plain startup normally stops after its status card and recommended next action; a loaded objective alone does not authorize work. First-use eligible plain startup is the exception: when the handoff says `First-use guidance state: eligible`, the active objective is empty / `TBD`, and the user did not provide a same-message concrete task, enter onboarding instead of ending status-only. A same-message concrete task may begin normally. Only when no executable objective remains after state reading should the AI ask one concise question or offer the guided onboarding path. Explicit requests such as "新手，教我用" enter onboarding directly.
 
 ### Implicit signals
 
 - The first user message is short and still genuinely vague after available project state is read.
-- `SESSION_HANDOFF` first-use guidance state is `eligible`, Active Objective is empty, and the user has not supplied a concrete objective with enough material facts.
+- `SESSION_HANDOFF` first-use guidance state is `eligible`, Active Objective is empty / `TBD`, and the user has not supplied a concrete objective with enough material facts. This is the fresh-install welcome path and should not be skipped as an ordinary status-only startup.
 - The user asks a generic capability question instead of giving a concrete task.
 - The user appears unfamiliar with the workflow, for example asking what the AI should do rather than giving an objective.
 

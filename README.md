@@ -2,7 +2,7 @@
 
 English: [README.en.md](README.en.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-原始碼套件版本：`v0.3.57`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
+原始碼套件版本：`v0.3.58`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
@@ -97,7 +97,7 @@ Start Agent Handoff
 Work in <你的專案資料夾>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
 ```
 
-第一次安裝只會令新手引導可用，不會強制啟動。你已清楚描述目標和現有資料時，AI 會直接開始第一個安全步驟；只有目標仍然含糊，或你明確要求教學時，才會載入新手引導。日常「開工」先讀 `dev/SESSION_HANDOFF.md`；同一資料夾內不會再重讀 `START_NEXT_SESSION_PROMPT.txt` 或 `dev/SESSION_LOG.md`。提示副本只供尚未指向專案資料夾的 AI 接入。
+第一次安裝會把新手引導標記為待使用。若你安裝後只說 `Start Agent Handoff` 或「開工」，而沒有同句給出清楚任務，AI 應顯示開工卡並進入簡短新手歡迎引導；升級既有項目則不會重置這個流程。你已清楚描述目標和現有資料時，AI 可先用很短的新手框架說明工作節奏，再開始第一個安全步驟。日常「開工」先讀 `dev/SESSION_HANDOFF.md`；同一資料夾內不會再重讀 `START_NEXT_SESSION_PROMPT.txt` 或 `dev/SESSION_LOG.md`。提示副本只供尚未指向專案資料夾的 AI 接入。
 
 「開工，繼續 &lt;任務&gt;」、「&lt;項目&gt; 開工」或 `Start Agent Handoff and continue &lt;task&gt;` 會直接接力。只有語句明顯可能指現實世界的開業、輪班或其他無關事件時，AI 才作一次簡短確認。
 

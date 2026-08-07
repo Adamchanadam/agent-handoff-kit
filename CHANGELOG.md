@@ -1,5 +1,16 @@
 # 變更紀錄
 
+## v0.3.58 — 2026-08-07
+
+狀態：source package version。本版修補首次安裝 onboarding 與 create-only 安裝交易邊界；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- 首次安裝會把 first-use guidance 標記為 `eligible`，新用戶第一次只說 `Start Agent Handoff` /「開工」且沒有同句明確任務時，AI 會進入新手引導；升級不會把已 `consumed` / `not_applicable` 的狀態重設。
+- fresh `init` 和只補齊缺檔的 create-only `init` / AI install page `upgrade` 會直接以 no-clobber 建檔並讀回驗收，不再建立 `dev/governance_migrations` 或 `.upgrade.lock`。
+- 若遇到已完成 create-only `init` 留下的過期 `.upgrade.lock`，CLI 會嚴格讀回 journal、pid、host、狀態與目標檔 hash；確認安全後把它當歷史證據忽略，不要求 AI 刪除受權限保護的 lock。
+- malformed、invalid、仍在執行、非 create-only 或涉及 merge / archive 的 active lock 仍 fail closed，保留交易安全邊界。
+- QA 機制加入 `install-lock-smoke`，日常 quick 會守住 fresh install / create-only install / stale completed init lock 的事故面；發佈前 full 仍跑完整 upgrade-safety 與 transaction-window。
+- 評估全域 `governance-bridge` skill 後，不新增第二套標準 skill；只把有用的 bounded search / generated-output workflow discipline 合併到既有 agent-governance owner。
+
 ## v0.3.57 — 2026-08-04
 
 狀態：source package version。本版修補收工診斷讀回不透明、收工 lifecycle classifier 把背景／已清除／有條件監察句誤判為未解事項、舊 schema-2 歷史 witness 回歸覆蓋，以及 Codex 類 runtime 中開工標題工具需要延遲發現時未能改名的問題；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。

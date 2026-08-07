@@ -841,10 +841,10 @@
   <header class="hero">
     <div class="wrap">
       <div>
-        <span class="kicker">v0.3.57 source version · 60 秒新手入門</span>
+        <span class="kicker">v0.3.58 source version · 60 秒新手入門</span>
         <h1><span class="accent">AI Session</span><br/>之間的<br/><span class="accent2">接力棒</span></h1>
         <p class="lede">AI 每次開新對話都是從零開始,不記得你上次和它做過甚麼,也認不出中途新建的文檔和你引入的參考資料。這套工具的作用,是把進度、下一步、要留神之處,連同一份檔案登記,寫進幾份固定文件;下一次在能讀寫本機專案資料夾的 AI agent 開新對話,只要說 Start Agent Handoff 或「開工」,它就會讀取交接檔案並接上上一棒。普通 web chat AI 若不能讀寫本機資料夾,不屬於支援場景。</p>
-        <p><strong>版本提示：</strong>本頁對齊 v0.3.57；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
+        <p><strong>版本提示：</strong>本頁對齊 v0.3.58；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
         <div class="cta-row">
           <a class="btn primary" href="#howto">看三步上手 →</a>
           <a class="btn secondary" href="agent-handoff-kit-guide.html">實操指南 →</a>
@@ -1129,7 +1129,7 @@
 <span class="hl">開工</span></pre>
           <p style="margin-top:12px;">若 AI 還未指向你的專案資料夾,才使用帶路徑啟動句:</p>
           <pre>Work in <span class="hl">&lt;你的資料夾&gt;</span>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</pre>
-          <p style="margin-top:12px;">AI 會依 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code> 讀取權威 <code style="font-family:var(--font-mono);font-size:13px;">dev/SESSION_HANDOFF.md</code>。單獨輸入「開工」只會讀取最小狀態、顯示目前目標／風險／建議下一步，然後等待你的下一句指令。若平台能安全讀回及控制目前標題，AI 可用已載入事實把 generic / stale title 改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」；已有清楚標題便保留，不支援時靜默略過，也不為命名額外讀檔或連網。標題只供顯示，不代表狀態、進度或授權。只有同一句同時交代明確任務或長程指令時才會直接開始第一個安全步驟。第一次安裝只令新手引導可用。<code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code> 只供尚未指向資料夾的 AI 接入。</p>
+          <p style="margin-top:12px;">AI 會依 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code> 讀取權威 <code style="font-family:var(--font-mono);font-size:13px;">dev/SESSION_HANDOFF.md</code>。單獨輸入「開工」通常只會讀取最小狀態、顯示目前目標／風險／建議下一步，然後等待你的下一句指令；第一次安裝會把新手引導標記為待使用，所以若安裝後只說「開工」且沒有同句明確任務，AI 會進入簡短新手歡迎引導。若平台能安全讀回及控制目前標題，AI 可用已載入事實把 generic / stale title 改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」；已有清楚標題便保留，不支援時靜默略過，也不為命名額外讀檔或連網。標題只供顯示，不代表狀態、進度或授權。只有同一句同時交代明確任務或長程指令時才會直接開始第一個安全步驟。<code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code> 只供尚未指向資料夾的 AI 接入。</p>
           <p style="margin-top:12px;">「開工,繼續 &lt;任務&gt;」與「&lt;項目&gt; 開工」直接接力;只有語句可能指現實世界的開業、輪班或無關事件時才確認。</p>
           <ol style="margin-top:12px;padding-left:22px;font-size:14px;line-height:1.65;">
             <li>只讀取最低必要的目前交接狀態。</li>
@@ -1311,7 +1311,7 @@
         </p>
       </div>
       <div class="meta">
-        v0.3.57 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a>為準。
+        v0.3.58 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a>為準。
       </div>
     </div>
   </footer>

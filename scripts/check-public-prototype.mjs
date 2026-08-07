@@ -62,7 +62,8 @@ async function main() {
   assert(installedPrompt.includes("Do not read dev/SESSION_LOG.md during ordinary startup"), "initial START_NEXT_SESSION_PROMPT.txt missing ordinary-startup log boundary");
   assert(installedPrompt.includes("A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction"), "initial START_NEXT_SESSION_PROMPT.txt missing the plain-startup stop boundary");
   assert(!installedPrompt.includes("If my message or the handoff already gives an executable task"), "initial START_NEXT_SESSION_PROMPT.txt still promotes a loaded objective into same-turn full-task authority");
-  assert(installedPrompt.includes("A fresh install only makes guidance available; it does not force onboarding"), "initial START_NEXT_SESSION_PROMPT.txt missing onboarding eligibility boundary");
+  assert(installedPrompt.includes("First-use exception: when this handoff says `First-use guidance state: eligible`"), "initial START_NEXT_SESSION_PROMPT.txt missing first-use onboarding trigger boundary");
+  assert(installedPrompt.includes("Upgrade never resets consumed / not_applicable first-use state back to eligible"), "initial START_NEXT_SESSION_PROMPT.txt missing upgrade no-reset onboarding boundary");
   assert(!installedPrompt.includes("Help me choose the right working scenario"), "initial START_NEXT_SESSION_PROMPT.txt still forces the legacy chooser path");
   const installedProjectIndex = readFileSync(path.join(tempRoot, "dev", "PROJECT_INDEX.md"), "utf8");
   assert(parseProjectIndexTemplateVersion(installedProjectIndex) === version, "fresh init PROJECT_INDEX Stack version does not match package version");
@@ -70,7 +71,8 @@ async function main() {
   assert(doctor.stdout.includes("status: passed"), "doctor output did not include status: passed");
   assert(doctor.stdout.includes("✅ 檢查通過"), "doctor output missing beginner-friendly passed message");
   assert(!doctor.stdout.includes("generated markdown governance checks"), "doctor must not claim a generated Markdown root-discovery check");
-  assert(!doctor.stdout.includes("項目首次安裝距今：未知"), "doctor did not recognize the current transaction directory timestamp");
+  assert(!existsSync(path.join(tempRoot, "dev", "governance_migrations")), "fresh install created governance_migrations before doctor");
+  assert(doctor.stdout.includes("fresh install 不建立 migration 交易目錄"), "doctor did not report the fresh-install no-migration boundary");
   mkdirSync(path.join(tempRoot, "dev/governance_migrations/20260423T112233Z"), { recursive: true });
   const legacyAgeDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor legacy migration timestamp compatibility");
   assert(legacyAgeDoctor.stdout.includes("自 2026-04-23"), "doctor did not preserve legacy migration timestamp compatibility");

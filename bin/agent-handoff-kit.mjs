@@ -70,7 +70,7 @@ const requiredAnchors = [
       "continuity ready",
       "推薦下一步",
       "Start Agent Handoff",
-      "A fresh install or short message only makes guidance available",
+      "First-use exception: when `dev/SESSION_HANDOFF.md` says `First-use guidance state: eligible`",
       "Direct ordinary tasks do not show the card",
       "Reachable is not the same as ingested",
       "Proportionate Work Loop",
@@ -740,7 +740,11 @@ async function runInstall(command, root, options, version) {
   await validateTransactionRoot(root, [], { createMissingRoot: false });
   if (options.dryRun) await assertDryRunHasNoPendingTransaction(root);
   else {
-    await recoverInterruptedTransaction(root);
+    if (await isIgnorableCompletedCreateOnlyInitLock(root)) {
+      console.log("⚠️ stale completed init lock ignored: current files match the create-only install journal; lock remains as historical evidence.");
+    } else {
+      await recoverInterruptedTransaction(root);
+    }
     if (command === "upgrade" && process.env.AGENT_HANDOFF_KIT_QA_RECOVER_ONLY === "1") {
       console.log("QA recovery-only path completed; no new upgrade transaction was started.");
       return;
@@ -873,6 +877,10 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
   // The user has confirmed writes. Create and revalidate a missing root only
   // now, immediately before transaction artifacts are prepared.
   await validateTransactionRoot(root, plan, { createMissingRoot: true });
+  if (isDirectNoClobberCreateInstall(command, plan, outputs, preflight.archiveMigrations)) {
+    await executeDirectNoClobberCreateInstall(command, root, mode, plan, version, outputs);
+    return;
+  }
   const transaction = await prepareTransaction(root, command, version, outputs, mode, plan, preflight.archiveMigrations);
   try {
     await injectBeforeLockRevalidationDrift(root, transaction.journal);
@@ -1002,6 +1010,52 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
     }
     throw error;
   }
+}
+
+function isDirectNoClobberCreateInstall(command, plan, outputs, archiveMigrations = []) {
+  return ["init", "upgrade"].includes(command)
+    && archiveMigrations.length === 0
+    && outputs.length > 0
+    && outputs.every((output) => !output.before && output.beforeHash === null)
+    && plan.every((item) => item.action === "create" || item.action === "skip");
+}
+
+async function executeDirectNoClobberCreateInstall(command, root, mode, plan, version, outputs) {
+  for (const output of outputs) {
+    const current = await readOptionalBuffer(output.targetAbs);
+    if (current) throw new Error(`${output.targetRel}: target appeared before create-only install write; no overwrite attempted`);
+  }
+
+  for (const output of outputs) {
+    await mkdir(path.dirname(output.targetAbs), { recursive: true });
+    await writeFile(output.targetAbs, output.after, { mode: 0o600, flag: "wx" });
+    const written = await readOptionalBuffer(output.targetAbs);
+    if (!written || sha256(written) !== output.afterHash) {
+      throw new Error(`${output.targetRel}: create-only install readback failed`);
+    }
+  }
+
+  const doctorStatus = await runDoctor(root, version, {
+    silentCard: true,
+    context: "post-fresh-install-project-health",
+    skipVersionRegistryLookup: true
+  });
+  if (doctorStatus !== "passed") {
+    throw new Error("post-install doctor failed; create-only install is incomplete");
+  }
+
+  const created = outputs.map((item) => item.targetRel);
+  printCard(version, "continuity ready", "o.o");
+  printInstallSummary(version, command, mode, root, {
+    created: created.length,
+    merged: 0,
+    skipped: plan.filter((item) => item.action === "skip").length,
+    conflicts: 0,
+    directCreateOnly: true
+  });
+  console.log("✅ create-only install：只建立缺少檔案，沒有覆寫既有內容，也沒有建立 migration transaction。");
+  console.log("✅ project health: passed");
+  printInstallNextSteps(root, 0, mode, plan.filter((item) => item.action === "skip").length, { directCreateOnly: true });
 }
 
 async function buildInstallTransactionPreflight(command, root, plan, version, options = {}) {
@@ -1261,11 +1315,12 @@ async function synchronizeFormalUserRulesTransactionState(command, root, byTarge
   if (!routerOutput) return;
 
   let prior = null;
-  if (command === "upgrade") {
+  if (command === "upgrade" && routerOutput.before) {
     // The old formal reader is the sole authority for whether a prior router
     // is eligible for transition. A path, title, or directory never grants
     // this authority.
-    prior = await readFormalUserRules({ root, allowActiveTransaction: options.allowActiveTransaction === true });
+    const allowActiveTransaction = options.allowActiveTransaction === true || await isIgnorableCompletedCreateOnlyInitLock(root);
+    prior = await readFormalUserRules({ root, allowActiveTransaction });
   }
 
   let agentOutput = byTarget.get("AGENTS.md");
@@ -2418,6 +2473,44 @@ function processIsAlive(pid) {
   try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
+async function isIgnorableCompletedCreateOnlyInitLock(root) {
+  const lockPath = path.join(root, "dev", "governance_migrations", ".upgrade.lock");
+  let lock;
+  try {
+    lock = JSON.parse(await readFile(lockPath, "utf8"));
+  } catch {
+    return false;
+  }
+  if (!lock || typeof lock !== "object" || Array.isArray(lock) || typeof lock.id !== "string" || typeof lock.journal !== "string"
+    || lock.command !== "init" || typeof lock.host !== "string" || !Number.isInteger(lock.pid) || lock.pid <= 0) {
+    return false;
+  }
+  if (lock.host !== hostname() || processIsAlive(lock.pid)) return false;
+  const journalPath = path.resolve(root, lock.journal);
+  if (!isInside(root, journalPath)) return false;
+  let journal;
+  try {
+    journal = JSON.parse(await readFile(journalPath, "utf8"));
+  } catch {
+    return false;
+  }
+  if (journal.command !== "init" || !["prepared", "committing", "committed"].includes(journal.state)) return false;
+  if ((journal.archiveMigrations ?? []).length > 0) return false;
+  let validated;
+  try {
+    validated = await validateRecoveryJournal(root, journal, journalPath, lock.id);
+  } catch {
+    return false;
+  }
+  if (validated.length === 0) return false;
+  if (!validated.every(({ entry }) => entry.existed === false && entry.beforeHash === null && entry.backupRel === null)) return false;
+  for (const { entry, targetAbs } of validated) {
+    const current = await readOptionalBuffer(targetAbs);
+    if (!current || sha256(current) !== entry.afterHash) return false;
+  }
+  return true;
+}
+
 async function assertDryRunHasNoPendingTransaction(root) {
   const lockPath = path.join(root, "dev", "governance_migrations", ".upgrade.lock");
   try {
@@ -2426,6 +2519,7 @@ async function assertDryRunHasNoPendingTransaction(root) {
     if (error?.code === "ENOENT") return;
     throw error;
   }
+  if (await isIgnorableCompletedCreateOnlyInitLock(root)) return;
   throw new Error("dry-run blocked: an unresolved transaction requires a non-dry-run recovery; no files written");
 }
 
@@ -2754,7 +2848,7 @@ function byteWitness(bytes) {
 async function hasActiveTransactionLock(root) {
   try {
     await lstat(path.join(root, "dev", "governance_migrations", ".upgrade.lock"));
-    return true;
+    return !(await isIgnorableCompletedCreateOnlyInitLock(root));
   } catch (error) {
     if (error?.code === "ENOENT") return false;
     throw error;
@@ -2769,7 +2863,8 @@ async function checkFormalUserRules(root, options = {}) {
     return { ok: true, checked: 0, finding: null };
   }
   try {
-    const state = await readFormalUserRules({ root, allowActiveTransaction: options.allowActiveTransaction === true });
+    const allowActiveTransaction = options.allowActiveTransaction === true || await isIgnorableCompletedCreateOnlyInitLock(root);
+    const state = await readFormalUserRules({ root, allowActiveTransaction });
     if (options.expectedFormalUserRules) assertFormalUserRulesReadback(state, options.expectedFormalUserRules);
     if (typeof options.captureFormalUserRules === "function") options.captureFormalUserRules(state);
     return { ok: true, checked: 1, finding: null, state };
@@ -3185,7 +3280,9 @@ function handoffStateLines(text, markerId, headingTitle) {
 function isOwnedOpeningLifecycleBoilerplate(line) {
   return /^Resume the current objective\. A plain `Start Agent Handoff` \/ `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery/i.test(line)
     || /^A fresh install only makes guidance available; it does not force onboarding\./i.test(line)
-    || /^Load onboarding only when I explicitly ask for guidance or no executable objective remains after state reading\./i.test(line);
+    || /^First-use exception: when this handoff says `First-use guidance state: eligible`/i.test(line)
+    || /^Load onboarding only when I explicitly ask for guidance or no executable objective remains after state reading\./i.test(line)
+    || /^Upgrade never resets consumed \/ not_applicable first-use state back to eligible\./i.test(line);
 }
 
 function stripResolvedNegatedActionClauses(line) {
@@ -3537,6 +3634,15 @@ async function buildPlan(root, command, version = null) {
           action: "skip",
           reason: "no pre-existing formal user-rules state; router path does not imply legacy ownership"
         });
+      } else if (!routerText && declaresFormalEntry && await canCreateMissingFormalUserRulesRouter(root, agentsText)) {
+        plan.push({
+          sourceRel,
+          targetRel,
+          sourceAbs,
+          targetAbs,
+          action: "create",
+          reason: "complete interrupted first-install formal user-rules router without inferring user-rule ownership"
+        });
       } else if (!routerText || !declaresFormalEntry) {
         plan.push({
           sourceRel,
@@ -3581,6 +3687,13 @@ async function buildPlan(root, command, version = null) {
     });
   }
   return plan;
+}
+
+async function canCreateMissingFormalUserRulesRouter(root, agentsText) {
+  if (!agentsText || countText(agentsText, FORMAL_USER_RULES_ENTRY_ANCHOR) !== 1) return false;
+  if (await exists(path.join(root, "dev", "user_rules"))) return false;
+  const health = assessAgentsMdHealth(agentsText);
+  return health.state === "clean" && hasRequiredAnchor("AGENTS.md", agentsText);
 }
 
 async function readTemplateSource(command, sourceRel, targetRel, sourceAbs) {
@@ -3943,7 +4056,7 @@ function mergeOnboardingScenarioALabel(targetText) {
 
 function mergeOnboardingDecisionFirstPolicy(targetText, sourceText) {
   const legacySignalLine = "- equivalent Chinese user phrases such as \"新手\", \"教我用\", \"我剛安裝\", \"點開始\", \"開工\", \"能力\", or \"能做甚麼\"";
-  const currentSignalBoundary = "- equivalent Chinese user phrases such as \"新手\", \"教我用\", \"我剛安裝\", \"點開始\", \"能力\", or \"能做甚麼\"\n\n### Continuity startup boundary\n\n`Start Agent Handoff` / \"開工\" starts continuity and reads the minimum current handoff state; it is not an onboarding signal. A plain startup stops after its status card and recommended next action; a loaded objective alone does not authorize work. A same-message concrete task may begin normally. Only when no executable objective remains after state reading should the AI ask one concise question or offer the guided onboarding path. Explicit requests such as \"新手，教我用\" enter onboarding directly.";
+  const currentSignalBoundary = "- equivalent Chinese user phrases such as \"新手\", \"教我用\", \"我剛安裝\", \"點開始\", \"能力\", or \"能做甚麼\"\n\n### Continuity startup boundary\n\n`Start Agent Handoff` / \"開工\" starts continuity and reads the minimum current handoff state; it is not an onboarding signal by itself. A plain startup normally stops after its status card and recommended next action; a loaded objective alone does not authorize work. First-use eligible plain startup is the exception: when the handoff says `First-use guidance state: eligible`, the active objective is empty / `TBD`, and the user did not provide a same-message concrete task, enter onboarding instead of ending status-only. A same-message concrete task may begin normally. Only when no executable objective remains after state reading should the AI ask one concise question or offer the guided onboarding path. Explicit requests such as \"新手，教我用\" enter onboarding directly.";
   let working = targetText;
   let startupBoundaryChanged = false;
   if (working.includes(legacySignalLine) && !working.includes("### Continuity startup boundary")) {
@@ -3975,7 +4088,7 @@ function mergeOnboardingDecisionFirstPolicy(targetText, sourceText) {
   const replacements = [
     [
       "Use this transient pack for first-time Agent Handoff Kit users, vague first messages, or fresh-install sessions where the user has not yet chosen a working scenario.",
-      "Use this transient pack for first-time Agent Handoff Kit users who request guidance, or when the user's first-task intent remains genuinely unresolved after reading the available project state."
+      "Use this transient pack for first-time Agent Handoff Kit users after a fresh install, users who request guidance, or when the user's first-task intent remains genuinely unresolved after reading the available project state."
     ],
     [
       "- The first user message is short and vague.",
@@ -5304,9 +5417,10 @@ function printLastCloseout(result) {
   }
 }
 
-// R-031.2 v0.3.2+: Project age assessment. Reads the oldest folder timestamp in
-// dev/governance_migrations/ which records the first install date. Read-only; doctor
-// remains side-effect-free (no new write logic).
+// R-031.2 v0.3.2+: Project age assessment. Reads the oldest historical migration
+// folder timestamp when one exists. Fresh installs intentionally do not create
+// migration artifacts, so project age can be unknown. Read-only; doctor remains
+// side-effect-free (no new write logic).
 async function assessProjectAge(root) {
   const migrationsDir = path.join(root, "dev/governance_migrations");
   try {
@@ -5327,7 +5441,7 @@ function parseMigrationDirectoryDate(name) {
 
 function printProjectAge(result) {
   if (!result.firstInstall) {
-    console.log("  🌱 項目首次安裝距今：未知（dev/governance_migrations/ 未有 timestamp）");
+    console.log("  🌱 項目首次安裝距今：未知（fresh install 不建立 migration 交易目錄；升級後才會有 timestamp）");
     return;
   }
   const today = new Date();
@@ -5631,6 +5745,8 @@ function printInstallSummary(version, command, mode, root, counts) {
   console.log(`🔎 剛完成：${command} 命令；create ${counts.created} / merge ${counts.merged} / skip ${counts.skipped} / conflict ${counts.conflicts}。`);
   if (counts.conflicts > 0) {
     console.log(conflictRepairNextStepLine("🚀", "工具已停手，沒有覆寫 conflict 檔案。"));
+  } else if (counts.directCreateOnly) {
+    console.log("🚀 下一步：本次只補齊缺少檔案並已通過 doctor；不用做 migration 清理。");
   } else if (command === "upgrade") {
     console.log("🚀 下一步：本次提交已先經同一輪正式 doctor 讀回；請留意下方提交與健康結果。");
   } else if (counts.skipped > 0) {
@@ -5781,10 +5897,11 @@ function printCard(version, status, eyes) {
   console.log("");
 }
 
-function printInstallNextSteps(root, conflictCount, mode = "first-install", skippedCount = 0) {
+function printInstallNextSteps(root, conflictCount, mode = "first-install", skippedCount = 0, options = {}) {
   console.log("");
   console.log("============================================================");
-  if (skippedCount > 0) {
+  const needsPartialRepairStep = skippedCount > 0 && options.directCreateOnly !== true;
+  if (needsPartialRepairStep) {
     console.log("⚠️  已補齊缺少檔案，但仍要檢查入口連接");
   } else {
     console.log("✅ 安裝完成：下一步請在 AI 對話中操作");
@@ -5796,7 +5913,7 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
     console.log(conflictRepairNextStepLine());
     console.log("");
   }
-  if (skippedCount > 0) {
+  if (needsPartialRepairStep) {
     console.log("你原本已有部分 AI 記憶檔，工具已保留它們，沒有覆寫。");
     console.log("下一步先不要開始新任務；請在終端機執行以下預演，讓工具檢查能否安全補入口連接：");
     console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run");
@@ -5820,7 +5937,8 @@ function printInstallNextSteps(root, conflictCount, mode = "first-install", skip
   console.log("------------------------------------------------------------");
   console.log("");
   console.log("🚀 AI 會依 AGENTS.md 先讀取權威交接狀態。START_NEXT_SESSION_PROMPT.txt 只是給尚未指向此資料夾的 AI 使用的生成鏡像。");
-  console.log("   已給出明確任務時，AI 直接開始第一個安全步驟；只有你要求教學或仍無可執行目標時才進入新手引導。");
+  console.log("   首次安裝後，若你只說 Start Agent Handoff 或「開工」，AI 會顯示開工卡並進入簡短新手歡迎引導；升級不會重置新手流程。");
+  console.log("   若同一句已給出明確任務，AI 可先用很短的新手框架說明工作節奏，再開始第一個安全步驟。");
   console.log("   收工可說「Wrap up Agent Handoff」/「收工」；「開工，繼續 <任務>」會直接接力。");
   console.log("============================================================");
 }
@@ -5958,7 +6076,7 @@ Commands:
   例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity。
   普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具。
   AI 已在項目根目錄時，依 AGENTS.md 判斷意圖；只有接力、收工或依賴既有狀態的任務才讀交接狀態，
-  不會再重讀 START_NEXT_SESSION_PROMPT.txt。第一次安裝只令新手引導可用，不會強制進入教學。
+  不會再重讀 START_NEXT_SESSION_PROMPT.txt。第一次安裝會把新手引導標記為待使用；若只說 Start Agent Handoff 或「開工」且沒有同句明確任務，AI 會進入簡短新手歡迎；升級不會重置。
   用「Wrap up Agent Handoff」/「收工」保存交接；「<項目名> 開工」是明確接力。
   只有語句確實可能指現實工作、活動或其他語境時，AI 才問一條精簡確認問題。
 

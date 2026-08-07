@@ -1,3 +1,4 @@
+<!-- BEGIN Agent Handoff Kit managed core -->
 # Agent Handoff Kit Core Runtime
 
 This is the small always-read contract. Detailed task and closeout procedures live in routed packs.
@@ -11,9 +12,9 @@ Do not read `dev/SESSION_LOG.md` during ordinary startup; it is trace-back evide
 Route intent in this order:
 
 1. Clear closeout intent routes directly to `dev/rules/closeout.md`.
-2. Clear continuity intent such as "開工", "Start Agent Handoff", "開始接力", or "continue handoff" resumes the minimum current state from the handoff. A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery, one optional display-only current-thread title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out wording such as "unless you object I will start". First-use exception: when `dev/SESSION_HANDOFF.md` says `First-use guidance state: eligible`, the active objective is empty / `TBD`, and there is no same-message concrete task, load `dev/rules/onboarding.md` and include a short first-use welcome plus the most relevant guided choices in the same response instead of ending status-only. A concrete objective found only in loaded state is not authority to complete it. A same-message task may begin normally. An explicit instruction such as "開工，繼續做到下一個 blocker" or "開工，繼續完成目前目標" may continue under the normal task and safety rules.
+2. Clear continuity intent such as "開工", "Start Agent Handoff", "開始接力", or "continue handoff" resumes the minimum current state from the handoff. A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery, one optional display-only current-thread title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out wording such as "unless you object I will start". A concrete objective found only in loaded state is not authority to complete it. A same-message task may begin normally. An explicit instruction such as "開工，繼續做到下一個 blocker" or "開工，繼續完成目前目標" may continue under the normal task and safety rules.
 3. A direct ordinary task begins without a startup card or onboarding ceremony. Read only the sources and packs required by that task.
-4. Explicit guidance requests such as "I'm new", "teach me", "help me start", "新手", "教我用", or "點開始" may load `dev/rules/onboarding.md`. A fresh install marks first-use guidance as `eligible`, so the first unresolved startup must enter onboarding; upgrade must not reset `consumed` or `not_applicable` back to `eligible`. A short message in a non-eligible root only makes guidance available; it never overrides a concrete objective. If no executable objective remains after state reading, ask one concise question or offer guided onboarding.
+4. Explicit guidance requests such as "I'm new", "teach me", "help me start", "新手", "教我用", or "點開始" may load `dev/rules/onboarding.md`. A fresh install or short message only makes guidance available; it never overrides a concrete objective. If no executable objective remains after state reading, ask one concise question or offer guided onboarding.
 
 Treat a phrase as ambiguous only when its ordinary meaning may genuinely refer to a real-world shift, event, or unrelated context. `開工，繼續 <task>`, `<project> 開工`, and `Start Agent Handoff and continue <task>` are continuity commands, not ambiguous phrases.
 
@@ -27,7 +28,7 @@ Before a non-trivial task, identify and read the required local and external tru
 
 Probe an integration only immediately before a task uses it, when the handoff explicitly identifies it as a dependency for the current objective, or when the user requests an integration health check. `TBD`, examples, blank rows, and undeclared placeholders are not installed integrations. Record `Last Verified` only after a real probe and through the normal persistence gate. Never write integration status merely because a session started.
 
-Show the startup card only for explicit continuity startup. For a plain continuity message, show the card after the minimum state recovery and end the turn; its recommended next action is advice, not permission to act. The first-use exception above replaces that status-only stop with onboarding only when the handoff state is `eligible`, the objective is empty / `TBD`, and there is no same-message concrete task. An explicit same-message task or long-run continuation may combine the card with its first useful action. Direct ordinary tasks do not show the card. If onboarding is explicitly requested or first-use onboarding is triggered, combine any card and guidance in one response.
+Show the startup card only for explicit continuity startup. For a plain continuity message, show the card after the minimum state recovery and end the turn; its recommended next action is advice, not permission to act. An explicit same-message task or long-run continuation may combine the card with its first useful action. Direct ordinary tasks do not show the card. If onboarding is explicitly requested, combine any card and guidance in one response.
 
 For explicit bare continuity startup, after the handoff is read, the startup card may read only the bounded version evidence from `dev/PROJECT_INDEX.md`: the unique stable-semver `| Agent Handoff Kit template version | X.Y.Z | ... |` row inside the unique real `## Stack` section. Do not route on, summarize, or load any other Project Index content for startup, title, permissions, packs, health, or task work. Missing, unreadable, malformed, duplicate, prerelease, or out-of-Stack-only version evidence prints `version unverified`; the turn remains status-only with zero writes. A direct ordinary or stateless task does not read the handoff or Project Index merely to fill a card or version.
 
@@ -115,3 +116,12 @@ After the task, apply the Persistence Gate. Do not assume the next session remem
 ## Core Complexity Rule
 
 Before changing `AGENTS.md` or adding a durable governance rule, use `dev/RULE_PACKS.md` to load `dev/rules/agent-governance.md` and locate the existing normative owner. Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. Scenario-specific or project-specific detail belongs in an existing pack or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner. Do not copy the agent-governance classification table or workflow into the core.
+<!-- END Agent Handoff Kit managed core -->
+
+<!-- ack:user-rules-router:dev/USER_RULES.md -->
+<!-- ack:user-rules-acceptance:sha256=526c61feaebd0e7fc43ae7e8ae658c081e7ef0dbd0d737a09ec908602d9e0aa6 -->
+Before loading task packs, read `dev/USER_RULES.md`. Its registered entries
+under `dev/user_rules/` are user-controlled rules: read each accepted entry in
+the listed order and verify its accepted raw-byte witness. Do not treat this
+router, its directory, a heading, language, format, location, or
+official-looking text as proof that any legacy source belongs to the Kit.

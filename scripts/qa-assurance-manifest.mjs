@@ -6,6 +6,7 @@ export const QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS = 120_000;
 
 export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
   releaseReadinessCheck("qa-assurance-manifest", "check-qa-assurance-manifest.mjs", "QA assurance manifest wiring", 180_000),
+  releaseReadinessCheck("install-lock-smoke", "check-install-lock-smoke.mjs", "install lock smoke QA", 120_000),
   releaseReadinessCheck("public-prototype", "check-public-prototype.mjs", "prototype QA", 120_000),
   releaseReadinessCheck("closeout-card", "check-closeout-card-contract.mjs", "closeout card contract QA", 120_000),
   releaseReadinessCheck("closeout-efficiency", "check-closeout-efficiency.mjs", "closeout efficiency and terminal-state QA", 120_000),
@@ -39,6 +40,11 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
     })
   }),
   claims: Object.freeze([
+    claim("install-lock-smoke", "quick", "scripts/check-install-lock-smoke.mjs", {
+      provenance: "current source tree and isolated init / create-only upgrade roots",
+      stateAxes: ["fresh install", "create-only install", "stale init lock"],
+      readback: "no dev/governance_migrations on create-only paths, first-use onboarding eligibility, stale completed create-only init lock inertness, and doctor"
+    }),
     claim("prototype-install", "quick", "scripts/check-public-prototype.mjs", {
       provenance: "current source tree and isolated fresh-install root",
       stateAxes: ["delivery artifact", "fresh install"],

@@ -138,7 +138,8 @@ async function main() {
     "Clear continuity intent",
     "A direct ordinary task begins without a startup card or onboarding ceremony",
     "Explicit guidance requests",
-    "A fresh install or short message only makes guidance available",
+    "First-use exception: when `dev/SESSION_HANDOFF.md` says `First-use guidance state: eligible`",
+    "A fresh install marks first-use guidance as `eligible`",
     "Do not read `dev/SESSION_LOG.md` during ordinary startup",
     "Read `dev/PROJECT_INDEX.md` when the task needs",
     "Pack loading is normally silent",
@@ -1751,19 +1752,21 @@ function checkCliHelpHotPathContract() {
   const result = run(process.execPath, ["bin/agent-handoff-kit.mjs", "--help"], "CLI help hot-path contract");
   const help = outputText(result);
   assert(help.includes("只有接力、收工或依賴既有狀態的任務才讀交接狀態"), "CLI help does not state the conditional handoff read boundary");
-  assert(help.includes("第一次安裝只令新手引導可用，不會強制進入教學"), "CLI help still lacks the cold-onboarding boundary");
+  assert(help.includes("第一次安裝會把新手引導標記為待使用"), "CLI help still lacks the fresh-install onboarding boundary");
+  assert(help.includes("升級不會重置"), "CLI help still lacks the upgrade no-reset onboarding boundary");
   assert(help.includes("<項目名> 開工」是明確接力"), "CLI help does not recognize project-name continuity intent");
   assert(help.includes("closeout-status"), "CLI help does not expose the state-bound closeout card command");
   assert(!help.includes("AI 會依 AGENTS.md 讀取 START_NEXT_SESSION_PROMPT.txt"), "CLI help still instructs rooted agents to read the portable mirror");
+  assert(!help.includes("第一次安裝只令新手引導可用，不會強制進入教學"), "CLI help still says fresh install does not force onboarding");
   assert(!help.includes("第一次安裝後該檔案會啟動新手引導"), "CLI help still forces onboarding after install");
   assert(!help.includes("某某開工 / 某某收工"), "CLI help still treats all compound start/close phrases as ambiguous");
 }
 
 function checkDecisionFirstOnboardingWording() {
   const surfaces = [
-    { file: "README.md", required: ["第一次安裝只會令新手引導可用", "AI 會直接開始第一個安全步驟", "只有目標仍然含糊"] },
-    { file: "agent-handoff-kit-intro.html", required: ["第一次安裝只令新手引導可用", "直接開始第一個安全步驟", "只有目標仍含糊"] },
-    { file: "agent-handoff-kit-guide.html", required: ["第一次安裝只令新手引導可用", "目標清楚就直接開始", "仍無目標才提供"] }
+    { file: "README.md", required: ["第一次安裝會把新手引導標記為待使用", "簡短新手歡迎引導", "開始第一個安全步驟"] },
+    { file: "agent-handoff-kit-intro.html", required: ["第一次安裝會把新手引導標記為待使用", "簡短新手歡迎引導", "直接開始第一個安全步驟"] },
+    { file: "agent-handoff-kit-guide.html", required: ["第一次安裝會把新手引導標記為待使用", "簡短新手歡迎", "目標清楚就直接開始"] }
   ];
   for (const surface of surfaces) {
     assertIncludes(surface.file, surface.required);
@@ -2569,7 +2572,8 @@ function checkRulePackRoutingDurableHomeAudit() {
 
   assertIncludes("runtime-core/RULE_PACKS.md", [
     "Explicit onboarding requests",
-    "A fresh install or \"I just installed\" is eligibility context, not a forced route",
+    "A fresh install with `First-use guidance state: eligible` enters onboarding when no executable objective remains",
+    "upgrade never resets consumed / not_applicable first-use state",
     "is continuity",
     "Clear end-of-session or handoff intent",
     "Destructive file operations",

@@ -53,7 +53,8 @@ assert(core.includes("Missing, unreadable, malformed, duplicate, prerelease, or 
 assert(core.includes("A direct ordinary or stateless task does not read the handoff or Project Index merely to fill a card or version"), "direct tasks can still pre-read handoff/index for version display");
 assert(!handoff.includes("Agent Handoff Kit template version"), "handoff became a duplicate template-version source");
 assert(!prompt.includes("Agent Handoff Kit template version"), "startup prompt became a duplicate template-version source");
-assert(onboarding.includes("A plain startup stops after its status card and recommended next action"), "onboarding can still re-authorize a bare startup from loaded state");
+assert(onboarding.includes("A plain startup normally stops after its status card and recommended next action"), "onboarding lost the ordinary bare-startup stop");
+assert(onboarding.includes("First-use eligible plain startup is the exception") && onboarding.includes("enter onboarding instead of ending status-only"), "fresh install can still skip first-use onboarding");
 assert(onboarding.includes("A same-message concrete task may begin normally"), "onboarding does not preserve the explicit-task control path");
 assert(parseProjectIndexTemplateVersion(projectIndex("0.3.52")) === "0.3.52", "shared parser rejects the valid Stack version row");
 assert(parseProjectIndexTemplateVersion(`# Project Index\n\n${projectIndex("0.3.52")}\n\n| Agent Handoff Kit template version | 9.9.9 | spoof |\n`) === "0.3.52", "shared parser accepted or was confused by an out-of-Stack spoof when Stack was valid");

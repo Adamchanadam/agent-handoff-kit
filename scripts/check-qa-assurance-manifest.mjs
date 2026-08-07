@@ -62,6 +62,7 @@ function validateManifest() {
       assert(Number.isInteger(claim.executor.timeoutMs) && claim.executor.timeoutMs >= 30_000, `claim ${claim.id} lacks a reasonable internal-validator timeout`);
     }
   }
+  assert(ids.has("install-lock-smoke"), "quick QA omits install-lock-smoke");
   assert(/^[a-f0-9]{64}$/.test(QA_ASSURANCE_MANIFEST_DIGEST), "manifest digest is malformed");
 }
 
@@ -200,6 +201,7 @@ function validateReleaseReadinessInventory() {
     assert(typeof item.label === "string" && item.label, `release-readiness inventory item missing label: ${item.id}`);
     assert(Number.isInteger(item.timeoutMs) && item.timeoutMs >= 30_000, `release-readiness inventory item lacks a reasonable per-command timeout: ${item.id}`);
   }
+  assert(ids.has("install-lock-smoke"), "release-readiness inventory omits install-lock-smoke");
   assert(ids.has("closeout-efficiency"), "release-readiness inventory omits closeout-efficiency");
   const inventoryBudgetMs = QA_RELEASE_READINESS_INVENTORY.reduce((total, item) => total + item.timeoutMs, 0);
   const aggregateBudgetMs = aggregateReleaseReadinessTimeoutMs();

@@ -348,14 +348,17 @@ function assertPackStructure() {
 function assertOnboardingDecisionCases() {
   assertIncludes(router, [
     "Explicit onboarding requests",
-    "A fresh install or \"I just installed\" is eligibility context, not a forced route",
+    "A fresh install with `First-use guidance state: eligible` enters onboarding when no executable objective remains",
+    "upgrade never resets consumed / not_applicable first-use state",
     "is continuity",
     "infer when sufficient and begin a concrete task directly",
-    "no executable objective remains"
+    "first-use state is eligible with no executable objective"
   ], "onboarding decision-first router");
   assertIncludes(packs.onboarding, [
     "Continuity startup boundary",
-    "starts continuity and reads the minimum current handoff state; it is not an onboarding signal",
+    "starts continuity and reads the minimum current handoff state; it is not an onboarding signal by itself",
+    "First-use eligible plain startup is the exception",
+    "enter onboarding instead of ending status-only",
     "Explicit requests such as \"新手，教我用\" enter onboarding directly",
     "When the user has already supplied a concrete, actionable objective and enough material facts",
     "Only show the scenario chooser when the user's intent remains genuinely unresolved",
@@ -397,6 +400,8 @@ function assertOnboardingDecisionCases() {
     "skip silently",
     "display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth",
     "開工，繼續做到下一個 blocker",
+    "First-use exception: when `dev/SESSION_HANDOFF.md` says `First-use guidance state: eligible`",
+    "load `dev/rules/onboarding.md` and include a short first-use welcome",
     "A direct ordinary task begins without a startup card or onboarding ceremony",
     "If no executable objective remains after state reading"
   ], "continuity startup core boundary");
@@ -466,7 +471,9 @@ function assertGovernanceBridgeUseCaseMatrix() {
     "Not applicable",
     "Suggested patches",
     "Manual decisions",
-    "Acceptance"
+    "Acceptance",
+    "bounded searches for the target path/name",
+    "Search evidence is a check, not a second source of truth"
   ], "governance bridge output contract");
 
   for (const useCase of governanceBridgeUseCases) {

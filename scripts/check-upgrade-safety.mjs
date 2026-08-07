@@ -3,7 +3,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { tmpdir as systemTmpdir } from "node:os";
+import { hostname, tmpdir as systemTmpdir } from "node:os";
 import { gunzipSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +29,9 @@ function main() {
   assertCliEnvDisablesUpdateNotice();
   checkDryRunNoWrites();
   checkCancelledWriteLeavesMissingRootAbsent();
+  checkFreshInstallNoMigrationArtifacts();
+  checkCreateOnlyInstallCompletionNoMigrationArtifacts();
+  checkStaleCompletedCreateOnlyInitLockDoesNotBlock();
   checkPartialInstallAndBackup();
   checkConflictZeroWrite();
   checkBridgeSemantics();
@@ -72,6 +75,66 @@ function checkCancelledWriteLeavesMissingRootAbsent() {
   assert(result.stdout.includes("cancelled: no files written"), "cancelled init did not report zero writes");
   assert(!existsSync(project), "cancelled init created the selected root before confirmation");
   console.log("ok: cancelled init leaves a missing root absent");
+}
+
+function checkFreshInstallNoMigrationArtifacts() {
+  const project = fresh("fresh-install-no-migration");
+  const result = cli(["init", "--yes", "--root", project], "fresh install no migration artifacts");
+  assertRequiredFixtureFiles(project, "fresh install no migration artifacts", result);
+  const text = output(result);
+  assert(!existsSync(path.join(project, "dev", "governance_migrations")), "fresh install created governance_migrations");
+  assert(!text.includes("migration report:") && !text.includes("governance_migrations"), "fresh install output exposed migration artifacts");
+  const handoff = read(path.join(project, "dev", "SESSION_HANDOFF.md"));
+  assert(handoff.includes("First-use guidance state: eligible"), "fresh install did not keep first-use guidance eligible");
+  const doctor = cli(["doctor", "--root", project], "fresh install no migration doctor", {
+    env: { AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" }
+  });
+  assert(doctor.stdout.includes("status: passed"), "fresh install without migration artifacts did not pass doctor");
+  console.log("ok: fresh install creates no migration directory or lock while first-use onboarding remains eligible");
+}
+
+function checkCreateOnlyInstallCompletionNoMigrationArtifacts() {
+  for (const command of ["init", "upgrade"]) {
+    const source = fresh(`create-only-source-${command}`);
+    cli(["init", "--yes", "--root", source], `${command} create-only source`);
+    const project = fresh(`create-only-completion-${command}`);
+    writeFileSync(path.join(project, "AGENTS.md"), read(path.join(source, "AGENTS.md")), "utf8");
+
+    const dryRun = cli([command, "--dry-run", "--root", project], `${command} create-only completion dry-run`);
+    assert(dryRun.stdout.includes("dry-run: no files written"), `${command} create-only dry-run did not remain read-only`);
+    assert(!existsSync(path.join(project, "dev", "governance_migrations")), `${command} create-only dry-run created governance_migrations`);
+
+    const result = cli([command, "--yes", "--root", project], `${command} create-only completion`);
+    assertRequiredFixtureFiles(project, `${command} create-only completion`, result);
+    const text = output(result);
+    assert(text.includes("create-only install"), `${command} create-only completion did not report the create-only path`);
+    assert(!existsSync(path.join(project, "dev", "governance_migrations")), `${command} create-only completion created governance_migrations`);
+    assert(!text.includes("migration report:") && !text.includes("dev\\governance_migrations") && !text.includes("dev/governance_migrations"), `${command} create-only completion output exposed migration artifacts`);
+    const doctor = cli(["doctor", "--root", project], `${command} create-only completion doctor`);
+    assert(doctor.stdout.includes("status: passed"), `${command} create-only completion did not pass doctor`);
+  }
+  console.log("ok: create-only init/upgrade completion creates no migration directory or lock");
+}
+
+function checkStaleCompletedCreateOnlyInitLockDoesNotBlock() {
+  const project = fresh("stale-create-only-init-lock");
+  cli(["init", "--yes", "--root", project], "stale create-only source init");
+  const lockPath = writeStaleCompletedCreateOnlyInitLock(project);
+  assert(existsSync(lockPath), "stale create-only fixture did not write lock");
+  const before = fullSnapshot(project);
+
+  const doctor = cli(["doctor", "--root", project], "stale create-only lock doctor");
+  assert(doctor.stdout.includes("status: passed"), `stale create-only lock made doctor fail\n${output(doctor)}`);
+  assert(equalSnapshots(before, fullSnapshot(project)), "stale create-only lock doctor changed fixture bytes");
+
+  const dryRun = cli(["upgrade", "--dry-run", "--root", project], "stale create-only lock dry-run");
+  assert(dryRun.stdout.includes("dry-run: no files written"), "stale create-only lock dry-run did not remain read-only");
+  assert(equalSnapshots(before, fullSnapshot(project)), "stale create-only lock dry-run changed fixture bytes");
+
+  const noOp = cli(["upgrade", "--yes", "--root", project], "stale create-only lock upgrade");
+  assert(noOp.stdout.includes("stale completed init lock ignored"), "stale create-only lock upgrade did not report the ignored stale lock");
+  assert(equalSnapshots(before, fullSnapshot(project)), "stale create-only lock upgrade changed fixture bytes");
+  console.log("ok: stale completed create-only init lock is read-only historical evidence, not a blocker");
 }
 
 function checkPartialInstallAndBackup() {
@@ -195,12 +258,12 @@ function checkCredentialPreBackupStop() {
   const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
   writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, "| Agent Handoff Kit template version | 0.3.38 |"), "utf8");
   const migrationRoot = path.join(project, "dev", "governance_migrations");
-  const beforeDirs = readdirSync(migrationRoot).length;
+  const beforeDirs = countMigrationDirectories(migrationRoot);
   const before = governanceSnapshot(project);
   const result = cli(["upgrade", "--yes", "--root", project], "credential pre-backup stop", { allowFailure: true });
   assert(result.status !== 0 && output(result).includes("credential value"), "credential pattern did not stop upgrade before backup");
   assert(!output(result).includes(fakePattern), "credential value was echoed in upgrade output");
-  assert(readdirSync(migrationRoot).length === beforeDirs, "credential stop created a migration artifact");
+  assert(countMigrationDirectories(migrationRoot) === beforeDirs, "credential stop created a migration artifact");
   assert(equalSnapshots(before, governanceSnapshot(project)), "credential stop changed governance files");
   console.log("ok: credential pattern stops before backup without value disclosure");
 }
@@ -944,7 +1007,56 @@ function install(label) {
   const project = fresh(label);
   const result = cli(["init", "--yes", "--root", project], `${label} bootstrap`);
   assertRequiredFixtureFiles(project, `${label} bootstrap`, result);
+  assert(!existsSync(path.join(project, "dev", "governance_migrations")), `${label} bootstrap created first-install migration artifacts`);
   return project;
+}
+
+function writeStaleCompletedCreateOnlyInitLock(project) {
+  const id = `qa-stale-create-only-init-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const migrationDir = path.join(project, "dev", "governance_migrations", id);
+  const stageDir = path.join(migrationDir, "stage");
+  mkdirSync(path.join(migrationDir, "backup"), { recursive: true });
+  mkdirSync(stageDir, { recursive: true });
+  const targetRels = [...requiredInstalledTargets, "dev/USER_RULES.md"];
+  const entries = [];
+  for (const targetRel of targetRels) {
+    const bytes = readFileSync(path.join(project, targetRel));
+    const stagePath = path.join(stageDir, targetRel);
+    mkdirSync(path.dirname(stagePath), { recursive: true });
+    writeFileSync(stagePath, bytes);
+    entries.push({
+      targetRel,
+      existed: false,
+      beforeHash: null,
+      afterHash: sha(bytes),
+      backupRel: null,
+      committed: false,
+      reason: "QA stale completed create-only init lock"
+    });
+  }
+  const journal = {
+    id,
+    command: "init",
+    mode: "first-install",
+    attemptedVersion: packageVersion,
+    committedVersion: null,
+    state: "committing",
+    entries,
+    archiveMigrations: [],
+    plannedSkips: 0,
+    createdAt: "2026-08-07T17:13:51.000Z"
+  };
+  writeFileSync(path.join(migrationDir, "transaction.json"), `${JSON.stringify(journal, null, 2)}\n`, "utf8");
+  const lockPath = path.join(project, "dev", "governance_migrations", ".upgrade.lock");
+  writeFileSync(lockPath, `${JSON.stringify({
+    id,
+    command: "init",
+    journal: `dev/governance_migrations/${id}/transaction.json`,
+    host: hostname(),
+    pid: 99999999,
+    createdAt: "2026-08-07T17:13:51.000Z"
+  }, null, 2)}\n`, "utf8");
+  return lockPath;
 }
 
 function assertRequiredFixtureFiles(project, label, result = null, required = requiredInstalledTargets) {
@@ -1081,6 +1193,15 @@ function markdownH2Sections(text) {
   }
   for (let index = 0; index < sections.length - 1; index += 1) sections[index].end = sections[index + 1].start;
   return sections;
+}
+
+function countMigrationDirectories(migrationRoot) {
+  try {
+    return readdirSync(migrationRoot).length;
+  } catch (error) {
+    if (error?.code === "ENOENT") return 0;
+    throw error;
+  }
 }
 
 function compareVersions(left, right) {

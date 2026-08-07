@@ -2,7 +2,7 @@
 
 [繁體中文](README.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-Source package version: `v0.3.57`. npm `@latest` and GitHub Release are verified by post-publish readback.
+Source package version: `v0.3.58`. npm `@latest` and GitHub Release are verified by post-publish readback.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit overview animation" width="720">
@@ -97,7 +97,7 @@ If the AI is not yet pointed at the project folder, use the path-bearing startup
 Work in <your project folder>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
 ```
 
-A first installation merely makes onboarding available; it does not force a tutorial. When your goal and the available facts are clear, the AI begins the first safe task action. It uses guided onboarding only when the goal is genuinely unclear or you explicitly request guidance.
+A first installation marks onboarding as pending. If you only say `Start Agent Handoff` or `開工` after installing, and you do not provide a clear task in the same message, the AI should show the startup card and enter a short first-use welcome. Upgrades of existing projects do not reset that flow. When your goal and the available facts are clear, the AI may give a brief first-use frame and then begin the first safe task action.
 
 For ordinary daily startup, the AI reads `dev/SESSION_HANDOFF.md` first. Inside the same folder it does not reread `START_NEXT_SESSION_PROMPT.txt` or `dev/SESSION_LOG.md` during normal startup. The prompt copy is only for an AI that has not yet been pointed at the project folder.
 
