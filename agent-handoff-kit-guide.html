@@ -558,7 +558,7 @@
         <p style="margin: 0 0 12px; font-size: 16px; line-height: 1.6;"><strong>你不需要先讀本指南。</strong>未安裝或不確定是否要升級時,在目標資料夾打開能讀寫本機資料夾的 AI agent,請它讀 <code>agent-handoff-kit-ai-install.html</code> 並在這個資料夾安裝或升級。安裝完成後,若 AI 已在正確專案內,輸入:</p>
         <p style="margin: 0 0 12px; font-family: var(--font-mono); font-size: 13px; background: rgba(255,255,255,0.15); padding: 8px 12px;">Start Agent Handoff<br/>或:開工</p>
         <p style="margin: 0 0 8px; font-size: 14px; line-height: 1.55; opacity: 0.9;">若 AI 還未指向資料夾,才用帶路徑啟動句:Work in &lt;你的資料夾&gt;. Read AGENTS.md first, then Start Agent Handoff.</p>
-        <p style="margin: 0 0 8px; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會依 AGENTS.md 讀權威 SESSION_HANDOFF。單獨開工只顯示目前狀態、風險與建議下一步,然後等待你下一句;同一句有明確任務時才可直接開始工作。START_NEXT_SESSION_PROMPT.txt 只供尚未指向資料夾的 AI 接入。收工可說 Wrap up Agent Handoff。</p>
+        <p style="margin: 0 0 8px; font-size: 14px; line-height: 1.55; opacity: 0.9;">AI 會依 AGENTS.md 讀權威 SESSION_HANDOFF。第一次安裝後單獨開工會顯示目前狀態、風險與建議下一步，並進入簡短新手歡迎；既有項目升級後單獨開工則維持狀態提示。同一句有明確任務時才可直接開始工作。START_NEXT_SESSION_PROMPT.txt 只供尚未指向資料夾的 AI 接入。收工可說 Wrap up Agent Handoff。</p>
         <p style="margin: 0; font-size: 14px; line-height: 1.55; opacity: 0.9;">普通 web chat AI 若不能讀寫本機資料夾,並不適合使用本工具。本指南示範的是本機 agent 長任務流程。</p>
       </div>
     </div>
@@ -740,7 +740,7 @@ create: 21
 <span class="hl">Work in ~/Downloads-tidy. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</span>
 ------------------------------------------------------------
 
-🚀 AI 會依 AGENTS.md 確認這個資料夾。單獨開工時,它只會顯示目前狀態、風險與建議下一步,然後停下等待你下一句;你在同一句講清任務時,它才會自行判斷情境並開始第一個安全步驟。
+🚀 AI 會依 AGENTS.md 確認這個資料夾。第一次安裝後單獨開工時,它會顯示目前狀態、風險與建議下一步，並進入簡短新手歡迎；既有項目升級後單獨開工則維持狀態提示。你在同一句講清任務時,它才會自行判斷情境並開始第一個安全步驟。
 
 ============================================================</div>
       </div>
@@ -763,8 +763,8 @@ create: 21
   <section class="step-section" id="a-step-2">
     <div class="wrap">
       <span class="badge">STEP 02 · CASE A</span>
-      <h2>開工啟動接力 —— 單獨開工只看狀態,有任務才開始工作</h2>
-      <p class="narrative">打開能讀寫本機專案資料夾的 AI agent,開一個新對話。若 AI 已在正確專案內,可以只輸入 Start Agent Handoff 或「開工」;這只代表恢復最低必要狀態、顯示目前目標、風險與建議下一步,然後停下等待你下一句。若平台能安全讀回及控制目前標題,AI 可用已載入事實把 generic / stale title 改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」;已有清楚標題便保留,不支援時靜默略過,亦不為命名額外讀檔或連網。標題只供顯示,不代表狀態、進度或授權。若你在同一句寫明目標,或明確說「繼續做到下一個 blocker / 完成目前目標」,AI 才可按普通任務規則開始工作。</p>
+      <h2>開工啟動接力 —— 第一次會有新手歡迎,有任務才開始工作</h2>
+      <p class="narrative">打開能讀寫本機專案資料夾的 AI agent,開一個新對話。若 AI 已在正確專案內,可以只輸入 Start Agent Handoff 或「開工」；第一次安裝且同句沒有任務時,這會恢復最低必要狀態、顯示目前目標、風險與建議下一步，並進入簡短新手歡迎，然後停下等待你下一句。既有項目升級後,同一句 plain start 則維持狀態提示。若平台能安全讀回及控制目前標題,AI 可用已載入事實把 generic / stale title 改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」;已有清楚標題便保留,不支援時靜默略過,亦不為命名額外讀檔或連網。標題只供顯示,不代表狀態、進度或授權。若你在同一句寫明目標,或明確說「繼續做到下一個 blocker / 完成目前目標」,AI 才可按普通任務規則開始工作。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -779,9 +779,9 @@ create: 21
         <span class="label">實際運作</span>
         <h3>開工句不是自動執行授權</h3>
         <ul>
-          <li><strong>單獨開工會停下</strong>:AI 只讀 handoff 的最低必要狀態,輸出狀態卡、風險與建議下一步,不會自動搜尋、做計劃或開始任務。</li>
+          <li><strong>第一次單獨開工可含新手歡迎</strong>:AI 只讀 handoff 的最低必要狀態,輸出狀態卡、風險與建議下一步,可加入簡短新手歡迎，但不會自動搜尋、做計劃或開始任務。</li>
           <li><strong>同句有任務才開始</strong>:你可以寫「Start Agent Handoff,我要整理 Downloads」;資料足夠時,AI 會自行選擇最接近的工作情境,不用你再選 A 至 F。</li>
-          <li><strong>引導要有明確需要</strong>:你說「教我用」、「新手」、「點開始」,或任務本身仍需釐清,AI 才載入新手引導。</li>
+          <li><strong>引導要有明確需要</strong>:第一次安裝後單獨開工會進入簡短新手歡迎；其後你說「教我用」、「新手」、「點開始」,或任務本身仍需釐清,AI 才載入新手引導。</li>
         </ul>
       </div>
     </div>
@@ -791,8 +791,8 @@ create: 21
   <section class="step-section" id="a-step-3">
     <div class="wrap">
       <span class="badge">STEP 03 · CASE A</span>
-      <h2>只輸入開工句時 —— 顯示狀態與建議,然後等待下一句</h2>
-      <p class="narrative">本例的用戶只輸入 Start Agent Handoff,而全新項目的 handoff 仍未有目標。新版行為不是提供選單、不是產生計劃,而是顯示目前狀態與建議下一步後結束回合。要開始工作,用戶要在下一句提出任務,或一開始就在同一句開工訊息寫明目標。</p>
+      <h2>只輸入開工句時 —— 第一次會歡迎,然後等待下一句</h2>
+      <p class="narrative">本例的用戶只輸入 Start Agent Handoff,而全新項目的 handoff 仍未有目標。新版行為不是提供選單、不是產生計劃,而是顯示目前狀態與建議下一步，加入簡短新手歡迎後結束回合。要開始工作,用戶要在下一句提出任務,或一開始就在同一句開工訊息寫明目標。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -806,7 +806,7 @@ create: 21
 📌 目前目標:尚未設定
 ⚠️ 注意事項:無
 🚀 下一步:告訴我你想做甚麼;例如「我要整理 Downloads,先給我預演清單」。</pre>
-            <p>我已讀到這是全新安裝,目前未有任務目標。請用下一句告訴我你要做甚麼;如果你想要教學,可以直接說「教我點開始」。</p>
+            <p>我已讀到這是全新安裝,目前未有任務目標，所以先給你一段簡短新手歡迎。請用下一句告訴我一個具體目標；我會替你選需要的工作規則，高風險動作仍會先問你。</p>
           </div>
         </div>
 
@@ -839,7 +839,7 @@ create: 21
         <span class="label">實際運作</span>
         <h3>這段流程有三件事屬預設行為</h3>
         <ul>
-          <li><strong>單獨開工只交回狀態</strong>:AI 不是把所有規則丟給你,亦不會把空白狀態自動變成任務計劃。</li>
+          <li><strong>第一次單獨開工可含新手歡迎</strong>:AI 不是把所有規則丟給你,亦不會把空白狀態自動變成任務計劃；它只會在狀態卡後加上簡短歡迎。</li>
           <li><strong>下一句任務才進入工作</strong>:本例是在用戶補上 Downloads 任務後,AI 才切入寫代碼、安全等正式模式。</li>
           <li><strong>高風險工作仍會停手</strong>:檔案移動屬不可逆動作,AI 必須在計劃階段停手,等你確認才動手。</li>
         </ul>
@@ -1262,7 +1262,7 @@ Google Drive
     <div class="wrap">
       <span class="badge">STEP 02 · CASE B</span>
       <h2>開工啟動接力 —— 直接講工具分工,AI 才開始研究</h2>
-      <p class="narrative">如果這是第一次使用,單獨輸入 Start Agent Handoff 或「開工」只會讓 AI 顯示目前狀態與建議下一步,然後等待你的任務。要開始這個報告情境,請在同一句或下一句直接寫明報告目標、Notion、本機 reference 與 Google Drive 分工,AI 便可開始研究報告情境。</p>
+      <p class="narrative">如果這是第一次使用,單獨輸入 Start Agent Handoff 或「開工」會讓 AI 顯示目前狀態與建議下一步，並進入簡短新手歡迎，但仍不會自動開始報告任務。要開始這個報告情境,請在同一句或下一句直接寫明報告目標、Notion、本機 reference 與 Google Drive 分工,AI 便可開始研究報告情境。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1292,7 +1292,7 @@ Google Drive
         <span class="label">實際運作</span>
         <h3>任務描述包含三件工具分工的原因</h3>
         <ul>
-          <li><strong>單獨開工和任務開工分開</strong>:只說開工時只讀 handoff 並顯示狀態;已寫明報告目標與資料分工時才直接判斷情境,不要求重答。</li>
+          <li><strong>單獨開工和任務開工分開</strong>:第一次安裝後只說開工時會讀 handoff、顯示狀態並給新手歡迎；已寫明報告目標與資料分工時才直接判斷情境,不要求重答。</li>
           <li><strong>外部來源不自動可見</strong>:AI 不會自己知道你 Notion 資料庫怎樣設計、哪一欄是本機路徑。你要在任務描述講清楚,AI 才能正確讀取。</li>
           <li><strong>明示要 AI 代勞</strong>:你預先講「請幫我上傳 Google Drive、設分享權限」,讓 AI 知道你期望由它代你執行,而不是改為列手動步驟。</li>
           <li><strong>任務目標清楚</strong>:報告長度、結論方向、讀者(自己 + 太太 + 業界朋友)都講明,讓 AI 寫東西時調適語氣與深度。</li>
@@ -1859,8 +1859,8 @@ Before changing anything, tell me the current state and your recommended next st
 <section class="outro">
   <div class="wrap">
     <h2>走完三個案例之後,你會發現 <span class="accent">同一套流程</span> 適用於不同任務</h2>
-    <p>由 AI 讀安裝指令頁判斷安裝或升級,或手動用終端機安裝 —— 開新 AI 對話啟動接力 —— 單獨開工先看狀態與建議下一步,有任務時才開始做 —— 計劃階段停手等你確認 —— 涉及安全、知識整理、寫作時自動加上相應規則 —— 準備結束本輪工作時一句「收工」自動寫好下次提示 —— 新對話說「開工」就接得回狀態。Case A 與 Case B 各七步,Case C 則跨越多月演進,但骨幹節奏跨案例、跨工具、跨日子都是同一套。</p>
-    <p>你之後做第三個、第四個任務 —— 寫電子報、做股市觀察、整理多個項目的發票 —— 流程仍然是這套。工作模式會根據任務性質自動切換,但你的習慣動作(開工看狀態、講任務、確認計劃;準備結束本輪工作時收工)始終一樣。</p>
+    <p>由 AI 讀安裝指令頁判斷安裝或升級,或手動用終端機安裝 —— 開新 AI 對話啟動接力 —— 第一次安裝後單獨開工先恢復狀態、進入簡短新手歡迎並取得建議下一步，既有項目則維持狀態提示 —— 有任務時才開始做 —— 計劃階段停手等你確認 —— 涉及安全、知識整理、寫作時自動加上相應規則 —— 準備結束本輪工作時一句「收工」自動寫好下次提示 —— 新對話說「開工」就接得回狀態。Case A 與 Case B 各七步,Case C 則跨越多月演進,但骨幹節奏跨案例、跨工具、跨日子都是同一套。</p>
+    <p>你之後做第三個、第四個任務 —— 寫電子報、做股市觀察、整理多個項目的發票 —— 流程仍然是這套。工作模式會根據任務性質自動切換,但你的習慣動作(開工恢復狀態與任何首次歡迎、講任務、確認計劃;準備結束本輪工作時收工)始終一樣。</p>
     <p>另外建議:你希望 AI 在<strong>單一對話內</strong>的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)有持久基準,可以配合 <a href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">Adam-AI-Instructions</a> 使用 —— 到該倉庫的「五、提示詞索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);">prompt.md</code> 全文貼入你 AI 工具設定。Agent Handoff Kit 管「對話之間」的接力,Adam-AI-Instructions 管「單次對話質素」,兩者不重疊。</p>
     <a href="agent-handoff-kit-intro.html">看回新手 60 秒入門 →</a>
     <a class="alt" href="local-agentic-ai-workflow-case-study.html">看本機 Agentic AI 工作系統案例 →</a>

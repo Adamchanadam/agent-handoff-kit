@@ -15,6 +15,63 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help semantic command evidence for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
+## v0.3.58 candidate status
+
+- 狀態：v0.3.58 是下一個 source package candidate，原因是 v0.3.57 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.58 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
+- 產品範圍：first install marks first-use guidance as eligible and a fresh plain startup with no same-message task enters the short welcome; upgrades of existing projects preserve consumed / not-applicable onboarding state. Fresh init and create-only upgrade paths use direct create-only writes and leave no `dev/governance_migrations` or `.upgrade.lock`; true active, malformed, cross-host, upgrade, merge, archive, missing-journal, or third-state transactions still fail closed. A stale completed create-only init lock may be ignored only after strict read-only validation proves all target files exist and match the recorded after-hashes. The global governance-bridge skill was reviewed as a workflow reference only; no duplicate standard skill was packaged, and the bounded reusable discipline lives in the existing agent-governance owner.
+- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.58 candidate；v0.3.57 保留為最新已發布 lineage，v0.3.58 不進 official-origin published catalog。
+- full / release 邊界：本段記錄 candidate source state、public-surface semantic review evidence 與 release QA readback material；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
+
+### pre-release final audit（v0.3.58，PUBLIC_SURFACE_REVIEW_ACCEPTED）
+
+- Clean artifact boundary：v0.3.58 clean candidate commit and tarball must be created from the source tree after the accepted first-install onboarding correction, create-only install lock correction, generated official-origin v0.3.57 fixture, governance-bridge standardization decision, install-lock smoke QA backflow, and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
+- full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
+- Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
+- five-conclusion writer assessment currently records governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting as writer-passed conclusions after the independent public-surface re-review accepted the same five candidate conclusions. It is evidence-layer input, not release publication.
+- 發布打包邊界：v0.3.58 remains unpublished until formal full, push, tag, GitHub Release, npm publish, and postpublish readback all pass under explicit authorization.
+
+### Cross-mind evidence 9-trigger table（v0.3.58）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | passed | Real fresh-install runtime reports showed `dev/governance_migrations/.upgrade.lock` could trap agents in permission-bound mounted folders; create-only init / upgrade now avoid transaction artifacts entirely, while true unsafe locks still fail closed. |
+| 2. External side effects | yes | iterated | No external publication occurs in this candidate-prep batch; push, tag, GitHub Release, npm publish, and postpublish remain separate authorized gates. |
+| 3. User-visible output | yes | passed | First install now gives a short first-use welcome on plain startup without turning that startup into task authority; existing upgraded projects do not reset onboarding. |
+| 4. Complexity or boundary | yes | passed | The create-only path is deliberately narrower than migration recovery and uses no migration journal; stale completed init locks are ignored only after strict read-only validation proves the recorded create-only transaction is already materialized. |
+| 5. Documentation drift | yes | iterated | Source package surfaces are synchronized to v0.3.58 while v0.3.57 remains the latest published lineage until a later release readback supersedes it. |
+| 6. Semantic runtime effect | yes | passed | Fresh install, create-only upgrade, stale completed init lock, malformed / active lock fail-closed, first-use onboarding, and governance-bridge routing are covered by automated regressions and public-doc semantic review. |
+| 7. Cross-agent / role boundary | yes | iterated | Public surfaces and candidate conclusions have an independent read-only accepted review; formal full still requires a clean HEAD candidate evidence receipt bound to the final review bundle. |
+| 8. Real user journey | yes | passed | A new user who asks an AI to install in a fresh folder should get a real first-use welcome and should not inherit hidden migration artifacts or an undeletable `.upgrade.lock`. |
+| 9. Release statement | yes | iterated | v0.3.58 is a source candidate only; no full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
+
+### Bilingual README semantic gate（v0.3.58，PASS）
+
+- Reviewer：agent `019fdd92-e46f-7cd2-ac5e-6ed7138406b1`；provenance `independent-readonly-reviewer:codex-gpt5`；fresh independent read-only full public-surface review；verdict `accepted`.
+- `README.md` SHA-256 `DFD31EB8294AF3DF35E55AA0053D82A8B437AEE1E3EBB8B3AAA44A62E6600F96`
+- `README.en.md` SHA-256 `0589A1B0C6D9BA427E488327798097016588C537E9AFA7984CCF65E09888D217`
+- Verdict: **PASS** — English preserves the v0.3.58 source / npm registry boundary, fresh first-use welcome, existing-upgrade no-reset behavior, same-message task path, local-agent-only scope, startup / closeout behavior, safety, and separate authorization for publication or destructive work.
+
+### Bilingual practical-guide semantic gate（v0.3.58，PASS）
+
+- Reviewer：agent `019fdd92-e46f-7cd2-ac5e-6ed7138406b1`；provenance `independent-readonly-reviewer:codex-gpt5`；fresh independent read-only full public-surface review；verdict `accepted`.
+- `agent-handoff-kit-guide.html` SHA-256 `D775896767DDD7EF15308DFF5BAD145437B256A23730730F3CDDD6BFA2AF93A4`
+- `agent-handoff-kit-guide.en.html` SHA-256 `63CAB7F37E1025AEF9C5FB4BB1FB55A1801FBC81102E7C73FC84EA00E4ADD544`
+- Verdict: **PASS** — English preserves the corrected first-install plain-start welcome, existing-upgrade status-only distinction, same-message task start, high-risk confirmation boundary, install / upgrade / doctor examples, and document bridge guidance.
+
+### Bilingual AI-install semantic gate（v0.3.58，PASS）
+
+- Reviewer：agent `019fdd92-e46f-7cd2-ac5e-6ed7138406b1`；provenance `independent-readonly-reviewer:codex-gpt5`；fresh independent read-only full public-surface review；verdict `accepted`.
+- `agent-handoff-kit-ai-install.html` SHA-256 `8B2317E90310F4AF1F0FA9DAC7E0AB0B7683C8049864C84551A2E2F1527C723B`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `239F05A2CA5495FEFABECCD9DB1E316410BC319A3B9A51D9806C1D9AF2199601`
+- Verdict: **PASS** — English preserves folder confirmation first, zero-write behavior before confirmation, fresh install / upgrade dry-run / conflict stop, no Git / npm / GitHub publication, doctor / hash readback, and completion report boundaries.
+
+### Bilingual introduction semantic gate（v0.3.58，PASS）
+
+- Reviewer：agent `019fdd92-e46f-7cd2-ac5e-6ed7138406b1`；provenance `independent-readonly-reviewer:codex-gpt5`；fresh independent read-only full public-surface review；verdict `accepted`.
+- `agent-handoff-kit-intro.html` SHA-256 `EA28765ABE58543279A88B9EC50014F9F03F7872B9DBE59DD7D76A6CF96303FD`
+- `agent-handoff-kit-intro.en.html` SHA-256 `006CB80F10D82CFF8F9FB76A66B7B466BCF3050259C7C037632959C3A866B63C`
+- Verdict: **PASS** — English preserves the v0.3.58 source / npm registry boundary, local-agent-only scope, fresh first-use welcome, existing-upgrade no-reset behavior, startup status and task-authority split, closeout, document bridge, safety, and external resource ownership.
+
 ## v0.3.57 candidate status
 
 - 狀態：v0.3.57 是下一個 source package candidate，原因是 v0.3.56 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.57 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
