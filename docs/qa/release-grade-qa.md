@@ -15,12 +15,27 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help semantic command evidence for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
-## v0.3.58 candidate status
+## v0.3.59 candidate status
 
-- 狀態：v0.3.58 是下一個 source package candidate，原因是 v0.3.57 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.58 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
+- 狀態：v0.3.59 是下一個 source package candidate，原因是 v0.3.58 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.59 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
+- 產品範圍：`doctor` 先驗證 formal user-rules 見證，再進入泛用 anchor / schema 修復提示；`AGENTS.md` managed core 與 `dev/USER_RULES.md` `managedCoreSha256` 不一致時，必須報 user-rules acceptance drift，不可提示 AI 手動補 managed-core anchor。QA 回流把此類錯誤歸類為 cross-contract false-green，不再由單項 anchor / hash / schema check 支撐可靠性聲明。
+- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.59 candidate；v0.3.58 保留為最新已發布 lineage，v0.3.59 不進 official-origin published catalog。
+- full / release 邊界：本段記錄 candidate source state、QA mechanism backflow 與 release QA readback material；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
+
+### pre-release final audit（v0.3.59，WRITER_QC_IN_PROGRESS）
+
+- Clean artifact boundary：v0.3.59 clean candidate commit and tarball must be created from the source tree after the accepted formal user-rules / managed-core anchor-drift correction, cross-contract false-green QA backflow, generated official-origin v0.3.58 fixture, and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
+- full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
+- Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
+- five-conclusion writer assessment must cover governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting. For this candidate, `qcBackflow` is not passed unless the accepted-user-rules managed-core anchor-drift regression proves both the formal reader rejection and the absence of generic anchor repair guidance.
+- 發布打包邊界：v0.3.59 remains unpublished until formal full, push, tag, GitHub Release, npm publish, and postpublish readback all pass under explicit authorization.
+
+## v0.3.58 release evidence
+
+- 狀態：正式發布歷史。v0.3.58 was released from remote tag commit `69ea4b88f6be2c1dee9b43cadadc6c0b0a9c9108`; GitHub Release was published at `2026-08-07T19:51:02Z`; npm package `0.3.58` is the npm `@latest` readback for the v0.3.59 candidate baseline.
 - 產品範圍：first install marks first-use guidance as eligible and a fresh plain startup with no same-message task enters the short welcome; upgrades of existing projects preserve consumed / not-applicable onboarding state. Fresh init and create-only upgrade paths use direct create-only writes and leave no `dev/governance_migrations` or `.upgrade.lock`; true active, malformed, cross-host, upgrade, merge, archive, missing-journal, or third-state transactions still fail closed. A stale completed create-only init lock may be ignored only after strict read-only validation proves all target files exist and match the recorded after-hashes. The global governance-bridge skill was reviewed as a workflow reference only; no duplicate standard skill was packaged, and the bounded reusable discipline lives in the existing agent-governance owner.
-- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.58 candidate；v0.3.57 保留為最新已發布 lineage，v0.3.58 不進 official-origin published catalog。
-- full / release 邊界：本段記錄 candidate source state、public-surface semantic review evidence 與 release QA readback material；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
+- official-origin lineage：v0.3.58 is now the latest published lineage recorded in the generated official-origin catalog / fixture until v0.3.59 is published.
+- full / release 邊界：本段保留 v0.3.58 candidate source state、public-surface semantic review evidence 與 release QA readback material；不是 v0.3.59 formal full PASS、release authorization、npm publish 或 postpublish evidence。
 
 ### pre-release final audit（v0.3.58，PUBLIC_SURFACE_REVIEW_ACCEPTED）
 
@@ -38,11 +53,11 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 | 2. External side effects | yes | iterated | No external publication occurs in this candidate-prep batch; push, tag, GitHub Release, npm publish, and postpublish remain separate authorized gates. |
 | 3. User-visible output | yes | passed | First install now gives a short first-use welcome on plain startup without turning that startup into task authority; existing upgraded projects do not reset onboarding. |
 | 4. Complexity or boundary | yes | passed | The create-only path is deliberately narrower than migration recovery and uses no migration journal; stale completed init locks are ignored only after strict read-only validation proves the recorded create-only transaction is already materialized. |
-| 5. Documentation drift | yes | iterated | Source package surfaces are synchronized to v0.3.58 while v0.3.57 remains the latest published lineage until a later release readback supersedes it. |
+| 5. Documentation drift | yes | iterated | Source package surfaces were synchronized to v0.3.58 before release; v0.3.58 is now the latest published lineage until a later release readback supersedes it. |
 | 6. Semantic runtime effect | yes | passed | Fresh install, create-only upgrade, stale completed init lock, malformed / active lock fail-closed, first-use onboarding, and governance-bridge routing are covered by automated regressions and public-doc semantic review. |
 | 7. Cross-agent / role boundary | yes | iterated | Public surfaces and candidate conclusions have an independent read-only accepted review; formal full still requires a clean HEAD candidate evidence receipt bound to the final review bundle. |
 | 8. Real user journey | yes | passed | A new user who asks an AI to install in a fresh folder should get a real first-use welcome and should not inherit hidden migration artifacts or an undeletable `.upgrade.lock`. |
-| 9. Release statement | yes | iterated | v0.3.58 is a source candidate only; no full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
+| 9. Release statement | yes | iterated | v0.3.58 release publication is historical evidence; no v0.3.59 full, push, tag, GitHub Release, npm publish, or postpublish readback is claimed here. |
 
 ### Bilingual README semantic gate（v0.3.58，PASS）
 

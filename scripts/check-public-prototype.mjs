@@ -145,6 +145,19 @@ async function main() {
   const driftDoctor = runFailure(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor changed user-rule bytes");
   assert(outputText(driftDoctor).includes("formal user-rules checks") && outputText(driftDoctor).includes("user-rules bytes do not match accepted witness"), "doctor reported health after user-rule byte drift");
   writeFileSync(userRulePath, userRuleBytes);
+  const managedCoreAnchorDrift = acceptedAgentsBytes.toString("utf8").replaceAll("Start Agent Handoff", "Start Agent Hand0ff");
+  assert(managedCoreAnchorDrift !== acceptedAgentsBytes.toString("utf8"), "managed-core anchor drift fixture did not change AGENTS.md");
+  writeFileSync(agentsPath, managedCoreAnchorDrift, "utf8");
+  await assertRejects(
+    () => readFormalUserRules({ root: tempRoot }),
+    "AGENTS.md managed core does not match the accepted current user-rules state",
+    "managed-core anchor drift was accepted without a new whole user-rules state"
+  );
+  const coreDriftDoctor = runFailure(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor managed-core anchor drift under accepted user-rules state");
+  const coreDriftOutput = outputText(coreDriftDoctor);
+  assert(coreDriftOutput.includes("formal user-rules checks") && coreDriftOutput.includes("AGENTS.md managed core does not match the accepted current user-rules state"), "doctor did not surface managed-core user-rules drift first");
+  assert(!coreDriftOutput.includes("非破壞性補回") && !coreDriftOutput.includes("anchor checks failed"), "doctor must not route accepted managed-core drift to generic anchor repair");
+  writeFileSync(agentsPath, acceptedAgentsBytes);
   writeFileSync(agentsPath, acceptedAgentsBytes.toString("utf8").replace("<!-- ack:user-rules-router:dev/USER_RULES.md -->", "<!-- legacy project without user-rules entry -->"), "utf8");
   await assertRejects(
     () => readFormalUserRules({ root: tempRoot }),

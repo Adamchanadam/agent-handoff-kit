@@ -2588,6 +2588,21 @@ async function runDoctor(root, version, options = {}) {
   console.log(`\nhistorical transaction receipt authority checks: 0`);
   console.log("not-applicable  committed transaction journals are receipts only when no active lock exists");
 
+  const userRulesResult = await checkFormalUserRules(root, { ...options, expectedFormalUserRules: formalUserRulesWitness });
+  console.log(`\nformal user-rules checks: ${userRulesResult.checked}`);
+  console.log(`${userRulesResult.ok ? "ok" : "missing"}  AGENTS.md -> ${USER_RULES_ROUTER_PATH} (accepted user-rule bytes and order)`);
+  if (!userRulesResult.ok) console.log(`  missing: ${userRulesResult.finding}`);
+  if (!userRulesResult.ok) {
+    printDoctorSummary(version, root, "needs-fix", {
+      checked: rows.length + historicalReceiptChecks + userRulesResult.checked,
+      failedKind: "formal user-rules checks",
+      failedCount: 1,
+      nextStep: formalUserRulesRepairNextStep(userRulesResult.finding)
+    });
+    process.exitCode = 1;
+    return "failed";
+  }
+
   const anchorRows = await checkRequiredAnchors(root);
   const acceptedPreservedAnchorRows = anchorRows.filter((row) => !row.ok && acceptedRuntimeTargets.has(row.target));
   const anchorFailures = anchorRows.filter((row) => !row.ok && !acceptedRuntimeTargets.has(row.target));
@@ -2606,7 +2621,7 @@ async function runDoctor(root, version, options = {}) {
   if (anchorFailures.length > 0) {
     printAnchorRepairGuidance(anchorFailures, options.context);
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + historicalReceiptChecks + anchorRows.length,
+      checked: rows.length + historicalReceiptChecks + userRulesResult.checked + anchorRows.length,
       failedKind: "anchor checks",
       failedCount: anchorFailures.length,
       nextStep: anchorRepairNextStep(options.context)
@@ -2629,7 +2644,7 @@ async function runDoctor(root, version, options = {}) {
 
   if (schemaFailures.length > 0) {
     printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length,
+      checked: rows.length + historicalReceiptChecks + userRulesResult.checked + anchorRows.length + schemaRows.length,
       failedKind: "schema checks",
       failedCount: schemaFailures.length,
       nextStep: "把這段 doctor 輸出貼給 AI，請它先修交接結構，不要直接重裝覆蓋。"
@@ -2639,21 +2654,6 @@ async function runDoctor(root, version, options = {}) {
   }
   for (const row of acceptedPreservedSchemaRows) {
     console.log(`  accepted preservation: ${row.target} remains runtime-readable only through the same transaction acceptance witness`);
-  }
-
-  const userRulesResult = await checkFormalUserRules(root, { ...options, expectedFormalUserRules: formalUserRulesWitness });
-  console.log(`\nformal user-rules checks: ${userRulesResult.checked}`);
-  console.log(`${userRulesResult.ok ? "ok" : "missing"}  AGENTS.md -> ${USER_RULES_ROUTER_PATH} (accepted user-rule bytes and order)`);
-  if (!userRulesResult.ok) console.log(`  missing: ${userRulesResult.finding}`);
-  if (!userRulesResult.ok) {
-    printDoctorSummary(version, root, "needs-fix", {
-      checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length + userRulesResult.checked,
-      failedKind: "formal user-rules checks",
-      failedCount: 1,
-      nextStep: "不要重跑 upgrade 或覆寫用戶規則；先還原或重新以完整接受紀錄登記 dev/USER_RULES.md 及其 user rule bytes。"
-    });
-    process.exitCode = 1;
-    return "failed";
   }
 
   const bridgeFailures = await validateBridgeTexts(async (relative) => readOptionalText(path.join(root, relative)));
@@ -3165,13 +3165,21 @@ function printDoctorSummary(version, root, mode, details) {
     }
   } else {
     console.log(`status: failed (${details.failedCount} ${details.failedKind} failed)`);
-    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : details.failedKind === "research decision trace checks" ? "研究導向決策缺少可追溯來源鏈。" : details.failedKind === "handoff temperature boundary checks" ? "當前交接內容混入一次性或歷史證據。" : "下次開工提示副本與 handoff 真源不同。"}`);
+    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "formal user-rules checks" ? "AGENTS.md 與 dev/USER_RULES.md 的接受見證不一致。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : details.failedKind === "research decision trace checks" ? "研究導向決策缺少可追溯來源鏈。" : details.failedKind === "handoff temperature boundary checks" ? "當前交接內容混入一次性或歷史證據。" : "下次開工提示副本與 handoff 真源不同。"}`);
   }
   console.log("");
   console.log(`📦 版本：v${version}`);
   console.log(`🩺 模式：${mode}`);
   console.log(`🔎 剛完成：檢查 ${details.checked} 項；${mode === "healthy" ? (details.warningCount > 0 ? `0 項未通過；${details.warningCount} 項提醒（${details.warningKind}）` : "全部通過") : `${details.failedCount} 項未通過（${details.failedKind}）`}。`);
   console.log(`🚀 下一步：${details.nextStep}`);
+}
+
+function formalUserRulesRepairNextStep(finding) {
+  const reason = String(finding ?? "");
+  if (reason.includes("AGENTS.md managed core does not match")) {
+    return "不要手動補 AGENTS.md managed core anchor，也不要覆寫 dev/USER_RULES.md。先還原 AGENTS.md 到已接受的 managed core，或用正式 upgrade transaction 重新建立完整 user-rules 接受紀錄。";
+  }
+  return "不要重跑 upgrade、不要手動覆寫 AGENTS.md managed core 或用戶規則；先還原或重新以完整接受紀錄登記 dev/USER_RULES.md 及其 user rule bytes。";
 }
 
 // Anchor failures mean a required file is missing fixed Kit text. The fix is a

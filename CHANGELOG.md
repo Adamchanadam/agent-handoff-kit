@@ -1,5 +1,15 @@
 # 變更紀錄
 
+## v0.3.59 — 2026-08-08
+
+狀態：source package version。本版修補 `doctor` 在 formal user-rules 見證存在時，先給泛用 anchor 手修建議的安全漏洞；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- `doctor` 現在先驗證 `AGENTS.md` 與 `dev/USER_RULES.md` 的 formal user-rules 接受見證，再進入泛用 anchor / schema 修復提示；若 `AGENTS.md` managed core 與 `managedCoreSha256` 不一致，會先報 user-rules 見證錯誤。
+- `AGENTS.md` managed core anchor 缺失但已有 formal user-rules acceptance 時，不再提示 AI「非破壞性補回 anchor」；下一步改為還原已接受 managed core，或透過正式 upgrade transaction 重新建立完整接受紀錄。
+- QA 補入交叉合約 regression：accepted user-rules 狀態下故意製造 managed-core anchor drift，必須由 formal reader 和 `doctor` 同時拒絕，而且 `doctor` 不得輸出泛用 anchor repair guidance。
+- QA manifest 的 prototype claim 擴充為 formal user-rules / managed-core drift 覆蓋；WORK QA 策略同步加入 cross-contract false-green 規則，避免用單項 anchor / hash / schema 宣稱複合行為可靠。
+- official-origin catalog 已納入正式發布的 v0.3.58 lineage，讓下一個候選版本的 preflight 能以 npm latest / GitHub Release / remote tag 讀回為基線。
+
 ## v0.3.58 — 2026-08-07
 
 狀態：source package version。本版修補首次安裝 onboarding 與 create-only 安裝交易邊界；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。

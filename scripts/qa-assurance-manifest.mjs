@@ -47,8 +47,8 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
     }),
     claim("prototype-install", "quick", "scripts/check-public-prototype.mjs", {
       provenance: "current source tree and isolated fresh-install root",
-      stateAxes: ["delivery artifact", "fresh install"],
-      readback: "installed CLI and doctor"
+      stateAxes: ["delivery artifact", "fresh install", "formal user-rules", "managed-core drift"],
+      readback: "installed CLI, doctor, accepted user-rule bytes, and managed-core anchor drift rejected before generic anchor repair"
     }),
     claim("pack-routing", "quick", "scripts/check-pack-scenarios.mjs", {
       provenance: "current source tree",
