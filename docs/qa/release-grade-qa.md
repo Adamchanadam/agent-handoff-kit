@@ -22,13 +22,27 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 - release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.59 candidate；v0.3.58 保留為最新已發布 lineage，v0.3.59 不進 official-origin published catalog。
 - full / release 邊界：本段記錄 candidate source state、QA mechanism backflow 與 release QA readback material；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
 
-### pre-release final audit（v0.3.59，WRITER_QC_IN_PROGRESS）
+### pre-release final audit（v0.3.59，PUBLIC_SURFACE_REVIEW_ACCEPTED）
 
 - Clean artifact boundary：v0.3.59 clean candidate commit and tarball must be created from the source tree after the accepted formal user-rules / managed-core anchor-drift correction, cross-contract false-green QA backflow, generated official-origin v0.3.58 fixture, and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
 - full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
 - Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
 - five-conclusion writer assessment must cover governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting. For this candidate, `qcBackflow` is not passed unless the accepted-user-rules managed-core anchor-drift regression proves both the formal reader rejection and the absence of generic anchor repair guidance.
 - 發布打包邊界：v0.3.59 remains unpublished until formal full, push, tag, GitHub Release, npm publish, and postpublish readback all pass under explicit authorization.
+
+### Cross-mind evidence 9-trigger table（v0.3.59）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | passed | External runtime feedback showed `doctor` could surface generic `AGENTS.md` anchor repair even when accepted `dev/USER_RULES.md` managed-core witness state would be invalidated; the candidate now runs formal user-rules validation before generic anchor repair guidance. |
+| 2. External side effects | yes | iterated | No v0.3.59 push, tag, GitHub Release, npm publish, or postpublish readback is claimed here; those remain release-sequence gates after formal full. |
+| 3. User-visible output | yes | passed | A user or AI seeing managed-core / user-rules drift now gets a user-rules acceptance-drift next step instead of instructions that could manually alter the managed core and break the accepted witness. |
+| 4. Complexity or boundary | yes | passed | The fix keeps one rule place for formal user-rules acceptance: the formal reader owns the managed-core witness decision, and generic anchor/schema checks do not override it. |
+| 5. Documentation drift | yes | passed | Source package surfaces, README, HTML pages, CHANGELOG, whatsnew, release QA, generated official-origin v0.3.58 fixture, and bilingual hash evidence are synchronized to v0.3.59 candidate state. |
+| 6. Semantic runtime effect | yes | passed | Prototype QA now proves the accepted user-rules managed-core anchor-drift case rejects through formal user-rules checks and does not print the generic non-destructive anchor repair advice. |
+| 7. Cross-agent / role boundary | yes | iterated | The changed bilingual public pairs have independent read-only review evidence; formal full still requires clean HEAD candidate evidence, review bundle binding, and accepted review receipt for the full five-conclusion gate. |
+| 8. Real user journey | yes | passed | A user reinstalling or checking an existing Kit root should not be guided into corrupting `dev/USER_RULES.md` acceptance state by manually repairing managed-core anchors. |
+| 9. Release statement | yes | iterated | v0.3.59 remains an unpublished source candidate until formal full, push, tag, GitHub Release, npm publish, and postpublish readback succeed. |
 
 ### Bilingual README semantic gate（v0.3.59，PASS）
 
