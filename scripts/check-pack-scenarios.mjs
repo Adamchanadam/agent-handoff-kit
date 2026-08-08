@@ -299,6 +299,7 @@ function main() {
   assertGovernanceBridgeUseCaseMatrix();
   assertLongTermGovernanceUseCaseMatrix();
   assertRuntimeToolUseCaseMatrix();
+  assertProportionateDocumentEditUseCaseMatrix();
   assertOnboardingDecisionCases();
 
   console.log("");
@@ -328,6 +329,8 @@ function assertPackStructure() {
     "Long-term Governance Routing",
     "Content-based trigger",
     "Do not persist long-term governance knowledge only in",
+    "Existing target-authority documents that only received a local content edit normally need read-back and task-specific validation",
+    "`agent-handoff-kit doctor` only for scoped Kit / typed registered-surface checks",
     "doctor does not discover unregistered ordinary workspace files",
     "cannot replace explicit changed-artifact review"
   ], "agent governance durable-home routing");
@@ -339,7 +342,9 @@ function assertPackStructure() {
     "Default-core rules must apply to most sessions",
     "protect safety or continuity",
     "be shorter than the routed detail they replace",
-    "Do not copy the agent-governance classification table or workflow into the core"
+    "Do not copy the agent-governance classification table or workflow into the core",
+    "Ordinary document edits normally use local read-back and task-specific checks only",
+    "do not run `agent-handoff-kit doctor`, write handoff / log state, or regenerate the startup mirror solely because a document changed"
   ], "core governance pre-edit routing gate");
 
   console.log("ok: rule pack structure and durable-home routing");
@@ -428,6 +433,77 @@ function assertRuntimeToolUseCaseMatrix() {
     assertIncludes(packs.integrations, useCase.pack, `${useCase.name} integrations pack`);
     assertIncludes(projectIndex, useCase.projectIndex, `${useCase.name} project index`);
     console.log(`ok: runtime tool use case - ${useCase.name}`);
+  }
+}
+
+function assertProportionateDocumentEditUseCaseMatrix() {
+  const useCases = [
+    {
+      name: "ordinary target-authority document edit",
+      core: [
+        "Ordinary document edits normally use local read-back and task-specific checks only",
+        "the edited document itself is the target authority",
+        "do not run `agent-handoff-kit doctor`, write handoff / log state, or regenerate the startup mirror solely because a document changed"
+      ],
+      pack: [
+        "Existing target-authority documents that only received a local content edit normally need read-back and task-specific validation",
+        "not a handoff / log write or a bundled doctor run"
+      ],
+      mustNot: [
+        "ordinary document edits must run `agent-handoff-kit doctor`",
+        "all Markdown edits require handoff"
+      ]
+    },
+    {
+      name: "new durable document bridge candidate",
+      core: [
+        "Materially changed Markdown governance artifacts must be indexed, synchronized, consolidated into their authoritative home, or explicitly classified as temporary / one-time evidence",
+        "the bundled doctor does not claim to scan them"
+      ],
+      pack: [
+        "classify each artifact",
+        "Durable artifacts must be discoverable from `dev/PROJECT_INDEX.md`",
+        "`agent-handoff-kit doctor` only for scoped Kit / typed registered-surface checks"
+      ],
+      mustNot: [
+        "doctor discovers unregistered ordinary workspace files",
+        "doctor root-discovery"
+      ]
+    },
+    {
+      name: "Kit-managed governance file edit",
+      core: [
+        "If the edited document itself is the target authority and the task does not touch Kit-managed files",
+        "release / closeout gates",
+        "migrations"
+      ],
+      pack: [
+        "A change affects `AGENTS.md`, `dev/*`, rule packs, installer templates, or durable workflow docs",
+        "`agent-handoff-kit doctor` only for scoped Kit / typed registered-surface checks"
+      ],
+      mustNot: []
+    },
+    {
+      name: "startup card rendering",
+      core: [
+        "Show the startup card only for explicit continuity startup",
+        "Render the startup card in a fenced `text` block and preserve spacing",
+        "```text",
+        "Agent Handoff Kit v<version>"
+      ],
+      pack: [],
+      mustNot: []
+    }
+  ];
+
+  for (const useCase of useCases) {
+    assertIncludes(core, useCase.core, `${useCase.name} core`);
+    if (useCase.pack.length > 0) assertIncludes(packs["agent-governance"], useCase.pack, `${useCase.name} agent-governance pack`);
+    for (const forbidden of useCase.mustNot) {
+      assert(!core.includes(forbidden), `${useCase.name} core contains forbidden wording: ${forbidden}`);
+      assert(!packs["agent-governance"].includes(forbidden), `${useCase.name} pack contains forbidden wording: ${forbidden}`);
+    }
+    console.log(`ok: proportionate document edit use case - ${useCase.name}`);
   }
 }
 

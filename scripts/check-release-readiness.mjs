@@ -153,6 +153,7 @@ async function main() {
     "Read `dev/PROJECT_INDEX.md` when the task needs",
     "Pack loading is normally silent",
     "Show the startup card only for explicit continuity startup",
+    "Render the startup card in a fenced `text` block and preserve spacing",
     "A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery",
     "one optional display-only current-thread title update when safely supported",
     "the end of the turn",
@@ -182,6 +183,8 @@ async function main() {
     "Search hits, truncated output, summaries, and status claims do not replace the relevant source content",
     "Materially changed Markdown governance artifacts must be indexed",
     "the bundled doctor does not claim to scan them",
+    "Ordinary document edits normally use local read-back and task-specific checks only",
+    "do not run `agent-handoff-kit doctor`, write handoff / log state, or regenerate the startup mirror solely because a document changed",
     "External skill flows, subagents, task plans",
     "## 2.1 Persistence Gate",
     "No persistence",
@@ -2828,6 +2831,8 @@ function checkTaskPersistenceGateContract() {
     "routine rerunnable checks",
     "Lightweight checkpoint",
     "do not regenerate the startup mirror or perform full closeout",
+    "Ordinary document edits normally use local read-back and task-specific checks only",
+    "do not run `agent-handoff-kit doctor`, write handoff / log state, or regenerate the startup mirror solely because a document changed",
     "Full closeout: explicit end-of-session / handoff intent",
     "explicit end-of-session / handoff intent",
     "Route current objective, next action, active risk",
@@ -2842,7 +2847,9 @@ function checkTaskPersistenceGateContract() {
     "task contract changes",
     "product goals, requirements, development checklists, acceptance rules",
     "spec, backlog, issue list, README, runbook",
-    "Merge into the existing authoritative home"
+    "Merge into the existing authoritative home",
+    "Existing target-authority documents that only received a local content edit normally need read-back and task-specific validation",
+    "`agent-handoff-kit doctor` only for scoped Kit / typed registered-surface checks"
   ]);
 
   assertIncludes("README.md", [

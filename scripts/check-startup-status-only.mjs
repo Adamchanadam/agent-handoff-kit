@@ -46,6 +46,7 @@ assert(core.includes("If safe current-thread title control is unavailable after 
 assert(core.includes("display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth"), "dynamic title rule became authority or evidence");
 assert(core.includes("does not authorize project/file writes, network activity, external task work, or continuation beyond the startup boundary"), "dynamic title rule weakens the no-auto-execute boundary");
 assert(core.includes("A direct ordinary task begins without a startup card"), "ordinary direct tasks were accidentally put behind startup ceremony");
+assert(core.includes("Render the startup card in a fenced `text` block and preserve spacing"), "startup card can still be rendered outside a fenced text block");
 assert(core.includes("the startup card may read only the bounded version evidence from `dev/PROJECT_INDEX.md`"), "bare startup version read is not bounded to display-only evidence");
 assert(core.includes("unique stable-semver `| Agent Handoff Kit template version | X.Y.Z | ... |` row inside the unique real `## Stack` section"), "bare startup version source is not the unique Stack row");
 assert(core.includes("Do not route on, summarize, or load any other Project Index content"), "bare startup can still route on Project Index content beyond the version row");
