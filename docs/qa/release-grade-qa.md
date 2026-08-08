@@ -30,6 +30,38 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 - five-conclusion writer assessment must cover governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting. For this candidate, `qcBackflow` is not passed unless the accepted-user-rules managed-core anchor-drift regression proves both the formal reader rejection and the absence of generic anchor repair guidance.
 - 發布打包邊界：v0.3.59 remains unpublished until formal full, push, tag, GitHub Release, npm publish, and postpublish readback all pass under explicit authorization.
 
+### Bilingual README semantic gate（v0.3.59，PASS）
+
+- Reviewer：agent `019fe159-fc6f-73c3-8a7c-54090ca429fe`；provenance `codex-gpt5-readonly-v0.3.59-bilingual-4c2245e-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.59 candidate changed this pair only by version tokens relative to the accepted v0.3.58 baseline; this PASS does not review other changed files in the candidate.
+- `README.md` SHA-256 `372733AE73B0904DD87B793DE25DE6B707AD5A5003062AF7D454120E2A5AF401`
+- `README.en.md` SHA-256 `335ADD5B9F51E1A9D7771911224908235D39246E69ABDBC3B42BFC6C372AC93D`
+- Verdict: **PASS** — English keeps the same heading structure, public usage topics, source / npm registry boundary, and user-facing behavior; only the source package version line changed.
+
+### Bilingual practical-guide semantic gate（v0.3.59，PASS）
+
+- Reviewer：agent `019fe159-fc6f-73c3-8a7c-54090ca429fe`；provenance `codex-gpt5-readonly-v0.3.59-bilingual-4c2245e-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.59 candidate changed this pair only by version tokens relative to the accepted v0.3.58 baseline; this PASS does not review other changed files in the candidate.
+- `agent-handoff-kit-guide.html` SHA-256 `081EBB1388BFBCD47AF5EBF326AE0DF82E94ACC38D0A3FF0FD1BCFD657C2B717`
+- `agent-handoff-kit-guide.en.html` SHA-256 `96653AA2872B6F0C60F680FA8FAD774E5DE4E7F6C359CF5D9E545F40507BCD60`
+- Verdict: **PASS** — English keeps the same title, case flow, install examples, safety / release boundaries, document bridge guidance, and footer meaning; only version examples and tokens changed.
+
+### Bilingual AI-install semantic gate（v0.3.59，PASS）
+
+- Reviewer：agent `019fe159-fc6f-73c3-8a7c-54090ca429fe`；provenance `codex-gpt5-readonly-v0.3.59-bilingual-4c2245e-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.59 candidate changed this pair only by version tokens relative to the accepted v0.3.58 baseline; this PASS does not review other changed files in the candidate.
+- `agent-handoff-kit-ai-install.html` SHA-256 `363983A3E02D03EA02F1CFABAF85C5474F5D49C2365D594F241E245DFCF33C27`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `F357434D97491B6EA19FAD83FB37F86460E65D92A349476CA727CE46AB98E152`
+- Verdict: **PASS** — English keeps the same install / upgrade decision flow, zero-write-before-confirmation boundary, completion report, verification, and response format; only version note and kicker changed.
+
+### Bilingual introduction semantic gate（v0.3.59，PASS）
+
+- Reviewer：agent `019fe159-fc6f-73c3-8a7c-54090ca429fe`；provenance `codex-gpt5-readonly-v0.3.59-bilingual-4c2245e-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.59 candidate changed this pair only by version tokens relative to the accepted v0.3.58 baseline; this PASS does not review other changed files in the candidate.
+- `agent-handoff-kit-intro.html` SHA-256 `475D0EA48E4F31DC0CBFEAF975291EF5661961D321036DDD9535B27B1CBFE008`
+- `agent-handoff-kit-intro.en.html` SHA-256 `8F2F79CE06C00D9F88A9B82D91F7491A6FCD0C1489FFA433C42376C79AC87DAA`
+- Verdict: **PASS** — English keeps the same intro narrative, problem framing, startup / closeout flow, safety boundary, and footer meaning; only version tokens changed.
+
 ## v0.3.58 release evidence
 
 - 狀態：正式發布歷史。v0.3.58 was released from remote tag commit `69ea4b88f6be2c1dee9b43cadadc6c0b0a9c9108`; GitHub Release was published at `2026-08-07T19:51:02Z`; npm package `0.3.58` is the npm `@latest` readback for the v0.3.59 candidate baseline.
