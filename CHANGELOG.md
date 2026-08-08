@@ -1,5 +1,15 @@
 # 變更紀錄
 
+## v0.3.61 — 2026-08-08
+
+狀態：source package version。本版收窄正式收工的持久化成本，令 Agent Handoff Kit 保留交接安全，但不把每次收尾放大成全段重寫與重跑流程；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- Closeout Pack 明確 full closeout 是 differential and write-minimal：只更新真實狀態有變的欄位或段落；已是最新的 handoff 內容不為儀式重寫。
+- `START_NEXT_SESSION_PROMPT.txt` 改成 verify-first：先用 normalized content 讀回比對，只有便利副本真的 drift 時才重生。
+- `runtime-core/SESSION_HANDOFF.md` 同步改成 changed-truth-only，讓新安裝或升級後的項目沿用同一套精簡收工語義。
+- `scripts/check-closeout-efficiency.mjs`、pack scenario QA 與 release-readiness gate 同步鎖住 write-minimal / verify-first 條件，防止全段確認與未先比對就重生 mirror 回流。
+- `closeout-status` 的單次 fresh doctor read-back 保留；本版只減少多餘寫入與重跑，不降低 closeout 安全 gate。
+
 ## v0.3.60 — 2026-08-08
 
 狀態：source package version。本版收窄普通文檔修改的 runtime 治理觸發，並修正開工狀態卡 ASCII 走位風險；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。

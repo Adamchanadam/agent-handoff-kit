@@ -312,7 +312,7 @@ function assertPackStructure() {
     if (packName === "onboarding") {
       assertIncludes(packs[packName], ["## Scope", "## Load When", "## Discipline", "## Application Scenario Library", "## Closeout", "## Anti-pattern"], `${packName} pack structure`);
     } else if (packName === "closeout") {
-      assertIncludes(packs[packName], ["## Scope", "## Required Reads", "## Write Contract", "## Full Closeout", "Reconcile lifecycle state", "## Opening Message And Card", "## Stop Conditions"], `${packName} pack structure`);
+      assertIncludes(packs[packName], ["## Scope", "## Required Reads", "## Write Contract", "## Full Closeout", "write-minimal", "Update only fields whose current truth changed", "Regenerate it only when normalized content differs", "Reconcile lifecycle state", "## Opening Message And Card", "## Stop Conditions"], `${packName} pack structure`);
     } else {
       assertIncludes(packs[packName], ["## Scope", "## Load When", "## Rules", "## Checks", "## Closeout"], `${packName} pack structure`);
     }

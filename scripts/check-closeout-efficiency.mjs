@@ -63,6 +63,12 @@ try {
   assert(noUpdateLookupCount === 0, `NO_UPDATE_CHECK closeout-status contacted the registry ${noUpdateLookupCount} time(s)`);
 
   const closeoutPack = readAt(sourceRoot, "packs/closeout.md");
+  const handoffTemplate = readAt(sourceRoot, "runtime-core/SESSION_HANDOFF.md");
+  assert(closeoutPack.includes("Full closeout is differential and write-minimal"), "full closeout no longer declares a write-minimal contract");
+  assert(closeoutPack.includes("Update only fields whose current truth changed"), "full closeout still implies every section must be rewritten");
+  assert(closeoutPack.includes("Regenerate it only when normalized content differs"), "full closeout still regenerates the startup mirror before checking for drift");
+  assert(handoffTemplate.includes("update only sections whose current truth changed"), "handoff template still instructs whole-section rewrite/confirmation at every closeout");
+  assert(handoffTemplate.includes("Regenerate only if normalized content differs"), "handoff template still treats prompt mirror regeneration as unconditional");
   assert(closeoutPack.includes("Do not run a separate bundled `doctor`"), "full closeout still instructs a redundant bundled doctor");
   assert(closeoutPack.includes("one required fresh doctor read-back"), "closeout-status is not the declared single fresh doctor authority");
 
@@ -133,7 +139,7 @@ try {
   });
   assert(JSON.stringify(retryPlan) === JSON.stringify(["prompt mirror", "closeout-status"]), `identity-stable retry plan reran already-passed gates: ${retryPlan.join(", ")}`);
 
-  console.log("GREEN PASSED: full closeout delegates its single fresh doctor read-back to closeout-status, whose doctor made zero registry lookups; ordinary doctor made one lookup and retained version alignment; NO_UPDATE_CHECK suppressed lookups for init, doctor, and closeout-status.");
+  console.log("GREEN PASSED: full closeout is write-minimal, delegates its single fresh doctor read-back to closeout-status, whose doctor made zero registry lookups; ordinary doctor made one lookup and retained version alignment; NO_UPDATE_CHECK suppressed lookups for init, doctor, and closeout-status.");
   console.log("SAFETY CONFIRMED: doctor, mirror, handoff, timeout, wrapper, spawn-error, different-cwd, and retry-scope failures remained nonzero or indeterminate and never produced handoff saved.");
 } finally {
   registry.close();

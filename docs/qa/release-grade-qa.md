@@ -19,6 +19,67 @@ Convenience collector: after the external publish actions complete, maintainers 
 
 Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
 
+## v0.3.61 candidate status
+
+- 狀態：v0.3.61 是下一個 source package candidate，原因是 v0.3.60 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.61 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
+- 產品範圍：full closeout 收窄為 differential and write-minimal；`dev/SESSION_HANDOFF.md` 只更新真實狀態有變的欄位或段落，`START_NEXT_SESSION_PROMPT.txt` 先讀回比對，只有 normalized content drift 時才重生。
+- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.61 candidate；v0.3.60 保留為最新已發布 lineage，v0.3.61 不進 official-origin published catalog。
+- full / release 邊界：本段記錄 candidate source state、closeout-cost QA backflow 與 release QA readback material；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
+
+### pre-release final audit（v0.3.61，PUBLIC_SURFACE_REVIEW_ACCEPTED）
+
+- Clean artifact boundary：v0.3.61 clean candidate commit and tarball must be created from the source tree after the accepted closeout write-minimal correction, verify-first prompt mirror rule, official-origin v0.3.60 published fixture, bilingual public-surface review, and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
+- full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
+- Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
+- five-conclusion writer assessment must cover governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting. For this candidate, `qcBackflow` is not passed unless the closeout-efficiency regression proves write-minimal / verify-first wording is locked, closeout-status keeps the single fresh doctor read-back, and false-green closeout states stay nonzero.
+- 發布打包邊界：本段是 v0.3.61 發布前候選證據；正式發布狀態以 GitHub Release、npm `@latest`、remote tag 和 postpublish readback 為準。
+
+### Cross-mind evidence 9-trigger table（v0.3.61）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | passed | Real runtime feedback showed closeout remained too costly after ordinary-task proportionality was fixed; the candidate removes whole-section closeout rewrite pressure and pre-check prompt mirror regeneration. |
+| 2. External side effects | yes | iterated | No v0.3.61 push, tag, GitHub Release, npm publish, or postpublish readback is claimed here; those remain release-sequence gates after formal full. |
+| 3. User-visible output | yes | passed | Closeout should still save handoff state, but the visible workflow should be less noisy because already-current state is checked/no-op and the prompt mirror is regenerated only on drift. |
+| 4. Complexity or boundary | yes | passed | The fix stays in existing owners: closeout pack owns full-closeout writes, handoff template owns installed runtime wording, and QA scripts own regression checks. No new pack, mode, or parallel governance layer is added. |
+| 5. Documentation drift | yes | iterated | Source package surfaces, README, HTML pages, CHANGELOG, whatsnew, release QA, and official-origin latest published lineage are synchronized to v0.3.61 candidate state. |
+| 6. Semantic runtime effect | yes | passed | The new contract is changed-truth-only plus verify-first; closeout-status still performs the one fresh doctor read-back, so cost is reduced without removing the safety gate. |
+| 7. Cross-agent / role boundary | yes | iterated | The candidate reduces future-agent ceremony while keeping formal full evidence, independent review, release authorization, and postpublish readback separate. |
+| 8. Real user journey | yes | passed | A user saying「收工」after normal work should see necessary persistence and the final closeout-status card, not repeated whole-file confirmation when state and mirror are already current. |
+| 9. Release statement | yes | iterated | v0.3.61 remains an unpublished source candidate until formal full, push, tag, GitHub Release, npm publish, and postpublish readback succeed. |
+
+### Bilingual README semantic gate（v0.3.61，PASS）
+
+- Reviewer：agent `019fe38c-d8e8-7522-a9b5-2564b44e4abd`（Dewey）；provenance `codex-readonly-v0361-bilingual-public-pairs-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.61 candidate changed this pair only by source package version tokens relative to the accepted v0.3.60 baseline; public usage flow and meaning are unchanged.
+- `README.md` SHA-256 `820B48BC8E0912DFF7685767368DCCD5ABE129616AFDE21464A54BA9B392F2A8`
+- `README.en.md` SHA-256 `50E90D2F4D6CA4BA02869C832B76F93502DF6A674F40E879924BA32E04C3EA0A`
+- Verdict: **PASS** — English preserves the same public usage flow and meaning; only `v0.3.60` became `v0.3.61`.
+
+### Bilingual practical-guide semantic gate（v0.3.61，PASS）
+
+- Reviewer：agent `019fe38c-d8e8-7522-a9b5-2564b44e4abd`（Dewey）；provenance `codex-readonly-v0361-bilingual-public-pairs-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.61 candidate changed this pair only by visible version tokens and sample CLI version output relative to the accepted v0.3.60 baseline; install / upgrade / doctor / closeout / release meaning is unchanged.
+- `agent-handoff-kit-guide.html` SHA-256 `F5543174CFE362100EC11FA94C4A569BC8F0BFE6092647D06B8D46302248E49F`
+- `agent-handoff-kit-guide.en.html` SHA-256 `5F9D2D99057C87FC9291C2A5417A9CFAB38F6C4DB9352B6455E6DEBA4831FC34`
+- Verdict: **PASS** — English preserves the same guide flow and safety boundaries; only version tokens / sample version output changed.
+
+### Bilingual AI-install semantic gate（v0.3.61，PASS）
+
+- Reviewer：agent `019fe38c-d8e8-7522-a9b5-2564b44e4abd`（Dewey）；provenance `codex-readonly-v0361-bilingual-public-pairs-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.61 candidate changed this pair only by AI install page version tokens / version-note synchronization relative to the accepted v0.3.60 baseline; safety boundary and flow semantics are unchanged.
+- `agent-handoff-kit-ai-install.html` SHA-256 `A818B61B2DD7AB7F52997FABD3AE355F2E2B0DB47802523233E1DBF712CC9D5D`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `BCFD61D4E4D2FAB9BD638B701F9908207D9752AFD72719D8B2549C3A0CA39521`
+- Verdict: **PASS** — English preserves the same AI-install decision path, safety boundary, and completion meaning; only version tokens changed.
+
+### Bilingual introduction semantic gate（v0.3.61，PASS）
+
+- Reviewer：agent `019fe38c-d8e8-7522-a9b5-2564b44e4abd`（Dewey）；provenance `codex-readonly-v0361-bilingual-public-pairs-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.61 candidate changed this pair only by hero version note and footer version token relative to the accepted v0.3.60 baseline; beginner introduction meaning is unchanged.
+- `agent-handoff-kit-intro.html` SHA-256 `CECCB488044B7C7CA8269C5405CF6A004619BA4BAC05BD4BA77DF84C6DABAB5E`
+- `agent-handoff-kit-intro.en.html` SHA-256 `70702541850B65E6C31519604DF8946AF17E8DF3E0533468C44727DB5F990C73`
+- Verdict: **PASS** — English preserves the same beginner introduction meaning; only version tokens changed.
+
 ## v0.3.60 candidate status
 
 - 狀態：v0.3.60 是下一個 source package candidate，原因是 v0.3.59 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.60 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。

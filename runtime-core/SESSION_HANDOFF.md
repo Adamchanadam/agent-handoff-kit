@@ -17,7 +17,7 @@ Stable facts that should survive across sessions. Update only when they change, 
 <!-- ack:section:closeout-reconciled-state -->
 ## Closeout-Reconciled State
 
-This is the current-state area. At every full closeout, rewrite or explicitly confirm every section below. Do not append a new state snapshot under an old one.
+This is the current-state area. At every full closeout, update only sections whose current truth changed; leave already-current sections byte-stable where practical and record checked/no-op only when useful. Do not append a new state snapshot under an old one.
 
 <!-- ack:section:current-baseline -->
 ## Current Baseline
@@ -147,7 +147,7 @@ Continuity rule: this file carries current state and next action. `dev/SESSION_L
 <!-- ack:section:next-session-opening-message -->
 ## Next Session Opening Message
 
-This fenced block is the authoritative agent-managed startup content. At closeout, regenerate `START_NEXT_SESSION_PROMPT.txt` from this block. If the two differ, trust this block and rewrite the convenience copy. User-facing closeout output should show `Start Agent Handoff` / `開工` as the primary next-session entry, plus the path-bearing fallback when the next AI is not yet pointed at this project root; do not hand-write a separate stateful prompt in the final response.
+This fenced block is the authoritative agent-managed startup content. At closeout, verify `START_NEXT_SESSION_PROMPT.txt` against this block. Regenerate only if normalized content differs; if the two differ, trust this block and rewrite the convenience copy. User-facing closeout output should show `Start Agent Handoff` / `開工` as the primary next-session entry, plus the path-bearing fallback when the next AI is not yet pointed at this project root; do not hand-write a separate stateful prompt in the final response.
 
 📋 Next session: agent-managed startup content below
 

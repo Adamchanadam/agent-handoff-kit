@@ -217,6 +217,8 @@ async function main() {
   assertIncludes("runtime-core/SESSION_HANDOFF.md", [
     "Installed Integrations registry",
     "Probe only immediately before actual use",
+    "update only sections whose current truth changed",
+    "Regenerate only if normalized content differs",
     "ack:field:lifecycle-conflicts-resolved",
     "ack:field:persistence-routing-checked",
     "ack:field:closeout-outcome",
@@ -243,6 +245,9 @@ async function main() {
   ]);
 
   assertIncludes("packs/closeout.md", [
+    "Full closeout is differential and write-minimal",
+    "Update only fields whose current truth changed",
+    "Regenerate it only when normalized content differs",
     "apply the integrations and safety ownership rules",
     "Close only task-owned resources",
     "Retain shared, user-owned, other-agent-owned, system, or ambiguous resources unless separately authorized",
@@ -1896,7 +1901,7 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
     "- **Pending:** Continue from the opening message in the next session.",
     "- **Risks:** none for simulated project.",
     "- **Log maintenance:** kept current entry and template for future sessions.",
-    "- **Opening-message mirror:** regenerated and verified; full text omitted by design.",
+    "- **Opening-message mirror:** verified no-op or regenerated and verified; full text omitted by design.",
     "",
     installedLog
   ].join("\n");
