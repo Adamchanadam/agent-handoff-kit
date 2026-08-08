@@ -15,6 +15,10 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help semantic command evidence for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
+Convenience collector: after the external publish actions complete, maintainers may run `node scripts/qa.mjs postpublish --version <version> --collect <postpublish-evidence.json>` to write the evidence JSON and validate it through the same `postpublish` gate. The output path must be inside the Public source repo or Node OS temp directory. The PASS owner remains the command contract above; the collector is only a way to reduce manual readback drift.
+
+Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
+
 ## v0.3.60 candidate status
 
 - 狀態：v0.3.60 是下一個 source package candidate，原因是 v0.3.59 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.60 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。

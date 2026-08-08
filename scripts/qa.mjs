@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -86,6 +86,10 @@ async function main() {
     throw new Error(`controlled executor failure: ${options.testFailClaim}`);
   }
 
+  if (layer === "postpublish" && options.collect) {
+    await collectPostpublishEvidence(options);
+    if (!options.evidence) options.evidence = options.collect;
+  }
   if (layer === "candidate-preflight") await validateCandidatePreflight(options);
   if (layer === "full") await validateCandidatePreflight(options, { requireFrozenIdentity: true });
   if (layer === "full") await validateCandidateEvidence(options);
@@ -100,7 +104,7 @@ async function main() {
 }
 
 function parseArgs(args) {
-  const options = { layer: null, list: false, validateOnly: false, candidate: null, version: null, evidence: null, testFailClaim: null, testRunnerFixture: null, testRunnerTimeoutMs: null, testCommandShellFixture: null, testCommandSpawnError: false };
+  const options = { layer: null, list: false, validateOnly: false, candidate: null, version: null, evidence: null, collect: null, testFailClaim: null, testRunnerFixture: null, testRunnerTimeoutMs: null, testCommandShellFixture: null, testCommandSpawnError: false };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--list") options.list = true;
@@ -108,6 +112,7 @@ function parseArgs(args) {
     else if (value === "--candidate") options.candidate = requireValue(args, ++index, value);
     else if (value === "--version") options.version = requireValue(args, ++index, value);
     else if (value === "--evidence") options.evidence = requireValue(args, ++index, value);
+    else if (value === "--collect") options.collect = requireValue(args, ++index, value);
     else if (value === "--test-fail-claim") options.testFailClaim = requireValue(args, ++index, value);
     else if (value === "--test-runner-fixture") options.testRunnerFixture = requireValue(args, ++index, value);
     else if (value === "--test-runner-timeout-ms") options.testRunnerTimeoutMs = Number(requireValue(args, ++index, value));
@@ -178,6 +183,42 @@ async function validatePostpublishEvidence(options) {
 
   const helpEvidence = await npxHelpEvidence(options.version);
   assertPostpublishNpxHelpEvidence(evidence.readbacks?.npxHelp, helpEvidence);
+}
+
+async function collectPostpublishEvidence(options) {
+  assert(options.version, "postpublish --collect requires --version <version>");
+  assert(options.collect, "postpublish --collect requires an output file");
+  const output = path.resolve(options.collect);
+  assert(isInside(root, output) || isInside(tmpdir(), output), `postpublish --collect output must be inside the repo or OS temp directory: ${output}`);
+  const [npm, tarballSha256, githubRelease, gitCommit, npxHelp] = await Promise.all([
+    readNpmPublishedMetadata(options.version),
+    packPublishedTarballSha256(options.version),
+    readGithubRelease(options.version),
+    readRemoteTagCommit(options.version),
+    npxHelpEvidence(options.version)
+  ]);
+  const evidence = {
+    schemaVersion: 1,
+    kind: "postpublish-assurance",
+    manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    published: {
+      version: options.version,
+      npmPackage: `@adamchanadam/agent-handoff-kit@${options.version}`,
+      tarballSha256,
+      gitCommit,
+      githubReleaseUrl: `https://github.com/Adamchanadam/agent-handoff-kit/releases/tag/v${options.version}`
+    },
+    readbacks: {
+      npm,
+      npmPack: { tarballSha256 },
+      githubRelease,
+      gitTag: { commit: gitCommit },
+      npxHelp
+    }
+  };
+  writeFileSync(output, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+  console.log(`ok: postpublish evidence collected ${output}`);
 }
 
 async function runClaim(claim) {

@@ -659,6 +659,14 @@ function validateEvidenceContracts() {
   writeEvidence(postpublish, validPostpublish);
   invoke(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "near-valid postpublish evidence", { env: selfTestEnv });
 
+  const collectedPostpublish = path.join(fixtureRoot, "postpublish-collected.json");
+  invoke(["scripts/qa.mjs", "postpublish", "--version", version, "--collect", collectedPostpublish, "--validate-only"], "postpublish collector evidence", { env: selfTestEnv });
+  const collected = JSON.parse(readFileSync(collectedPostpublish, "utf8"));
+  assert(collected.kind === "postpublish-assurance", "postpublish collector wrote the wrong evidence kind");
+  assert(collected.published?.version === version, "postpublish collector wrote the wrong version");
+  assert(collected.readbacks?.npm?.shasum === npmMetadata.shasum, "postpublish collector did not capture npm readback evidence");
+  assert(collected.readbacks?.gitTag?.commit === gitCommit, "postpublish collector did not capture Git tag readback evidence");
+
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npm: { ...npmMetadata, shasum: "1".repeat(40) } } });
   invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npm shasum mismatch", { env: selfTestEnv });
 
