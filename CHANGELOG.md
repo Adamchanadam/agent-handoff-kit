@@ -1,5 +1,14 @@
 # 變更紀錄
 
+## v0.3.60 — 2026-08-08
+
+狀態：source package version。本版收窄普通文檔修改的 runtime 治理觸發，並修正開工狀態卡 ASCII 走位風險；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- 開工狀態卡現在要求用 fenced `text` block 顯示並保留 spacing；小貓 ASCII 本身不變。
+- Core proportionate work loop 明確：普通文檔局部修改若目標文件本身就是權威來源，且沒有碰到 Kit-managed files、migration、release / closeout gates、external effects、cross-source conflicts 或 safe-continuation blockers，不因文件改動而跑 `agent-handoff-kit doctor`、寫 handoff / log 或重生 startup mirror。
+- Agent-governance generated artifact workflow 分清 existing target-authority local edit 與新 durable artifact；`doctor` 只作 scoped Kit / typed registered-surface checks，不代替普通文檔分類或內容驗收。
+- QA 加入 proportionate document edit use-case matrix，覆蓋 ordinary target-authority document edit、new durable document bridge candidate、Kit-managed governance file edit 與 startup card rendering；release-readiness gate 同步鎖住 startup card fenced block 與普通文檔免預設 doctor 的 contract。
+
 ## v0.3.59 — 2026-08-08
 
 狀態：source package version。本版修補 `doctor` 在 formal user-rules 見證存在時，先給泛用 anchor 手修建議的安全漏洞；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。

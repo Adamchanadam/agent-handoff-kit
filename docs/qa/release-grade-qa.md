@@ -15,12 +15,65 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 
 `quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help semantic command evidence for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
-## v0.3.59 candidate status
+## v0.3.60 candidate status
 
-- 狀態：v0.3.59 是下一個 source package candidate，原因是 v0.3.58 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.59 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
+- 狀態：v0.3.60 是下一個 source package candidate，原因是 v0.3.59 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.60 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
+- 產品範圍：runtime 收窄普通文檔局部修改的治理觸發；existing target-authority 文檔只需讀回與任務相關驗收，不因 Markdown 改動而預設跑 `doctor`、寫 handoff / log 或重生 startup mirror。開工狀態卡要求 fenced `text` block 顯示，保留 ASCII spacing。
+- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.60 candidate；v0.3.59 保留為最新已發布 lineage，v0.3.60 不進 official-origin published catalog。
+- full / release 邊界：本段記錄 candidate source state、比例化文檔修改 QA backflow 與 release QA readback material；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
+
+### Cross-mind evidence 9-trigger table（v0.3.60）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | passed | External runtime feedback showed ordinary governance research document edits could be expanded into repeated Kit doctor / handoff / persistence work; the candidate now states ordinary target-authority document edits use local read-back and task-specific checks only. |
+| 2. External side effects | yes | iterated | No v0.3.60 push, tag, GitHub Release, npm publish, or postpublish readback is claimed here; those remain release-sequence gates after formal full. |
+| 3. User-visible output | yes | passed | The startup card must be rendered in a fenced `text` block so the ASCII status marker stays aligned; the cat art itself is unchanged. |
+| 4. Complexity or boundary | yes | passed | The fix stays in existing owners: core owns proportional work and startup card rendering, agent-governance owns artifact classification, and QA owns scenario coverage. No new pack or performance mode is added. |
+| 5. Documentation drift | yes | iterated | Source package surfaces, README, HTML pages, CHANGELOG, whatsnew, release QA, and official-origin latest published lineage are synchronized to v0.3.60 candidate state. |
+| 6. Semantic runtime effect | yes | passed | The proportionate document edit matrix covers ordinary target-authority document edit, new durable document bridge candidate, Kit-managed governance file edit, and startup card rendering so the rule is not only a single lexical assertion. |
+| 7. Cross-agent / role boundary | yes | iterated | The candidate reduces mid-task persistence noise without weakening closeout, upgrade, release, user-rules witness, or Kit-managed file validation boundaries. Formal full still requires clean candidate evidence. |
+| 8. Real user journey | yes | passed | A user asking an AI to revise a normal document should see focused document validation, while real Kit upgrades, closeout, release, or managed-rule edits still receive stricter checks. |
+| 9. Release statement | yes | iterated | v0.3.60 remains an unpublished source candidate until formal full, push, tag, GitHub Release, npm publish, and postpublish readback succeed. |
+
+### Bilingual README semantic gate（v0.3.60，PASS）
+
+- Reviewer：agent `019fe342-ce12-7321-a606-30af886adcc5`（Hilbert）；provenance `codex-subagent-readonly-v0.3.60-bilingual-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.60 candidate changed this pair only by source package version tokens relative to the accepted v0.3.59 baseline; public usage flow and meaning are unchanged.
+- `README.md` SHA-256 `6CF48537FFD90059380D01C9E03D092C958581D4052EF53FC4412CE8F0A0DBCB`
+- `README.en.md` SHA-256 `0948806B3E833CB1EB022E9E13BA97311E383CFE5046EFC27D9E1DF5A750BBB2`
+- Verdict: **PASS** — English preserves the same public usage flow and meaning; only `v0.3.59` became `v0.3.60`.
+
+### Bilingual practical-guide semantic gate（v0.3.60，PASS）
+
+- Reviewer：agent `019fe342-ce12-7321-a606-30af886adcc5`（Hilbert）；provenance `codex-subagent-readonly-v0.3.60-bilingual-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.60 candidate changed this pair only by visible version tokens and sample CLI version output relative to the accepted v0.3.59 baseline; install / upgrade / doctor / closeout / release meaning is unchanged.
+- `agent-handoff-kit-guide.html` SHA-256 `D598450DEBD559CB4AD01A2455EA72D1B2063ED27F7AF9B6E68EA069BD21BAAF`
+- `agent-handoff-kit-guide.en.html` SHA-256 `85EB15C801E3DCD186D0E3EB5EE1F33D60220D58B370AA20F503BEEDC40AC1C0`
+- Verdict: **PASS** — English preserves the same guide flow and safety boundaries; only version tokens / sample version output changed.
+
+### Bilingual AI-install semantic gate（v0.3.60，PASS）
+
+- Reviewer：agent `019fe342-ce12-7321-a606-30af886adcc5`（Hilbert）；provenance `codex-subagent-readonly-v0.3.60-bilingual-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.60 candidate changed this pair only by AI install page version tokens / version-note synchronization relative to the accepted v0.3.59 baseline; safety boundary and flow semantics are unchanged.
+- `agent-handoff-kit-ai-install.html` SHA-256 `7CF5444661772414D3A952238F3554CE9894A98BC444B3ABFB399C97E958985D`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `56BE814D5EE215C2D87E9139412B25AD4B4767EB131C69D2B6AC27BDFF23CCE4`
+- Verdict: **PASS** — English preserves the same AI-install decision path, safety boundary, and completion meaning; only version tokens changed.
+
+### Bilingual introduction semantic gate（v0.3.60，PASS）
+
+- Reviewer：agent `019fe342-ce12-7321-a606-30af886adcc5`（Hilbert）；provenance `codex-subagent-readonly-v0.3.60-bilingual-20260808`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.60 candidate changed this pair only by hero version note and footer version token relative to the accepted v0.3.59 baseline; beginner introduction meaning is unchanged.
+- `agent-handoff-kit-intro.html` SHA-256 `D5E80CE5CEC2803E82BE16B202457A135506528196A83BBAF3EAFF45B7F46F74`
+- `agent-handoff-kit-intro.en.html` SHA-256 `6785218EF12D41752E23BE85292072D38AF7560A6EDAAFBEE19E5539962E2E51`
+- Verdict: **PASS** — English preserves the same beginner introduction meaning; only version tokens changed.
+
+## v0.3.59 candidate evidence and published baseline
+
+- 狀態：v0.3.59 已於 2026-08-08 正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；以下 candidate evidence 保留它的發佈前驗收背景。
 - 產品範圍：`doctor` 先驗證 formal user-rules 見證，再進入泛用 anchor / schema 修復提示；`AGENTS.md` managed core 與 `dev/USER_RULES.md` `managedCoreSha256` 不一致時，必須報 user-rules acceptance drift，不可提示 AI 手動補 managed-core anchor。QA 回流把此類錯誤歸類為 cross-contract false-green，不再由單項 anchor / hash / schema check 支撐可靠性聲明。
-- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.59 candidate；v0.3.58 保留為最新已發布 lineage，v0.3.59 不進 official-origin published catalog。
-- full / release 邊界：本段記錄 candidate source state、QA mechanism backflow 與 release QA readback material；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
+- release surface 範圍：本段保留 v0.3.59 candidate 時 package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 對齊證據；v0.3.58 是當時 latest published lineage，v0.3.59 發布後會成為下一個 candidate 的 official-origin baseline。
+- full / release 邊界：本段記錄 v0.3.59 candidate source state、QA mechanism backflow 與 release QA readback material；v0.3.60 的 formal full、release authorization、npm publish 或 postpublish evidence 不可由本段推定。
 
 ### pre-release final audit（v0.3.59，PUBLIC_SURFACE_REVIEW_ACCEPTED）
 
@@ -28,7 +81,7 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 - full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
 - Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
 - five-conclusion writer assessment must cover governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting. For this candidate, `qcBackflow` is not passed unless the accepted-user-rules managed-core anchor-drift regression proves both the formal reader rejection and the absence of generic anchor repair guidance.
-- 發布打包邊界：v0.3.59 remains unpublished until formal full, push, tag, GitHub Release, npm publish, and postpublish readback all pass under explicit authorization.
+- 發布打包邊界：本段是 v0.3.59 發布前候選證據；正式發布狀態以 GitHub Release、npm `@latest`、remote tag 和 postpublish readback 為準。
 
 ### Cross-mind evidence 9-trigger table（v0.3.59）
 
