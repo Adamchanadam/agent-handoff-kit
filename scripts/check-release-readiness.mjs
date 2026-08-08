@@ -23,12 +23,21 @@ const root = path.resolve(__dirname, "..");
 const tempRoot = path.join(tmpdir(), `ack-release-flow-${Date.now()}`);
 const cliNode = process.platform === "win32" ? "node" : process.execPath;
 const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, one optional display-only current-thread title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out execution wording.";
+const GITHUB_RELEASE_BODY_HEADINGS = [
+  "## 本版新加了甚麼",
+  "## 對你已有檔案的影響",
+  "## 建議下一步"
+];
 
 await main();
 
 async function main() {
   if (process.argv.includes("--qa-inventory-self-test")) {
     checkReleaseReadinessInventorySelfTest();
+    return;
+  }
+  if (process.argv.includes("--release-notes-contract-self-test")) {
+    checkGithubReleaseNotesContractSelfTest();
     return;
   }
   const packageJson = JSON.parse(read("package.json"));
@@ -2091,22 +2100,13 @@ function checkWhatsnewSchema(version) {
 
 function checkGithubReleaseBodyContract(version) {
   const currentWhatsnew = readAt("docs/whatsnew", `v${version}.md`).replace(/\r\n/g, "\n");
-  const requiredHeadings = [
-    "## 本版新加了甚麼",
-    "## 對你已有檔案的影響",
-    "## 建議下一步"
-  ];
-  assert(currentWhatsnew.startsWith(`# v${version}\n`), `docs/whatsnew/v${version}.md must start with "# v${version}" for GitHub Release body reuse`);
-  let previousIndex = -1;
-  for (const heading of requiredHeadings) {
-    const index = currentWhatsnew.indexOf(heading);
-    assert(index >= 0, `docs/whatsnew/v${version}.md missing GitHub Release body heading: ${heading}`);
-    assert(index > previousIndex, `docs/whatsnew/v${version}.md GitHub Release body heading order drifted: ${heading}`);
-    previousIndex = index;
-  }
+  validateGithubReleaseBodyText(version, currentWhatsnew, `docs/whatsnew/v${version}.md`);
+  checkConcreteGithubReleaseNotesContract(version);
   assertIncludes("docs/qa/release-grade-qa.md", [
     "GitHub Release body 固定結構驗收",
     "vX.Y.Z - <用戶可理解的價值短句>",
+    "AGENT_HANDOFF_KIT_RELEASE_TITLE",
+    "AGENT_HANDOFF_KIT_RELEASE_NOTES_FILE",
     "`# vX.Y.Z`",
     "`## 本版新加了甚麼`",
     "`## 對你已有檔案的影響`",
@@ -2117,6 +2117,78 @@ function checkGithubReleaseBodyContract(version) {
     "gh release view vX.Y.Z --json name,body"
   ]);
   console.log("ok: GitHub Release body contract");
+}
+
+function checkConcreteGithubReleaseNotesContract(version) {
+  const notesFile = process.env.AGENT_HANDOFF_KIT_RELEASE_NOTES_FILE;
+  const title = process.env.AGENT_HANDOFF_KIT_RELEASE_TITLE;
+  if (!notesFile && !title) {
+    return;
+  }
+  assert(notesFile && title, "GitHub Release notes gate requires both AGENT_HANDOFF_KIT_RELEASE_NOTES_FILE and AGENT_HANDOFF_KIT_RELEASE_TITLE");
+  validateGithubReleaseTitle(version, title, "AGENT_HANDOFF_KIT_RELEASE_TITLE");
+  const absoluteNotesFile = path.resolve(notesFile);
+  assert(existsSync(absoluteNotesFile), `AGENT_HANDOFF_KIT_RELEASE_NOTES_FILE does not exist: ${notesFile}`);
+  const body = readFileSync(absoluteNotesFile, "utf8").replace(/\r\n/g, "\n");
+  validateGithubReleaseBodyText(version, body, "AGENT_HANDOFF_KIT_RELEASE_NOTES_FILE");
+  console.log("ok: concrete GitHub Release notes/title contract");
+}
+
+function checkGithubReleaseNotesContractSelfTest() {
+  assert(process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1", "--release-notes-contract-self-test is test-only");
+  const version = "0.3.59";
+  const validTitle = `v${version} - 規則見證安全修補`;
+  const validBody = [
+    `# v${version}`,
+    "",
+    "## 本版新加了甚麼",
+    "",
+    "- `doctor` 會先確認接受紀錄是否一致。",
+    "",
+    "## 對你已有檔案的影響",
+    "",
+    "這版不會自動改寫你的 user rules。",
+    "",
+    "## 建議下一步",
+    "",
+    "受影響項目升級後跑 `doctor`。"
+  ].join("\n");
+  validateGithubReleaseTitle(version, validTitle, "self-test valid title");
+  validateGithubReleaseBodyText(version, validBody, "self-test valid body");
+  assertThrows(
+    () => validateGithubReleaseTitle(version, `v${version} - Formal user-rules doctor guard`, "self-test English title"),
+    "English implementation title was not rejected"
+  );
+  assertThrows(
+    () => validateGithubReleaseBodyText(version, `# v${version}\n\n## 用戶價值\n\n- wrong`, "self-test old body"),
+    "old release body format was not rejected"
+  );
+  assertThrows(
+    () => validateGithubReleaseBodyText(version, validBody.replace("## 對你已有檔案的影響", "## 內部驗收證據"), "self-test missing heading"),
+    "missing required release body heading was not rejected"
+  );
+  console.log("ok: GitHub Release notes contract self-test");
+}
+
+function validateGithubReleaseTitle(version, title, label) {
+  const prefix = `v${version} - `;
+  assert(title.startsWith(prefix), `${label} must start with "${prefix}"`);
+  const value = title.slice(prefix.length).trim();
+  assert(value, `${label} must include a short user-value phrase after "${prefix}"`);
+  assert(/[\u3400-\u9fff]/u.test(value), `${label} must use a Traditional Chinese user-value phrase, not an English implementation label`);
+}
+
+function validateGithubReleaseBodyText(version, body, label) {
+  assert(body.startsWith(`# v${version}\n`), `${label} must start with "# v${version}" for GitHub Release body reuse`);
+  let previousIndex = -1;
+  for (const heading of GITHUB_RELEASE_BODY_HEADINGS) {
+    const index = body.indexOf(heading);
+    assert(index >= 0, `${label} missing GitHub Release body heading: ${heading}`);
+    assert(index > previousIndex, `${label} GitHub Release body heading order drifted: ${heading}`);
+    previousIndex = index;
+  }
+  assert(!body.includes("## 用戶價值"), `${label} must not use the old GitHub Release body format`);
+  assert(!/(candidate evidence|review bundle|manifest digest|release-readiness|SHA-256|targetCommitish|npm integrity)/iu.test(body), `${label} must keep internal release evidence out of the public GitHub Release body`);
 }
 
 function checkReleaseStateCoherence(version) {
