@@ -122,6 +122,11 @@ function closeoutReadyHandoff(text) {
     .replace("- Recommended next step is explicit and reasoned: closeout fixture", "- Recommended next step is explicit and reasoned: yes — action and reason are recorded.")
     .replace("- Opening message matches current state: closeout fixture", "- Opening message matches current state: yes")
     .replace("- Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: closeout fixture", "- Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: yes")
+    .replace("Git root: closeout fixture", "Git root: no Git repository (fixture root)")
+    .replace("Branch: closeout fixture", "Branch: not_applicable - no Git repository")
+    .replace("Commit: closeout fixture", "Commit: not_applicable - no Git repository")
+    .replace("Worktree / parallel workspace status: closeout fixture", "Worktree / parallel workspace status: not_applicable - no Git repository")
+    .replace("Uncommitted changes summary: closeout fixture", "Uncommitted changes summary: not_applicable - no Git repository")
     .replace(/- Closeout outcome:[^\r\n]*/, "- Closeout outcome: complete — all required writes, read-backs, and project-required persistence are complete.")
     .replace(/- Project-required persistence:[^\r\n]*/, "- Project-required persistence: not_required — this fixture has no project-required Git persistence.");
 }

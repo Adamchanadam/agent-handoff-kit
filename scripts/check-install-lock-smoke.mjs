@@ -7,13 +7,22 @@ import { hostname, tmpdir as systemTmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
+import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const qaTmp = process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "C:\\tmp" : systemTmpdir());
+const qaTmp = process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "D:\\_temp" : systemTmpdir());
 const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
+const qaTemp = createQaTempTracker("install lock smoke QA");
 
-main();
+let passed = false;
+try {
+  main();
+  passed = true;
+} finally {
+  if (passed) qaTemp.cleanupOnSuccess();
+  else qaTemp.reportRetained("QA failed before cleanup");
+}
 
 function main() {
   checkFreshInstallNoMigrationArtifacts();
@@ -123,6 +132,7 @@ function writeStaleCompletedCreateOnlyInitLock(project) {
 
 function fresh(label) {
   const project = path.join(qaTmp, `ack-install-lock-smoke-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  qaTemp.track(project);
   mkdirSync(project, { recursive: true });
   return project;
 }

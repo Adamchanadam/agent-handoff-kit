@@ -101,9 +101,10 @@ The always-enforced closeout invariants are:
 1. Current state lives in `dev/SESSION_HANDOFF.md`; trace evidence lives in `dev/SESSION_LOG.md`.
 2. Completed, pending, risk, validation, and opening-message lifecycle states agree.
 3. `START_NEXT_SESSION_PROMPT.txt` is regenerated from the sole authoritative handoff block and no third full copy is retained.
-4. Closeout is not complete until required files are written, read back, and the available closeout checks pass.
-5. After those checks, render the final card with `agent-handoff-kit closeout-status --root <project root>`; only its `status: complete` output may say `handoff saved`. A nonzero / `blocked` result is an honest blocked closeout, not a completed one.
-6. Git commit, push, release, publish, deployment, deletion, and permission changes remain separately authorized actions.
+4. Workspace identity is a last-verified snapshot. Live root / Git / worktree truth belongs to `agent-handoff-kit workspace-health --root <project root>` or equivalent read-only Git probes, not to stale prose.
+5. Closeout is not complete until required files are written, read back, and the available closeout checks pass.
+6. After those checks, render the final card with `agent-handoff-kit closeout-status --root <project root>`; only its `status: complete` output may say `handoff saved`. A nonzero / `blocked` result is an honest blocked closeout, not a completed one.
+7. Git commit, push, release, publish, deployment, deletion, and permission changes remain separately authorized actions.
 
 ## 5. Pack Loading
 

@@ -8,11 +8,13 @@ import { fileURLToPath } from "node:url";
 import { freshInstallMappings, installedMappings, upgradeStateMappings } from "../bin/installed-file-contract.mjs";
 import { parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import { createFreshUserRuleAcceptance, parseUserRulesState, readFormalUserRules, userRulesAcceptanceDigest } from "../bin/user-rules-router.mjs";
+import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const tmpdir = () => process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "C:\\tmp" : systemTmpdir());
-const tempRoot = path.join(tmpdir(), `ack-prototype-check-${Date.now()}`);
+const tmpdir = () => process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "D:\\_temp" : systemTmpdir());
+const qaTemp = createQaTempTracker("public prototype QA");
+const tempRoot = qaTemp.track(path.join(tmpdir(), `ack-prototype-check-${Date.now()}`));
 
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 const version = packageJson.version;
@@ -41,8 +43,11 @@ const ignoredDirs = new Set([".git", "node_modules", "coverage", "dist"]);
 // values; the broad prose scanner would otherwise mistake examples for secrets.
 const ignoredFiles = new Set(["package-lock.json", "bin/migration-baselines/official-origin-catalog.json"]);
 
-main().catch((error) => {
+main().then(() => {
+  qaTemp.cleanupOnSuccess();
+}).catch((error) => {
   console.error(error.message);
+  qaTemp.reportRetained("QA failed before cleanup");
   process.exitCode = 1;
 });
 
@@ -71,6 +76,9 @@ async function main() {
   assert(doctor.stdout.includes("status: passed"), "doctor output did not include status: passed");
   assert(doctor.stdout.includes("✅ 檢查通過"), "doctor output missing beginner-friendly passed message");
   assert(!doctor.stdout.includes("generated markdown governance checks"), "doctor must not claim a generated Markdown root-discovery check");
+  const nonGitHealth = run(process.execPath, ["bin/agent-handoff-kit.mjs", "workspace-health", "--root", tempRoot], "workspace health non-git root");
+  assert(nonGitHealth.stdout.includes("workspace: verified"), "workspace-health should verify a non-git project without blocking");
+  assert(nonGitHealth.stdout.includes("git: no"), "workspace-health should report non-git roots plainly");
   assert(!existsSync(path.join(tempRoot, "dev", "governance_migrations")), "fresh install created governance_migrations before doctor");
   assert(doctor.stdout.includes("fresh install 不建立 migration 交易目錄"), "doctor did not report the fresh-install no-migration boundary");
   mkdirSync(path.join(tempRoot, "dev/governance_migrations/20260423T112233Z"), { recursive: true });
@@ -202,11 +210,12 @@ async function main() {
 
   console.log("");
   console.log("Agent Handoff Kit prototype QA passed");
-  console.log(`temp install root: ${tempRoot}`);
+  console.log("temp install root: cleaned after PASS unless AGENT_HANDOFF_KIT_KEEP_QA_TMP is set");
 }
 
 function checkUnregisteredMarkdownNonDiscovery() {
   const orphanRoot = path.join(tmpdir(), `ack-prototype-nondiscovery-${Date.now()}`);
+  qaTemp.track(orphanRoot);
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", orphanRoot], "unregistered Markdown non-discovery bootstrap");
   mkdirSync(path.join(orphanRoot, "outputs"), { recursive: true });
   writeFileSync(

@@ -114,11 +114,12 @@ Do not store credential values or machine-private paths here. Local machine-only
 | Check | Command | Run before | Last verified |
 |---|---|---|---|
 | Agent Handoff Kit doctor | `npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .` | closeout / Kit contract health / explicit registered-path checks | package latest |
+| Agent Handoff Kit workspace health | `npx --yes @adamchanadam/agent-handoff-kit@latest workspace-health --root .` | closeout workspace identity read-back / suspected wrong root or worktree drift | package latest |
 | Project governance check | Check newly created durable artifacts against `dev/PROJECT_INDEX.md` and `dev/DOC_SYNC_REGISTRY.md`; register, sync, consolidate, or explicitly classify as temporary / one-time evidence. This is an AI responsibility, not a root-discovery doctor scan. | closeout / durable file changes | unverified until project-specific command exists |
 
 ## Workspace Identity
 
-Record this at closeout so the next AI can detect wrong-root or workspace drift.
+Record the last closeout snapshot here so the next AI can detect wrong-root or workspace drift. Live root / Git / worktree truth is read with `agent-handoff-kit workspace-health --root <project root>` or equivalent read-only Git probes; do not maintain a long-term dynamic worktree list here.
 
 | Field | Value | Last verified |
 |---|---|---|

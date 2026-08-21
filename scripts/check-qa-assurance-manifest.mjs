@@ -414,7 +414,7 @@ function validateEvidenceContracts() {
     productName: "Agent Handoff Kit",
     mode: "help",
     version,
-    requiredCommands: ["init", "upgrade", "doctor", "closeout-status"]
+    requiredCommands: ["init", "upgrade", "doctor", "workspace-health", "closeout-status"]
   };
   const npmMetadata = {
     version,

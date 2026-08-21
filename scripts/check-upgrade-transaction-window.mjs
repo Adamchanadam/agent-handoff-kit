@@ -6,16 +6,25 @@ import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
+const qaTemp = createQaTempTracker("upgrade transaction-window QA");
 
-checkMalformedActiveLocksFailClosed();
-checkInvalidActiveLockReferencesFailClosed();
-checkPreReplaceDriftRollsBack();
-checkSupportedActiveRecoveryStillWorks();
-checkCleanTransactionIsOperationLocal();
-console.log("ok: upgrade transaction window is operation-local");
+let passed = false;
+try {
+  checkMalformedActiveLocksFailClosed();
+  checkInvalidActiveLockReferencesFailClosed();
+  checkPreReplaceDriftRollsBack();
+  checkSupportedActiveRecoveryStillWorks();
+  checkCleanTransactionIsOperationLocal();
+  console.log("ok: upgrade transaction window is operation-local");
+  passed = true;
+} finally {
+  if (passed) qaTemp.cleanupOnSuccess();
+  else qaTemp.reportRetained("QA failed before cleanup");
+}
 
 function checkMalformedActiveLocksFailClosed() {
   const variants = [
@@ -126,6 +135,7 @@ function checkCleanTransactionIsOperationLocal() {
 
 function install(label) {
   const project = path.join(tmpdir(), `ahk-txn-${label}-${packageVersion}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  qaTemp.track(project);
   mkdirSync(project, { recursive: true });
   cli(["init", "--yes", "--root", project], `${label} init`);
   const index = path.join(project, "dev", "PROJECT_INDEX.md");

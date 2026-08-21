@@ -10,20 +10,29 @@ import { fileURLToPath } from "node:url";
 import { installedFileContracts, requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
 import { canonicalizeOfficialText, loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
 import { markdownVisibleLinesOutsideHiddenBlocks, materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
+import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const fixturesRoot = path.join(root, "test-fixtures");
-const qaTmp = process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "C:\\tmp" : systemTmpdir());
+const qaTmp = process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "D:\\_temp" : systemTmpdir());
 const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
 const officialOriginCatalog = await loadOfficialOriginCatalog();
+const qaTemp = createQaTempTracker("upgrade safety QA");
 const rootOrVersionGeneratedTargets = new Set([
   "START_NEXT_SESSION_PROMPT.txt",
   "dev/SESSION_HANDOFF.md",
   "dev/PROJECT_INDEX.md"
 ]);
 
-main();
+let passed = false;
+try {
+  main();
+  passed = true;
+} finally {
+  if (passed) qaTemp.cleanupOnSuccess();
+  else qaTemp.reportRetained("QA failed before cleanup");
+}
 
 function main() {
   assertCliEnvDisablesUpdateNotice();
@@ -61,6 +70,7 @@ function main() {
 
 function checkDryRunNoWrites() {
   const project = path.join(qaTmp, `ack-v039-dry-run-missing-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  qaTemp.track(project);
   assert(!existsSync(project), "dry-run missing-root fixture already exists");
   const result = cli(["init", "--dry-run", "--root", project], "missing-root dry-run");
   assert(result.stdout.includes("dry-run: no files written"), "missing-root dry-run did not report zero writes");
@@ -70,6 +80,7 @@ function checkDryRunNoWrites() {
 
 function checkCancelledWriteLeavesMissingRootAbsent() {
   const project = path.join(qaTmp, `ack-v041-cancel-missing-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  qaTemp.track(project);
   assert(!existsSync(project), "cancelled missing-root fixture already exists");
   const result = cli(["init", "--root", project], "missing-root cancellation", { input: "no\n" });
   assert(result.stdout.includes("cancelled: no files written"), "cancelled init did not report zero writes");
@@ -235,6 +246,7 @@ function checkFutureVersionBlock() {
 function checkJunctionRootBlock() {
   const target = install("junction-target");
   const link = path.join(qaTmp, `ack-v039-junction-link-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  qaTemp.track(link);
   try {
     symlinkSync(target, link, process.platform === "win32" ? "junction" : "dir");
   } catch (error) {
@@ -362,7 +374,7 @@ function resolveHistoricalArtifact(version, npmIdentity) {
   const explicit = version === "0.1.0" ? process.env.AGENT_HANDOFF_KIT_V010_TGZ : null;
   if (explicit) return explicit;
   const cacheRoot = process.env.AGENT_HANDOFF_KIT_HISTORICAL_ARTIFACT_CACHE
-    || (process.platform === "win32" ? "C:\\tmp\\agent-handoff-kit-historical-artifacts" : path.join(systemTmpdir(), "agent-handoff-kit-historical-artifacts"));
+    || (process.platform === "win32" ? "D:\\_temp\\agent-handoff-kit-historical-artifacts" : path.join(systemTmpdir(), "agent-handoff-kit-historical-artifacts"));
   mkdirSync(cacheRoot, { recursive: true });
   const expectedName = `adamchanadam-agent-handoff-kit-${version}.tgz`;
   const cached = path.join(cacheRoot, expectedName);
@@ -726,6 +738,7 @@ function checkReplacementBeforeJournalRecovery() {
   });
   assert(changedEntry, "could not identify the target replaced before journal persistence");
   const link = path.join(qaTmp, `ack-v041-pending-junction-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  qaTemp.track(link);
   try {
     symlinkSync(fixture.project, link, process.platform === "win32" ? "junction" : "dir");
     const beforeJunctionAttempt = fullSnapshot(fixture.project);
@@ -775,6 +788,7 @@ function checkRecoveryArtifactValidation() {
     const linked = prepareInterruptedReplacement(`recovery-${kind}-junction`);
     const originalDir = path.join(path.dirname(linked.journalPath), kind);
     const movedDir = path.join(qaTmp, `ack-v041-${kind}-outside-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    qaTemp.track(movedDir);
     try {
       renameSync(originalDir, movedDir);
       symlinkSync(movedDir, originalDir, process.platform === "win32" ? "junction" : "dir");
@@ -1070,6 +1084,7 @@ function assertRequiredFixtureFiles(project, label, result = null, required = re
 
 function fresh(label) {
   const project = path.join(qaTmp, `ack-v039-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  qaTemp.track(project);
   mkdirSync(project, { recursive: true });
   return project;
 }

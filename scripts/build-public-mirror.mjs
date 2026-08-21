@@ -6,14 +6,18 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertPublicMirrorRequiredSources, expectedPublicMirrorFileCount, PUBLIC_MIRROR_CONTRACT, RELEASE_PACKAGE_CONTRACT } from "./qa-assurance-manifest.mjs";
+import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sourceRoot = path.resolve(__dirname, "..");
 
 const args = parseArgs(process.argv.slice(2));
+const qaTemp = createQaTempTracker("public mirror QA");
+const defaultNpmCache = qaTemp.track(path.join(tmpdir(), `ack-public-mirror-npm-cache-${Date.now()}`));
+const explicitOut = Boolean(args.out);
 const outRoot = args.out
   ? path.resolve(args.out)
-  : path.join(tmpdir(), `ack-public-mirror-${Date.now()}`);
+  : qaTemp.track(path.join(tmpdir(), `ack-public-mirror-${Date.now()}`));
 
 const allowFiles = PUBLIC_MIRROR_CONTRACT.allowFiles;
 const allowDirs = PUBLIC_MIRROR_CONTRACT.allowDirs;
@@ -31,7 +35,14 @@ const forbiddenText = [
   { label: "local machine path", pattern: /C:\\Users\\adam|_claude_desktop|ai-session-governance_v2/i }
 ];
 
-main();
+let passed = false;
+try {
+  main();
+  passed = true;
+} finally {
+  if (passed) qaTemp.cleanupOnSuccess();
+  else qaTemp.reportRetained("QA failed before cleanup");
+}
 
 function main() {
   assert(!existsSync(outRoot), `output path already exists; choose a new path: ${outRoot}`);
@@ -58,7 +69,9 @@ function main() {
 
   console.log("");
   console.log("Agent Handoff Kit public mirror QA passed");
-  console.log(`public mirror: ${outRoot}`);
+  console.log(explicitOut
+    ? `public mirror: ${outRoot}`
+    : "public mirror: cleaned after PASS unless AGENT_HANDOFF_KIT_KEEP_QA_TMP is set");
 }
 
 function transformReadme() {
@@ -135,7 +148,7 @@ function checkNpmDryRun() {
 function checkCliAndUserFlow() {
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "--help"], "public mirror CLI help", outRoot);
 
-  const userRoot = path.join(tmpdir(), `ack-public-mirror-user-flow-${Date.now()}`);
+  const userRoot = qaTemp.track(path.join(tmpdir(), `ack-public-mirror-user-flow-${Date.now()}`));
   const init = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", userRoot], "public mirror fresh init", outRoot);
   assert(init.stdout.includes("安裝完成"), "public mirror fresh init output missing completion line");
   const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", userRoot], "public mirror doctor after init", outRoot);
@@ -151,8 +164,8 @@ function checkCliAndUserFlow() {
 }
 
 function checkTarballInstall() {
-  const packageDir = path.join(tmpdir(), `ack-public-mirror-pack-${Date.now()}`);
-  const consumerDir = path.join(tmpdir(), `ack-public-mirror-consumer-${Date.now()}`);
+  const packageDir = qaTemp.track(path.join(tmpdir(), `ack-public-mirror-pack-${Date.now()}`));
+  const consumerDir = qaTemp.track(path.join(tmpdir(), `ack-public-mirror-consumer-${Date.now()}`));
   mkdirSync(packageDir, { recursive: true });
   mkdirSync(consumerDir, { recursive: true });
   writeFileSync(
@@ -166,7 +179,7 @@ function checkTarballInstall() {
   const tarballPath = path.join(packageDir, pack.filename);
   assert(existsSync(tarballPath), `public mirror tarball missing: ${tarballPath}`);
 
-  const cacheDir = path.join(tmpdir(), `ack-public-mirror-npm-cache-${Date.now()}`);
+  const cacheDir = qaTemp.track(path.join(tmpdir(), `ack-public-mirror-npm-cache-${Date.now()}`));
   runNpm(["install", "--no-audit", "--no-fund", "--cache", cacheDir, tarballPath], "public mirror local tarball install", consumerDir);
   const installedRoot = path.join(consumerDir, "node_modules", "@adamchanadam", "agent-handoff-kit");
   const installedFiles = walk(installedRoot).map((file) => slash(path.relative(installedRoot, file)));
@@ -217,7 +230,8 @@ function run(command, args, label, cwd) {
     shell: useShell,
     env: {
       ...process.env,
-      npm_config_cache: process.env.npm_config_cache ?? path.join(tmpdir(), "ack-public-mirror-npm-cache")
+      NODE_DISABLE_COMPILE_CACHE: process.env.NODE_DISABLE_COMPILE_CACHE ?? "1",
+      npm_config_cache: process.env.npm_config_cache ?? defaultNpmCache
     }
   });
   if (result.error || result.status !== 0) {

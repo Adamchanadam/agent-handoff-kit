@@ -17,10 +17,12 @@ import {
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
 import { describeResult, runChecked, runNodeScriptChecked } from "./qa-runner-core.mjs";
+import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const tempRoot = path.join(tmpdir(), `ack-release-flow-${Date.now()}`);
+const qaTemp = createQaTempTracker("release readiness QA");
+const tempRoot = qaTemp.track(path.join(tmpdir(), `ack-release-flow-${Date.now()}`));
 const cliNode = process.platform === "win32" ? "node" : process.execPath;
 const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, one optional display-only current-thread title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out execution wording.";
 const GITHUB_RELEASE_BODY_HEADINGS = [
@@ -29,7 +31,14 @@ const GITHUB_RELEASE_BODY_HEADINGS = [
   "## 建議下一步"
 ];
 
-await main();
+let passed = false;
+try {
+  await main();
+  passed = true;
+} finally {
+  if (passed) qaTemp.cleanupOnSuccess();
+  else qaTemp.reportRetained("QA failed before cleanup");
+}
 
 async function main() {
   if (process.argv.includes("--qa-inventory-self-test")) {
@@ -59,6 +68,8 @@ async function main() {
   checkUpgradeSuccessOutputSourceContract(version);
   checkRecommendedNextStepContract();
   checkCliHelpHotPathContract();
+  checkQaTempCleanupContract();
+  checkWorkspaceHealthContract();
 
   const executedQaIds = [];
   for (const qaCheck of QA_RELEASE_READINESS_INVENTORY) {
@@ -415,6 +426,7 @@ async function main() {
   checkHandoffTemperatureBoundaryContract();
   await checkUnregisteredMarkdownNonDiscoveryContract();
   simulateMultiSessionFlow(installedHandoff, installedLog);
+  simulateWorkspaceHealthCloseoutGuard();
   simulateLocalizedHandoffHeadings();
 
   // R-026 Release Artifact Vocabulary Sweep — forbidden vocabulary must not appear in
@@ -1018,7 +1030,7 @@ function simulateScenarioBranching() {
   console.log("");
   console.log("CLI scenario branching coverage (R-031.1):");
   const env = { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" };
-  const tempBase = path.join(tmpdir(), `ack-r0311-${Date.now()}`);
+  const tempBase = qaTemp.track(path.join(tmpdir(), `ack-r0311-${Date.now()}`));
   const currentVersion = JSON.parse(read("package.json")).version;
   const s1Root = path.join(tempBase, "scenario-install-fresh");
 
@@ -1773,10 +1785,63 @@ function checkCliHelpHotPathContract() {
   assert(help.includes("升級不會重置"), "CLI help still lacks the upgrade no-reset onboarding boundary");
   assert(help.includes("<項目名> 開工」是明確接力"), "CLI help does not recognize project-name continuity intent");
   assert(help.includes("closeout-status"), "CLI help does not expose the state-bound closeout card command");
+  assert(help.includes("workspace-health"), "CLI help does not expose the read-only workspace health command");
+  assert(help.includes("Read live root / Git / worktree state without writing files"), "CLI help does not explain workspace-health as read-only");
   assert(!help.includes("AI 會依 AGENTS.md 讀取 START_NEXT_SESSION_PROMPT.txt"), "CLI help still instructs rooted agents to read the portable mirror");
   assert(!help.includes("第一次安裝只令新手引導可用，不會強制進入教學"), "CLI help still says fresh install does not force onboarding");
   assert(!help.includes("第一次安裝後該檔案會啟動新手引導"), "CLI help still forces onboarding after install");
   assert(!help.includes("某某開工 / 某某收工"), "CLI help still treats all compound start/close phrases as ambiguous");
+}
+
+function checkQaTempCleanupContract() {
+  assertIncludes("scripts/qa-temp-cleanup.mjs", [
+    "createQaTempTracker",
+    "cleanupOnSuccess",
+    "reportRetained",
+    "AGENT_HANDOFF_KIT_KEEP_QA_TMP",
+    "lstatSync"
+  ]);
+  for (const script of [
+    "scripts/build-public-mirror.mjs",
+    "scripts/check-install-lock-smoke.mjs",
+    "scripts/check-public-prototype.mjs",
+    "scripts/check-release-readiness.mjs",
+    "scripts/check-upgrade-inventory.mjs",
+    "scripts/check-upgrade-safety.mjs",
+    "scripts/check-upgrade-transaction-window.mjs"
+  ]) {
+    assertIncludes(script, [
+      "createQaTempTracker",
+      "cleanupOnSuccess",
+      "reportRetained"
+    ]);
+  }
+  console.log("ok: QA temporary roots clean up after PASS and retain failure evidence");
+}
+
+function checkWorkspaceHealthContract() {
+  assertIncludes("bin/agent-handoff-kit.mjs", [
+    "workspace-health",
+    "collectWorkspaceHealth",
+    "git\", [\"-C\", root",
+    "worktree\", \"list\", \"--porcelain",
+    "assessHandoffWorkspaceIdentity",
+    "workspace identity read-back is not healthy"
+  ]);
+  assertIncludes("runtime-core/AGENTS.core.md", [
+    "Workspace identity is a last-verified snapshot",
+    "agent-handoff-kit workspace-health --root <project root>"
+  ]);
+  assertIncludes("packs/closeout.md", [
+    "workspace-health",
+    "Do not treat `dev/PROJECT_INDEX.md` or old handoff prose as the live worktree truth",
+    "read-only workspace-health comparison"
+  ]);
+  assertIncludes("runtime-core/PROJECT_INDEX.md", [
+    "Agent Handoff Kit workspace health",
+    "do not maintain a long-term dynamic worktree list here"
+  ]);
+  console.log("ok: workspace-health closeout truth contract");
 }
 
 function checkDecisionFirstOnboardingWording() {
@@ -1856,7 +1921,12 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
     .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: simulated user-flow value", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes")
     .replace("- Recommended next step is explicit and reasoned: simulated user-flow value", "- Recommended next step is explicit and reasoned: yes — recommended action and reason are recorded.")
     .replace("- Opening message matches current state: simulated user-flow value", "- Opening message matches current state: yes")
-    .replace("- Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: simulated user-flow value", "- Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: yes");
+    .replace("- Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: simulated user-flow value", "- Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: yes")
+    .replace("Git root: simulated user-flow value", "Git root: no Git repository (fixture root)")
+    .replace("Branch: simulated user-flow value", "Branch: not_applicable - no Git repository")
+    .replace("Commit: simulated user-flow value", "Commit: not_applicable - no Git repository")
+    .replace("Worktree / parallel workspace status: simulated user-flow value", "Worktree / parallel workspace status: not_applicable - no Git repository")
+    .replace("Uncommitted changes summary: simulated user-flow value", "Uncommitted changes summary: not_applicable - no Git repository");
   assertReconciledHandoff(closedHandoff);
   const staleHandoff = closedHandoff.replace("- Stale snapshots left in this handoff: no", "- Stale snapshots left in this handoff: yes");
   assert(!isReconciledHandoff(staleHandoff), "stale handoff snapshot should fail reconciliation check");
@@ -1914,6 +1984,75 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
   const resumedDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow resumed doctor");
   assert(resumedDoctor.stdout.includes("status: passed"), "doctor did not pass after simulated closeout");
   assert(resumedDoctor.stdout.includes("schema checks:"), "resumed doctor did not run schema checks");
+}
+
+function simulateWorkspaceHealthCloseoutGuard() {
+  const repoRoot = qaTemp.track(path.join(tmpdir(), `ack-workspace-health-${Date.now()}`));
+  const siblingWorktree = qaTemp.track(`${repoRoot}-parallel`);
+  mkdirSync(repoRoot, { recursive: true });
+  run("git", ["-C", repoRoot, "init"], "workspace-health git init");
+  writeFileSync(path.join(repoRoot, "seed.txt"), "seed\n", "utf8");
+  run("git", ["-C", repoRoot, "add", "seed.txt"], "workspace-health seed add");
+  run("git", [
+    "-C", repoRoot,
+    "-c", "user.name=Agent Handoff Kit QA",
+    "-c", "user.email=qa@example.invalid",
+    "commit", "-m", "seed"
+  ], "workspace-health seed commit");
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", repoRoot], "workspace-health kit install");
+  run("git", ["-C", repoRoot, "add", "AGENTS.md", "CLAUDE.md", "GEMINI.md", "START_NEXT_SESSION_PROMPT.txt", "dev"], "workspace-health kit add");
+  run("git", [
+    "-C", repoRoot,
+    "-c", "user.name=Agent Handoff Kit QA",
+    "-c", "user.email=qa@example.invalid",
+    "commit", "-m", "install kit"
+  ], "workspace-health kit commit");
+  run("git", ["-C", repoRoot, "worktree", "add", "--detach", siblingWorktree, "HEAD"], "workspace-health add parallel worktree");
+
+  const health = run(process.execPath, ["bin/agent-handoff-kit.mjs", "workspace-health", "--root", repoRoot], "workspace-health multi-worktree readback");
+  assert(health.stdout.includes("workspace: verified"), "workspace-health did not verify the git fixture");
+  assert(health.stdout.includes("git: yes"), "workspace-health did not identify the git fixture");
+  assert(health.stdout.includes("worktrees: 2"), "workspace-health did not report the parallel worktree count");
+
+  const handoffPath = path.join(repoRoot, "dev/SESSION_HANDOFF.md");
+  const installedHandoff = readFileSync(handoffPath, "utf8");
+  const branch = outputText(run("git", ["-C", repoRoot, "rev-parse", "--abbrev-ref", "HEAD"], "workspace-health branch readback")).trim();
+  const head = outputText(run("git", ["-C", repoRoot, "rev-parse", "HEAD"], "workspace-health HEAD readback")).trim();
+  const closedHandoff = installedHandoff
+    .replace("Last Updated: TBD", "Last Updated: 2026-05-14 17:41:41 +01:00")
+    .replaceAll("<absolute project root>", repoRoot)
+    .replace("Expected project root: TBD", `Expected project root: \`${repoRoot}\``)
+    .replace("Git root: TBD", `Git root: \`${repoRoot}\``)
+    .replace("Branch: TBD", `Branch: \`${branch}\``)
+    .replace("Commit: TBD", `Commit: \`${head}\``)
+    .replace("Worktree / parallel workspace status: TBD", "Worktree / parallel workspace status: no parallel worktree")
+    .replace("Uncommitted changes summary: TBD", "Uncommitted changes summary: clean")
+    .replace("<!-- ack:field:closeout-outcome -->\n- Closeout outcome: not_started — full closeout has not yet been assessed.", "<!-- ack:field:closeout-outcome -->\n- Closeout outcome: complete — workspace-health fixture closeout state is complete.")
+    .replace("<!-- ack:field:project-required-persistence -->\n- Project-required persistence: not_assessed — state whether this project's required Git or other persistence completed, is not required, or is blocked.", "<!-- ack:field:project-required-persistence -->\n- Project-required persistence: not_required — fixture remote persistence is not required.")
+    .replaceAll("TBD", "simulated user-flow value")
+    .replace("1. simulated user-flow value", "1. Workspace-health fixture installed and committed.")
+    .replace("1. simulated user-flow value", "1. follow-up scope — monitor workspace-health only if a future closeout-status blocker returns.")
+    .replace("1. simulated user-flow value", "1. none")
+    .replace("- Checks run this session: simulated user-flow value", "- Checks run this session: workspace-health fixture prepared.")
+    .replace("- Checks not run and why: simulated user-flow value", "- Checks not run and why: none.")
+    .replace("Recommended next step: simulated user-flow value — reason: simulated user-flow value", "Recommended next step: No next action — reason: workspace-health fixture is complete.")
+    .replace("- Stale snapshots left in this handoff: simulated user-flow value", "- Stale snapshots left in this handoff: no")
+    .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: simulated user-flow value", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes")
+    .replace("- Recommended next step is explicit and reasoned: simulated user-flow value", "- Recommended next step is explicit and reasoned: yes — recommended action and reason are recorded.")
+    .replace("- Opening message matches current state: simulated user-flow value", "- Opening message matches current state: yes")
+    .replace("- Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: simulated user-flow value", "- Next AI can continue from `AGENTS.md`, this handoff, `dev/PROJECT_INDEX.md`, and needed rule packs without searching old log history: yes");
+  writeFileSync(handoffPath, closedHandoff, "utf8");
+  writeFileSync(path.join(repoRoot, "START_NEXT_SESSION_PROMPT.txt"), `${extractOpeningMessage(closedHandoff)}\n`, "utf8");
+
+  const blocked = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", repoRoot], {
+    cwd: root,
+    encoding: "utf8"
+  });
+  const blockedOutput = outputText(blocked);
+  assert(blocked.status !== 0, "closeout-status accepted a false no-parallel-worktree handoff");
+  assert(blockedOutput.includes("workspace identity read-back is not healthy"), "closeout-status did not report workspace identity as the blocker");
+  assert(blockedOutput.includes("handoff says no parallel worktree"), "closeout-status did not explain the false no-parallel-worktree claim");
+  console.log("ok: workspace-health blocks false-green closeout workspace identity");
 }
 
 
@@ -2264,7 +2403,7 @@ function expectedPackageFileCount() {
 }
 
 function checkPackedPackageUpgradeSmoke(version) {
-  const smokeBase = path.join(tmpdir(), `ack-packed-smoke-${Date.now()}`);
+  const smokeBase = qaTemp.track(path.join(tmpdir(), `ack-packed-smoke-${Date.now()}`));
   const packDir = path.join(smokeBase, "pack");
   const prefix = path.join(smokeBase, "prefix");
   const upgradeRoot = path.join(smokeBase, "upgrade-root");
@@ -2498,7 +2637,7 @@ function run(command, args, label, options = {}) {
 }
 
 function checkResearchDecisionTraceContract() {
-  const positiveRoot = path.join(tmpdir(), `ack-research-trace-pass-${Date.now()}`);
+  const positiveRoot = qaTemp.track(path.join(tmpdir(), `ack-research-trace-pass-${Date.now()}`));
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", positiveRoot], "research trace positive bootstrap");
   const positiveIndexPath = path.join(positiveRoot, "dev/PROJECT_INDEX.md");
   const positiveDecisionsPath = path.join(positiveRoot, "dev/PROJECT_DECISIONS.md");
@@ -2521,7 +2660,7 @@ function checkResearchDecisionTraceContract() {
   const positiveDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", positiveRoot], "research trace positive doctor");
   assert(positiveDoctor.stdout.includes("status: passed"), "research trace positive fixture should pass doctor");
 
-  const negativeRoot = path.join(tmpdir(), `ack-research-trace-fail-${Date.now()}`);
+  const negativeRoot = qaTemp.track(path.join(tmpdir(), `ack-research-trace-fail-${Date.now()}`));
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", negativeRoot], "research trace negative bootstrap");
   const negativeDecisionsPath = path.join(negativeRoot, "dev/PROJECT_DECISIONS.md");
   writeFileSync(
@@ -2543,9 +2682,9 @@ function checkResearchDecisionTraceContract() {
 }
 
 function checkHandoffTemperatureBoundaryContract() {
-  const tempRoot = path.join(tmpdir(), `ack-handoff-temperature-fail-${Date.now()}`);
-  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "handoff temperature boundary bootstrap");
-  const handoffPath = path.join(tempRoot, "dev/SESSION_HANDOFF.md");
+  const handoffTempRoot = qaTemp.track(path.join(tmpdir(), `ack-handoff-temperature-fail-${Date.now()}`));
+  run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", handoffTempRoot], "handoff temperature boundary bootstrap");
+  const handoffPath = path.join(handoffTempRoot, "dev/SESSION_HANDOFF.md");
   const handoffText = readFileSync(handoffPath, "utf8");
   const pollutedHandoff = handoffText.replace(
     plainStartupBoundary,
@@ -2556,9 +2695,9 @@ function checkHandoffTemperatureBoundaryContract() {
     ].join("\n")
   );
   writeFileSync(handoffPath, pollutedHandoff, "utf8");
-  writeFileSync(path.join(tempRoot, "START_NEXT_SESSION_PROMPT.txt"), extractOpeningMessage(pollutedHandoff), "utf8");
+  writeFileSync(path.join(handoffTempRoot, "START_NEXT_SESSION_PROMPT.txt"), extractOpeningMessage(pollutedHandoff), "utf8");
 
-  const doctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], {
+  const doctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", handoffTempRoot], {
     cwd: root,
     encoding: "utf8"
   });
@@ -2571,7 +2710,7 @@ function checkHandoffTemperatureBoundaryContract() {
 }
 
 async function checkUnregisteredMarkdownNonDiscoveryContract() {
-  const negativeRoot = path.join(tmpdir(), `ack-generated-markdown-nondiscovery-${Date.now()}`);
+  const negativeRoot = qaTemp.track(path.join(tmpdir(), `ack-generated-markdown-nondiscovery-${Date.now()}`));
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", negativeRoot], "unregistered Markdown non-discovery bootstrap");
   mkdirSync(path.join(negativeRoot, "outputs"), { recursive: true });
   writeFileSync(
@@ -2606,7 +2745,7 @@ async function checkUnregisteredMarkdownNonDiscoveryContract() {
   const lookalikeDoctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], { cwd: root, encoding: "utf8" });
   assert(lookalikeDoctor.status === 0 && !outputText(lookalikeDoctor).includes("outputs/unregistered_design.md"), "lookalike rows or prose made doctor report an arbitrary unregistered Markdown path");
 
-  const positiveRoot = path.join(tmpdir(), `ack-generated-markdown-pass-${Date.now()}`);
+  const positiveRoot = qaTemp.track(path.join(tmpdir(), `ack-generated-markdown-pass-${Date.now()}`));
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", positiveRoot], "registered Markdown non-discovery bootstrap");
   mkdirSync(path.join(positiveRoot, "outputs"), { recursive: true });
   writeFileSync(

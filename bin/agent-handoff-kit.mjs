@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
+import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { chmod, copyFile, link, lstat, mkdir, open, readFile, readdir, realpath, rename, rmdir, stat, unlink, writeFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
@@ -567,7 +569,7 @@ async function main() {
   const version = await readPackageVersion();
   // `doctor` renders version alignment itself.  Let that single health run own
   // the lookup instead of checking once here and once again inside doctor.
-  if (command !== "closeout-status" && command !== "doctor") await maybePrintUpdateNotice(version);
+  if (!new Set(["closeout-status", "doctor", "workspace-health"]).has(command)) await maybePrintUpdateNotice(version);
   if (!command || options.help) {
     printHelp(version);
     return;
@@ -587,6 +589,11 @@ async function main() {
 
   if (command === "closeout-status") {
     await runCloseoutStatus(root, version);
+    return;
+  }
+
+  if (command === "workspace-health") {
+    runWorkspaceHealth(root);
     return;
   }
 
@@ -615,6 +622,13 @@ async function runCloseoutStatus(root, version) {
     details.push(...handoffLifecycleDiagnosticDetails(lifecycle));
   }
   if (!assessPromptMirrorRoot(root).ok) findings.push("opening-message mirror is not current");
+
+  const workspaceHealth = collectWorkspaceHealth(root);
+  const workspaceFindings = assessHandoffWorkspaceIdentity(handoffText, workspaceHealth);
+  if (workspaceFindings.length > 0) {
+    findings.push("workspace identity read-back is not healthy");
+    details.push(...workspaceFindings);
+  }
 
   // A closeout card needs a fresh local health readback, not a version-notice
   // network request.  The caller has already completed the closeout workflow.
@@ -680,6 +694,386 @@ function projectRequiredPersistence(value) {
   if (/^(complete|completed)\b/i.test(normalized)) return "complete";
   if (/^not_required\b/i.test(normalized)) return "not_required";
   return "blocked";
+}
+
+function runWorkspaceHealth(root) {
+  const health = collectWorkspaceHealth(root);
+  printWorkspaceHealth(health);
+  if (health.status !== "verified") process.exitCode = 1;
+}
+
+function collectWorkspaceHealth(root) {
+  const resolvedRoot = path.resolve(root);
+  const rootProbe = runGit(resolvedRoot, ["rev-parse", "--show-toplevel"]);
+  if (!rootProbe.ok) {
+    const fallback = collectWorkspaceHealthFromGitFiles(resolvedRoot, rootProbe.error);
+    if (fallback) return fallback;
+    return {
+      status: "verified",
+      root: resolvedRoot,
+      git: "no",
+      reason: "no .git metadata found",
+      details: []
+    };
+  }
+
+  const gitRoot = normalizeGitOutputPath(rootProbe.stdout.trim());
+  const branchProbe = runGit(resolvedRoot, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const headProbe = runGit(resolvedRoot, ["rev-parse", "HEAD"]);
+  const statusProbe = runGit(resolvedRoot, ["status", "--short", "--branch"]);
+  const worktreeProbe = runGit(resolvedRoot, ["worktree", "list", "--porcelain"]);
+  const statusLines = statusProbe.ok
+    ? statusProbe.stdout.split(/\r?\n/u).map((line) => line.trimEnd()).filter(Boolean)
+    : [];
+  const dirtyLines = statusLines.filter((line) => !line.startsWith("##"));
+  const worktreePaths = worktreeProbe.ok
+    ? parseGitWorktreePaths(worktreeProbe.stdout)
+    : [];
+  const failed = [
+    ["branch", branchProbe],
+    ["head", headProbe],
+    ["status", statusProbe],
+    ["worktree list", worktreeProbe]
+  ].filter(([, probe]) => !probe.ok);
+
+  return {
+    status: failed.length === 0 ? "verified" : "unverified",
+    root: resolvedRoot,
+    git: "yes",
+    gitRoot,
+    branch: branchProbe.ok ? branchProbe.stdout.trim() : "unverified",
+    head: headProbe.ok ? headProbe.stdout.trim() : "unverified",
+    dirty: statusProbe.ok ? dirtyLines.length > 0 : null,
+    dirtySummary: statusProbe.ok ? summarizeDirtyLines(dirtyLines) : "unverified",
+    worktreesVerified: worktreeProbe.ok,
+    worktreeCount: worktreePaths.length,
+    worktreePaths,
+    reason: failed.length === 0 ? "" : failed.map(([label, probe]) => `${label}: ${firstGitLine(probe) || probe.detail}`).join("; "),
+    details: failed.map(([label, probe]) => `${label}: ${firstGitLine(probe) || probe.detail}`)
+  };
+}
+
+function collectWorkspaceHealthFromGitFiles(root, commandError = "") {
+  const metadata = findGitMetadataRoot(root);
+  if (!metadata) return null;
+  const head = readGitHead(metadata.gitDir, metadata.commonDir);
+  const worktreePaths = readGitWorktreePathsFromMetadata(metadata);
+  return {
+    status: "verified",
+    root,
+    git: "yes",
+    gitRoot: metadata.worktreeRoot,
+    branch: head.branch,
+    head: head.commit,
+    dirty: null,
+    dirtySummary: "unverified",
+    worktreesVerified: true,
+    worktreeCount: worktreePaths.length,
+    worktreePaths,
+    reason: commandError ? `git command unavailable; read .git metadata directly (${commandError})` : "read .git metadata directly",
+    details: []
+  };
+}
+
+function findGitMetadataRoot(startPath) {
+  let current = path.resolve(startPath);
+  while (true) {
+    const dotGit = path.join(current, ".git");
+    if (pathExistsSync(dotGit)) {
+      const gitDir = resolveGitDir(dotGit);
+      if (gitDir) {
+        const commonDir = resolveGitCommonDir(gitDir);
+        return { worktreeRoot: current, gitDir, commonDir };
+      }
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function resolveGitDir(dotGitPath) {
+  try {
+    const info = lstatSync(dotGitPath);
+    if (info.isDirectory()) return dotGitPath;
+    if (!info.isFile()) return "";
+    const text = readFileSync(dotGitPath, "utf8").trim();
+    const match = text.match(/^gitdir:\s*(.+)$/iu);
+    if (!match) return "";
+    const gitDir = match[1].trim();
+    return path.resolve(path.dirname(dotGitPath), gitDir);
+  } catch {
+    return "";
+  }
+}
+
+function resolveGitCommonDir(gitDir) {
+  const commonDirFile = path.join(gitDir, "commondir");
+  try {
+    const relative = readFileSync(commonDirFile, "utf8").trim();
+    if (relative) return path.resolve(gitDir, relative);
+  } catch {
+    // Ordinary repositories do not have a commondir file.
+  }
+  return gitDir;
+}
+
+function readGitHead(gitDir, commonDir) {
+  const rawHead = safeReadTextSync(path.join(gitDir, "HEAD")).trim();
+  if (!rawHead) return { branch: "unverified", commit: "unverified" };
+  if (!rawHead.startsWith("ref:")) return { branch: "HEAD", commit: rawHead };
+  const ref = rawHead.slice("ref:".length).trim();
+  const branch = ref.startsWith("refs/heads/") ? ref.slice("refs/heads/".length) : ref;
+  const commit = resolveGitRef(commonDir, ref) || "unverified";
+  return { branch, commit };
+}
+
+function resolveGitRef(commonDir, ref) {
+  const direct = safeReadTextSync(path.join(commonDir, ...ref.split("/"))).trim();
+  if (direct) return direct;
+  const packedRefs = safeReadTextSync(path.join(commonDir, "packed-refs"));
+  for (const line of packedRefs.split(/\r?\n/u)) {
+    if (!line || line.startsWith("#") || line.startsWith("^")) continue;
+    const [sha, packedRef] = line.trim().split(/\s+/u);
+    if (packedRef === ref) return sha;
+  }
+  return "";
+}
+
+function readGitWorktreePathsFromMetadata(metadata) {
+  const paths = new Set();
+  if (path.basename(metadata.commonDir) === ".git") paths.add(path.dirname(metadata.commonDir));
+  paths.add(metadata.worktreeRoot);
+  const worktreesDir = path.join(metadata.commonDir, "worktrees");
+  try {
+    for (const entry of readdirSync(worktreesDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const gitdirText = safeReadTextSync(path.join(worktreesDir, entry.name, "gitdir")).trim();
+      if (gitdirText) paths.add(path.dirname(path.resolve(worktreesDir, entry.name, gitdirText)));
+    }
+  } catch {
+    // No linked worktrees.
+  }
+  return [...paths].map((entry) => path.resolve(entry));
+}
+
+function safeReadTextSync(filePath) {
+  try {
+    return readFileSync(filePath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+function pathExistsSync(filePath) {
+  try {
+    lstatSync(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function runGit(root, args) {
+  const result = spawnSync("git", ["-C", root, ...args], {
+    encoding: "utf8",
+    timeout: 3000,
+    windowsHide: true,
+    maxBuffer: 1024 * 1024
+  });
+  const stdout = result.stdout ?? "";
+  const stderr = result.stderr ?? "";
+  return {
+    ok: !result.error && result.status === 0,
+    status: result.status,
+    stdout,
+    stderr,
+    error: result.error?.message ?? "",
+    detail: [stderr, stdout].join("\n").trim()
+  };
+}
+
+function parseGitWorktreePaths(outputText) {
+  return outputText
+    .split(/\r?\n/u)
+    .filter((line) => line.startsWith("worktree "))
+    .map((line) => normalizeGitOutputPath(line.slice("worktree ".length).trim()))
+    .filter(Boolean);
+}
+
+function firstGitLine(probe) {
+  return [probe.stderr, probe.stdout, probe.error, probe.detail]
+    .join("\n")
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .find(Boolean) ?? "";
+}
+
+function normalizeGitOutputPath(value) {
+  if (!value) return "";
+  try {
+    return path.resolve(value.replace(/\//gu, path.sep));
+  } catch {
+    return value;
+  }
+}
+
+function summarizeDirtyLines(lines) {
+  if (lines.length === 0) return "clean";
+  const sample = lines.slice(0, 5).join("; ");
+  return lines.length > 5 ? `${sample}; ... (${lines.length} entries)` : sample;
+}
+
+function printWorkspaceHealth(health) {
+  console.log(`root: ${health.root}`);
+  console.log(`workspace: ${health.status}`);
+  console.log(`git: ${health.git}`);
+  if (health.git === "yes") {
+    console.log(`git root: ${health.gitRoot}`);
+    console.log(`branch: ${health.branch}`);
+    console.log(`commit: ${health.head}`);
+    console.log(`dirty: ${health.dirty === null ? "unverified" : health.dirty ? "yes" : "no"}`);
+    if (health.dirty) console.log(`dirty summary: ${health.dirtySummary}`);
+    console.log(`worktrees: ${health.worktreesVerified ? health.worktreeCount : "unverified"}`);
+    if (health.worktreePaths.length > 1) {
+      for (const worktreePath of health.worktreePaths.slice(0, 5)) console.log(`- ${worktreePath}`);
+      if (health.worktreePaths.length > 5) console.log(`- ... (${health.worktreePaths.length} total)`);
+    }
+  }
+  if (health.reason) console.log(`reason: ${health.reason}`);
+}
+
+function assessHandoffWorkspaceIdentity(handoffText, health) {
+  const section = extractSectionText(handoffText, "workspace-identity", "Workspace Identity");
+  if (!section.trim()) return ["Workspace: handoff Workspace Identity section is unreadable"];
+  const findings = [];
+  if (health.status !== "verified") {
+    if (workspaceSectionClaimsVerifiedState(section)) {
+      findings.push(`Workspace: live workspace identity is unverified (${health.reason || "git probe failed"})`);
+    }
+    return findings.slice(0, 6);
+  }
+
+  if (health.git === "no") {
+    if (workspaceSectionClaimsGitRepository(section)) {
+      findings.push("Workspace: handoff records Git identity, but live root is not a Git repository");
+    }
+    return findings.slice(0, 6);
+  }
+
+  if (workspaceSectionClaimsNoGit(section)) {
+    findings.push(`Workspace: handoff says no Git, but live Git root is ${health.gitRoot}`);
+  }
+
+  const gitRootValue = workspaceFieldValue(section, "Git root");
+  if (hasSubstantiveWorkspaceValue(gitRootValue)
+    && !workspaceValueMeansNoGit(gitRootValue)
+    && !workspaceTextIncludesPath(gitRootValue, health.gitRoot)) {
+    findings.push(`Workspace: handoff Git root does not match live Git root ${health.gitRoot}`);
+  }
+
+  const branchValue = workspaceFieldValue(section, "Branch");
+  if (hasSubstantiveWorkspaceValue(branchValue)
+    && !workspaceValueMeansNoGit(branchValue)
+    && health.branch !== "unverified"
+    && !workspaceValueIncludesToken(branchValue, health.branch)
+    && !(health.branch === "HEAD" && /\b(detached|HEAD)\b/iu.test(branchValue))) {
+    findings.push(`Workspace: handoff branch does not match live branch ${health.branch}`);
+  }
+
+  const commitValue = workspaceFieldValue(section, "Commit");
+  if (hasSubstantiveWorkspaceValue(commitValue)
+    && !workspaceValueMeansNoGit(commitValue)
+    && health.head !== "unverified"
+    && !workspaceValueIncludesToken(commitValue, health.head)
+    && !workspaceValueIncludesToken(commitValue, health.head.slice(0, 7))) {
+    findings.push(`Workspace: handoff commit does not match live HEAD ${health.head.slice(0, 12)}`);
+  }
+
+  const worktreeValue = workspaceFieldValue(section, "Worktree / parallel workspace status") || section;
+  if (health.worktreesVerified && health.worktreeCount > 1 && workspaceValueClaimsNoParallelWorktree(worktreeValue)) {
+    findings.push(`Workspace: handoff says no parallel worktree, but Git reports ${health.worktreeCount} worktrees`);
+  }
+  if (!health.worktreesVerified && workspaceValueClaimsNoParallelWorktree(worktreeValue)) {
+    findings.push("Workspace: handoff says no parallel worktree, but Git worktree list is unverified");
+  }
+
+  const uncommittedValue = workspaceFieldValue(section, "Uncommitted changes summary");
+  if (health.dirty === true && workspaceValueClaimsClean(uncommittedValue)) {
+    findings.push("Workspace: handoff says worktree is clean, but live Git status has uncommitted changes");
+  }
+  if (health.dirty === false && workspaceValueClaimsDirty(uncommittedValue)) {
+    findings.push("Workspace: handoff says worktree has uncommitted changes, but live Git status is clean");
+  }
+
+  return findings.slice(0, 6);
+}
+
+function workspaceFieldValue(section, label) {
+  const escaped = escapeRegExp(label);
+  const line = section.split(/\r?\n/u).find((candidate) => new RegExp(`^\\s*(?:[-*]\\s*)?${escaped}\\s*:`, "iu").test(candidate.trim()));
+  if (!line) return "";
+  return line.slice(line.indexOf(":") + 1).trim();
+}
+
+function hasSubstantiveWorkspaceValue(value) {
+  const normalized = (value ?? "").replace(/[`"'。.]+/gu, "").trim();
+  if (!normalized) return false;
+  return !/^(TBD|todo|pending|unknown|unverified|not_assessed|n\/a|not_applicable|none|待定|待確認|未知|未核實|未核验|不適用)$/iu.test(normalized);
+}
+
+function workspaceValueMeansNoGit(value) {
+  return /\b(no git|non-git|not a git repository|not_git)\b|(?:沒有|無|不是).{0,12}\bGit\b/iu.test(value ?? "");
+}
+
+function workspaceSectionClaimsNoGit(section) {
+  return workspaceValueMeansNoGit(workspaceFieldValue(section, "Git root"))
+    || workspaceValueMeansNoGit(section);
+}
+
+function workspaceSectionClaimsGitRepository(section) {
+  const values = [
+    workspaceFieldValue(section, "Git root"),
+    workspaceFieldValue(section, "Branch"),
+    workspaceFieldValue(section, "Commit")
+  ];
+  return values.some((value) => hasSubstantiveWorkspaceValue(value) && !workspaceValueMeansNoGit(value));
+}
+
+function workspaceSectionClaimsVerifiedState(section) {
+  return workspaceSectionClaimsGitRepository(section)
+    || workspaceValueClaimsNoParallelWorktree(workspaceFieldValue(section, "Worktree / parallel workspace status"))
+    || workspaceValueClaimsClean(workspaceFieldValue(section, "Uncommitted changes summary"))
+    || workspaceValueClaimsDirty(workspaceFieldValue(section, "Uncommitted changes summary"));
+}
+
+function workspaceTextIncludesPath(text, targetPath) {
+  if (!targetPath) return false;
+  const normalize = (value) => {
+    const replaced = String(value).replace(/[`"']/gu, "").replace(/\\/gu, "/").replace(/\/+$/u, "");
+    return process.platform === "win32" ? replaced.toLowerCase() : replaced;
+  };
+  return normalize(text).includes(normalize(targetPath));
+}
+
+function workspaceValueIncludesToken(value, token) {
+  if (!token) return false;
+  return new RegExp(`(^|[^\\w.-])${escapeRegExp(token)}($|[^\\w.-])`, "iu").test(value ?? "");
+}
+
+function workspaceValueClaimsNoParallelWorktree(value) {
+  return /\b(no|none|single|only one|1)\b.{0,50}\b(parallel|worktrees?|worktree)\b|\b(no other|no parallel)\b.{0,40}\b(worktrees?|workspace)?\b|(?:沒有|無|沒有其他|無其他).{0,20}(?:平行|parallel|worktree)|(?:單一|只有一個).{0,20}(?:worktree|工作區)/iu.test(value ?? "");
+}
+
+function workspaceValueClaimsClean(value) {
+  const normalized = value ?? "";
+  return /\b(clean|no uncommitted|nothing to commit|no changes|0 changes)\b|(?:沒有|無).{0,20}未提交|(?:乾淨|干净)/iu.test(normalized);
+}
+
+function workspaceValueClaimsDirty(value) {
+  const normalized = value ?? "";
+  if (workspaceValueClaimsClean(normalized)) return false;
+  return /\b(dirty|uncommitted|modified|local edits?|dirty set|edit set)\b|未提交|有修改|有變更/iu.test(normalized);
 }
 
 function printCloseoutStatusCard(version, result) {
@@ -6061,12 +6455,14 @@ Usage:
   agent-handoff-kit init [--dry-run] [--yes] [--root <path>]
   agent-handoff-kit upgrade [--dry-run] [--yes] [--root <path>]
   agent-handoff-kit doctor [--root <path>]
+  agent-handoff-kit workspace-health [--root <path>]
   agent-handoff-kit closeout-status [--root <path>]
 
 Commands:
   init      Plan or install missing core files and rule packs.
   upgrade   Preserve existing files; merge safe core updates or report conflicts.
   doctor    Check required installed files.
+  workspace-health  Read live root / Git / worktree state without writing files.
   closeout-status  Render the state-bound closeout card after a full closeout.
 
 中文速讀：
@@ -6092,6 +6488,7 @@ Commands:
   npx --yes @adamchanadam/agent-handoff-kit@latest init
   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade
   npx --yes @adamchanadam/agent-handoff-kit@latest doctor
+  npx --yes @adamchanadam/agent-handoff-kit@latest workspace-health
 
   升級前如想先看會改甚麼，才用預演：
   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run
