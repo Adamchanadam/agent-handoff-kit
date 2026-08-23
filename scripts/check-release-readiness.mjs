@@ -2965,7 +2965,10 @@ function checkTaskPersistenceGateContract() {
     "回讀驗證",
     "目標 handoff 未更新",
     "不得掃描 sibling folders",
-    "不得推斷乾淨或同步完成"
+    "不得推斷乾淨或同步完成",
+    "expected lag",
+    "不得當作 drift 而每一步更新 handoff",
+    "Kit-managed / release / closeout / external-effect 狀態已變"
   ]);
 
   assertIncludes("runtime-core/AGENTS.core.md", [
@@ -2975,6 +2978,12 @@ function checkTaskPersistenceGateContract() {
     "routine rerunnable checks",
     "Lightweight checkpoint",
     "do not regenerate the startup mirror or perform full closeout",
+    "between Persistence Gate decisions",
+    "expected lag, not drift",
+    "do not update handoff merely to mirror each intermediate step",
+    "durable or startup-needed fact must survive interruption",
+    "the handoff is the smallest correct home",
+    "Kit-managed / release / closeout / external-effect state changed",
     "Ordinary document edits normally use local read-back and task-specific checks only",
     "do not run `agent-handoff-kit doctor`, write handoff / log state, or regenerate the startup mirror solely because a document changed",
     "Full closeout: explicit end-of-session / handoff intent",

@@ -1341,6 +1341,7 @@ Upgrade quality matrix 屬 `qa:upgrade` 的多情境測試：每個可定位的 
 - `packs/agent-governance.md` 只引用核心 persistence gate decision，不複製三層門檻，避免兩處規則漂移。
 - README、intro.html、guide.html 對外只保留用戶操作語句，不把普通任務完成、草稿迭代或例行通過檢查寫成完整收工，也不把內部 persistence gate 術語寫成新手說明。
 - 反向場景必須被守住：例行通過檢查不得觸發輕量保存；未拍板草稿不得觸發完整收工；普通任務完成但仍在同一對話繼續工作，不得重生 `START_NEXT_SESSION_PROMPT.txt`。
+- 反向場景必須被守住：任務進行中、兩次 Persistence Gate 判斷之間，`SESSION_HANDOFF` 落後於已讀回的任務真源屬 expected lag，不得當作 drift 而每一步更新 handoff；但此例外不得蓋過 durable / startup-needed fact、handoff 是最小正確 home、Kit-managed / release / closeout / external-effect 狀態已變，或已選 full closeout 的正向保存要求。
 - 正向場景必須被守住：新增或刪除文件、新來源、本機或網址真源、不可重建的驗證結果、用戶要求把經驗轉成機制、代理可能中斷時尚未保存的 durable fact，必須按文件角色作輕量保存或完整收工。
 
 人工終讀要抽樣至少三種場景並標記 automated PASS / manual PASS / blocked：圖片或文稿草稿未拍板、加入一個新的 URL / 本機來源、用戶指出 AI 錯誤並要求轉成長期機制。若任何示例令 AI 以為「每完成一小步都要完整 handoff」，候選版本不得進入 publish。
