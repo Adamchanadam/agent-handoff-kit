@@ -1,5 +1,15 @@
 # 變更紀錄
 
+## v0.3.62 — 2026-08-23
+
+狀態：source package version。本版修補接力快照被誤當成即時任務真源的判斷風險，並把 worktree 健康讀回、QA 暫存清理與 release-readiness 守門收斂成更乾淨的候選版本；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- Core Persistence Gate 明確：任務進行中、兩次 gate 判斷之間，`dev/SESSION_HANDOFF.md` 可合理落後於已讀回的任務真源；這是 expected lag，不應每一步都更新 handoff 或重生 startup mirror。
+- 同一條規則保留必要保存例外：durable / startup-needed fact、handoff 是最小正確 home、Kit-managed / release / closeout / external-effect 狀態變更，或已選 full closeout 時，仍必須按 gate 保存。
+- 新增 `workspace-health` 唯讀健康入口，並讓 `closeout-status` 對照 handoff Workspace Identity 與真實 Git / worktree 狀態，防止「沒有平行 worktree」等錯誤快照被當成已保存交接。
+- QA 暫存目錄在 PASS 後自動清理；失敗或指定保留時才留下 fixture evidence，避免本機長期累積 release / cold evidence 殘檔。
+- Release-readiness gate 同步鎖住 expected-lag 反例、workspace-health false-green closeout、QA temp cleanup，以及 task persistence gate contract。
+
 ## v0.3.61 — 2026-08-08
 
 狀態：source package version。本版收窄正式收工的持久化成本，令 Agent Handoff Kit 保留交接安全，但不把每次收尾放大成全段重寫與重跑流程；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
