@@ -82,7 +82,7 @@ const scenarios = [
     name: "agent governance",
     route: ["Governance, prompts, agents", "dev/rules/agent-governance.md"],
     pack: "agent-governance",
-    snippets: ["source of truth", "append-only", "public runtime", "Before creating durable workflow", "reusable operating procedures belong in the relevant rule pack or registered reference", "New runbooks are last resort only", "not stored only in `dev/SESSION_HANDOFF.md`", "recommended next action with reason", "external skills", "subagents", "active root's Agent Handoff Kit governance"]
+    snippets: ["source of truth", "append-only", "public runtime", "Before creating durable workflow", "reusable operating procedures belong in the relevant rule pack or registered reference", "New runbooks are last resort only", "not stored only in `dev/SESSION_HANDOFF.md`", "recommended next action with reason", "external skills", "subagents", "active root's Agent Handoff Kit governance", "Repeat-failure escalation", "same failure class recurs", "counterexample or replay check", "Do not create a central penalty database"]
   },
   {
     name: "governance bridge",
@@ -94,7 +94,7 @@ const scenarios = [
     name: "long-term governance routing",
     route: ["Long-term governance routing", "寫入長期治理", "轉成長期機制", "future sessions should remember", "dev/rules/agent-governance.md"],
     pack: "agent-governance",
-    snippets: ["Long-term Governance Routing", "Content-based trigger", "future sessions must follow it", "recurring AI mistake", "reusable API / MCP / tool-use pattern", "Do not persist long-term governance knowledge only in", "promote it to the correct durable home"]
+    snippets: ["Long-term Governance Routing", "Content-based trigger", "future sessions must follow it", "recurring AI mistake", "reusable API / MCP / tool-use pattern", "Do not persist long-term governance knowledge only in", "promote it to the correct durable home", "Repeat-failure escalation"]
   },
   {
     name: "communication",
@@ -254,7 +254,7 @@ const longTermGovernanceUseCases = [
   {
     name: "recurring AI mistake becomes mechanism",
     route: ["寫入長期治理", "轉成長期機制", "dev/rules/agent-governance.md"],
-    pack: ["recurring AI mistake", "the relevant rule pack, registered reference, or QA check", "Do not persist long-term governance knowledge only in"],
+    pack: ["recurring AI mistake", "the relevant rule pack, registered reference, or QA check", "Do not persist long-term governance knowledge only in", "Repeat-failure escalation", "same failure class recurs", "counterexample or replay check"],
     publicDocs: ["把今次錯誤整理成日後工作規則", "讓下次 AI 知道要怎樣避免"]
   },
   {
@@ -356,12 +356,28 @@ function assertOnboardingDecisionCases() {
     "A fresh install with `First-use guidance state: eligible` enters onboarding when no executable objective remains",
     "upgrade never resets consumed / not_applicable first-use state",
     "is continuity",
+    "Capability / teaching answers must surface normal-language public command categories",
+    "instead of reducing the help answer to CLI maintenance commands",
     "infer when sufficient and begin a concrete task directly",
     "first-use state is eligible with no executable objective"
   ], "onboarding decision-first router");
   assertIncludes(packs.onboarding, [
     "Continuity startup boundary",
     "starts continuity and reads the minimum current handoff state; it is not an onboarding signal by itself",
+    "Public capability answer",
+    "what the user can say to an AI, not a CLI command list",
+    "display-only onboarding card",
+    "   /\\_/\\   Agent Handoff Kit",
+    "  ( o.o )  quick guide",
+    "must not claim `continuity ready`, `handoff saved`, a version",
+    "Do not perform extra reads, `doctor`, version checks, or handoff loading merely to fill the card",
+    "Do not make CLI maintenance commands the main onboarding answer",
+    "Keep important files connected",
+    "Find missing governance links",
+    "Turn a recurring mistake into future practice",
+    "Keep an API / MCP / tool-use practice reusable",
+    "Declare external tools safely",
+    "Finish a long external-tool task cleanly",
     "First-use eligible plain startup is the exception",
     "enter onboarding instead of ending status-only",
     "Explicit requests such as \"新手，教我用\" enter onboarding directly",
@@ -519,7 +535,13 @@ function assertLongTermGovernanceUseCaseMatrix() {
     "Content-based trigger",
     "project index / registered reference / integrations pack",
     "the relevant rule pack, registered reference, or QA check",
-    "Do not persist long-term governance knowledge only in"
+    "Do not persist long-term governance knowledge only in",
+    "Repeat-failure escalation",
+    "same failure class recurs",
+    "authoritative owner",
+    "counterexample or replay check",
+    "independent reviewer, subagent, or fresh-context pass",
+    "Do not create a central penalty database"
   ], "long-term governance routing contract");
 
   for (const useCase of longTermGovernanceUseCases) {

@@ -19,6 +19,68 @@ Convenience collector: after the external publish actions complete, maintainers 
 
 Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
 
+## v0.3.63 candidate status
+
+- 狀態：v0.3.63 是下一個 source package candidate，原因是 v0.3.62 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.63 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
+- 產品範圍：runtime onboarding 明確「教我用」/ capability help 必須展示普通用戶可直接講的 public command categories 與 fenced quick guide card，不得冒充 continuity startup 或觸發 handoff / doctor；agent-governance 加入受限的 repeat-failure escalation。
+- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.63 candidate；v0.3.62 保留為最新已發布 lineage，v0.3.63 不進 official-origin published catalog。
+- full / release 邊界：本段記錄 candidate source state、onboarding help / repeat-failure escalation QA backflow 與 release QA readback material；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
+
+### pre-release final audit（v0.3.63，PUBLIC_SURFACE_REVIEW_ACCEPTED）
+
+- Clean artifact boundary：v0.3.63 clean candidate commit and tarball must be created from the source tree after the accepted onboarding quick-guide correction, repeat-failure escalation routing, official-origin v0.3.62 published fixture, public-surface review, and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
+- full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
+- Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
+- five-conclusion writer assessment must cover governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting. For this candidate, `qcBackflow` is not passed unless onboarding help surfaces public user-command categories without fake startup / doctor claims, and repeat-failure escalation stays bounded to affected owners without creating a central penalty layer.
+- 發布打包邊界：本段是 v0.3.63 發布前候選證據；正式發布狀態以 GitHub Release、npm `@latest`、remote tag 和 postpublish readback 為準。
+
+### Cross-mind evidence 9-trigger table（v0.3.63）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | passed | Runtime feedback showed broad onboarding / capability help could collapse into CLI maintenance and miss README public user commands; another cross-project lesson showed repeated claimed fixes need bounded escalation. |
+| 2. External side effects | yes | iterated | No v0.3.63 push, tag, GitHub Release, npm publish, or postpublish readback is claimed here; those remain release-sequence gates after formal full. |
+| 3. User-visible output | yes | passed | New users asking「教我用」should see the Kit quick guide card plus ordinary speakable commands before CLI maintenance details. |
+| 4. Complexity or boundary | yes | passed | The fix stays in existing owners: onboarding owns public capability answers, RULE_PACKS owns route wording, agent-governance owns durable governance routing, and QA scripts own regression checks. |
+| 5. Documentation drift | yes | iterated | Source package surfaces, README, HTML pages, CHANGELOG, whatsnew, release QA, and official-origin latest published lineage are synchronized to v0.3.63 candidate state. |
+| 6. Semantic runtime effect | yes | passed | The quick guide card is display-only and cannot claim loaded state, version, doctor health, or handoff saved; repeat-failure escalation applies only after the same failure class recurs after a claimed durable fix. |
+| 7. Cross-agent / role boundary | yes | iterated | Role separation appears only after recurrence again and only when an independent reviewer / subagent / fresh-context pass is actually available; otherwise the fallback is fresh read-back without inventing authority. |
+| 8. Real user journey | yes | passed | A beginner gets normal-language usage; an ordinary task remains light; a repeat failure gets stricter root-fix handling limited to the affected domain. |
+| 9. Release statement | yes | iterated | v0.3.63 remains an unpublished source candidate until formal full, push, tag, GitHub Release, npm publish, and postpublish readback succeed. |
+
+
+### Bilingual README semantic gate（v0.3.63，PASS）
+
+- Reviewer：agent `01a03280-0dd1-7810-9e56-577dabd85722`（Hume）；provenance `codex-readonly-v0363-public-candidate-20260824-gpt5-codex`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.63 candidate changed this pair only by source package version token relative to the accepted v0.3.62 baseline; public usage flow and meaning are unchanged.
+- `README.md` SHA-256 `779A8EF07189D87268E90E77C07F220265BDA750D1AAE5A2660575A5FE7CAD7F`
+- `README.en.md` SHA-256 `B539D38BBB0A4B7ADE46A96ADB164773C897F714FF405E5B64688CC22F2FCF94`
+- Verdict: **PASS** — English preserves the same public user journey, safety boundaries, version-source boundaries, and install / upgrade / doctor / closeout command meanings; only `v0.3.62` became `v0.3.63`.
+
+### Bilingual practical-guide semantic gate（v0.3.63，PASS）
+
+- Reviewer：agent `01a03280-0dd1-7810-9e56-577dabd85722`（Hume）；provenance `codex-readonly-v0363-public-candidate-20260824-gpt5-codex`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.63 candidate changed this pair only by visible version tokens and sample CLI version output relative to the accepted v0.3.62 baseline; install / upgrade / doctor / closeout / release meaning is unchanged.
+- `agent-handoff-kit-guide.html` SHA-256 `FB78155DF74D590B70FA14460D1F4645BD6519800A2F80D2F542D412D256A6CA`
+- `agent-handoff-kit-guide.en.html` SHA-256 `1799269DD9488F7232621B679D69DC2A260FD0463903D243C66CBADD0CA19D01`
+- Verdict: **PASS** — English preserves the same three public journeys, install-to-handoff flow, closeout meaning, and external publish authorization boundary; only version tokens / sample version output changed.
+
+### Bilingual AI-install semantic gate（v0.3.63，PASS）
+
+- Reviewer：agent `01a03280-0dd1-7810-9e56-577dabd85722`（Hume）；provenance `codex-readonly-v0363-public-candidate-20260824-gpt5-codex`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.63 candidate changed this pair only by AI install page version tokens / version-note synchronization relative to the accepted v0.3.62 baseline; safety boundary and flow semantics are unchanged.
+- `agent-handoff-kit-ai-install.html` SHA-256 `315892D76C86818B4CC93B245C03F92DFC3573A5D238CB2DBEEAE8AADBC681F1`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `C6D0C7615ECDFB9BDBEA2DF029290B96DBAB8CD30D8C79222665BCEB57A1E8EE`
+- Verdict: **PASS** — English preserves the same AI install / upgrade decision path, folder confirmation first, zero-write conflict boundary, `upgrade --dry-run`, `upgrade --yes`, `doctor`, and completion meaning; only version tokens changed.
+
+### Bilingual introduction semantic gate（v0.3.63，PASS）
+
+- Reviewer：agent `01a03280-0dd1-7810-9e56-577dabd85722`（Hume）；provenance `codex-readonly-v0363-public-candidate-20260824-gpt5-codex`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.63 candidate changed this pair only by hero version note and footer version token relative to the accepted v0.3.62 baseline; beginner introduction meaning is unchanged.
+- `agent-handoff-kit-intro.html` SHA-256 `55CE204BDB253AF3538B45A634AA1280CBF83870C58351364C9442971A944863`
+- `agent-handoff-kit-intro.en.html` SHA-256 `5B1C0F3C97B6413D9BEDE49F5C00DDB275BD2661ED3D1569210FCAC31E830419`
+- Verdict: **PASS** — English preserves the same beginner introduction journey, supported-runtime boundary, startup / closeout meaning, safety boundaries, and npm registry version boundary; only version tokens changed.
+
 ## v0.3.62 candidate status
 
 - 狀態：v0.3.62 是下一個 source package candidate，原因是 v0.3.61 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.62 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。

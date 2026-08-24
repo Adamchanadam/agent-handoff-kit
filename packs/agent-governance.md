@@ -82,7 +82,8 @@ Use this workflow when the user asks to write something into long-term governanc
 2. If the knowledge is reusable but no existing home fits, propose the smallest new registered reference or rule-pack patch. New runbooks remain last resort.
 3. If the knowledge was first captured in `SESSION_LOG` or handoff for short-term continuity, promote it to the correct durable home before claiming it is long-term.
 4. Add or update a QA check when the same failure class could recur and can be tested.
-5. Keep governance bridge wording reserved for document orphan prevention. Do not relabel non-file governance as "file connected to Agent Handoff Kit".
+5. Repeat-failure escalation: when the same failure class recurs after an AI has already claimed a durable fix for that class, do not continue with another same-pattern patch as ordinary work. Limit the escalation to the affected domain: identify the authoritative owner, correct or remove the failed method there, add a counterexample or replay check that would have failed before the fix when feasible, and state the temporary constraint. If the failure recurs again after that root-fix validation, separate the change and validation roles where the runtime provides an independent reviewer, subagent, or fresh-context pass; when none is available, perform a fresh read-back pass against the replay check and mark independent review unavailable instead of blocking unrelated work. Restore normal flow as soon as the replay and review / read-back pass. Do not create a central penalty database, cross-project blacklist, permanent role split, or public rule carrying project-specific incident details.
+6. Keep governance bridge wording reserved for document orphan prevention. Do not relabel non-file governance as "file connected to Agent Handoff Kit".
 
 ## Checks
 
@@ -94,6 +95,7 @@ Use this workflow when the user asks to write something into long-term governanc
 - Confirm no new file has become a parallel source for an existing rule, requirement, checklist, or process.
 - Confirm reusable operating procedure knowledge is not stored only in `dev/SESSION_HANDOFF.md`, `dev/SESSION_LOG.md`, or a decision narrative when it belongs in a pack or registered reference.
 - Confirm long-term governance knowledge is promoted out of `dev/SESSION_LOG.md`, `dev/SESSION_HANDOFF.md`, and `START_NEXT_SESSION_PROMPT.txt` when it should survive log archive or prompt regeneration.
+- Confirm repeat-failure escalation, when triggered, is limited to the affected domain, tied to the authoritative owner, backed by a counterexample or replay check when feasible, and does not create a central penalty store, cross-project blacklist, or permanent role split.
 - For governance bridge work, confirm the target file, project index, sync registry, related workflow, handoff/log role split, and duplicate-source risk were all checked or explicitly marked not applicable.
 - For governance bridge work, run bounded searches for the target path/name and the relevant artifact class or sync-change type across the project index, sync registry, related workflows, and current rule owners. If the target is tied to generated outputs, also inspect the workflow or production guide that creates those outputs. Search evidence is a check, not a second source of truth.
 - Before claiming completion, apply the active root's core persistence gate and record the result only when that gate selects a checkpoint or full closeout; do not assume child or demo workspaces cover the parent/root workspace.

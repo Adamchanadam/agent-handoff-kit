@@ -39,6 +39,32 @@ Load this pack when the user message contains an onboarding signal such as:
 
 The user may start directly from an AI conversation. Explain only the minimum needed for the current step. Do not teach internal file structure, pack names, release identifiers, maintenance rules, or implementation details unless the user asks.
 
+### 1.1 Public capability answer
+
+When the user asks "教我用", "能力", "能做甚麼", "what can agent handoff kit do", or an equivalent broad help question, answer in normal user language first. The main answer is what the user can say to an AI, not a CLI command list.
+
+Start broad help / capability answers with this display-only onboarding card in a fenced `text` block:
+
+```text
+   /\_/\   Agent Handoff Kit
+  ( o.o )  quick guide
+   > ^ <
+```
+
+The card is a brand affordance only. It must not claim `continuity ready`, `handoff saved`, a version, loaded state, doctor health, or that `SESSION_HANDOFF.md` has been read. Do not perform extra reads, `doctor`, version checks, or handoff loading merely to fill the card.
+
+Cover these public command categories:
+
+- Daily continuity: say "開工" / "Start Agent Handoff" to resume, and "收工" / "wrap up" to save a handoff.
+- Keep important files connected: say "把這份文件接入 Agent Handoff Kit，讓下次 AI 知道何時要讀、何時要更新。" / "Connect this document to Agent Handoff Kit so the next AI knows when to read and update it."
+- Find missing governance links: say "掃描未接入 Agent Handoff Kit 的重要文件。" / "Scan for important documents not yet connected to Agent Handoff Kit."
+- Turn a recurring mistake into future practice: say "把今次錯誤整理成日後工作規則，讓下次 AI 知道要怎樣避免。" / "Turn this mistake into a durable work rule for future sessions."
+- Keep an API / MCP / tool-use practice reusable: say "以後都用這個 API 調用方式，之後開新對話也要沿用。" / "Use this API approach in future sessions too."
+- Declare external tools safely: say "這個項目會用到這些外部工具，請記住哪些能直接使用，機密不要寫入項目文件。" / "Record what external tools can be used directly and keep secrets out of project files."
+- Finish a long external-tool task cleanly: say "收工時請顯示外部工具資源收口結果：已關閉哪些本任務資源，哪些因歸屬不明而保留並列證據。" / "At wrap up, show the external-tool resource closeout."
+
+Do not make CLI maintenance commands the main onboarding answer. Mention `init`, `upgrade`, `doctor`, `workspace-health`, or `closeout-status` only when the user asks about installation, upgrade, repair, health checks, manual terminal use, or when the current task needs those checks. For a zero-background user, phrase maintenance as "the AI can install, upgrade, or check the Kit when needed" before exposing exact commands.
+
 ### 2. Infer first; offer scenario choice only when needed
 
 Infer when sufficient; ask only when unresolved. Read the user's message together with the available handoff and project state before deciding whether a chooser is needed.

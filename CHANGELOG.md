@@ -1,5 +1,15 @@
 # 變更紀錄
 
+## v0.3.63 — 2026-08-24
+
+狀態：source package version。本版修補「教我用」回答過度 CLI 化的 onboarding 漏口，並加入重複錯誤復發後的受限根修路由；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- Onboarding pack 明確：用戶問「教我用」、「能力」或「能做甚麼」時，AI 要先用普通用戶語言列出可直接說的自然語言口令，不可只回答 `init`、`upgrade`、`doctor` 等 CLI 維護指令。
+- 「教我用」回答會展示 fenced `text` 小貓 quick guide 卡，保留品牌一致與 ASCII spacing，但不得聲稱 `continuity ready`、`handoff saved`、版本、loaded state、doctor health，亦不得為填卡而讀 handoff、跑 doctor 或做版本檢查。
+- Agent-governance pack 加入 repeat-failure escalation：同一錯誤類在 AI 已聲稱 durable fix 後復發時，先限制受影響領域，回到 authoritative owner、反例與重播驗收；若根修後再次復發，才在可用環境中分離修改與驗收角色。
+- 同一條復發規則明確禁止中央懲罰庫、跨專案黑名單、永久停權或把單一專案事故細節寫成 public 通用規則；通過重播與獨立驗收或 fresh read-back 後恢復正常比例化流程。
+- Pack scenario QA 與 release-readiness gate 同步鎖住 onboarding quick guide、public user-command categories、no fake startup claims，以及 repeat-failure escalation 的邊界。
+
 ## v0.3.62 — 2026-08-23
 
 狀態：source package version。本版修補接力快照被誤當成即時任務真源的判斷風險，並把 worktree 健康讀回、QA 暫存清理與 release-readiness 守門收斂成更乾淨的候選版本；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
