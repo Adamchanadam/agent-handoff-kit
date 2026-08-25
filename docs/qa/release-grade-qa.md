@@ -1526,7 +1526,7 @@ Upgrade quality matrix 屬 `qa:upgrade` 的多情境測試：每個可定位的 
 - README、intro.html、guide.html 對外只保留用戶操作語句，不把普通任務完成、草稿迭代或例行通過檢查寫成完整收工，也不把內部 persistence gate 術語寫成新手說明。
 - 反向場景必須被守住：例行通過檢查不得觸發輕量保存；未拍板草稿不得觸發完整收工；普通任務完成但仍在同一對話繼續工作，不得重生 `START_NEXT_SESSION_PROMPT.txt`。
 - 反向場景必須被守住：任務進行中、兩次 Persistence Gate 判斷之間，`SESSION_HANDOFF` 落後於已讀回的任務真源屬 expected lag，不得當作 drift 而每一步更新 handoff；但此例外不得蓋過 durable / startup-needed fact、handoff 是最小正確 home、Kit-managed / release / closeout / external-effect 狀態已變，或已選 full closeout 的正向保存要求。
-- 反向場景必須被守住：用戶已給明確任務計劃時，AI 先走主驗收路徑；普通 Markdown / README / spec / checklist 任務不得被 governance bridge、long-term-governance routing、repo-wide scan、handoff write 或 closeout 搶走。治理只可作不改變主交付的最小分類、索引、同步或 Persistence Gate 判斷。
+- 反向場景必須被守住：明確任務計劃先走主驗收路徑；用戶已給明確任務計劃時，AI 先完成主任務驗收；普通 Markdown / README / spec / checklist 任務不得被 governance bridge、long-term-governance routing、repo-wide scan、handoff write 或 closeout 搶走。治理只可作不改變主交付的最小分類、索引、同步或 Persistence Gate 判斷。
 - 正向場景必須被守住：新增或刪除文件、新來源、本機或網址真源、不可重建的驗證結果、用戶要求把經驗轉成機制、代理可能中斷時尚未保存的 durable fact，必須按文件角色作輕量保存或完整收工。
 - 正向場景必須被守住：治理本身是任務目標、用戶明示治理橋接 / 長期治理、內容語義上要求跨 session 生效，或不處理會造成 safety / continuity / source-of-truth / discoverability blocker 時，AI 可升級治理；這些例外不得被 task-first rule 誤殺。
 
