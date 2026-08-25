@@ -37,6 +37,7 @@ try {
 function main() {
   assertCliEnvDisablesUpdateNotice();
   checkDryRunNoWrites();
+  checkRuntimeStateFilesStableForOrdinaryWorkAndDryRun();
   checkCancelledWriteLeavesMissingRootAbsent();
   checkFreshInstallNoMigrationArtifacts();
   checkCreateOnlyInstallCompletionNoMigrationArtifacts();
@@ -76,6 +77,32 @@ function checkDryRunNoWrites() {
   assert(result.stdout.includes("dry-run: no files written"), "missing-root dry-run did not report zero writes");
   assert(!existsSync(project), "init --dry-run created the selected root");
   console.log("ok: init dry-run leaves a missing root absent");
+}
+
+function checkRuntimeStateFilesStableForOrdinaryWorkAndDryRun() {
+  const project = install("runtime-state-stability");
+  const beforeOrdinaryWork = runtimeStateSnapshot(project);
+  const ordinaryDoc = path.join(project, "docs", "ordinary.md");
+  mkdirSync(path.dirname(ordinaryDoc), { recursive: true });
+  writeFileSync(ordinaryDoc, "# Ordinary target-authority document\n\nThis document owns its own content.\n", "utf8");
+
+  const doctor = cli(["doctor", "--root", project], "ordinary target-authority doctor");
+  assert(doctor.stdout.includes("status: passed"), `ordinary target-authority doctor did not pass\n${output(doctor)}`);
+  assert(equalSnapshots(beforeOrdinaryWork, runtimeStateSnapshot(project)), "ordinary document work changed handoff, log, or startup mirror");
+
+  const handoffPath = path.join(project, "dev", "SESSION_HANDOFF.md");
+  const currentHandoff = read(handoffPath);
+  const staleHandoff = currentHandoff.replace("<!-- ack:field:recommended-next-step-explicit -->\n", "");
+  assert(staleHandoff !== currentHandoff, "stale handoff fixture did not remove the recommended-next-step marker");
+  writeFileSync(handoffPath, staleHandoff, "utf8");
+  const beforeDryRun = runtimeStateSnapshot(project);
+
+  const dryRun = cli(["upgrade", "--dry-run", "--root", project], "stale handoff dry-run");
+  assert(dryRun.stdout.includes("dry-run: no files written"), "stale handoff dry-run did not report zero writes");
+  assert(output(dryRun).includes("dev/SESSION_HANDOFF.md") || output(dryRun).includes("dev\\SESSION_HANDOFF.md"), "stale handoff dry-run did not plan a handoff merge");
+  assert(equalSnapshots(beforeDryRun, runtimeStateSnapshot(project)), "upgrade --dry-run changed handoff, log, or startup mirror");
+  assert(!existsSync(path.join(project, "dev", "governance_migrations")), "upgrade --dry-run created governance_migrations");
+  console.log("ok: ordinary work and handoff dry-run leave runtime state files byte-stable");
 }
 
 function checkCancelledWriteLeavesMissingRootAbsent() {
@@ -1140,6 +1167,14 @@ function governanceSnapshot(project) {
   const files = [];
   walk(project, project, files);
   return new Map(files.filter((relative) => /^(AGENTS\.md|CLAUDE\.md|GEMINI\.md|START_NEXT_SESSION_PROMPT\.txt|dev\/(?!governance_migrations\/).*)$/.test(relative)).map((relative) => [relative, sha(readFileSync(path.join(project, relative)))]));
+}
+
+function runtimeStateSnapshot(project) {
+  return new Map([
+    "dev/SESSION_HANDOFF.md",
+    "dev/SESSION_LOG.md",
+    "START_NEXT_SESSION_PROMPT.txt"
+  ].map((relative) => [relative, sha(readFileSync(path.join(project, relative)))]));
 }
 
 function fullSnapshot(project) {

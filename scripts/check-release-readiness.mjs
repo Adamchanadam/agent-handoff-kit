@@ -2988,6 +2988,9 @@ function checkTaskPersistenceGateContract() {
     "完成任務不等於完整收工",
     "例行通過檢查不得觸發輕量保存",
     "未拍板草稿不得觸發完整收工",
+    "明確任務計劃先走主驗收路徑",
+    "普通 Markdown / README / spec / checklist 任務不得被 governance bridge",
+    "repo-wide scan",
     "新增或刪除文件、新來源",
     "用戶要求把經驗轉成機制",
     "分批新增產品目標 / 開發清單 / 驗收規則",
@@ -3009,11 +3012,21 @@ function checkTaskPersistenceGateContract() {
     "No persistence: no durable fact was produced",
     "active unapproved drafts",
     "routine rerunnable checks",
+    "Task-first governance locality",
+    "concrete, actionable, authorized task plan",
+    "follow the plan's main acceptance path before governance side work",
+    "Governance may become the main path only when the task itself is governance",
+    "semantically requires cross-session force",
+    "do not start governance bridge, long-term-governance routing, repo-wide scans, handoff writes, or closeout solely because the task mentions Markdown, README, docs, specs, plans, checklists, or generated outputs",
     "Lightweight checkpoint",
     "do not regenerate the startup mirror or perform full closeout",
     "between Persistence Gate decisions",
     "expected lag, not drift",
     "do not update handoff merely to mirror each intermediate step",
+    "Pre-closeout checkpoint guard",
+    "Do not write either file merely because the next AI might misread stale state",
+    "update only the named current-state field(s) or one concise log entry",
+    "preserve unrelated / historical handoff sections byte-stable where practical",
     "durable or startup-needed fact must survive interruption",
     "the handoff is the smallest correct home",
     "Kit-managed / release / closeout / external-effect state changed",
@@ -3031,11 +3044,47 @@ function checkTaskPersistenceGateContract() {
 
   assertIncludes("packs/agent-governance.md", [
     "task contract changes",
+    "Ordinary target-authority documents, drafts, and user-task deliverables do not load this pack solely because they are Markdown or generated",
+    "subordinate to the core task-first governance locality rule",
+    "not as permission to interrupt an explicit user task plan",
+    "turn an ordinary user-task deliverable into governance work",
     "product goals, requirements, development checklists, acceptance rules",
     "spec, backlog, issue list, README, runbook",
     "Merge into the existing authoritative home",
+    "Before any pre-closeout handoff / log write for governance work",
+    "future agents may read stale handoff is not enough",
+    "leave handoff lag expected unless checkpoint conditions are met",
+    "leave historical evidence sections byte-stable",
     "Existing target-authority documents that only received a local content edit normally need read-back and task-specific validation",
     "`agent-handoff-kit doctor` only for scoped Kit / typed registered-surface checks"
+  ]);
+
+  assertIncludes("packs/closeout.md", [
+    "Handoff cold zones are historical / evidence sections",
+    "Do not rewrite, reword, reorder, or refresh cold zones",
+    "preserve cold-zone bytes where practical"
+  ]);
+
+  assertIncludes("runtime-core/SESSION_HANDOFF.md", [
+    "Historical evidence, old validation records, completed-work narratives, and unchanged durable anchors are cold zones",
+    "preserve them byte-for-byte where practical"
+  ]);
+
+  assertIncludes("scripts/check-pack-scenarios.mjs", [
+    "pre-closeout checkpoint boundary",
+    "Do not write either file merely because the next AI might misread stale state",
+    "explicit user task plan remains task-first",
+    "run repo-wide governance scan before following an explicit user task plan"
+  ]);
+
+  assertIncludes("scripts/check-closeout-efficiency.mjs", [
+    "full closeout no longer protects cold-zone historical evidence",
+    "handoff template no longer protects cold-zone bytes"
+  ]);
+
+  assertIncludes("scripts/check-upgrade-safety.mjs", [
+    "ordinary work and handoff dry-run leave runtime state files byte-stable",
+    "upgrade --dry-run changed handoff, log, or startup mirror"
   ]);
 
   assertIncludes("README.md", [

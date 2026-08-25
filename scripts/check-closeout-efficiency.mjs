@@ -66,8 +66,13 @@ try {
   const handoffTemplate = readAt(sourceRoot, "runtime-core/SESSION_HANDOFF.md");
   assert(closeoutPack.includes("Full closeout is differential and write-minimal"), "full closeout no longer declares a write-minimal contract");
   assert(closeoutPack.includes("Update only fields whose current truth changed"), "full closeout still implies every section must be rewritten");
+  assert(closeoutPack.includes("Handoff cold zones are historical / evidence sections"), "full closeout no longer protects cold-zone historical evidence");
+  assert(closeoutPack.includes("Do not rewrite, reword, reorder, or refresh cold zones"), "full closeout still permits cold-zone refresh");
+  assert(closeoutPack.includes("preserve cold-zone bytes where practical"), "full closeout no longer requires cold-zone byte preservation");
   assert(closeoutPack.includes("Regenerate it only when normalized content differs"), "full closeout still regenerates the startup mirror before checking for drift");
   assert(handoffTemplate.includes("update only sections whose current truth changed"), "handoff template still instructs whole-section rewrite/confirmation at every closeout");
+  assert(handoffTemplate.includes("Historical evidence, old validation records, completed-work narratives, and unchanged durable anchors are cold zones"), "handoff template no longer names cold-zone evidence");
+  assert(handoffTemplate.includes("preserve them byte-for-byte where practical"), "handoff template no longer protects cold-zone bytes");
   assert(handoffTemplate.includes("Regenerate only if normalized content differs"), "handoff template still treats prompt mirror regeneration as unconditional");
   assert(closeoutPack.includes("Do not run a separate bundled `doctor`"), "full closeout still instructs a redundant bundled doctor");
   assert(closeoutPack.includes("one required fresh doctor read-back"), "closeout-status is not the declared single fresh doctor authority");

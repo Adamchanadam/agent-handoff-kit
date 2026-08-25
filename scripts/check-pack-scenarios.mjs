@@ -471,6 +471,47 @@ function assertProportionateDocumentEditUseCaseMatrix() {
       ]
     },
     {
+      name: "pre-closeout checkpoint boundary",
+      core: [
+        "Pre-closeout checkpoint guard",
+        "without explicit closeout / checkpoint intent",
+        "Do not write either file merely because the next AI might misread stale state",
+        "update only the named current-state field(s) or one concise log entry",
+        "do not regenerate `START_NEXT_SESSION_PROMPT.txt`"
+      ],
+      pack: [
+        "Before any pre-closeout handoff / log write for governance work",
+        "future agents may read stale handoff is not enough",
+        "leave handoff lag expected unless checkpoint conditions are met",
+        "leave historical evidence sections byte-stable"
+      ],
+      mustNot: [
+        "write handoff whenever the next AI might misread",
+        "regenerate `START_NEXT_SESSION_PROMPT.txt` for a lightweight checkpoint"
+      ]
+    },
+    {
+      name: "explicit user task plan remains task-first",
+      core: [
+        "Task-first governance locality",
+        "concrete, actionable, authorized task plan",
+        "follow the plan's main acceptance path before governance side work",
+        "do not start governance bridge, long-term-governance routing, repo-wide scans, handoff writes, or closeout solely because the task mentions Markdown, README, docs, specs, plans, checklists, or generated outputs"
+      ],
+      pack: [
+        "Ordinary target-authority documents, drafts, and user-task deliverables do not load this pack solely because they are Markdown or generated",
+        "subordinate to the core task-first governance locality rule",
+        "not as permission to interrupt an explicit user task plan",
+        "start a repo-wide governance scan",
+        "turn an ordinary user-task deliverable into governance work"
+      ],
+      mustNot: [
+        "all Markdown plans require governance bridge",
+        "run repo-wide governance scan before following an explicit user task plan",
+        "ordinary user-task deliverables must be connected to governance before completion"
+      ]
+    },
+    {
       name: "new durable document bridge candidate",
       core: [
         "Materially changed Markdown governance artifacts must be indexed, synchronized, consolidated into their authoritative home, or explicitly classified as temporary / one-time evidence",

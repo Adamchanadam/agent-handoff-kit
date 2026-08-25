@@ -3,3 +3,5 @@ bin/migration-baselines/official-origin-catalog.json text eol=lf
 test-fixtures/** text eol=lf
 test-fixtures/**/AGENTS.md -text
 test-fixtures/**/dev/PROJECT_INDEX.md -text
+test-fixtures/**/AGENTS.md whitespace=-blank-at-eol
+test-fixtures/**/dev/PROJECT_INDEX.md whitespace=-blank-at-eol

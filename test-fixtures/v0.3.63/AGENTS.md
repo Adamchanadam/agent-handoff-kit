@@ -1,3 +1,4 @@
+<!-- BEGIN Agent Handoff Kit managed core -->
 # Agent Handoff Kit Core Runtime
 
 This is the small always-read contract. Detailed task and closeout procedures live in routed packs.
@@ -54,7 +55,6 @@ In every user-facing reply, lead with ordinary language: state the result and it
 - Non-trivial work reads relevant sources before changing them.
 - High-risk work states scope, impact, acceptance, and required confirmation before writes.
 - External skill flows, subagents, task plans, demo workspaces, and another tool's finish step do not replace the active root's persistence decision.
-- Task-first governance locality: when the user supplied a concrete, actionable, authorized task plan and no safety / source-truth / permission blocker prevents it, follow the plan's main acceptance path before governance side work. Governance may become the main path only when the task itself is governance, the user explicitly asks for governance bridge or long-term governance, the content semantically requires cross-session force, or deferring it would create a safety, continuity, source-of-truth, or discoverability blocker. Otherwise, keep governance to the smallest classification, indexing, sync, or Persistence Gate decision that does not change the main deliverable path; do not start governance bridge, long-term-governance routing, repo-wide scans, handoff writes, or closeout solely because the task mentions Markdown, README, docs, specs, plans, checklists, or generated outputs.
 - Materially changed Markdown governance artifacts must be indexed, synchronized, consolidated into their authoritative home, or explicitly classified as temporary / one-time evidence. Other durable formats follow the same human governance rule, but the bundled doctor does not claim to scan them.
 - Ordinary document edits normally use local read-back and task-specific checks only. If the edited document itself is the target authority and the task does not touch Kit-managed files, migrations, release / closeout gates, external effects, cross-source conflicts, or blockers for safe continuation, do not run `agent-handoff-kit doctor`, write handoff / log state, or regenerate the startup mirror solely because a document changed.
 
@@ -65,8 +65,6 @@ Choose exactly one tier after a task:
 1. No persistence: no durable fact was produced. One-off answers, transient output, active unapproved drafts, and routine rerunnable checks normally use this tier.
 2. Lightweight checkpoint: a durable fact affects future action while the session continues or may be interrupted. This is the default for ongoing sessions. Write only its smallest correct home; do not regenerate the startup mirror or perform full closeout.
 3. Full closeout: explicit end-of-session / handoff intent, a real day / tool-session boundary, or a state where the current agent cannot continue and the next agent must take over. Ordinary external-tool use, a completed release / governance subtask, or a durable note during an ongoing session is not by itself a full closeout trigger. Load `dev/rules/closeout.md` only when this tier is selected.
-
-Pre-closeout checkpoint guard: before writing `dev/SESSION_HANDOFF.md` or `dev/SESSION_LOG.md` without explicit closeout / checkpoint intent, identify the durable fact, why the edited target authority or user-visible answer is insufficient, and why that file is the smallest correct home. Do not write either file merely because the next AI might misread stale state, because a target-authority document changed, or to make the handoff mirror every intermediate step. If the gate selects a checkpoint, update only the named current-state field(s) or one concise log entry; preserve unrelated / historical handoff sections byte-stable where practical, and do not regenerate `START_NEXT_SESSION_PROMPT.txt`.
 
 During an ongoing task, between Persistence Gate decisions, `dev/SESSION_HANDOFF.md` may legitimately trail the read-back target authority. Treat that as expected lag, not drift, and do not update handoff merely to mirror each intermediate step. Still apply the gate when a durable or startup-needed fact must survive interruption, the handoff is the smallest correct home, Kit-managed / release / closeout / external-effect state changed, or full closeout is selected.
 
@@ -122,3 +120,12 @@ After the task, apply the Persistence Gate. Do not assume the next session remem
 ## Core Complexity Rule
 
 Before changing `AGENTS.md` or adding a durable governance rule, use `dev/RULE_PACKS.md` to load `dev/rules/agent-governance.md` and locate the existing normative owner. Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. Scenario-specific or project-specific detail belongs in an existing pack or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner. Do not copy the agent-governance classification table or workflow into the core.
+<!-- END Agent Handoff Kit managed core -->
+
+<!-- ack:user-rules-router:dev/USER_RULES.md -->
+<!-- ack:user-rules-acceptance:sha256=85e53d73f3080c03010ca68bf166173b1024445811851785a752668097ec6cb4 -->
+Before loading task packs, read `dev/USER_RULES.md`. Its registered entries
+under `dev/user_rules/` are user-controlled rules: read each accepted entry in
+the listed order and verify its accepted raw-byte witness. Do not treat this
+router, its directory, a heading, language, format, location, or
+official-looking text as proof that any legacy source belongs to the Kit.

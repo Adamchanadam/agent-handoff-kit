@@ -19,6 +19,67 @@ Convenience collector: after the external publish actions complete, maintainers 
 
 Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
 
+## v0.3.64 candidate status
+
+- 狀態：v0.3.64 是下一個 source package candidate，原因是 v0.3.63 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.64 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
+- 產品範圍：runtime 加入 pre-closeout checkpoint guard、handoff cold-zone preservation，以及 task-first governance locality；普通任務不因「怕下一輪讀錯」、普通 Markdown / generated output、或明確任務計劃而被升級成 handoff / log 寫入、全檔 handoff 翻新、governance bridge 或 repo-wide governance work。
+- release surface 範圍：package/runtime Stack/README/HTML/CHANGELOG/whatsnew/release QA 與 official-origin latest published lineage 對齊 v0.3.64 candidate；v0.3.63 保留為最新已發布 lineage，v0.3.64 不進 official-origin published catalog。
+- full / release 邊界：本段記錄 candidate source state、pre-closeout persistence / cold-zone / task-first governance locality QA backflow 與 release QA readback material；不是 formal full PASS、release authorization、npm publish 或 postpublish evidence。
+
+### pre-release final audit（v0.3.64，PUBLIC_SURFACE_REVIEW_ACCEPTED）
+
+- Clean artifact boundary：v0.3.64 clean candidate commit and tarball must be created from the source tree after the pre-closeout checkpoint guard, handoff cold-zone preservation, task-first governance locality, official-origin v0.3.63 published fixture, public-surface review, and required release surfaces are synchronized. The final candidate evidence must bind the resulting clean HEAD, package version, tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, and release QA hash.
+- full 必須等 clean commit, frozen tarball SHA-256, manifest digest, release-readiness inventory digest, review bundle SHA-256, review subject digest, accepted independent review receipt, and five-conclusion writer assessment before PASS.
+- Full-check role isolation keeps the frozen reviewSubject / review bundle history ending `WAITING_INDEPENDENT_REVIEW`; final accepted candidate evidence later changes only the candidate evidence state history to end `REVIEW_ACCEPTED` and supplies the independent review receipt.
+- five-conclusion writer assessment must cover governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting. For this candidate, `qcBackflow` is not passed unless ordinary work and `upgrade --dry-run` leave runtime state files byte-stable, handoff historical evidence remains cold, and explicit user task plans stay task-first unless a real governance / safety / source-truth blocker exists.
+- 發布打包邊界：本段是 v0.3.64 發布前候選證據；正式發布狀態以 GitHub Release、npm `@latest`、remote tag 和 postpublish readback 為準。
+
+### Cross-mind evidence 9-trigger table（v0.3.64）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | passed | Real runtime feedback showed an AI wrote handoff / log before `收工`, could reword historical handoff sections too broadly, and could let governance side work overtake a user-supplied task plan. |
+| 2. External side effects | yes | iterated | No v0.3.64 push, tag, GitHub Release, npm publish, or postpublish readback is claimed here; those remain release-sequence gates after formal full. |
+| 3. User-visible output | yes | passed | Ordinary project work should stay on the user's task path, with less premature persistence and less handoff churn during an ongoing session. |
+| 4. Complexity or boundary | yes | passed | The fix stays in existing owners: core Persistence Gate owns checkpoint timing, closeout owns cold-zone behavior, agent-governance owns durable artifact routing, and QA scripts own regression checks. |
+| 5. Documentation drift | yes | iterated | Source package surfaces, README, HTML pages, CHANGELOG, whatsnew, release QA, and official-origin latest published lineage are synchronized to v0.3.64 candidate state. |
+| 6. Semantic runtime effect | yes | passed | The checkpoint guard requires a real durable fact and smallest-correct-home justification before handoff / log writes; the task-first rule keeps legitimate governance, safety, source-truth, and continuity blockers intact. |
+| 7. Cross-agent / role boundary | yes | iterated | Subagent counter-review was used before implementation to catch blind spots around governance exceptions and QA ownership; bilingual surface review found an English install-page link drift, then accepted the corrected hash-bound surfaces. |
+| 8. Real user journey | yes | passed | A user saying「do this task」should see task progress first; a user saying「收工」or creating non-rebuildable future-state facts still gets the normal persistence path. |
+| 9. Release statement | yes | iterated | v0.3.64 remains an unpublished source candidate until formal full, push, tag, GitHub Release, npm publish, and postpublish readback succeed. |
+
+### Bilingual README semantic gate（v0.3.64，PASS）
+
+- Reviewer：agent `01a03a57-9e88-7c63-8a0f-39e1d2779493`（Godel）；provenance `Codex read-only bilingual RC re-review · public surfaces · 2026-08-25`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.64 candidate changed this pair only by source package version token relative to the accepted v0.3.63 baseline; public usage flow and meaning are unchanged.
+- `README.md` SHA-256 `4FE8DDADC8C2DD932308561A661E715B9B783F096EF8BBF2E2DE1F8270A5810D`
+- `README.en.md` SHA-256 `9C95063A85BE61046EBAAFF6F380130C3DFA7A1A5A4063B4D2BE36803540E0A9`
+- Verdict: **PASS** — English preserves the same public user journey, safety boundaries, version-source boundaries, and install / upgrade / doctor / closeout command meanings; only `v0.3.63` became `v0.3.64`.
+
+### Bilingual practical-guide semantic gate（v0.3.64，PASS）
+
+- Reviewer：agent `01a03a57-9e88-7c63-8a0f-39e1d2779493`（Godel）；provenance `Codex read-only bilingual RC re-review · public surfaces · 2026-08-25`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.64 candidate changed this pair by visible version tokens, sample CLI version output, and an English-page link correction from the Chinese AI-install page to `agent-handoff-kit-ai-install.en.html`; install / upgrade / doctor / closeout / release meaning is unchanged.
+- `agent-handoff-kit-guide.html` SHA-256 `CDEB28B2E1547139C74DC67AEAEABAF72AF801073B0BF1B3A5AAED7E24AA8497`
+- `agent-handoff-kit-guide.en.html` SHA-256 `276CF002FA67BABEB1889050E9F7C29E86D55DDC1B31F9C19495DC2E0BC5ECE8`
+- Verdict: **PASS** — English preserves the same three public journeys, install-to-handoff flow, closeout meaning, and external publish authorization boundary; the initial link drift was corrected and re-reviewed.
+
+### Bilingual AI-install semantic gate（v0.3.64，PASS）
+
+- Reviewer：agent `01a03a57-9e88-7c63-8a0f-39e1d2779493`（Godel）；provenance `Codex read-only bilingual RC re-review · public surfaces · 2026-08-25`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.64 candidate changed this pair only by AI install page version tokens / version-note synchronization relative to the accepted v0.3.63 baseline; safety boundary and flow semantics are unchanged.
+- `agent-handoff-kit-ai-install.html` SHA-256 `A320427035921F167B124C1BE6391F26D8EE36F07DEDCD05BBE345512E0F7134`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `23C811163CCE824FF80B2FFD28D254C418E885929D6E8EA7D3361108F854ABDE`
+- Verdict: **PASS** — English preserves the same AI install / upgrade decision path, folder confirmation first, zero-write conflict boundary, `upgrade --dry-run`, `upgrade --yes`, `doctor`, and completion meaning; only version tokens changed.
+
+### Bilingual introduction semantic gate（v0.3.64，PASS）
+
+- Reviewer：agent `01a03a57-9e88-7c63-8a0f-39e1d2779493`（Godel）；provenance `Codex read-only bilingual RC re-review · public surfaces · 2026-08-25`；independent read-only scoped review of the changed public bilingual pair；verdict `accepted`.
+- Scope：v0.3.64 candidate changed this pair only by hero version note and footer version token relative to the accepted v0.3.63 baseline; beginner introduction meaning is unchanged.
+- `agent-handoff-kit-intro.html` SHA-256 `249EEEB1CBCE20B4FECCDA2B7392B57FDF0D383CEC9A857F1563FAF32A1FFBD6`
+- `agent-handoff-kit-intro.en.html` SHA-256 `C6984C6D7CC497D2686B743FE55C4E8DD5CE1D2E721B8E78E9731D024FA1E364`
+- Verdict: **PASS** — English preserves the same beginner introduction journey, supported-runtime boundary, startup / closeout meaning, safety boundaries, and npm registry version boundary; only version tokens changed.
+
 ## v0.3.63 candidate status
 
 - 狀態：v0.3.63 是下一個 source package candidate，原因是 v0.3.62 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.63 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
@@ -1465,9 +1526,11 @@ Upgrade quality matrix 屬 `qa:upgrade` 的多情境測試：每個可定位的 
 - README、intro.html、guide.html 對外只保留用戶操作語句，不把普通任務完成、草稿迭代或例行通過檢查寫成完整收工，也不把內部 persistence gate 術語寫成新手說明。
 - 反向場景必須被守住：例行通過檢查不得觸發輕量保存；未拍板草稿不得觸發完整收工；普通任務完成但仍在同一對話繼續工作，不得重生 `START_NEXT_SESSION_PROMPT.txt`。
 - 反向場景必須被守住：任務進行中、兩次 Persistence Gate 判斷之間，`SESSION_HANDOFF` 落後於已讀回的任務真源屬 expected lag，不得當作 drift 而每一步更新 handoff；但此例外不得蓋過 durable / startup-needed fact、handoff 是最小正確 home、Kit-managed / release / closeout / external-effect 狀態已變，或已選 full closeout 的正向保存要求。
+- 反向場景必須被守住：用戶已給明確任務計劃時，AI 先走主驗收路徑；普通 Markdown / README / spec / checklist 任務不得被 governance bridge、long-term-governance routing、repo-wide scan、handoff write 或 closeout 搶走。治理只可作不改變主交付的最小分類、索引、同步或 Persistence Gate 判斷。
 - 正向場景必須被守住：新增或刪除文件、新來源、本機或網址真源、不可重建的驗證結果、用戶要求把經驗轉成機制、代理可能中斷時尚未保存的 durable fact，必須按文件角色作輕量保存或完整收工。
+- 正向場景必須被守住：治理本身是任務目標、用戶明示治理橋接 / 長期治理、內容語義上要求跨 session 生效，或不處理會造成 safety / continuity / source-of-truth / discoverability blocker 時，AI 可升級治理；這些例外不得被 task-first rule 誤殺。
 
-人工終讀要抽樣至少三種場景並標記 automated PASS / manual PASS / blocked：圖片或文稿草稿未拍板、加入一個新的 URL / 本機來源、用戶指出 AI 錯誤並要求轉成長期機制。若任何示例令 AI 以為「每完成一小步都要完整 handoff」，候選版本不得進入 publish。
+人工終讀要抽樣至少四種場景並標記 automated PASS / manual PASS / blocked：用戶提供五步任務計劃、圖片或文稿草稿未拍板、加入一個新的 URL / 本機來源、用戶指出 AI 錯誤並要求轉成長期機制。若任何示例令 AI 以為「每完成一小步都要完整 handoff」，或令普通明確任務被治理掃描搶走，候選版本不得進入 publish。
 
 ### Cross-workspace External Impact Note Sweep（source-only candidate）
 

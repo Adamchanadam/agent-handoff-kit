@@ -1,5 +1,16 @@
 # 變更紀錄
 
+## v0.3.64 — 2026-08-25
+
+狀態：source package candidate。本版收窄未收工時的 handoff / log 持久化判斷，補上 handoff 歷史段落冷區保護，並把「用戶任務優先、治理輔助」落到 runtime 與 QA；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
+
+- Core Persistence Gate 加入 pre-closeout checkpoint guard：未有 closeout / checkpoint 明示意圖時，AI 不可只因「怕下一輪讀錯」就寫 `dev/SESSION_HANDOFF.md` 或 `dev/SESSION_LOG.md`。
+- checkpoint 必須先說清楚 durable fact、為何目標權威檔案不足、以及為何 handoff / log 是最小正確 home；仍需保存時只改 named current-state 欄位或單條 trace，不重生 startup mirror。
+- Closeout / governance wording 加入 handoff cold-zone contract：歷史、證據、決策與已完成段落不為同步、風格、儀式或全檔翻新而重寫；closeout 只更新真實狀態有變的最小位置。
+- Core Proportionate Work Loop 加入 task-first governance locality：用戶已給出清楚、可執行且已授權的任務計劃時，AI 先完成主任務驗收；治理只作不改變主路徑的最小分類、索引、同步或 Persistence Gate 判斷。
+- 合法治理例外保留：任務本身就是治理、用戶明示接入治理／長期保存、內容語義需要跨 session 強制約束，或延後治理會造成安全、連續性、真源或可發現性 blocker。
+- QA 加入 dry-run / hash fixture、pack scenario matrix、closeout-efficiency 與 release-readiness contract assertion，鎖住普通工作不偷寫 handoff / log、upgrade `--dry-run` 不改 runtime state files、歷史段落不被翻新、明確任務計劃不被治理支線搶走。
+
 ## v0.3.63 — 2026-08-24
 
 狀態：source package version。本版修補「教我用」回答過度 CLI 化的 onboarding 漏口，並加入重複錯誤復發後的受限根修路由；正式發布狀態仍由 GitHub Release 與 npm `@latest` 發佈後讀回確認。
