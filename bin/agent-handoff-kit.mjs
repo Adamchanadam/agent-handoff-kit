@@ -6604,7 +6604,6 @@ async function assessUpgradeNoopHealth(root, version, options = {}) {
 }
 
 function printUpgradeNoopShortCircuit(version, health = { ok: true }) {
-  console.log("");
   console.log(`📦 版本：v${version}`);
   console.log("🛠️  模式：upgrade-existing");
   console.log("🔎 剛完成：檢查所有 Kit 檔案的狀態（含 AGENTS.md、dev/SESSION_HANDOFF.md、dev/PROJECT_INDEX.md 等）。");
@@ -6616,9 +6615,7 @@ function printUpgradeNoopShortCircuit(version, health = { ok: true }) {
       .map((line) => line.trim())
       .filter((line) => /^(?:⚠️|warn(?:ing)?\b|🔎 剛完成：|🚀 下一步：)/u.test(line));
     for (const note of new Set(notes)) console.log(note);
-    console.log("");
     console.log("🚀 下一步：回到原本的 AI 對話或開工句即可；準備結束本輪工作、需要保存交接、或有下一輪必須知道的狀態時，在 AI 對話輸入「收工」。");
-    console.log("");
     return;
   }
   console.log("⚠️  結果：Kit 檔案已是最新版本，沒有檔案需要建立或合併；但完整 doctor 健康檢查未通過。");

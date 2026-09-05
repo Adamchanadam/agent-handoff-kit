@@ -33,6 +33,7 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 ### pre-release final audit（v0.3.66，SOURCE_PREPARATION）
 
 - full 必須等 clean commit、凍結套件雜湊與獨立接受收據；本地 scoped PASS 不是正式 full。
+- 首次正式 full（提交 15206bf）在無需更新的情境因 23 行超過既有 20 行上限而失敗；已刪除三個多餘空行，保留所有健康結果／提醒，並把同一輸出上限前移至既有安裝 smoke。原失敗證據保留；需以修正後提交及套件重新獨立綁定、完成 full 才可發布。
 - Full-check role isolation：修改者與獨立唯讀凍結審閱者分開。已接受的原規則寫入／續接演練沿用於未變更的要求；新增健康重用以當前執行與反例補證，不沿用舊版發布結果。
 - five-conclusion writer assessment：治理位置、產品安裝升級、用戶閱讀運用、錯誤回歸及規則路由均有當次來源與正常／反例證據。独立範圍審閱 `/root/v0366_candidate_review` 未見程式或規則回歸；指出安裝頁改動範圍描述不足，已在下方依實際修改修正。凍結後仍須核對完全相同的提交、套件與收據，再執行 full。
 

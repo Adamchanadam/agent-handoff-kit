@@ -90,6 +90,7 @@ function checkSameOperationHealthAndRecovery() {
   const noOp = cli(["upgrade", "--yes", "--root", project], "healthy no-op");
   assert(noOp.stdout.includes("project health: passed (same-operation doctor)"), "no-op did not expose same-operation health");
   assert(noOp.stdout.includes(`selected root: ${project}`), "no-op did not identify selected root");
+  assert(noOp.stdout.split("\n").length <= 20, "healthy no-op exceeds the existing 20-line output budget");
 
   const mirror = path.join(project, "START_NEXT_SESSION_PROMPT.txt");
   const mirrorBefore = read(mirror);
