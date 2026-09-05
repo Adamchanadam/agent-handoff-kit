@@ -2,7 +2,7 @@
 
 [繁體中文](README.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-Source package version: `v0.3.65`. npm `@latest` and GitHub Release are verified by post-publish readback.
+Source package version: `v0.3.66`. npm `@latest` and GitHub Release are verified by post-publish readback.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit overview animation" width="720">
@@ -169,7 +169,9 @@ For a durable preference, tell the AI rather than editing rule files blindly:
 For future public Chinese documents, use written Traditional Chinese and avoid mixing Chinese and English fragments. Connect this rule to Agent Handoff Kit.
 ```
 
-The AI decides whether that belongs in a one-off note, the next handoff, the project index, or a durable work rule. It must not put everything into one file.
+The AI should distinguish a current request from a durable rule, then read the existing categories, relevant rule pack, and project supplements; when a suitable home exists, it should merge the change there. Project rules belong in a writable supplement or registered reference, preserving the Kit's official body. On the next relevant task, the AI should read and apply the rule through the existing route, respecting your objective and instruction priority without inventing a new goal or acceptance threshold.
+
+These requirements guide the AI and check the result; they cannot intercept arbitrary editor writes. If older local rules are already mixed into official prose, the AI still needs to verify their sources and preserve and reconcile them after receiving merge authorization. Upgrades will not guess what to delete.
 
 ## 💬 Things you can ask an AI to do
 
@@ -205,7 +207,7 @@ Even if you do not write code, the Kit requires an AI to stop and explain high-r
 
 Agent Handoff Kit can work alongside [Adam-AI-Instructions](https://github.com/prompt-templates/Adam-AI-Instructions). They are complementary, not competing authorities. They deliberately keep a minimum shared baseline for safety, secrets, irreversible operations, and release boundaries; neither is the parent source of truth for the other, and they should not be merged into one rule set:
 
-- **Adam-AI-Instructions** governs how an AI works within one conversation: tone, priorities, response structure, calculation discipline, and safety boundaries.
+- **Adam-AI-Instructions** governs how an AI works within one conversation: tone, priorities, response structure, calculation discipline, language discipline, safety boundaries, and output-layer roles.
 - **Agent Handoff Kit** governs continuity between conversations: current state, next action, file routes, real closeout, and the next startup.
 
 This pairing is optional. It does not change installation or everyday use of Agent Handoff Kit. To use it, choose the version for your AI tool in that repository and paste it into the AI tool's settings.

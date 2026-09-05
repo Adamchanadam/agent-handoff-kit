@@ -6610,6 +6610,12 @@ function printUpgradeNoopShortCircuit(version, health = { ok: true }) {
   console.log("🔎 剛完成：檢查所有 Kit 檔案的狀態（含 AGENTS.md、dev/SESSION_HANDOFF.md、dev/PROJECT_INDEX.md 等）。");
   if (health.ok) {
     console.log("✅ 結果：你已經是最新版本，沒有檔案需要建立或合併；用戶填寫的內容全部保留現狀。");
+    console.log("✅ project health: passed (same-operation doctor)");
+    // Preserve health warnings and the checked scope without another scan.
+    const notes = (health.stdout ?? "").split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => /^(?:⚠️|warn(?:ing)?\b|🔎 剛完成：|🚀 下一步：)/u.test(line));
+    for (const note of new Set(notes)) console.log(note);
     console.log("");
     console.log("🚀 下一步：回到原本的 AI 對話或開工句即可；準備結束本輪工作、需要保存交接、或有下一輪必須知道的狀態時，在 AI 對話輸入「收工」。");
     console.log("");

@@ -19,6 +19,71 @@ Convenience collector: after the external publish actions complete, maintainers 
 
 Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
 
+## v0.3.66 candidate status
+
+- 狀態：本地來源準備，尚未提交、凍結、正式全面檢或發布。已讀回 npm latest 與 GitHub latest 均為 v0.3.65，remote main / v0.3.65 tag 均為 `04b68b6f0c1e01a284da4842a6fd09ba5c4802c0`。本節不沿用舊版的正式 full 或發布 PASS。
+- 產品範圍：治理包擁有 Governance Write Boundary，核心要求任務路由讀取與運用；先分類及查既有可寫位置，保護官方正文，保留用戶目標與指令優先級。既有混入正文的本地規則仍需有來源證據的授權整理。安裝頁改為有條件重用同次完整健康結果；無需更新的升級明示健康結果並保留提醒，交易恢復與最新版本核對保留。
+- 有效既有證據：本輪功能修補已通過 published v0.3.64／v0.3.65 × LF／CRLF 的新增、升級、修改、再次升級與完整目錄零寫入拒絕；相關 runtime-content、pack-scenarios、startup-status-only 及 79 組官方來源目錄檢查已通過。原演練使用尚未提升版本號的本地來源，提升至 v0.3.66 後的 project-rules-only 亦已通過；兩者均不冒充凍結產物的正式 full。
+- 獨立使用證據：無對話歷史的作者自行找到研究規則包補充區；官方研究正文 1,233 位元組保持不變，原規則經本地升級保留。另一無歷史讀者只獲正常任務，實際讀到補充，保留資料版本、已讀／未讀範圍、未核實與草稿界線，沒有把 92% 樣本成功率視作上線批准。同平台有限虛構案例，不聲稱跨模型／領域普遍可靠。
+- 獨立修補覆核已接受：原測試快照漏含 migration 目錄，已改為完整快照，受影響回歸重跑通過。既有可重播流程：`test-fixtures/continuity/README.md`；機械回歸：`scripts/check-upgrade-safety.mjs --project-rules-only`。
+- 候選準備驗收：v0.3.66 candidate-preflight 已通過（首次沙盒 npm spawn EPERM，確認零變更後以同命令在授權主機環境重跑）；提升版本後的 project-rules-only 亦通過。套件預覽 34 檔，不包含 WORK 狀態、QA、測試或版本頁。用戶已授權本版候選提交及通過驗收後發布；正式 full 與外部成果仍以凍結及發布後證據為準。
+- 同次健康回歸：`scripts/check-install-lock-smoke.mjs` 通過首次安裝與補齊安裝各一次完整健康掃描、無需更新時明示同次健康、便利副本提醒保留、健康通過後仍中斷的拒絕、未完成交易不能用獨立 doctor 代替恢復、恢復完成及後續契約損壞重驗失敗。首次反例錯把非 doctor 語意驗收範圍的研究包內容當必敗；改為 doctor 實際檢查的收工契約後通過，未擴大 doctor 職責或刪除獨立驗收檢查。
+- 獨立安裝消費者 `/root/v0366_install_consumer` 無對話歷史，讀本地安裝頁後在隔離空目錄執行一次 init；54 項同次健康通過、退出碼 0、根目錄／版本明確及無交易鎖，沒有另跑 doctor，保留 registry 未查詢的限制。其後六個唯讀決策反例正確區分中斷先恢復、截斷補證、改檔重驗、明示重驗、預演非完成及本地健康非 latest；這六項是決策驗收，不冒充六次實際安裝。
+
+### pre-release final audit（v0.3.66，SOURCE_PREPARATION）
+
+- full 必須等 clean commit、凍結套件雜湊與獨立接受收據；本地 scoped PASS 不是正式 full。
+- Full-check role isolation：修改者與獨立唯讀凍結審閱者分開。已接受的原規則寫入／續接演練沿用於未變更的要求；新增健康重用以當前執行與反例補證，不沿用舊版發布結果。
+- five-conclusion writer assessment：治理位置、產品安裝升級、用戶閱讀運用、錯誤回歸及規則路由均有當次來源與正常／反例證據。独立範圍審閱 `/root/v0366_candidate_review` 未見程式或規則回歸；指出安裝頁改動範圍描述不足，已在下方依實際修改修正。凍結後仍須核對完全相同的提交、套件與收據，再執行 full。
+
+### Cross-mind evidence 9-trigger table（v0.3.66）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | iterated | Local inline-rule conflict and duplicate doctor path addressed at existing owners; incorrect negative fixture corrected to an actually checked contract. |
+| 2. External side effects | yes | passed | User authorized this candidate commit and release sequence; no external success claimed by this source-preparation record. |
+| 3. User-visible output | yes | passed | No-op health and warnings visible; independent installer reused actual same-operation evidence without a second doctor. |
+| 4. Complexity or boundary | yes | passed | No cache, new rule system or relaxed recovery gate; existing pack and install-page owners carry the change. |
+| 5. Documentation drift | yes | iterated | Four full bilingual pairs reviewed; omitted English paths, duties, direct startup phrases and tab positioning repaired and re-reviewed. |
+| 6. Semantic runtime effect | yes | passed | Independent rule writer/reader and actual install consumer evidence distinguish correct application from structural PASS. |
+| 7. Recurrence or regression | yes | passed | Existing upgrade suite and install-lock smoke own historical upgrade preservation, interruption, warning and later-edit counterexamples. |
+| 8. QA authority | yes | passed | Scoped checks remain separate from clean-commit frozen review, formal full and live postpublish evidence. |
+| 9. Release statement | yes | passed | Source v0.3.66; live latest remains v0.3.65 until authorized release and postpublish readback. |
+
+### Bilingual README semantic gate（v0.3.66，PASS）
+
+- Reviewer：independent read-only agent `/root/v0366_bilingual_review`, 2026-09-05。全文含版本、三步上手、狀態、入口、適用工具、開工／收工、規則、自然語言例子、安全及可選配合；修補英文遺漏的用語紀律與輸出層分工後，僅受影響段落重審。
+- Scope：版本、長期規則存放／讀取要求及英文可選配合職責；其餘完整章節語義保持。
+- `README.md` SHA-256 `D9AE6F7F9B5DF56BE374FCDDA877BD2CEBB128CD9CFDB65C8690EE6E7995F47E`
+- `README.en.md` SHA-256 `9FD17682A64376B29B201AC96035436033497703C6085CA36A5E657D894F92C2`
+- Verdict: **PASS** — complete independent section mapping and corrected-section acceptance; hashes stable during review.
+
+### Bilingual AI-install semantic gate（v0.3.66，PASS）
+
+- Reviewer：independent read-only agent `/root/v0366_bilingual_review`, 2026-09-05。全文含資料夾確認、兩種安裝、衝突授權、完整驗收條件及回覆格式。
+- Scope：版本、規則 owner 引用，以及同次 doctor 重用、完整退出／交易終態、提醒保留、後續變更、明示重驗、恢復及 registry 核對條件。中文排字「驗收」已修正及覆核；沒有用舊安裝步驟描述代替本次實際改動。
+- `agent-handoff-kit-ai-install.html` SHA-256 `232498295300DB5E145DFDAABE5678E0D2B459ADD663BC5837D425F745A81F96`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `D8D339A07CF160B7C4C31F8A2FDE8A51615D2F8005320D3F03A00B1F3B8269E2`
+- Verdict: **PASS** — complete independent section mapping and corrected-section acceptance; hashes stable during review.
+
+### Bilingual introduction semantic gate（v0.3.66，PASS）
+
+- Reviewer：independent read-only agent `/root/v0366_bilingual_review`, 2026-09-05。全文含導航、hero、問題、流程、八種任務、接入、上手、安全、分層、重點、配合與頁尾。
+- Scope：版本及英文直接口令；裸字 Start 已恢復為 Start Agent Handoff，流程圖使用明確開工／收工口令；受影響段落重新接受。
+- `agent-handoff-kit-intro.html` SHA-256 `D1DA30FB314BA4B6AC28166A57CB90EE4091AF6DC6585B532083100C19462FB1`
+- `agent-handoff-kit-intro.en.html` SHA-256 `1928851ED8262851DA904B3B81B77B24D517BB11F042AA1BA31E26E3FD0EFBE6`
+- Verdict: **PASS** — complete independent section mapping and corrected-section acceptance; hashes stable during review.
+
+### Bilingual practical-guide semantic gate（v0.3.66，PASS）
+
+- Reviewer：independent read-only agent `/root/v0366_bilingual_review`, 2026-09-05。全文含首次使用、流程及狀態、規則總覽、全部 A1–A7／bridge-step／B1–B7／C1／C30／C60／C90、頁尾及案例切換。
+- Scope：版本、英文直接開工口令、規則完整路徑與職責、案例切換後定位。中文對應均保留。父線另以實際頁面腳本的 DOM harness 核對三案例切換、aria-selected、導航高度扣除及初次不捲動，通過；這不是瀏覽器視覺驗收。
+- `agent-handoff-kit-guide.html` SHA-256 `7C48C38FD82606AB2F2EAD4F322CC506975C09B70D381D084971D87385C04102`
+- `agent-handoff-kit-guide.en.html` SHA-256 `686E16EE47051A19C7612743F03AD89B28675CA0A5B538F4331B24C1E424791F`
+- Verdict: **PASS** — complete independent section mapping and corrected-section acceptance; hashes stable during review.
+
+未改的 local-agentic-ai-workflow-case-study 中英文件不重做語意審閱。以上為候選來源準備證據，正式 full 與發布後驗證由各自的綁定產物擁有。
+
 ## v0.3.65 candidate status
 
 - 狀態：本機 v0.3.65 原始碼候選；最新已發布 lineage 是 v0.3.64。尚無本候選 commit、正式 full 或發布成果。本節只記錄本候選的準備證據，不能沿用下方歷史版本的 PASS。

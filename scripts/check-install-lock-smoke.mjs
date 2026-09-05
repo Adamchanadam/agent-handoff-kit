@@ -28,6 +28,7 @@ function main() {
   checkFreshInstallNoMigrationArtifacts();
   checkCreateOnlyUpgradeNoMigrationArtifacts();
   checkStaleCompletedCreateOnlyInitLockDoesNotBlock();
+  checkSameOperationHealthAndRecovery();
   console.log("ok: install lock smoke QA");
 }
 
@@ -35,6 +36,7 @@ function checkFreshInstallNoMigrationArtifacts() {
   const project = fresh("fresh");
   const result = cli(["init", "--yes", "--root", project], "fresh init");
   assertRequiredFiles(project, "fresh init", result);
+  assertSingleHealthRun(result, "fresh init");
   assert(result.stdout.includes("不用再留在終端機"), "fresh init output did not tell the user to leave the terminal");
   assert(result.stdout.includes("簡短新手歡迎"), "fresh init output did not mention the first-use welcome");
   assert(!existsSync(migrationsRoot(project)), "fresh init created dev/governance_migrations");
@@ -55,6 +57,7 @@ function checkCreateOnlyUpgradeNoMigrationArtifacts() {
 
   const result = cli(["upgrade", "--yes", "--root", project], "create-only upgrade");
   assertRequiredFiles(project, "create-only upgrade", result);
+  assertSingleHealthRun(result, "create-only upgrade");
   assert(result.stdout.includes("create-only install"), "create-only upgrade did not use the direct create-only path");
   assert(!existsSync(migrationsRoot(project)), "create-only upgrade created dev/governance_migrations");
   assert(cli(["doctor", "--root", project], "create-only doctor").stdout.includes("status: passed"), "create-only upgrade doctor did not pass");
@@ -79,6 +82,52 @@ function checkStaleCompletedCreateOnlyInitLockDoesNotBlock() {
   assert(noOp.stdout.includes("stale completed init lock ignored"), "stale completed create-only init lock was not ignored");
   assert(sameSnapshot(before, snapshot(project)), "stale-lock no-op upgrade changed fixture bytes");
   console.log("ok: quick stale completed create-only init lock is inert");
+}
+
+function checkSameOperationHealthAndRecovery() {
+  const project = fresh("same-operation-health");
+  cli(["init", "--yes", "--root", project], "health source init");
+  const noOp = cli(["upgrade", "--yes", "--root", project], "healthy no-op");
+  assert(noOp.stdout.includes("project health: passed (same-operation doctor)"), "no-op did not expose same-operation health");
+  assert(noOp.stdout.includes(`selected root: ${project}`), "no-op did not identify selected root");
+
+  const mirror = path.join(project, "START_NEXT_SESSION_PROMPT.txt");
+  const mirrorBefore = read(mirror);
+  writeFileSync(mirror, "outdated convenience copy\n");
+  const warning = cli(["upgrade", "--yes", "--root", project], "warning no-op");
+  assert(warning.stdout.includes("project health: passed (same-operation doctor)"), "warning-only no-op lost health pass");
+  assert(warning.stdout.includes("⚠️  提醒：下次開工提示便利副本目前落後"), "no-op suppressed same-operation warning");
+  writeFileSync(mirror, mirrorBefore);
+
+  const index = path.join(project, "dev", "PROJECT_INDEX.md");
+  const indexBefore = read(index);
+  writeFileSync(index, indexBefore.replace(`| Agent Handoff Kit template version | ${packageVersion} |`, "| Agent Handoff Kit template version | 0.3.65 |"));
+  assert(read(index) !== indexBefore, "interruption fixture needs a real version transition");
+  const interrupted = cli(["upgrade", "--yes", "--root", project], "interrupted after health pass", {
+    expectFailure: true, env: { AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_JOURNAL_COMMIT: "1" }
+  });
+  assertSingleHealthRun(interrupted, "interrupted upgrade");
+  assert(interrupted.stdout.includes("status: passed"), "negative fixture did not expose a provisional doctor pass");
+  assert(!interrupted.stdout.includes("✅ migration committed："), "interrupted operation claimed final success");
+  assert(existsSync(path.join(migrationsRoot(project), ".upgrade.lock")), "interrupted upgrade lost recovery lock");
+  const partial = snapshot(project);
+  cli(["doctor", "--root", project], "doctor cannot replace recovery", { expectFailure: true });
+  assert(sameSnapshot(partial, snapshot(project)), "doctor changed the incomplete transaction");
+  const recovered = cli(["upgrade", "--yes", "--root", project], "recover committed upgrade");
+  assert(recovered.stdout.includes("recovered committed upgrade"), "upgrade did not recover the incomplete terminal state");
+  assert(!existsSync(path.join(migrationsRoot(project), ".upgrade.lock")), "recovery left an active lock");
+  assert(recovered.stdout.includes("project health: passed"), "recovery did not report fresh health");
+
+  const closeout = path.join(project, "dev", "rules", "closeout.md");
+  writeFileSync(closeout, "later invalid closeout contract edit\n");
+  const changed = snapshot(project);
+  cli(["doctor", "--root", project], "later edit invalidates prior health", { expectFailure: true });
+  assert(sameSnapshot(changed, snapshot(project)), "failed fresh doctor wrote to project");
+  console.log("ok: same-operation health, visible warning, provisional-pass interruption, recovery and later-edit rejection");
+}
+
+function assertSingleHealthRun(result, label) {
+  assert((result.stdout.match(/^required files:/gm) ?? []).length === 1, `${label}: expected exactly one visible full health scan`);
 }
 
 function writeStaleCompletedCreateOnlyInitLock(project) {
@@ -137,14 +186,14 @@ function fresh(label) {
   return project;
 }
 
-function cli(args, label) {
+function cli(args, label, options = {}) {
   const result = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", ...args], {
     cwd: root,
     encoding: "utf8",
-    env: { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" },
+    env: { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1", ...options.env },
     windowsHide: true
   });
-  if (result.error || result.status !== 0) throw new Error(`${label} failed\n${output(result)}`);
+  if (result.error || !Number.isInteger(result.status) || (options.expectFailure ? result.status === 0 : result.status !== 0)) throw new Error(`${label} unexpected outcome\n${output(result)}`);
   return result;
 }
 

@@ -2,7 +2,7 @@
 
 English: [README.en.md](README.en.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-原始碼套件版本：`v0.3.65`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
+原始碼套件版本：`v0.3.66`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
@@ -173,7 +173,9 @@ AI 會處理檢查，不會把「檢查通過」誤當成已理解你的專案�
 以後寫公開中文文件時，請用繁體中文書面語，避免半中半英。請把這條規則接入 Agent Handoff Kit。
 ```
 
-AI 應先判斷這條規則應放在哪裡：是一次性備忘、下次交接、項目索引，還是長期工作規則。它不應把所有東西都塞進同一個檔案。
+AI 應先區分當次要求與長期規則，再查閱既有分類、相關規則包及專案補充；有合適位置便合併修改。專案規則放在可修改的補充區或已登記的參考文件，保留 Kit 官方正文。下一次處理相關任務時，AI 應沿原有路徑讀取並運用規則，遵守你的目標及指令優先級，不自行另定目標或通過門檻。
+
+這些要求用來引導 AI 並檢查結果，不能攔截任意編輯器寫入。若舊規則已混入官方正文，仍需由 AI 核對來源，在取得合併授權後保留並整理；升級不會自動猜刪。
 
 ## 💬 你可以怎樣叫 AI
 

@@ -191,11 +191,11 @@
 
   <header>
     <div class="wrap">
-      <span class="kicker">AI-readable install page · v0.3.65</span>
+      <span class="kicker">AI-readable install page · v0.3.66</span>
       <p style="margin:0 0 18px;"><a href="agent-handoff-kit-ai-install.en.html" lang="en">English version</a></p>
       <h1>給 AI 讀的<br/>安裝與升級指令</h1>
       <p class="lead">本頁給能讀寫本機資料夾、可執行終端機命令的 agentic AI 使用。用戶不用先理解 npm 或選擇指令；AI 讀完本頁後，應在目前資料夾安全判斷要安裝、升級或停止。</p>
-      <p><strong>版本提示：</strong>本頁對齊 v0.3.65；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
+      <p><strong>版本提示：</strong>本頁對齊 v0.3.66；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
 
       <div class="prompt-box">
         <h2>用戶只需貼這一句</h2>
@@ -258,12 +258,15 @@
   <section>
     <div class="wrap">
       <h2>完成後驗收</h2>
-      <p>升級結果與整個項目的健康狀態要分開報告。先讀回 CLI 的遷移結果，確認新版規則已提交且沒有未完成交易，再執行 <code>doctor</code>；版本號更新本身不是完成證據。原有交接內容會保留，AI 應在下一次正式收工時按新版規則核對整體目標、子任務、續接點與真源閱讀缺口，不得在升級時猜補工作狀態。</p>
+      <p>本版亦補強日常規則寫入邊界。之後用戶要求加入長期規則時，依已安裝的 <code>dev/rules/agent-governance.md</code> 中 <code>Governance Write Boundary</code> 查找既有可寫位置、保護官方正文並核對讀取路徑。這不會自動整理先前混入正文的本地規則；遇到這類衝突，仍按上面的授權合併流程處理。</p>
+      <p>升級結果與整個項目的健康狀態要分開報告。版本號更新本身不是完成證據。原有交接內容會保留，AI 應在下一次正式收工時按新版規則核對整體目標、子任務、續接點與真源閱讀缺口，不得在升級時猜補工作狀態。</p>
       <ol>
-        <li>安裝或升級完成後執行健康檢查。</li>
+        <li>先讀回同次操作的根目錄、CLI 版本、完整終態及健康結果。只有程序以成功退出碼結束、安裝完成或升級已提交（或確定無需更新）、沒有未完成交易、健康結果明示通過，而且其後沒有相關檔案變更或不明狀態時，才直接採用同次 <code>doctor</code> 結果，不再執行一次；所有提醒仍須保留。不能只憑版本號、畫面中的「成功」或舊對話紀錄判斷。</li>
+        <li>若操作失敗、中斷、輸出不完整或其後改過相關檔案，不採用先前的通過結果。存在未完成升級交易時，先按 CLI 指引執行 <code>upgrade --yes --root .</code> 恢復，再核對完整終態；不要刪鎖，也不要用單獨 <code>doctor</code> 取代恢復。沒有未完成交易而仍缺乏有效健康結果，或用戶另行要求檢查時，才重新執行以下命令。</li>
       </ol>
       <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .</pre></div>
-      <ol start="2">
+      <p>同次健康結果只證明該次本地檢查，不代表重新查過 npm 最新版。需要宣稱版本最新時，仍須核對 npm registry 與實際 CLI／安裝版本；預演通過也不能代替正式安裝或升級完成。此規則不取消正式收工或獨立驗收另有要求的檢查。</p>
+      <ol start="3">
         <li>若 `doctor` 通過，讀 `AGENTS.md`，再按 `Start Agent Handoff` 的開工流程接上本資料夾。</li>
         <li>若 `doctor` 失敗，停止並向用戶列出失敗項；不要重裝覆寫。</li>
         <li>若 `doctor` 只提示 `START_NEXT_SESSION_PROMPT.txt` 便利副本落後，說明它會在正式收工時重新產生；不要因此重裝。</li>

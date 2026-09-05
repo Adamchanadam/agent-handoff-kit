@@ -35,6 +35,10 @@ try {
 }
 
 function main() {
+  if (process.argv.includes("--project-rules-only")) {
+    checkProjectRuleWriteBoundary();
+    return;
+  }
   if (process.argv.includes("--runtime-content-only")) {
     checkRuntimeContentPropagation();
     checkRealSessionLogEntryBoundary();
@@ -60,6 +64,7 @@ function main() {
   }
   checkHistoricalCrlfAndBaselineMismatch();
   checkRuntimeContentPropagation();
+  checkProjectRuleWriteBoundary();
   checkRealSessionLogEntryBoundary();
   checkHistoricalProjectIndexAuthorizedTransforms();
   checkV038HeadedAppendixProtection();
@@ -1184,6 +1189,52 @@ function writeWitnesslessCommittedMigration(project, id, version) {
     createdAt: "2026-07-31T00:00:00.000Z",
     committedAt: "2026-07-31T00:00:01.000Z"
   }, null, 2)}\n`, "utf8");
+}
+
+function checkProjectRuleWriteBoundary() {
+  // A deterministic write/upgrade replay, not proof that an AI understood a rule.
+  for (const [fromVersion, crlf] of [["0.3.64", false], ["0.3.64", true], ["0.3.65", false], ["0.3.65", true]]) {
+    const project = fresh(`project-rules-${fromVersion}-${crlf ? "crlf" : "lf"}`);
+    materializeOfficialInstall(fromVersion, project);
+    const pack = path.join(project, "dev/rules/agent-governance.md");
+    if (crlf) writeFileSync(pack, read(pack).replace(/\r?\n/g, "\r\n"));
+    const official = readFileSync(pack);
+    const eol = crlf ? "\r\n" : "\n";
+    const local = `${eol}## Project Rules${eol}${eol}For internal audit summaries, retain source revision and unread sections.${eol}`;
+    const beforePreview = fullSnapshot(project);
+    cli(["upgrade", "--dry-run", "--root", project], "pre-write boundary preview");
+    assert(equalSnapshots(beforePreview, fullSnapshot(project)), "pre-write preview changed files");
+    append(pack, local);
+    assert(readFileSync(pack).subarray(0, official.length).equals(official), "writing a local supplement changed official bytes");
+    const input = fullSnapshot(project);
+    cli(["upgrade", "--dry-run", "--root", project], "post-write compatibility preview");
+    assert(equalSnapshots(input, fullSnapshot(project)), "post-write preview changed files");
+    cli(["upgrade", "--yes", "--root", project], "upgrade after project supplement write");
+    assert(read(pack).endsWith(local), "upgrade lost project supplement bytes");
+    assert(read(pack).includes("## Governance Write Boundary"), "upgrade did not install the new write contract");
+    const current = readFileSync(pack);
+    const revised = read(pack).replace("retain source revision and unread sections.", "retain source revision, read sections and unread sections.");
+    writeFileSync(pack, revised);
+    assert(readFileSync(pack).subarray(0, current.length - Buffer.byteLength(local)).equals(current.subarray(0, current.length - Buffer.byteLength(local))), "editing an existing project rule changed protected bytes");
+    const repeated = governanceSnapshot(project);
+    const beforeUpdatedPreview = fullSnapshot(project);
+    cli(["upgrade", "--dry-run", "--root", project], "updated project rule preview");
+    assert(equalSnapshots(beforeUpdatedPreview, fullSnapshot(project)), "updated project rule preview changed files");
+    cli(["upgrade", "--yes", "--root", project], "updated project rule repeat upgrade");
+    assert(equalSnapshots(repeated, governanceSnapshot(project)), "repeat upgrade changed local rule or official body");
+    for (const rel of ["dev/rules/research.md", "AGENTS.md"]) {
+      const file = path.join(project, rel);
+      const safe = readFileSync(file);
+      const anchor = rel === "AGENTS.md" ? "## 3. Safety Baseline" : "## Rules";
+      writeFileSync(file, read(file).replace(anchor, `${anchor}\n\nLocal rule inserted into official prose.\n`));
+      const invalid = fullSnapshot(project);
+      const rejected = cli(["upgrade", "--dry-run", "--root", project], "interleaved rule must fail the write completion gate", { allowFailure: true });
+      assert(rejected.status !== 0 && output(rejected).includes("conflict"), `${rel}: interleaved local rule falsely passed`);
+      assert(equalSnapshots(invalid, fullSnapshot(project)), "rejection changed files");
+      writeFileSync(file, safe); // restore only the deliberate fixture mutation
+    }
+  }
+  console.log("ok: project rule write -> boundary preview -> historical upgrade -> local edit -> repeat; LF/CRLF preservation and inline core/pack zero-write rejection");
 }
 
 function checkIdempotency() {

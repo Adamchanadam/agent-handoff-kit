@@ -1,3 +1,4 @@
+<!-- BEGIN Agent Handoff Kit managed core -->
 # Agent Handoff Kit Core Runtime
 
 This is the small always-read contract. Detailed task and closeout procedures live in routed packs.
@@ -115,7 +116,7 @@ The always-enforced closeout invariants are:
 
 ## 5. Pack Loading
 
-Use `dev/RULE_PACKS.md` to load the minimum task-specific set. Read the applicable packs, including their project supplements and required references, before deciding how to act; an index, title or remembered summary is not the rule itself. Apply them within the user's actual objective and instruction priority: do not invent a replacement goal, acceptance standard or competing rule system. Missing or conflicting requirements must be resolved from their owners, not filled by an invented policy. Packs may add stricter requirements but cannot weaken core safety or continuity.
+Use `dev/RULE_PACKS.md` to load the minimum task-specific set. Packs may add stricter requirements but cannot weaken core safety or continuity.
 
 Load `dev/rules/integrations.md` when the current task actually uses an external tool, not merely because a registry or placeholder table exists. Load `dev/rules/closeout.md` only for full closeout. If two packs conflict, use the safer and more verifiable path and record the unresolved conflict at closeout.
 
@@ -123,4 +124,13 @@ After the task, apply the Persistence Gate. Do not assume the next session remem
 
 ## Core Complexity Rule
 
-Before changing `AGENTS.md` or adding a durable governance rule, use `dev/RULE_PACKS.md` to load `dev/rules/agent-governance.md` and locate the existing normative owner. Follow its `Governance Write Boundary` before choosing a writable location: installed official core and pack bodies are not project-editable rule homes. Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. Scenario-specific or project-specific detail belongs in an existing pack's project supplement or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner. Do not copy the agent-governance classification table or workflow into the core.
+Before changing `AGENTS.md` or adding a durable governance rule, use `dev/RULE_PACKS.md` to load `dev/rules/agent-governance.md` and locate the existing normative owner. Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. Scenario-specific or project-specific detail belongs in an existing pack or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner. Do not copy the agent-governance classification table or workflow into the core.
+<!-- END Agent Handoff Kit managed core -->
+
+<!-- ack:user-rules-router:dev/USER_RULES.md -->
+<!-- ack:user-rules-acceptance:sha256=10f2dd27d19d0cddc8c0ea03425f8ae314bac1f2804151116233ff389d5558c3 -->
+Before loading task packs, read `dev/USER_RULES.md`. Its registered entries
+under `dev/user_rules/` are user-controlled rules: read each accepted entry in
+the listed order and verify its accepted raw-byte witness. Do not treat this
+router, its directory, a heading, language, format, location, or
+official-looking text as proof that any legacy source belongs to the Kit.

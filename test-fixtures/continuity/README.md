@@ -66,6 +66,27 @@ labeled new run. Do not silently retry until success.
 
 ## Acceptance and limits
 
+For governance rule-writing changes, additionally run
+`node scripts/check-upgrade-safety.mjs --project-rules-only`. Its pinned
+published 0.3.64 and 0.3.65 roots cover local appendix writes and edits,
+upgrade/repeat preservation, LF/CRLF, and zero-write rejection of interleaved
+core/pack rules. It does not grade whether an agent selected or applied a rule.
+
+For the separate live consumer rehearsal, install the candidate in an isolated
+root. Give a fresh writer only that root, the matching CLI path and a request
+to add this durable local rule: every internal research-summary conclusion
+must state source revision, actually read sections and unread coverage;
+insufficient evidence stays unverified and no acceptance threshold or formal
+approval may be invented. Do not tell the writer where to put it. Retain its
+first output and changed files; compare protected bodies with original inputs.
+Run an upgrade and retain the rule bytes. Give a different history-free reader
+the root and a concrete internal-summary task with incomplete fictional data,
+without the original rule request or writer's output. It must discover the
+rule through normal routing, use it in the summary, distinguish an unresolved
+source gap from a proved finding, and keep the user's draft scope. Record
+actual reads and outputs; locating a file or passing a CLI is insufficient.
+No real financial/private data or external publication is needed.
+
 All decision-changing requirements and boundaries must survive. Missing or
 distorted requirements fail until explicitly resolved. Exposing an absent
 source is successful restraint, not completed source validation. Wording may

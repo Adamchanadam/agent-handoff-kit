@@ -274,6 +274,8 @@ const longTermGovernanceUseCases = [
 main();
 
 function main() {
+  assertIncludes(core, ["Governance Write Boundary", "including their project supplements and required references", "do not invent a replacement goal"], "write/read boundary routing");
+  assertIncludes(packs["agent-governance"], ["## Governance Write Boundary", "A matching topic does not make official prose writable", "after the entire verified official body", "## Project Rules", "every protected byte must remain unchanged", "upgrade --dry-run", "same-pack appendix uses that pack's existing route", "Formal upgrade or an explicitly scoped repair", "An indexed file that no applicable route reads is not connected"], "project rule write and consumer contract");
   assertIncludes(router, ["minimum set", "If a task clearly involves safety risk plus another domain", "cannot weaken core safety"], "router minimum loading rule");
   assertPackStructure();
 

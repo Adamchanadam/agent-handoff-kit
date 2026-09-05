@@ -36,7 +36,9 @@ const credentialValuePatterns = [
 
 const catalog = await loadOfficialOriginCatalog(catalogPath);
 const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
-const latestPublishedVersion = previousPatch(packageVersion);
+// Source work can begin after publication, before the next version bump.
+// The generator's npm / remote-tag / Release cross-check owns publication proof.
+const allowedPublishedTips = new Set([previousPatch(packageVersion), packageVersion]);
 assert(catalog.schemaVersion === OFFICIAL_ORIGIN_CATALOG_SCHEMA, "catalog schema mismatch");
 assert(catalog.packageName === "@adamchanadam/agent-handoff-kit", "catalog package name mismatch");
 
@@ -45,7 +47,7 @@ assert(JSON.stringify(catalog.installedTargets) === JSON.stringify(expectedTarge
 
 const versions = Object.keys(catalog.releases);
 assert(versions.length >= 55, `expected at least 55 formal releases, found ${versions.length}`);
-assert(versions[0] === "0.1.0" && versions.at(-1) === latestPublishedVersion, `formal release range must end at latest published v${latestPublishedVersion}`);
+assert(versions[0] === "0.1.0" && allowedPublishedTips.has(versions.at(-1)), `formal release range must end at the published current version or its preceding patch: v${packageVersion}`);
 
 let presentCount = 0;
 let absentCount = 0;

@@ -779,6 +779,14 @@ function checkAiInstallPageContract(version) {
     "完成報告範本"
   ]);
 
+  assertIncludes("agent-handoff-kit-ai-install.html", [
+    "同次操作的根目錄、CLI 版本、完整終態及健康結果",
+    "程序以成功退出碼結束", "所有提醒仍須保留", "舊對話紀錄",
+    "不要用單獨", "取代恢復", "其後改過相關檔案",
+    "用戶另行要求檢查", "不代表重新查過 npm 最新版"
+  ]);
+  assert(!plain.includes("安裝或升級完成後執行健康檢查。"), "install page still mandates a redundant standalone doctor");
+
   const firstCommandIndex = plain.indexOf("npx --yes @adamchanadam/agent-handoff-kit@latest init --yes --root .");
   const completionContractIndex = plain.indexOf("AI 完成後必須回覆這份報告");
   assert(firstCommandIndex >= 0, "AI install page missing first npx command");
