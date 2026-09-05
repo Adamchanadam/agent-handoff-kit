@@ -35,22 +35,32 @@ try {
 }
 
 function main() {
-  assertCliEnvDisablesUpdateNotice();
-  checkDryRunNoWrites();
-  checkRuntimeStateFilesStableForOrdinaryWorkAndDryRun();
-  checkCancelledWriteLeavesMissingRootAbsent();
-  checkFreshInstallNoMigrationArtifacts();
-  checkCreateOnlyInstallCompletionNoMigrationArtifacts();
-  checkStaleCompletedCreateOnlyInitLockDoesNotBlock();
-  checkPartialInstallAndBackup();
-  checkConflictZeroWrite();
-  checkBridgeSemantics();
-  checkOverlayPreflightZeroWrite();
-  checkFutureVersionBlock();
-  checkJunctionRootBlock();
-  checkCredentialPreBackupStop();
-  checkHistoricalSingleHopFixtures();
+  if (process.argv.includes("--runtime-content-only")) {
+    checkRuntimeContentPropagation();
+    checkRealSessionLogEntryBoundary();
+    console.log("Agent Handoff Kit runtime content regression checks passed");
+    return;
+  }
+  if (!process.argv.includes("--after-historical")) {
+    assertCliEnvDisablesUpdateNotice();
+    checkDryRunNoWrites();
+    checkRuntimeStateFilesStableForOrdinaryWorkAndDryRun();
+    checkCancelledWriteLeavesMissingRootAbsent();
+    checkFreshInstallNoMigrationArtifacts();
+    checkCreateOnlyInstallCompletionNoMigrationArtifacts();
+    checkStaleCompletedCreateOnlyInitLockDoesNotBlock();
+    checkPartialInstallAndBackup();
+    checkConflictZeroWrite();
+    checkBridgeSemantics();
+    checkOverlayPreflightZeroWrite();
+    checkFutureVersionBlock();
+    checkJunctionRootBlock();
+    checkCredentialPreBackupStop();
+    checkHistoricalSingleHopFixtures();
+  }
   checkHistoricalCrlfAndBaselineMismatch();
+  checkRuntimeContentPropagation();
+  checkRealSessionLogEntryBoundary();
   checkHistoricalProjectIndexAuthorizedTransforms();
   checkV038HeadedAppendixProtection();
   checkRulePacksMarkerMerge();
@@ -395,6 +405,7 @@ function materializeVerifiedArtifactInit(version, project) {
       && sha(Buffer.from(canonicalizeOfficialText(contract.targetRel, actual.toString("utf8")), "utf8")) === record.canonicalSha256;
     assert(rawMatch || canonicalMatch, `v${version} artifact fresh-init bytes drifted for ${contract.targetRel}`);
   }
+  return { artifactCli, artifactRoot };
 }
 
 function resolveHistoricalArtifact(version, npmIdentity) {
@@ -484,7 +495,8 @@ function checkHistoricalCrlfAndBaselineMismatch() {
     "dev/rules/safety.md",
     "dev/rules/communication.md",
     "dev/rules/onboarding.md",
-    "dev/rules/integrations.md"
+    "dev/rules/integrations.md",
+    ...installedFileContracts.filter((item) => item.strategy === "rule-pack").map((item) => item.targetRel)
   ]);
   for (const [targetRel, before] of crlfBefore) {
     if (targetRel === "dev/PROJECT_INDEX.md") {
@@ -507,6 +519,7 @@ function checkHistoricalCrlfAndBaselineMismatch() {
     }
     assert(readFileSync(path.join(crlfProject, targetRel)).equals(before), `newline-only non-exact ${targetRel} was rewritten instead of preserved`);
   }
+  assertRuntimeContentCurrent(crlfProject);
 
   for (const mode of ["forged", "missing"]) {
     const project = fresh(`v035-${mode}-baseline`);
@@ -528,6 +541,145 @@ function checkHistoricalCrlfAndBaselineMismatch() {
     assert(equalSnapshots(before, governanceSnapshot(project)), `${mode} baseline dry-run changed governance files`);
   }
   console.log("ok: CRLF official files upgrade through current lifecycle; forged or missing baselines cannot authorize custom-rule merge");
+}
+
+function assertRuntimeContentCurrent(project) {
+  const normalize = (text) => text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+  for (const { sourceRel, targetRel, strategy } of installedFileContracts) {
+    if (!["managed-core", "rule-pack"].includes(strategy)) continue;
+    const target = normalize(read(path.join(project, targetRel)));
+    const current = normalize(read(path.join(root, sourceRel)));
+    if (strategy === "managed-core") {
+      const core = /<!-- BEGIN Agent Handoff Kit managed core -->\n([\s\S]*?)\n<!-- END Agent Handoff Kit managed core -->/.exec(target)?.[1];
+      assert(core === current.trim(), `${targetRel} reported complete with stale managed content`);
+    } else assert(target.startsWith(current), `${targetRel} omitted current requirements`);
+  }
+}
+
+function checkRuntimeContentPropagation() {
+  for (const mode of ["marked", "unmarked", "unmarked-without-terminator", "sandwich"]) {
+    const customCore = fresh(`runtime-content-preformal-core-${mode}`);
+    materializeOfficialInstall("0.3.35", customCore);
+    const customAgents = path.join(customCore, "AGENTS.md");
+    const originalCore = read(customAgents);
+    let editedCore = originalCore.replace("After this core is loaded, read in order:", "Project-specific startup: ask the project owner which state to load.");
+    assert(editedCore !== originalCore, "pre-formal core negative did not change its instruction");
+    if (mode.startsWith("unmarked")) editedCore = editedCore.replace(/^<!-- (?:BEGIN|END) Agent Handoff Kit managed core -->\r?\n?/gm, "");
+    if (mode === "unmarked-without-terminator") editedCore = editedCore.replace("keep the core within budget.", "Preserve this locally maintained rule.") + "\nNever upload private project data.\n";
+    if (mode === "sandwich") editedCore = "# Agent Handoff Kit Core Runtime\n\nNever upload private project data.\n\n" + editedCore;
+    writeFileSync(customAgents, editedCore, "utf8");
+    const customBefore = governanceSnapshot(customCore);
+    for (const command of ["init", "upgrade"]) {
+      const customRejected = cli([command, "--yes", "--root", customCore], `unproven pre-formal ${mode} core ${command}`, { allowFailure: true });
+      assert(customRejected.status !== 0, `unproven pre-formal ${mode} core ${command} falsely completed`);
+      assert(equalSnapshots(customBefore, governanceSnapshot(customCore)), `unproven pre-formal ${mode} core changed on rejection`);
+      assert(!existsSync(path.join(customCore, "dev/governance_migrations/.upgrade.lock")), "rejected pre-formal custom core left a lock");
+    }
+  }
+  const probe = fresh("v063-chain-artifact");
+  const { artifactCli } = materializeOfficialInstall("0.3.63", probe);
+  for (const mode of ["lf", "crlf", "bom-crlf", "already-stamped", "mixed-appendices", "sequential"]) {
+    const project = fresh(`runtime-content-${mode}`);
+    materializeOfficialInstall(mode === "sequential" ? "0.3.62" : "0.3.63", project);
+    const ordinary = path.join(project, "user-data.txt");
+    writeFileSync(ordinary, "Ordinary data must remain exact.\r\nUTF-8: 貓\n", "utf8");
+    const ordinaryBefore = readFileSync(ordinary);
+    if (["crlf", "bom-crlf", "already-stamped", "sequential"].includes(mode)) {
+      for (const { targetRel } of installedFileContracts) {
+        const file = path.join(project, targetRel);
+        if (existsSync(file)) {
+          const body = Buffer.from(read(file).replace(/\r?\n/g, "\r\n"), "utf8");
+          writeFileSync(file, mode === "bom-crlf" ? Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), body]) : body);
+        }
+      }
+    }
+    if (mode === "already-stamped") {
+      const index = path.join(project, "dev/PROJECT_INDEX.md");
+      writeFileSync(index, materializeProjectIndexTemplateVersion(read(index), packageVersion), "utf8");
+    }
+    const prefix = "# Local Project Context\r\n\r\nPreserve UTF-8: 貓 and this mixed newline.\n\n";
+    const suffix = "\r\n## Local Appendix\r\n\r\nKeep user-defined branch restrictions.\n";
+    if (mode === "mixed-appendices") {
+      const agents = path.join(project, "AGENTS.md");
+      writeFileSync(agents, prefix + read(agents) + suffix, "utf8");
+      append(path.join(project, "dev/rules/closeout.md"), suffix);
+    }
+    if (mode === "sequential") {
+      const oldUpgrade = spawnSync(process.execPath, [artifactCli, "upgrade", "--yes", "--root", project], { encoding: "utf8", env: buildCliEnv() });
+      assert(!oldUpgrade.error && oldUpgrade.status === 0, `old sequential fixture failed\n${output(oldUpgrade)}`);
+      assert(!read(path.join(project, "dev/rules/onboarding.md")).includes("### 1.1 Public capability answer"), "old sequential fixture did not reproduce missed requirements");
+    }
+    const before = governanceSnapshot(project);
+    cli(["upgrade", "--dry-run", "--root", project], `${mode} runtime-content dry-run`);
+    assert(equalSnapshots(before, governanceSnapshot(project)), `${mode} dry-run changed inputs`);
+    cli(["upgrade", "--yes", "--root", project], `${mode} runtime-content upgrade`);
+    assertRuntimeContentCurrent(project);
+    if (mode === "bom-crlf") {
+      for (const { targetRel, strategy } of installedFileContracts) {
+        if (!["managed-core", "rule-pack"].includes(strategy)) continue;
+        assert(readFileSync(path.join(project, targetRel)).subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf])), `${targetRel} lost UTF-8 BOM`);
+      }
+    }
+    if (mode === "mixed-appendices") {
+      assert(read(path.join(project, "AGENTS.md")).startsWith(prefix), "AGENTS prefix bytes changed");
+      assert(read(path.join(project, "AGENTS.md")).endsWith(suffix), "AGENTS suffix bytes changed");
+      assert(read(path.join(project, "dev/rules/closeout.md")).endsWith(suffix), "rule appendix bytes changed");
+    }
+    assert(readFileSync(ordinary).equals(ordinaryBefore), "ordinary data changed during runtime update");
+    const updated = governanceSnapshot(project);
+    cli(["upgrade", "--yes", "--root", project], `${mode} same-version repeat`);
+    assert(equalSnapshots(updated, governanceSnapshot(project)), `${mode} repeat was not a no-op`);
+  }
+  const unknown = fresh("runtime-content-local-edit");
+  materializeOfficialInstall("0.3.63", unknown);
+  const closeout = path.join(unknown, "dev/rules/closeout.md");
+  writeFileSync(closeout, read(closeout).replace("Full closeout is differential", "Local closeout is deliberately different"), "utf8");
+  const before = governanceSnapshot(unknown);
+  const rejected = cli(["upgrade", "--yes", "--root", unknown], "unproven custom rule", { allowFailure: true });
+  assert(rejected.status !== 0, "unproven custom rule falsely completed");
+  assert(equalSnapshots(before, governanceSnapshot(unknown)), "unproven custom rule changed on rejection");
+  assert(!existsSync(path.join(unknown, "dev/governance_migrations/.upgrade.lock")), "rejected custom rule left a lock");
+  for (const [pack, snippet] of [
+    ["safety", "cmd /c rmdir"],
+    ["onboarding", "Scenario F. External-tool governance"],
+    ["agent-governance", "## Governance Bridge Workflow"]
+  ]) {
+    const project = install(`unknown-${pack}-missing-anchor`);
+    const target = path.join(project, `dev/rules/${pack}.md`);
+    const initial = read(target);
+    const changed = initial.replace(snippet, "Locally maintained rule; do not replace from a missing phrase.");
+    assert(changed !== initial, `${pack} negative did not remove its anchor`);
+    writeFileSync(target, changed, "utf8");
+    const snapshot = governanceSnapshot(project);
+    const result = cli(["upgrade", "--yes", "--root", project], `unknown ${pack} missing anchor`, { allowFailure: true });
+    assert(result.status !== 0, `unknown ${pack} missing anchor was auto-repaired without ownership proof`);
+    assert(equalSnapshots(snapshot, governanceSnapshot(project)), `unknown ${pack} changed on rejection`);
+    assert(!existsSync(path.join(project, "dev/governance_migrations/.upgrade.lock")), `unknown ${pack} rejection left a lock`);
+  }
+  console.log("ok: actual runtime requirements propagate across LF/CRLF, sequential upgrades and byte-preserved local appendices; unknown edits stop with zero writes");
+}
+
+function checkRealSessionLogEntryBoundary() {
+  const project = install("real-log-entry-boundary");
+  const logPath = path.join(project, "dev/SESSION_LOG.md");
+  const log = read(logPath);
+  const template = /^````markdown\r?\n([\s\S]*?)\r?\n````/m.exec(log)?.[1];
+  assert(template, "missing official log entry fixture");
+  const entry = template.replace("<YYYY-MM-DD>", "2026-09-05").replace(/<[^>]+>/g, (value) => value.startsWith("<!--") ? value : "fixture evidence");
+  // Keep the actual template marker before its H2, exactly as users copy it.
+  append(logPath, `\n${entry}\n`);
+  const before = governanceSnapshot(project);
+  cli(["upgrade", "--dry-run", "--root", project], "real log entry dry-run");
+  cli(["upgrade", "--yes", "--root", project], "real log entry repeat");
+  assert(equalSnapshots(before, governanceSnapshot(project)), "real log entry changed during same-version upgrade");
+  assert(read(logPath).includes(entry), "real log entry bytes lost");
+  const invalid = read(logPath).replace("````markdown\n", "````markdown\n<!-- ack:log-entry:start -->\n");
+  assert(invalid !== read(logPath), "duplicate template marker fixture did not mutate");
+  writeFileSync(logPath, invalid, "utf8");
+  const malformedBefore = governanceSnapshot(project);
+  const rejected = cli(["upgrade", "--yes", "--root", project], "duplicate marker inside real template", { allowFailure: true });
+  assert(rejected.status !== 0 && equalSnapshots(malformedBefore, governanceSnapshot(project)), "duplicate template marker did not reject with zero writes");
+  console.log("ok: real dated log entries are distinct from the template; malformed template markers remain blocked");
 }
 
 function checkHistoricalProjectIndexAuthorizedTransforms() {

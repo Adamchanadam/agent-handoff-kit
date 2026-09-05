@@ -39,6 +39,8 @@ Pre-closeout checkpoint edits, when explicitly authorized or required by the cor
 <!-- ack:field:task-essence -->
 - Task essence: TBD
 - User value: TBD
+- Parent outcome / consumer: TBD
+- Task position: TBD — parent -> current step and how this step advances it; use standalone when this is the whole task, unknown when not established.
 <!-- ack:field:success-criteria -->
 - Success criteria: TBD
 - Key background already read: TBD
@@ -48,7 +50,9 @@ Pre-closeout checkpoint edits, when explicitly authorized or required by the cor
 <!-- ack:section:active-objective -->
 ## Active Objective
 
-TBD
+- Current step: TBD
+- Resume point: TBD — next bounded action, target and last verified result; distinguish finished preparation from unfinished work.
+- Remaining acceptance: TBD — what still proves the current step and the parent outcome; if complete, cite evidence rather than infer from child completion.
 
 <!-- ack:section:completed-this-session -->
 ## Completed This Session
@@ -68,6 +72,8 @@ Recommended next step: TBD — reason: TBD
 ## Next Task Required Reading
 
 Before acting on the next task, read or mark blocked:
+
+In Source, identify the authoritative file/link, revision or unverified freshness, and relevant sections/range. In Why required, name the decision or acceptance it supports. In Status, record the previous session's actual depth (located / skimmed / relevant range read / verified), remaining unread scope, and what the next agent must read before acting. An old read claim is not a fresh read. For no required sources, state none with a reason; do not invent coverage.
 
 | Source | Why required | Status |
 |---|---|---|
@@ -142,7 +148,9 @@ Closeout-card rule: `closeout-status` reads only these existing handoff fields p
 Can the next AI continue from `AGENTS.md`, this handoff, and only the project index / rule packs required by the next task, without searching old log history?
 
 Answer: TBD
-If no, update this handoff before closeout.
+Reconstruction evidence: TBD — apply the packet-only reconstruction check in `dev/rules/closeout.md`; cite the sections supporting the outcome, task position, resume point, remaining acceptance and source coverage. Record gaps explicitly; a bare yes is insufficient.
+Keep the `Answer:` and `Reconstruction evidence:` labels. Use `yes`, `no` or `unknown` for Answer, followed by an explanation if needed. Narrative and section headings may use the project's language.
+If no, update this handoff before closeout. Unknown critical context blocks dependent work and is not permission to guess. A saved packet may honestly describe blocked work.
 
 Continuity rule: this file carries current state and next action. `dev/SESSION_LOG.md` carries recent evidence only. Archive old detail only when needed; do not create an archive directory by default.
 

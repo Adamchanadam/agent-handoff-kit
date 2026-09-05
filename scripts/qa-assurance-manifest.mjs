@@ -9,6 +9,7 @@ export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
   releaseReadinessCheck("install-lock-smoke", "check-install-lock-smoke.mjs", "install lock smoke QA", 120_000),
   releaseReadinessCheck("public-prototype", "check-public-prototype.mjs", "prototype QA", 120_000),
   releaseReadinessCheck("closeout-card", "check-closeout-card-contract.mjs", "closeout card contract QA", 120_000),
+  releaseReadinessCheck("handoff-continuity", "check-handoff-continuity.mjs", "published install to upgraded closeout continuity QA", 180_000),
   releaseReadinessCheck("closeout-efficiency", "check-closeout-efficiency.mjs", "closeout efficiency and terminal-state QA", 120_000),
   releaseReadinessCheck("public-mirror", "build-public-mirror.mjs", "public mirror QA", 180_000),
   releaseReadinessCheck("pack-scenarios", "check-pack-scenarios.mjs", "pack scenario QA", 120_000),

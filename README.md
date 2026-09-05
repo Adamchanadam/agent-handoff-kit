@@ -2,7 +2,7 @@
 
 English: [README.en.md](README.en.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-原始碼套件版本：`v0.3.64`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
+原始碼套件版本：`v0.3.65`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
@@ -42,6 +42,8 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 | `( o.o ) continuity ready` | 可以接力，AI 已讀到可繼續的狀態。 |
 | `( -.- ) handoff saved` | 已收工保存，下次可以再說「開工」。 |
 | `( x.x ) handoff blocked` | 不是壞了；只是仍有未保存、未提交、未驗證或需要處理的事。先照 Blocker 行處理，不要把本輪當作已完成交接。 |
+
+收工卡核對交接是否保存、必要欄位與已記錄的檢查結果；它不會自動證明任務結論正確。工作仍受阻時，只要原因、影響與續接條件已清楚保存，也可以完成交接；「已保存」不等於整體任務完成。
 
 ## 🧭 這個 repo 怎樣讀
 
@@ -97,9 +99,9 @@ Start Agent Handoff
 Work in <你的專案資料夾>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
 ```
 
-第一次安裝會把新手引導標記為待使用。若你安裝後只說 `Start Agent Handoff` 或「開工」，而沒有同句給出清楚任務，AI 應顯示開工卡並進入簡短新手歡迎引導；升級既有項目則不會重置這個流程。你已清楚描述目標和現有資料時，AI 可先用很短的新手框架說明工作節奏，再開始第一個安全步驟。日常「開工」先讀 `dev/SESSION_HANDOFF.md`；同一資料夾內不會再重讀 `START_NEXT_SESSION_PROMPT.txt` 或 `dev/SESSION_LOG.md`。提示副本只供尚未指向專案資料夾的 AI 接入。
+第一次安裝會把新手引導標記為待使用。只有該標記仍為 `eligible`、目前目標空白或 `TBD`，而且沒有同句明確任務時，AI 才在開工卡後進入簡短新手歡迎引導；升級既有項目不會重置這個標記。你已清楚描述目標和現有資料時，AI 可開始第一個安全步驟，不必先走新手流程。日常「開工」先讀 `dev/SESSION_HANDOFF.md`；同一資料夾內不會再重讀 `START_NEXT_SESSION_PROMPT.txt` 或 `dev/SESSION_LOG.md`。提示副本只供尚未指向專案資料夾的 AI 接入。
 
-「開工，繼續 &lt;任務&gt;」、「&lt;項目&gt; 開工」或 `Start Agent Handoff and continue &lt;task&gt;` 會直接接力。只有語句明顯可能指現實世界的開業、輪班或其他無關事件時，AI 才作一次簡短確認。
+「開工，繼續 &lt;任務&gt;」、「&lt;項目&gt; 開工」或 `Start Agent Handoff and continue &lt;task&gt;` 都是接力指令。只有語句明顯可能指現實世界的開業、輪班或其他無關事件時，AI 才作一次簡短確認。單獨開工或只加項目名稱，會恢復最小狀態、顯示開工卡與建議下一步，然後等待；不會因此研究、計劃、驗收、改檔、連網或啟用子代理。只有同句明確任務或長程指令才授權開始工作；上面列明的新手引導例外仍適用。
 
 然後用日常話描述你要完成的任務。AI 應先讀交接文件，說明目前狀態、下一步與風險，再開始工作。
 
@@ -121,7 +123,9 @@ handoff
 
 若你說的是「某某收工」（例如餐廳收工、今天活動收工）這類帶其他上下文的話，AI 應先反問你是否要執行 Agent Handoff Kit 收工交接，而不是立即改寫交接文件。
 
-AI 應更新交接文件，並同步更新下一次開工提示副本：
+AI 應把整體目標、目前子任務、準確續接點和剩餘驗收寫清楚，保留必要真源的版本、已讀段落、閱讀深度與未解缺口。簡單任務只記必要資訊，不必建立多層任務表。收工前，AI 要只憑交接內容重建下一步，再對照你的原始要求和實際成果，避免把小步完成當成整體完成；接續時仍須讀取任務所需真源，不能把上一位的「已讀」當作自己已核實。
+
+AI 應只更新有變的交接狀態，並核對下一次開工提示副本；有差異時才重新產生：
 
 ```text
 START_NEXT_SESSION_PROMPT.txt

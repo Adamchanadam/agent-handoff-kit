@@ -543,10 +543,10 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.3.64 source version · 三個日常情景 · 由第一句指令到長期接力</span>
+    <span class="kicker">v0.3.65 source version · 三個日常情景 · 由第一句指令到長期接力</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">三個日常情景 —— 整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進 —— 完整示範 Agent Handoff Kit 由安裝到接力的流程。每一步都會看到 AI 主動宣告載入哪個工作模式、怎樣計劃、怎樣驗收、何時同步下次接力提示。</p>
-    <p><strong>版本提示：</strong>本頁對齊 v0.3.64；<code>@latest</code> 實際取得版本以 npm registry 為準。以下終端機輸出是 v0.3.64 的示例。</p>
+    <p><strong>版本提示：</strong>本頁對齊 v0.3.65；<code>@latest</code> 實際取得版本以 npm registry 為準。以下終端機輸出是 v0.3.65 的示例。</p>
   </div>
 </header>
 
@@ -570,7 +570,7 @@
     <div class="cycle-grid">
       <div class="cycle-step c1"><span class="num">01</span><strong>安裝完成</strong><span>AI 已放好接力文件</span></div>
       <div class="cycle-step c2"><span class="num">02</span><strong>說「開工」</strong><span>讀取上一輪狀態</span></div>
-      <div class="cycle-step c3"><span class="num">03</span><strong>AI 繼續做事</strong><span>按任務載入規則</span></div>
+      <div class="cycle-step c3"><span class="num">03</span><strong>你提出任務，AI 才做事</strong><span>按已授權任務載入規則</span></div>
       <div class="cycle-step c4"><span class="num">04</span><strong>說「收工」</strong><span>保存交接與驗收</span></div>
       <div class="cycle-step c5"><span class="num">05</span><strong>下次再說「開工」</strong><span>新對話接回同一棒</span></div>
     </div>
@@ -579,7 +579,7 @@
       <div class="status-tile">
         <div class="face">( o.o )</div>
         <h2>continuity ready</h2>
-        <p>可以接力。AI 已讀到交接狀態,可按目前目標繼續。</p>
+        <p>已恢復交接狀態。你在同句或下一句提出任務後，AI 才開始工作。</p>
       </div>
       <div class="status-tile">
         <div class="face">( -.- )</div>
@@ -606,12 +606,12 @@
   <div class="wrap">
     <span class="badge">AI 工作規則</span>
     <h2>AI 不是只讀交接，也會按任務換工作模式</h2>
-    <p class="narrative">Agent Handoff Kit 的重點不只是保存上次做到哪裡。它也會讓 AI 在每次開工後，按任務選擇合適的工作規則。新手只需記住一句：你講目的，AI 負責選工作規則；高風險操作要先停下來問你。</p>
+    <p class="narrative">Agent Handoff Kit 的重點不只是保存上次做到哪裡。你提供具體任務後，它也會讓 AI 選擇合適的工作規則。單獨「開工」只恢復狀態，不自動做事。新手只需記住一句：你講目的，AI 負責選工作規則；高風險操作需要明確授權。</p>
 
     <div class="block file">
-      <div class="block-header"><span class="label">工作流程</span><span class="meta">開工後自動發生</span></div>
+      <div class="block-header"><span class="label">工作流程</span><span class="meta">恢復狀態後，由具體任務啟動工作</span></div>
       <div class="block-body">1. 開工：AI 先讀權威 handoff 的目前狀態、下一步與風險；專案索引按任務需要才讀。
-2. 判斷任務：它判斷你要寫作、開發、研究、整理知識庫，還是處理外部工具。
+2. 你提出具體任務後，AI 才判斷你要寫作、開發、研究、整理知識庫，還是處理外部工具。
 3. 載入規則：它只載入需要的規則，不把所有內部文件一次塞進上下文。
 4. 執行與檢查：先計劃、再讀檔、再修改，最後用可驗收方式檢查。
 5. 收工：有長期價值的狀態會寫回交接；一次性輸出不污染長期規則。</div>
@@ -720,7 +720,7 @@ create: 21
 🔀 merged: 0
 ⏭️  skipped existing: 0
 
-📦 版本:v0.3.64
+📦 版本:v0.3.65
 🛠️  模式:first-install
 🔎 剛完成:init 命令;create 21 / merge 0 / skip 0 / conflict 0。
 🚀 下一步:不用再留在終端機。打開 AI 工具,啟動 Agent Handoff。
@@ -764,7 +764,7 @@ create: 21
     <div class="wrap">
       <span class="badge">STEP 02 · CASE A</span>
       <h2>開工啟動接力 —— 第一次會有新手歡迎,有任務才開始工作</h2>
-      <p class="narrative">打開能讀寫本機專案資料夾的 AI agent,開一個新對話。若 AI 已在正確專案內,可以只輸入 Start Agent Handoff 或「開工」；第一次安裝且同句沒有任務時,這會恢復最低必要狀態、顯示目前目標、風險與建議下一步，並進入簡短新手歡迎，然後停下等待你下一句。既有項目升級後,同一句 plain start 則維持狀態提示。若平台能安全讀回及控制目前標題,AI 可用已載入事實把 generic / stale title 改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」;已有清楚標題便保留,不支援時靜默略過,亦不為命名額外讀檔或連網。標題只供顯示,不代表狀態、進度或授權。若你在同一句寫明目標,或明確說「繼續做到下一個 blocker / 完成目前目標」,AI 才可按普通任務規則開始工作。</p>
+      <p class="narrative">打開能讀寫本機專案資料夾的 AI agent,開一個新對話。若 AI 已在正確專案內,可以只輸入 Start Agent Handoff 或「開工」；第一次安裝且同句沒有任務時,這會恢復最低必要狀態、顯示目前目標、風險與建議下一步，並進入簡短新手歡迎，然後停下等待你下一句。既有項目升級後,同一句 plain start 則維持狀態提示。若平台能安全控制目前對話標題，AI 可用已載入事實把 generic / stale title 改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」;能讀回時先避免覆蓋已有清楚標題；若工具能安全指向目前對話，讀回並非必要條件。不支援時靜默略過，亦不為命名額外讀檔或連網。標題只供顯示,不代表狀態、進度或授權。若你在同一句寫明目標,或明確說「繼續做到下一個 blocker / 完成目前目標」,AI 才可按普通任務規則開始工作。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -820,17 +820,17 @@ create: 21
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI · 任務收斂結果</span>
-            <p>明白。你已在這一句提供明確任務、資料夾、分類方向和安全限制。Handoff Kit 會把今天的目標、風險、檢查方式和下次接力提示寫入項目文件。今次第一個小任務建議收窄為:</p>
+            <p>明白。你已在這一句提供明確任務、資料夾、分類方向和安全限制。若產生必須跨對話保留的狀態，AI 會按保存規則寫入最小適當位置；不會因收到任務就立即更新所有交接檔。今次第一個小任務是:</p>
             <p><strong>先建立一個可重用的下載目錄整理工具,但只做到預演清單;不正式移動檔案。</strong></p>
             <p>原因:這個任務涉及大量檔案移動,先做預演最安全。你確認預演結果後,下一步才正式執行。</p>
-            <p>如果你同意這個第一步,我會載入正式工作模式:</p>
+            <p>你已要求安全、可回復的工具與預演，我會直接載入正式工作模式:</p>
             <p>
               <span class="pill coding">寫代碼</span>寫那個下載目錄整理小工具<br/>
               <span class="pill safety">安全</span>因為要移動大量檔案,執行前要先預演列清單由你確認,絕對不會默默移動或者覆寫
             </p>
             <p>我接著要做的工作流程:</p>
             <p class="loop">計劃(列清楚分類邏輯、目錄結構、預演範圍)<br/>→ 讀取(掃描下載目錄樣本)<br/>→ 改動(寫 script + 預演模式)<br/>→ 檢查(你確認預演清單)<br/>→ 正式執行(按你確認的清單移動檔案)</p>
-            <p><strong>是否以這個小任務開始?</strong></p>
+            <p><strong>第一個範圍核對：今次先做到工具與預演清單，正式移動另等你批准。這與你剛才的要求一致，我會開始；只有範圍仍不清楚時才需要追問。</strong></p>
           </div>
         </div>
       </div>
@@ -841,7 +841,7 @@ create: 21
         <ul>
           <li><strong>第一次單獨開工可含新手歡迎</strong>:AI 不是把所有規則丟給你,亦不會把空白狀態自動變成任務計劃；它只會在狀態卡後加上簡短歡迎。</li>
           <li><strong>下一句任務才進入工作</strong>:本例是在用戶補上 Downloads 任務後,AI 才切入寫代碼、安全等正式模式。</li>
-          <li><strong>高風險工作仍會停手</strong>:檔案移動屬不可逆動作,AI 必須在計劃階段停手,等你確認才動手。</li>
+          <li><strong>高風險工作仍會停手</strong>:大量檔案正式移動前，AI 必須列明實際路徑與影響，取得明確批准；已要求的唯讀預演不必重複請准。</li>
         </ul>
       </div>
     </div>
@@ -851,8 +851,8 @@ create: 21
   <section class="step-section" id="a-step-4">
     <div class="wrap">
       <span class="badge">STEP 04 · CASE A</span>
-      <h2>你確認,AI 進入計劃 → 讀取 → 改動 寫程式</h2>
-      <p class="narrative">本例涉及過千份檔案的正式移動,所以即使 AI 已判斷工作情境,仍要先取得確認。這裡的「確認」來自高風險安全邊界,不是所有新手任務都必須完成固定五步。</p>
+      <h2>範圍已清楚，AI 進入計劃 → 讀取 → 改動 寫程式</h2>
+      <p class="narrative">本例把正式移動與安全預演分開。你已要求工具與預演，AI 可開始必要讀取、寫程式和檢查；以下補充回覆是對話示例，不是每一步都必須再取得批准。過千份檔案的正式移動仍須按預演清單另取明確授權。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -876,7 +876,7 @@ create: 21
             <p><strong>子目錄結構</strong>:每類裡面再按檔案最後修改年份分,例如 <code>documents/2025/</code>、<code>documents/2024/</code>。</p>
             <p><strong>檔名規則</strong>:保留原檔名;如有重名加數字尾碼(_1、_2)。</p>
             <p><strong>預演範圍</strong>:掃描整個 <code>~/Downloads</code> 目錄;不會跟蹤捷徑、不會處理隱藏檔。</p>
-            <p>我現在進入讀取階段掃描你的目錄,然後寫 script 並執行一次預演讓你看清單。<strong>這個計劃可以嗎?</strong></p>
+            <p>我現在按你已給的範圍進入讀取階段掃描目錄，然後寫 script 並執行一次預演讓你看清單。<strong>正式移動仍等你核對預演後明確批准。</strong></p>
           </div>
         </div>
 
@@ -897,7 +897,7 @@ create: 21
 ~/Downloads/設計稿備份.zip                 (2025-01, archive)
 ~/Downloads/Screenshot 2025-03-15.png    (2025-03, image)</pre>
             <p>已寫好 script 到 <code>~/Downloads-tidy/sort_downloads.py</code>,加入 <code>--dry-run</code> 選項。即將執行預演,只會印出「哪個檔案會去哪裡」的清單,完全不會移動任何東西。</p>
-            <p><strong>準備好執行預演嗎?</strong></p>
+            <p><strong>你已要求預演，我現在執行，下一步會展示清單。</strong></p>
           </div>
         </div>
       </div>
@@ -906,9 +906,9 @@ create: 21
         <span class="label">實際運作</span>
         <h3>計劃 → 讀取 → 改動 → 檢查 → 正式執行 五個階段</h3>
         <ul>
-          <li><strong>計劃階段</strong>必須列清楚:目標、範圍、驗收標準、哪些情況不處理 —— 不是立即寫 code,而是先寫清楚規則由你確認。</li>
+          <li><strong>計劃階段</strong>列清楚目標、範圍、驗收標準及不處理的情況；清楚且已授權的預演直接進行，只有需要取捨或正式高風險操作才另取確認。</li>
           <li><strong>讀取階段</strong>是收集事實 —— 真實掃描你的目錄看樣本,不會憑「估計」寫 script。</li>
-          <li><strong>改動階段</strong>寫東西但不直接執行 —— 寫好 script、加預演選項,正式移動前再停手等確認。</li>
+          <li><strong>改動階段</strong>寫好 script、加預演選項並執行安全預演；正式移動前停手等明確批准。</li>
         </ul>
       </div>
     </div>
@@ -1036,7 +1036,7 @@ Failed:              0 files
     <div class="wrap">
       <span class="badge">STEP 06 · CASE A</span>
       <h2>收工 —— 一句「收工」,AI 自動更新交接與輸出下次提示</h2>
-      <p class="narrative">準備結束本輪工作時,你不需要記住要更新哪份檔案。輸入一句「收工」、「Wrap up Agent Handoff」、「wrap up」或者「handoff」,AI 偵測到收工意圖,即進入完整收工流程:更新交接文件、寫今次紀錄入工作日誌,並把下一次接力內容同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code> 副本。</p>
+      <p class="narrative">準備結束本輪工作時,你不需要記住要更新哪份檔案。輸入一句「收工」、「Wrap up Agent Handoff」、「wrap up」或者「handoff」,AI 偵測到收工意圖,即進入完整收工流程:更新交接文件、寫今次紀錄入工作日誌,並核對下一次接力內容與 <code>START_NEXT_SESSION_PROMPT.txt</code> 副本；只有內容不同才重新產生副本。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1048,16 +1048,20 @@ Failed:              0 files
 
         <div class="chat-row">
           <div class="chat-bubble ai">
-            <span class="who">AI · 收工流程</span>
+            <span class="who">AI · 收工流程（示例）</span>
+            <p>已先只憑交接包重建父目標、目前子任務、續接點、剩餘驗收和真源閱讀覆蓋，再對照原始要求與本輪實際讀過的來源；已在既有 <code>Reconstruction evidence</code> 記錄所依據段落。本例的工具與整理工作已完成，公開發佈仍未開始。已核對工作區、保存要求及提示鏡像。</p>
+            <p>最後實際執行下列命令，才照錄它的狀態卡。以下為成功輸出示例；真實執行若回報 blocked，必須原樣報告，不能照貼成功卡。</p>
+<pre>$ npx --yes @adamchanadam/agent-handoff-kit@latest closeout-status --root ~/Downloads-tidy</pre>
 <pre>   /\_/\   Agent Handoff Kit vX.Y.Z
   ( -.- )  handoff saved
    > ^ <
 
+status: complete
 ✅ 完成:下載目錄整理小工具完成,1043 個檔案已分入 5 類乘以年份子目錄
 🔎 檢查:預演 + 正式執行 + 0 失敗
 📌 交接:下次開工提示已備好
 ⚠️ 邊界:尚未做發佈(寫 README + 建版本標籤 + 推上 GitHub)</pre>
-            <p>我已經:</p>
+            <p>這表示交接已保存，並不表示所有後續任務或公開發佈已完成。我已經:</p>
             <ul>
               <li>更新交接文件 —— 當前狀態改為「<code>sort_downloads.py</code> 已完成 + 已正式執行」,下一步列出「加 README + 建版本標籤 + 推上 GitHub」。</li>
               <li>新增條目入工作日誌 —— 包含今次的預演清單摘要、正式執行結果與本機版本紀錄。</li>
@@ -1078,7 +1082,7 @@ Before changing anything, tell me the current state and your recommended next st
           <li><strong>自然收工</strong>:「收工」、「Wrap up Agent Handoff」、「wrap up」、「handoff」、「end session」、「done for today」等清楚短語都會觸發同一套收工流程,你不需要記長指令。</li>
           <li><strong>交接文件對賬式更新</strong>:AI 不會將新狀態追加在舊狀態下面 —— 必須逐段對賬,改為當前事實,避免新日期配舊快照。</li>
           <li><strong>下次開工提示自動同步</strong>:真正接力內容會寫入 <code>START_NEXT_SESSION_PROMPT.txt</code> 副本。下次新對話只需啟動接力,不用手動複製整份提示檔。交接文件仍是權威來源,副本只是方便。</li>
-          <li><strong>工作日誌自動整理</strong>:長期使用後舊條目會自動縮成短索引,再之後封存。主檔保持簡短,日常開工不需要打開。</li>
+          <li><strong>工作日誌按門檻整理</strong>:每次收工先做維護觸發檢查；只有達到規則門檻時才整理或封存，未達則記錄無需處理。日常開工不需要打開工作日誌。</li>
         </ul>
       </div>
     </div>
@@ -1130,14 +1134,23 @@ Before changing anything, tell me the current state and your recommended next st
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你</span>
-            <p>計劃可以。公開 repo,名用 <code>downloads-tidy</code>。</p>
+            <p>計劃可以。公開 repo,名用 <code>downloads-tidy</code>。先準備好 README；本地提交、標籤和外部發佈請分開列明影響後讓我授權。</p>
           </div>
         </div>
 
         <div class="chat-row">
           <div class="chat-bubble ai">
-            <span class="who">AI · 寫 README + 本機提交與版本標籤</span>
-            <p>README 已寫好(三段:用途、安裝、用法選項)。Git 初始化、第一個提交、建版本標籤 v0.1.0 全部執行完。</p>
+            <span class="who">AI · README 已備好，列明本機 Git 範圍</span>
+            <p>README 已寫好（三段：用途、安裝、用法選項），並已讀回。剛才同意計劃並不等於授權提交或建立標籤。已核對 <code>~/Downloads-tidy</code> 的檔案與 Git 狀態；本機動作只包括初始化 Git、加入 <code>README.md</code> 和 <code>sort_downloads.py</code>、建立首個提交及本地標籤 <code>v0.1.0</code>。不加入下載原檔、憑證或治理狀態，不寫入遠端。確認這個本機範圍嗎？</p>
+          </div>
+        </div>
+        <div class="chat-row user"><div class="chat-bubble user"><span class="who">你</span><p>授權上述本機範圍：在 <code>~/Downloads-tidy</code> 初始化 Git，只提交 <code>README.md</code> 和 <code>sort_downloads.py</code>，建立本地 <code>v0.1.0</code> 標籤。暫不建立遠端倉庫或推送。</p></div></div>
+        <div class="chat-row"><div class="chat-bubble ai"><span class="who">AI · 本機 Git 結果（示例）</span>
+            <p>已按授權完成以下本機動作，並讀回提交與標籤：</p>
+<pre>$ git init -b main
+$ git add README.md sort_downloads.py
+$ git commit -m "Initial release: sort_downloads.py"
+$ git tag v0.1.0</pre>
 <pre>$ git log --oneline
 8e3a2f1 (HEAD -> main, tag: v0.1.0) Initial release: sort_downloads.py</pre>
             <p><strong>接下來我會代你建 GitHub repo + 推送 + 建 release。這幾步屬不可逆動作,我會逐步報告每一個結果,有任何不符預期立即停。確認執行嗎?</strong></p>
@@ -1147,7 +1160,7 @@ Before changing anything, tell me the current state and your recommended next st
         <div class="chat-row user">
           <div class="chat-bubble user">
             <span class="who">你</span>
-            <p>好,執行。</p>
+            <p>授權建立公開 GitHub 倉庫 <code>yourname/downloads-tidy</code>，加入此遠端，推送 <code>main</code> 與 <code>v0.1.0</code>，建立該版本 GitHub Release，並讀回核對。只發佈剛才核對過的工具與 README。</p>
           </div>
         </div>
 
@@ -1175,7 +1188,7 @@ Before changing anything, tell me the current state and your recommended next st
           <li><strong>新 AI 不需要追問背景</strong>:它只讀入口文件與交接文件,立即知道上次做到哪、下一步是什麼、有什麼風險。新對話、新工具、新一天都接得上。</li>
           <li><strong>跨工具一致</strong>:今天是 Claude,下次轉 Codex 或者 Antigravity 亦可用同一套交接資料；實際入口支援以該工具官方文件與本機實測為準。</li>
           <li><strong>外部接口代你執行 + 回讀核對</strong>:你已連好 GitHub 接口,AI 直接代你建 repo、推送、建 release,寫入後立即回讀核對是否一致。如果未連好接口,AI 改為列詳細手動步驟由你親手做。</li>
-          <li><strong>不可逆動作必先明確批准</strong>:即使代你執行,建立版本標籤、推送、建 release 每一步都要你點頭。發佈模式紀律不會因有接口連好而放鬆。</li>
+          <li><strong>不可逆動作必先明確批准</strong>:計劃同意不涵蓋提交或標籤；本機 commit/tag 與遠端建立倉庫、推送、release 要有各自清楚的範圍授權。發佈模式紀律不會因接口已連好而放鬆。</li>
           <li><strong>機密分離</strong>:GitHub 接口的存取憑證由 AI 工具的安全儲存管理,完全不會寫入 <code>dev/</code> 任何治理檔。</li>
         </ul>
       </div>
@@ -1235,12 +1248,17 @@ Google Drive
 
       <p class="narrative" style="margin-top: 20px;">準備好 Notion 資料庫與本機資料夾結構之後,在 <code>~/cafe-research/</code> 打開能讀寫本機資料夾的 AI agent,請它讀安裝指令頁並在這個資料夾安裝或升級;想手動處理時,才打開終端機執行同一句安裝指令。</p>
 
+      <div class="block ai">
+        <div class="block-header"><span class="label">AI 對話</span><span class="meta">~/cafe-research</span></div>
+        <div class="block-body">請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html ，並在這個資料夾安裝或升級 Agent Handoff Kit。</div>
+      </div>
+
       <div class="block terminal">
         <div class="block-header"><span class="label">終端機</span><span class="meta">~/cafe-research</span></div>
         <div class="block-body">$ <span class="hl">npx --yes @adamchanadam/agent-handoff-kit@latest init</span>
 
 ✅ created: 21
-📦 版本:v0.3.64
+📦 版本:v0.3.65
 🛠️  模式:first-install
 🚀 下一步:開新 AI 對話。若 AI 已在資料夾內,輸入 Start Agent Handoff 或「開工」;若尚未指向資料夾,才使用帶路徑啟動句。</div>
       </div>
@@ -1283,7 +1301,7 @@ Google Drive
           <div class="chat-bubble user">
             <span class="who">你</span>
             <p>我想研究自己社區是否可以開一間咖啡店,要寫一份十頁市場調查報告,結論回答「是否值得做加下一步行動建議」,給自己與太太看,亦想拿去與業界朋友傾談。</p>
-            <p>資料分工:Notion 有一個索引資料庫,登記了 30 條以上參考資料(政府統計、行業報告、競品 menu 截圖、訪談筆記),每行有「本機路徑」指向 <code>~/cafe-research/reference/</code> 裡面對應檔案。本機 <code>reference/</code> 已經放好對應 PDF、截圖、筆記。報告草稿請寫入 <code>~/cafe-research/report/</code>。完成後請幫我上傳 Google Drive、設定分享權限給合伙人、太太、業界朋友張先生(我之後可以給你他們的電郵地址),並保存分享連結。Notion 與 Google Drive 接口我已連好,你可以直接讀寫。</p>
+            <p>資料分工:Notion 有一個索引資料庫,我估計登記了約 30 條參考資料(政府統計、行業報告、競品 menu 截圖、訪談筆記)，實際數目請你核對；每行有「本機路徑」指向 <code>~/cafe-research/reference/</code> 裡面對應檔案。本機 <code>reference/</code> 已經放好 PDF、截圖、筆記，是否齊全亦請核對。報告草稿請寫入 <code>~/cafe-research/report/</code>。完成後請幫我上傳 Google Drive、設定分享權限給合伙人、太太、業界朋友張先生(我之後可以給你他們的電郵地址),並保存分享連結。Notion 與 Google Drive 接口我已連好,你可以直接讀寫。</p>
           </div>
         </div>
       </div>
@@ -1332,7 +1350,7 @@ Google Drive
               <li>列出我會如何對齊 Notion 索引與本機 reference;如果發現「Notion 有登記但本機沒有檔案」或者「本機有檔但 Notion 沒有登記」我會如何處理。</li>
               <li>列出十頁報告的章節結構,等你確認才開始寫。</li>
             </ol>
-            <p><strong>你確認進入計劃嗎?</strong></p>
+            <p><strong>我會先完成已要求的唯讀對齊與章節建議；來源缺口如何取捨及具體外部寫入，再按結果請你決定。</strong></p>
           </div>
         </div>
       </div>
@@ -1367,7 +1385,7 @@ Google Drive
         <div class="chat-row">
           <div class="chat-bubble ai">
             <span class="who">AI · 讀取階段(用 Notion 接口直接對齊)</span>
-            <p>直接讀你的 Notion 資料庫「Cafe Research Index」,共 32 條紀錄。對齊本機 <code>reference/</code> 裡面檔案:</p>
+            <p>直接讀你的 Notion 資料庫「Cafe Research Index」，初始共 29 條紀錄。對齊本機 <code>reference/</code> 裡面檔案；本機另有 3 份未登記檔案，不算入這 29 條:</p>
 <pre>== 對齊結果 ==
 ✅ Notion 與本機都有, path 對:        24 條
 ⚠️ Notion 有登記, 本機沒有對應檔案:    5 條
@@ -1408,8 +1426,9 @@ Google Drive
             <p>好,完成以下幾件事:</p>
             <ul>
               <li>5 條暫缺的 reference 已寫入項目索引「待補來源」段,寫報告時相關章節會自動標「結論為暫定」。</li>
-              <li>3 條本機未登記的 reference 已寫入 Notion 資料庫「Cafe Research Index」,每行寫入後立即回讀確認資料正確 + 本機路徑對齊。Notion 與本機重新同步。</li>
+              <li>3 條本機未登記的 reference 已寫入 Notion 資料庫「Cafe Research Index」，每行寫入後立即回讀確認資料正確及本機路徑對齊。登記總數由 29 增至 32：27 條有可讀本機檔案，5 條仍待補。</li>
             </ul>
+            <p>接著已讀完這 27 份可用原文的報告相關範圍，逐項記錄版本、閱讀範圍及缺口；另外 5 份仍未取得，沒有計作已讀。可用與已讀是兩次不同核對。</p>
             <p>準備好可以進入改動階段寫報告。<strong>十頁報告章節結構建議如下,你確認才開始寫:</strong></p>
             <ol>
               <li>摘要(1 頁)—— 結論加三點主因</li>
@@ -1468,7 +1487,7 @@ Google Drive
             <ul>
               <li><strong>結論</strong>:可做,但建議 6 個月試水溫(快閃店 / 共享廚房模式)而非一開頭就承租獨立鋪。主因:社區消費力夠、競爭密度中等、起步資本支出風險可控。</li>
               <li><strong>5 條暫缺來源</strong>的相關章節已標「結論為暫定,待相關資料補齊重審」—— 涉及 2 個子章節。</li>
-              <li><strong>引用</strong>:每章節尾有註腳列引用的 Notion 紀錄編號與本機檔案路徑共 24 個 —— 你可以逐條追溯回。</li>
+              <li><strong>引用</strong>:每段論述有引用註腳，章節尾列 Notion 紀錄編號與本機檔案路徑，共引用 24 份來源 —— 你可以逐條追溯回。</li>
             </ul>
             <p>要輸出什麼格式?常見選擇:</p>
             <ul>
@@ -1521,7 +1540,7 @@ Google Drive
     <div class="wrap">
       <span class="badge">STEP 06 · CASE B</span>
       <h2>收工 —— 與 Case A 一樣的收工流程,分享連結已由接口直接寫入</h2>
-      <p class="narrative">收工指令與 Case A 一樣 —— 一句「收工」或者「wrap up」。AI 進入完整收工流程。今次因為 Google Drive 接口已連好,分享連結已在前一步由 AI 上傳後回讀核對,收工階段所有外部來源狀態都實際對齊(沒有「待填」缺口)。</p>
+      <p class="narrative">收工指令與 Case A 一樣 —— 一句「收工」或者「wrap up」。AI 進入完整收工流程。本例的 Google Drive 分享連結已在前一步實際上傳並回讀核對；這只證明該外部寫入完成。來源總數為 32 條，其中 27 份已讀相關範圍、5 份仍待補，不能把外部同步完成當成研究全部完成。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1533,20 +1552,24 @@ Google Drive
 
         <div class="chat-row">
           <div class="chat-bubble ai">
-            <span class="who">AI · 收工流程</span>
+            <span class="who">AI · 收工流程（示例）</span>
+            <p>先只憑交接包重建報告父目標、已完成草稿、收到意見後的續接點、剩餘來源驗收，以及 27 份已讀範圍和 5 份未取得資料；再對照原要求與實際來源，在 <code>Reconstruction evidence</code> 引用相關交接段落。已核對本機及外部寫入結果、保存要求與提示鏡像。</p>
+            <p>最後實際執行 <code>closeout-status</code>，再照錄結果。以下是成功輸出示例，並不是本指南真的操作了你的資料；若命令受阻，應報告實際 blocked 卡。</p>
+<pre>$ npx --yes @adamchanadam/agent-handoff-kit@latest closeout-status --root ~/cafe-research</pre>
 <pre>   /\_/\   Agent Handoff Kit vX.Y.Z
   ( -.- )  handoff saved
    > ^ <
 
+status: complete
 ✅ 完成:市場調查報告草稿完成 (10.3 頁), 輸出做 docx, Google Drive 上傳 + 分享完成
 🔎 檢查:24 條引用追溯, 5 條暫缺已標待處理, Notion 3 行寫入回讀正確, Google Drive 分享連結回讀正確
 📌 交接:下次開工提示已備好
 ⚠️ 邊界:5 條 reference 仍待處理, 影響 2 個子章節</pre>
-            <p>已對賬式更新:</p>
+            <p>交接已保存，但報告仍有明示的未解來源，不代表研究已全數驗收。已對賬式更新:</p>
             <ul>
               <li>交接文件當前狀態:報告草稿與最終 docx 已生成(位置 <code>report/report-final.docx</code>);Google Drive 分享連結 <code>https://drive.google.com/file/d/.../view</code> 已分享給合伙人、太太、業界朋友張先生;下一步:等合伙人意見後修訂。</li>
               <li>工作日誌新增條目:Notion 對齊結果(3 行直接寫入 + 回讀正確)、5 條待處理、章節結構、引用數目、Google Drive 上傳與分享。</li>
-              <li>項目索引資料來源:32 條已讀入 reference 加 5 條待處理加報告位置 + Google Drive 資料夾。已連接的 Notion 與 Google Drive 接口最新核實日期更新為今日。</li>
+              <li>項目索引資料來源:32 條已登記來源（27 份已讀報告相關範圍、5 份待處理），並記錄報告位置及 Google Drive 資料夾。Notion 與 Google Drive 只記錄本輪實際成功探測的時間，沒有探測的接口不更新核實日期。</li>
             </ul>
             <p>下次開工在同一專案內說 <code>Start Agent Handoff</code> 或「開工」即可看回狀態;要立即繼續,就在同一句或下一句講清楚下一個任務。真正接力內容已同步寫入 <code>START_NEXT_SESSION_PROMPT.txt</code>。</p>
             <p>若下一個 AI 尚未指向資料夾,才用帶路徑啟動句:</p>
@@ -1561,8 +1584,8 @@ Before changing anything, tell me the current state and your recommended next st
         <h3>跨案例同一套收工</h3>
         <ul>
           <li><strong>對賬式而非追加</strong>:AI 不會將新狀態追加在舊狀態下面 —— 當前狀態必須逐段對賬覆寫。</li>
-          <li><strong>有接口連好就寫實際狀態,沒有就留待補</strong>:已連好接口的項目,外部狀態(Google Drive 連結 / Notion 寫入)由 AI 直接驗證後保存;沒有「待你補」缺口。如未連接接口,AI 改為留待你親手補上的空位 —— 仍然守「未核實的事實不可寫作已核實」紀律。</li>
-          <li><strong>接口最新核實日期更新</strong>:每次收工將今日成功核實的接口最新日期更新 —— 下次開工 AI 知道哪些接口仍信得過、哪些可能需要重連。</li>
+          <li><strong>有接口連好就寫實際狀態,沒有就留待補</strong>:外部狀態（Google Drive 連結／Notion 寫入）須實際驗證後保存；接口已連接不代表全部來源已讀或完整。本例仍有 5 份來源待補。如未連接或未成功寫入，AI 記錄實際缺口及可行手動步驟，不能把未核實事實寫成已核實。</li>
+          <li><strong>接口最新核實日期更新</strong>:只記錄本輪實際成功探測的日期；下次真正使用前仍按需要重新核實，不把上次成功當成永久可用，也不因收工便探測所有接口。</li>
           <li><strong>跨案例一致</strong>:Case A 與 Case B 兩個任務性質完全不同,但收工流程同一套 —— 將來你做第三個、第四個案例,流程仍是這套。</li>
         </ul>
       </div>
@@ -1611,7 +1634,7 @@ Before changing anything, tell me the current state and your recommended next st
             </p>
             <p>計劃:</p>
             <ol>
-              <li>在 <code>reference/</code> 選出 3 至 4 條與「快閃店 / 共享廚房」相關的 reference(我會用 Notion 索引裡面的標籤找)。</li>
+              <li>在 <code>reference/</code> 選出 3 至 4 條與「快閃店 / 共享廚房」相關的 reference（我會用 Notion 索引裡面的標籤找）。計算前重新讀取本次修訂所需的原文範圍，核對版本、假設及來源缺口的影響；上次已讀的紀錄不等於本輪已核實。</li>
               <li>計算 3 個月方案的資本支出(主要是無租金鋪位 → 市集場地租 / 共享廚房月費加設備加初步存貨)。</li>
               <li>在報告的「結論加行動建議」章節加一個子章節:「替代方案 B:3 個月快閃加共享廚房」。</li>
               <li>結論段加一句總結:「主方案 6 個月對比替代方案 B 3 個月的取捨是 X 對 Y」。</li>
@@ -1675,7 +1698,7 @@ Before changing anything, tell me the current state and your recommended next st
       <span class="badge" style="background: var(--red);">CASE C · 結構說明</span>
       <h2>這個案例跨越多個月份,以時間軸標記。</h2>
       <p class="narrative">Case A 與 Case B 展示單一對話內的七步流程。Case C 則展示<strong>跨越多輪對話、多個月份</strong>的長期項目演進。重點不在每日的具體動作,而在 AI 如何<strong>自動維護項目的長期紀錄</strong> —— 任務需求的演進、決策的累積、架構選擇的歷史、累積式的學習觀察。</p>
-      <p class="narrative">這不是一次指令即完成的展示。它需要你在多輪對話中每次準備結束本輪工作時照常「收工」,讓 AI 持續寫入交接文件與長期紀錄。你的角色仍然是:提需求、提供參考資料、做驗收。AI 的角色是:讀齊長期紀錄與當前狀態,自動補入長期演進,<strong>不需要你打開檔案,亦不需要你記住分檔結構</strong>。</p>
+      <p class="narrative">這不是一次指令即完成的展示。它需要你在多輪對話中每次準備結束本輪工作時照常「收工」,讓 AI 對賬交接文件，並在觸發條件適用時維護長期紀錄。你的角色仍然是:提需求、提供參考資料、做驗收。AI 的角色是:讀當前狀態及任務所需的長期紀錄，補入實質演進，<strong>不需要你打開檔案,亦不需要你記住分檔結構</strong>。</p>
     </div>
   </section>
 
@@ -1684,7 +1707,7 @@ Before changing anything, tell me the current state and your recommended next st
     <div class="wrap">
       <span class="badge">DAY 1 · CASE C</span>
       <h2>開新項目 —— 第一個任務描述進入交接文件</h2>
-      <p class="narrative">你先按前面流程安裝,再開新 AI 對話,把 Start Agent Handoff 與第一個任務一併輸入:「我想開發一個 AI 編輯助手」。AI 讀齊入口文件後,會自行判斷為建構系統情境,不再要求選 A 至 F,並把任務描述記入交接文件當前目標。<strong>項目決策日誌</strong>暫時保持空白 —— 因為短期單一任務的信號為主(對話次數 1,沒有任務演進跡象),AI 暫不主動維護。</p>
+      <p class="narrative">你先按前面流程安裝,再開新 AI 對話,把 Start Agent Handoff 與第一個任務一併輸入:「我想開發一個 AI 編輯助手」。AI 讀齊入口文件後,會自行判斷為建構系統情境,不再要求選 A 至 F,並在需要跨對話保存且 handoff 是最小適當位置時，把任務描述記入交接文件當前目標。<strong>項目決策日誌</strong>暫時保持空白 —— 因為短期單一任務的信號為主(對話次數 1,沒有任務演進跡象),AI 暫不主動維護。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -1698,7 +1721,7 @@ Before changing anything, tell me the current state and your recommended next st
           <div class="chat-bubble ai">
             <span class="who">AI · Day 1 啟動</span>
             <p>讀齊入口文件、交接文件(空)、項目索引(模板)、工作規則路由表。載入寫代碼模式 + 研究模式(因為要先了解現有 AI 編輯工具的特性)。</p>
-            <p>記入交接文件當前目標:「AI 編輯助手可用版本 —— markdown 文字校對與風格建議」。準備進入計劃階段。</p>
+            <p>本例已確認要跨多次對話完成此目標，handoff 是目前最小的狀態保存位置，故記入：「AI 編輯助手可用版本 —— markdown 文字校對與風格建議」。準備進入計劃階段。</p>
             <p style="font-size:13px;opacity:0.7;">項目決策日誌保持空白 —— 短期單一任務的預設狀態。</p>
           </div>
         </div>
@@ -1805,7 +1828,7 @@ Before changing anything, tell me the current state and your recommended next st
         <ul>
           <li><strong>歸檔屬硬性自動執行</strong>:30 條為硬性邊界。確認決策累積至 30 或以上必歸檔,不會因任務性質而豁免。保留 8 至 22 條在交接文件,具體保留數視乎內容連貫性(避免突然切斷一組相關決策)。</li>
           <li><strong>多選項取捨的明確補入條件</strong>:計劃階段列出兩個或以上候選路徑 + 選擇其中一條 + 記錄原因 —— 三個條件同時滿足才補入。簡單「我選 A 或 B」式二擇一不觸發,因為缺原因紀律。</li>
-          <li><strong>交接文件仍是接力來源</strong>:即使確認決策歸檔過,交接文件仍含當前活躍決策。新對話接力只需讀交接文件加項目索引,不需要讀項目決策日誌。後者只在「之前為何這樣做」的回顧查詢時才被讀。</li>
+          <li><strong>交接文件仍是接力來源</strong>:即使確認決策歸檔過,交接文件仍含當前活躍決策。新對話先讀交接文件，項目索引按任務需要才讀；日常啟動不必讀整份項目決策日誌。歷史查詢或其他經規則分流的任務需要時，才讀相關長期紀錄。</li>
         </ul>
       </div>
     </div>
@@ -1834,7 +1857,7 @@ Before changing anything, tell me the current state and your recommended next st
 選擇:方案 B
 原因:程式碼註釋校對需要保留較長上下文;方案 B 在本項目的測試樣本中較穩定。
 影響:後端 API 呼叫需要重寫;提示模板需要重新調整。</pre>
-            <p>原原因兩點:(1) 任務需要保留較長上下文;(2) 方案 B 在本項目的測試樣本中較穩定。當時切換時 Day 60 工作日誌有完整紀錄,如需細節追溯我可以查封存。</p>
+            <p>原原因兩點:(1) 任務需要保留較長上下文;(2) 方案 B 在本項目的測試樣本中較穩定。當時切換時 Day 60 工作日誌有完整紀錄；如需細節追溯我可以查對應封存，本次回答尚未讀取封存。</p>
             <p>你可以直接將此原因答給合作伙伴。</p>
           </div>
         </div>
@@ -1859,9 +1882,9 @@ Before changing anything, tell me the current state and your recommended next st
 <section class="outro">
   <div class="wrap">
     <h2>走完三個案例之後,你會發現 <span class="accent">同一套流程</span> 適用於不同任務</h2>
-    <p>由 AI 讀安裝指令頁判斷安裝或升級,或手動用終端機安裝 —— 開新 AI 對話啟動接力 —— 第一次安裝後單獨開工先恢復狀態、進入簡短新手歡迎並取得建議下一步，既有項目則維持狀態提示 —— 有任務時才開始做 —— 計劃階段停手等你確認 —— 涉及安全、知識整理、寫作時自動加上相應規則 —— 準備結束本輪工作時一句「收工」自動寫好下次提示 —— 新對話說「開工」就接得回狀態。Case A 與 Case B 各七步,Case C 則跨越多月演進,但骨幹節奏跨案例、跨工具、跨日子都是同一套。</p>
-    <p>你之後做第三個、第四個任務 —— 寫電子報、做股市觀察、整理多個項目的發票 —— 流程仍然是這套。工作模式會根據任務性質自動切換,但你的習慣動作(開工恢復狀態與任何首次歡迎、講任務、確認計劃;準備結束本輪工作時收工)始終一樣。</p>
-    <p>另外建議:你希望 AI 在<strong>單一對話內</strong>的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)有持久基準,可以配合 <a href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">Adam-AI-Instructions</a> 使用 —— 到該倉庫的「五、提示詞索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);">prompt.md</code> 全文貼入你 AI 工具設定。Agent Handoff Kit 管「對話之間」的接力,Adam-AI-Instructions 管「單次對話質素」,兩者不重疊。</p>
+    <p>由 AI 讀安裝指令頁判斷安裝或升級,或手動用終端機安裝 —— 開新 AI 對話啟動接力 —— 第一次安裝後單獨開工先恢復狀態、進入簡短新手歡迎並取得建議下一步，既有項目則維持狀態提示 —— 有任務時才開始做 —— 已授權的安全工作直接進行，需取捨或高風險動作才停下確認 —— 涉及安全、知識整理、寫作時自動加上相應規則 —— 準備結束本輪工作時一句「收工」自動寫好下次提示 —— 新對話說「開工」就接得回狀態。Case A 與 Case B 各七步,Case C 則跨越多月演進,但骨幹節奏跨案例、跨工具、跨日子都是同一套。</p>
+    <p>你之後做第三個、第四個任務 —— 寫電子報、做股市觀察、整理多個項目的發票 —— 流程仍然是這套。工作模式會根據任務性質自動切換,但你的習慣動作(開工恢復狀態與任何首次歡迎、講任務、確認必要取捨與高風險操作；準備結束本輪工作時收工)始終一樣。</p>
+    <p>另外建議:你希望 AI 在<strong>單一對話內</strong>的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)有持久基準,可以配合 <a href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">Adam-AI-Instructions</a> 使用 —— 到該倉庫的「五、提示詞索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);">prompt.md</code> 全文貼入你 AI 工具設定。Agent Handoff Kit 管「對話之間」的接力,Adam-AI-Instructions 管「單次對話質素」,兩者主責不同，但最低安全要求會合理重疊；並用時按既有指令優先序處理，不需要重複建立兩套同用途規則。</p>
     <a href="agent-handoff-kit-intro.html">看回新手 60 秒入門 →</a>
     <a class="alt" href="local-agentic-ai-workflow-case-study.html">看本機 Agentic AI 工作系統案例 →</a>
     <a class="alt" href="https://github.com/Adamchanadam/agent-handoff-kit#readme">看 README on GitHub →</a>
@@ -1887,7 +1910,7 @@ Before changing anything, tell me the current state and your recommended next st
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.3.64 · MIT License</p>
+      <p>v0.3.65 · MIT License</p>
     </div>
     <div>
       <strong>作者</strong>

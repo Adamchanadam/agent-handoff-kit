@@ -189,6 +189,8 @@ function closeoutReadyHandoff(text) {
     .replace("Last Updated: TBD", "Last Updated: 2026-07-16 12:00:00 +01:00")
     .replaceAll("<absolute project root>", fixtureRoot)
     .replaceAll("TBD", "closeout efficiency fixture")
+    .replace("Answer: closeout efficiency fixture", "Answer: yes")
+    .replace(/^Reconstruction evidence:.*$/m, "Reconstruction evidence: Task Understanding defines this standalone fixture; Active Objective and Next Priorities carry the resume boundary; Next Task Required Reading carries the source coverage.")
     .replace("1. closeout efficiency fixture", "1. Completed isolated closeout evidence and read-back.")
     .replace("1. closeout efficiency fixture", "1. follow-up scope — monitor only if a new reproducible failure occurs.")
     .replace("1. closeout efficiency fixture", "1. none")

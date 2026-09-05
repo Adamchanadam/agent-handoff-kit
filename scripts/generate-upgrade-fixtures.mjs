@@ -346,7 +346,7 @@ function writeFixtureReadme(versions) {
       "Git tags and public GitHub Releases are cross-checked before generation.",
       "Local tags and guessed commits are not accepted as release sources.",
       "",
-      "Run `npm run qa:fixtures` to rebuild. Each version directory keeps the two",
+      "Run `node scripts/generate-upgrade-fixtures.mjs` to rebuild. Each version directory keeps the two",
       "legacy files used by focused tests plus `fixture-manifest.json`. The manifest",
       "marks all current managed targets as `present` or `absent`; full historical",
       "install trees are reconstructed from the deduplicated catalog during QA.",

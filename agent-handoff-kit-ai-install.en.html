@@ -13,11 +13,11 @@
 <body>
   <div class="stripe"></div>
   <header><div class="wrap">
-    <span class="kicker">AI-readable install page · v0.3.64</span>
+    <span class="kicker">AI-readable install page · v0.3.65</span>
     <p><a href="agent-handoff-kit-ai-install.html" lang="zh-Hant">繁體中文版本</a></p>
     <h1>Instructions for an AI<br>to install or upgrade safely.</h1>
     <p class="lead">This page is for an agentic AI that can read and write the local folder and run terminal commands. The user should not have to choose an npm command or diagnose a conflict. Read this page before acting in the folder.</p>
-    <p><strong>Version note:</strong> this page is aligned with v0.3.64. <code>@latest</code> means the version currently available from the npm registry.</p>
+    <p><strong>Version note:</strong> this page is aligned with v0.3.65. <code>@latest</code> means the version currently available from the npm registry.</p>
     <div class="prompt"><h2>The user only needs to paste this</h2><div class="code">Please read https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html, and install or upgrade Agent Handoff Kit in this folder.</div></div>
     <div class="ok"><h2>The AI must give this report when it finishes</h2><p>Before running any <code>npx</code> command, remember this section. After installation or upgrade, the AI must not say only “completed” or paste only terminal output. It must explain the result and next step to the user in the following format.</p><p><strong>Completion-report template:</strong> ✅ Installation completed. 📁 Current folder: &lt;absolute path&gt;. 🩺 <code>doctor</code> passed. ⚠️ The next step is not a terminal command; in an AI conversation that can read and write this folder, enter <code>Start Agent Handoff</code> or “開工”. Only if the AI has not yet been pointed at this folder, use: <code>Work in &lt;absolute path&gt;. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</code></p></div>
   </div></header>
@@ -45,6 +45,7 @@
 
   <section><div class="wrap">
     <h2>Verify after completion</h2>
+    <p>Report the migration result separately from whole-project health. First read back the CLI migration result to confirm that the new rules were committed and no transaction remains unresolved, then run <code>doctor</code>; a changed version number alone is not completion evidence. Existing handoff content is preserved. At the next real closeout, the AI should use the updated rules to reconcile the overall outcome, subtask, resume point, and source-reading gaps, rather than inventing project state during the upgrade.</p>
     <ol>
       <li>Run the health check:</li>
     </ol>

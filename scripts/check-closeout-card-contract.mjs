@@ -29,6 +29,39 @@ try {
   assert(passed.stdout.includes("status: complete"), "complete closeout card omitted machine-readable complete state");
   assert(!passed.stdout.includes("handoff blocked"), "complete closeout card showed a blocked state");
 
+  assertCloseoutComplete(complete.replace("Git root: no Git repository (fixture root)", "Git root: not_applicable — workspace-health reports git: no, no .git metadata found."), "literal workspace-health no-Git evidence with explanation");
+  writeFixtureHandoff(complete.replace("Git root: no Git repository (fixture root)", "Git root: /claimed/repository"));
+  const falseGit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!falseGit.error && falseGit.status !== 0 && falseGit.stdout.includes("handoff records Git identity, but live root is not a Git repository"), "unrelated Git identity in a non-Git fixture was accepted");
+
+  const sufficiencyCases = [
+    ["negative answer", complete.replace("Answer: yes", "Answer: no — parent outcome missing")],
+    ["unknown answer", complete.replace("Answer: yes", "Answer: unknown")],
+    ["missing answer", complete.replace("Answer: yes", "")],
+    ["duplicate answer", complete.replace("Answer: yes", "Answer: yes\nAnswer: no")],
+    ["visible contradiction before inline comment", complete.replace("Answer: yes", "Answer: yes\nAnswer: no <!-- parent remains unknown -->")],
+    ["empty evidence", complete.replace(/^Reconstruction evidence:.*$/m, "Reconstruction evidence:")],
+    ["placeholder evidence", complete.replace(/^Reconstruction evidence:.*$/m, "Reconstruction evidence: TBD")],
+    ["fenced evidence", complete.replace(/^(Reconstruction evidence:.*)$/m, "~~~~markdown\n$1\n~~~~")],
+    ["indented code evidence", complete.replace(/^(Reconstruction evidence:.*)$/m, "    $1")],
+    ["tab-indented code evidence", complete.replace(/^(Reconstruction evidence:.*)$/m, " \t$1")],
+    ["comment evidence", complete.replace(/^(Reconstruction evidence:.*)$/m, "<!--\n$1\n-->")],
+    ["out-of-section evidence", complete.replace(/^Reconstruction evidence:.*$/m, "").replace("## Next Session Opening Message", "## Next Session Opening Message\n\nReconstruction evidence: Task Understanding and Active Objective were checked.")],
+    ["duplicate evidence", complete.replace(/^(Reconstruction evidence:.*)$/m, "$1\n$1")],
+    ["continuation contradiction", complete.replace("without searching old log history: yes", "without searching old log history: no")]
+  ];
+  for (const [label, text] of sufficiencyCases) {
+    writeFixtureHandoff(text);
+    const before = readAt(fixtureRoot, "dev/SESSION_HANDOFF.md");
+    const rejected = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+    assert(!rejected.error && rejected.status !== 0 && rejected.stdout.includes("handoff sufficiency read-back is incomplete"), `${label} was not rejected by the sufficiency gate`);
+    assert(!rejected.stdout.includes("handoff saved"), `${label} falsely claimed saved`);
+    assert(before === readAt(fixtureRoot, "dev/SESSION_HANDOFF.md"), `${label} mutated the handoff`);
+  }
+  assertCloseoutComplete(complete.replace("## Handoff Sufficiency Check", "## 交接充分性檢查").replace(/\r?\n/g, "\r\n"), "localized heading and CRLF");
+  assertCloseoutComplete(complete.replace(/^Reconstruction evidence:.*$/m, "Reconstruction evidence: Task Understanding and Active Objective preserve the outcome; Risks / Blockers records an unknown dependency and the safe next action; Next Task Required Reading names the unread source."), "evidence may faithfully describe blocked work");
+  console.log("ok: explicit insufficiency, missing/hidden/duplicate proof and continuation contradictions cannot produce a complete card");
+
   const lifecycleConflict = complete.replace(
     "1. follow-up scope — monitor only if a new reproducible failure occurs.",
     "1. Completed fixture closeout and read-back."
@@ -111,6 +144,8 @@ function closeoutReadyHandoff(text) {
     .replace("Last Updated: TBD", "Last Updated: 2026-07-16 12:00:00 +01:00")
     .replaceAll("<absolute project root>", fixtureRoot)
     .replaceAll("TBD", "closeout fixture")
+    .replace("Answer: closeout fixture", "Answer: yes")
+    .replace(/^Reconstruction evidence:.*$/m, "Reconstruction evidence: Task Understanding identifies the standalone fixture outcome; Active Objective and Next Priorities identify the resume boundary; Next Task Required Reading identifies its sources and gaps.")
     .replace("1. closeout fixture", "1. Completed fixture closeout and read-back.")
     .replace("1. closeout fixture", "1. follow-up scope — monitor only if a new reproducible failure occurs.")
     .replace("1. closeout fixture", "1. none")

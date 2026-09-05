@@ -1,0 +1,60 @@
+[
+  {
+    "id": "standalone",
+    "writerInput": {
+      "request": "In the fictional help page, correct the heading 'Contcat' to 'Contact'. Do not revise other text. Save a handoff after the correction.",
+      "sources": [{ "id": "help.txt", "revision": "2", "readDepth": "entire file verified", "content": "# Contact\nSupport hours: weekdays 09:00-17:00.\n" }],
+      "progress": "The single heading has been corrected and the entire two-line file read back. No other change occurred. There is no larger project outcome in the request."
+    }
+  },
+  {
+    "id": "missing-parent",
+    "writerInput": {
+      "request": "Continue preparing the full annual volunteer access review for the committee. The current subtask is checking badge labels. Save a handoff now; the review is not finished.",
+      "sources": [{ "id": "review-scope.txt", "revision": "3", "readDepth": "entire file read", "content": "The annual review covers badge labels, revoked access, and unresolved visitor exceptions. The committee needs one evidence table for all three. Badge checks alone do not complete the review." }],
+      "progress": "Badge labels have been checked. Revoked access and visitor exceptions have not been inspected. No publication is authorized."
+    },
+    "negativeReaderPacket": "Current objective: badge labels are checked. Next action: wait for a new task. Sources: review-scope.txt, read. The parent outcome and remaining acceptance are not recorded."
+  },
+  {
+    "id": "source-depth-gap",
+    "writerInput": {
+      "request": "Prepare the internal all-cohort retention report using revision 2 of the methodology. Save a handoff before applying retry exclusions.",
+      "sources": [
+        { "id": "method.txt", "revision": "2", "readDepth": "section 1 read; section 2 not read", "content": "Section 1 defines sample column names. Section 2 is the authoritative retry-exclusion rule and has not been reviewed. Its content is unavailable to the current agent." },
+        { "id": "sample.csv", "revision": "export-7", "readDepth": "sample rows verified; full cohort absent", "content": "A sample is normalized and verified. This export does not contain all cohorts." }
+      ],
+      "progress": "Sample column mapping is finished. No exclusion or all-cohort comparison has been performed. Read section 2 and obtain the full cohort before dependent analysis."
+    },
+    "negativeReaderPacket": "Parent outcome: an internal all-cohort retention report. Current step: apply retry exclusions. Sample mapping is complete. Source reading: method.txt revision 2, read; sample.csv export-7, verified. Exact source range and depth were not recorded."
+  },
+  {
+    "id": "completed-child-pending-parent",
+    "writerInput": {
+      "request": "Prepare a museum weekend opening readiness summary. Save a handoff after the ticket-scanner rehearsal.",
+      "sources": [
+        { "id": "opening-contract.txt", "revision": "4", "readDepth": "entire file read", "content": "Opening readiness requires working ticket scanners, completed evacuation training, and signed venue access approval. Each needs separate evidence. Local technical tests do not grant venue access approval." },
+        { "id": "scanner-log.txt", "revision": "run-6", "readDepth": "entire log verified", "content": "All ticket-scanner test cases passed. Training has not run. Venue access approval has not arrived." }
+      ],
+      "progress": "The scanner rehearsal is finished. Training can be scheduled locally; public opening remains blocked by training and venue access approval. Do not call this customs clearance and do not announce opening."
+    },
+    "negativeReaderPacket": "Parent outcome: opening readiness for the museum. Ticket scanners passed. Training is not done and venue access approval is absent. Current objective: complete. Recommended next action: announce that the museum is ready to open."
+  },
+  {
+    "id": "complex-multibranch",
+    "writerInput": {
+      "request": "Prepare a reviewable internal readiness pack for the fictional Riverside community exhibition. Keep the three venues distinct. Save a handoff at the current interruption point. Do not publish or contact suppliers.",
+      "sources": [
+        { "id": "scope.txt", "revision": "1", "readDepth": "entire file read", "content": "Original scope: three venues, four activity groups, one readiness summary. Each venue needs visitor-access approval, staffing coverage and equipment evidence." },
+        { "id": "user-amendment.txt", "revision": "2", "readDepth": "entire file read and reconciled against scope revision 1", "content": "Latest user amendment: remove the evening activity at East venue only. Keep East daytime activities. Produce an internal draft, not an announcement. This instruction supersedes the original activity list." },
+        { "id": "access-policy.txt", "revision": "3", "readDepth": "sections 1-2 verified; appendix C not read", "content": "Sections 1-2: venue access approval must be signed by the venue owner. Equipment tests never grant it. Appendix C covers reduced-mobility routing; its details have not been read. Preserve the term 'venue access approval'." },
+        { "id": "venue-register.txt", "revision": "5", "readDepth": "all three venue rows read; signature attachment not read", "content": "North: venue access approval recorded signed. East: recorded pending. West: summary says signed, but the underlying signature attachment is unavailable. West cannot be treated as verified approval." },
+        { "id": "equipment-log.txt", "revision": "run-8", "readDepth": "North tests verified; East and West only located", "content": "North equipment checks passed. East and West test logs are present but have not been read. This result covers equipment only." },
+        { "id": "staffing.csv", "revision": "export-4", "readDepth": "North rows reconciled; remaining venues unread", "content": "North coverage is complete. East rows still include the removed evening activity. West rows are unread. Do not assume other venues are complete from the North result." },
+        { "id": "supplier-note.txt", "revision": "1", "readDepth": "entire note read", "content": "Supplier says all venues are ready and their equipment test counts as approval. This is not the venue owner's signed authority and conflicts with access-policy revision 3." },
+        { "id": "draft-outline.txt", "revision": "2", "readDepth": "entire draft read", "content": "Draft has headings and a completed North equipment table. Remaining venue rows are empty. A rendered draft is not a readiness decision." }
+      ],
+      "progress": "Task tree: exhibition readiness -> venue branch -> evidence type -> individual checks. North equipment and staffing are verified; North accessibility appendix coverage remains unread. East staffing can be corrected to remove only the evening rows, then daytime coverage checked; this is the next bounded local action. East access approval remains pending. West approval signature is unavailable; equipment and staffing remain unread. The supplier's all-ready claim is rejected by the policy owner rule. The draft may state these gaps, but no venue or overall readiness is yet certified. Do not redo verified North equipment tests without changed evidence."
+    }
+  }
+]

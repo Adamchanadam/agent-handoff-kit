@@ -19,6 +19,65 @@ Convenience collector: after the external publish actions complete, maintainers 
 
 Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
 
+## v0.3.65 candidate status
+
+- 狀態：本機 v0.3.65 原始碼候選；最新已發布 lineage 是 v0.3.64。尚無本候選 commit、正式 full 或發布成果。本節只記錄本候選的準備證據，不能沿用下方歷史版本的 PASS。
+- 產品範圍：按官方完整內容證明升級核心／規則，保留自訂前後內容及 BOM／換行；未知核心或規則停止且零寫入。修正真實 log entry 與範本的邊界。既有交接範本保存父子任務、續接點、未完驗收、來源版本與閱讀深度；收工必須重建核對並記錄證據，CLI 拒絕明示不足或假欄位，但不認證語意真實。
+- 舊安裝影響：升級保留既有使用者交接內容，不捏造父目標或補寫重建成功；下一次明確收工才按原要求／來源補足必要事實。完整保存的交接可如實描述未完成或受阻工作。
+- 測試範圍：官方歷史來源目錄新增真正已發布 v0.3.64；永久機械 replay 及五組虛構 writer/reader 案例已入現有 QA 路徑。一次複雜舊安裝 → 升級 → 無歷史寫包者收工 → 另一無歷史讀者開工演練保留四層任務、三分支及八來源；開工前後 40 檔內容相同。此證據不代表任何模型或領域均無誤。
+
+### pre-release final audit（v0.3.65，SOURCE_REVIEW_ACCEPTED）
+
+- Clean artifact boundary：完成修補、公眾文件、獨立雙語審閱及目前 QA 報告後，才以已授權本地 commit 固定候選。實際候選證據須綁定 clean HEAD、package version、tarball SHA-256、manifest digest、release-readiness inventory digest、review bundle SHA-256、review subject digest 及本報告 hash。
+- full 必須等 clean commit、凍結產物、accepted independent review receipt 及 five-conclusion writer assessment，不能把 dirty-tree scoped PASS 當正式 full。
+- Full-check role isolation：writer 為本次產品修補者；正式 reviewer 必須是獨立唯讀角色。凍結 reviewSubject / review bundle history 保持以 `WAITING_INDEPENDENT_REVIEW` 結束；接受後只在候選 evidence history 加入 `REVIEW_ACCEPTED`。
+- five-conclusion writer assessment 涵蓋 governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting；必須以目前實際來源／演練／指令結果逐項判斷，不能從下方歷史記錄推定。
+- 已重現並修正獨立審查反例：前期安裝修改核心指令後被覆寫；同名未標記核心可能丟失本地規則；未知 safety 缺句被舊 anchor 修補器改回；行尾註解使否定回答消失；縮排程式碼被當證據。四種舊自訂核心 × init/upgrade、三類未知 pack 缺句的零寫入回歸及收工卡正反例通過；核心／可見欄位修補的獨立唯讀復核接受。這不是正式凍結候選審閱收據。
+- 本輪 scoped 結果：完整 upgrade-safety（78 個官方歷史版本、保留／衝突／中斷／恢復／重跑）、closeout-card、closeout-efficiency、pack-scenarios、startup-status-only、真 v0.3.64 lifecycle replay、quick、v0.3.65 candidate-preflight，以及實際 4c/4d 情境通過。QA assurance 首次因缺本候選報告而停止；報告及全部雙語證據完成後重跑通過，涵蓋 runner 終態、必跑檢查失敗傳遞、preflight 正反例及近似有效但不合契約的 full/postpublish evidence 拒絕。
+- 四組中英公眾文件已由獨立唯讀 reviewer 接受，來源／目標 hash 如下；4c/4d 實際情境與現行 QA 表已同步。待完成：取得本地候選 commit 授權、凍結獨立審閱及正式 full。無 push、tag、GitHub Release、npm publish 或 postpublish 聲稱。
+
+### Cross-mind evidence 9-trigger table（v0.3.65）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | iterated | Reproduced stale runtime content after upgrade and missing-parent/source-depth false-complete; independent review added pre-formal unknown-core and Markdown visibility counterexamples, repaired at the existing owners. |
+| 2. External side effects | yes | passed | Candidate preparation and isolated tests only; no publication or external delivery performed or authorized by this record. |
+| 3. User-visible output | yes | iterated | Handoff identifies the parent, next bounded action and evidence gaps; CLI saved state does not certify underlying task completion. |
+| 4. Complexity or boundary | yes | passed | Existing core, closeout pack, handoff fields and CLI checks own the change; no second task framework or automatic LLM semantic validator. |
+| 5. Documentation drift | yes | passed | All four changed bilingual pairs were read fully and accepted after source-first repairs; actual 4c/4d scenario behavior and the current QA table now agree on ownership and zero-write conflict. |
+| 6. Semantic runtime effect | yes | passed | An independent writer and reader preserved the complex task and safe startup boundary; a source blocker remains explicit rather than fabricated away. |
+| 7. Cross-agent / role boundary | yes | iterated | History-free fixture agents and independent read-only code/bilingual reviewers were separate from the implementer; formal frozen-candidate review remains required. |
+| 8. Real user journey | yes | passed | Genuine published init, local user handoff, upgrade, authorized closeout, fresh bare startup and unchanged startup file hashes were checked; underlying fictional task was not executed. |
+| 9. Release statement | yes | passed | Local v0.3.65 candidate only; published v0.3.64 remains authoritative until an explicitly authorized release and postpublish readback. |
+
+### Bilingual README semantic gate（v0.3.65，PASS）
+
+- Reviewer：independent read-only agent `/root/candidate_bilingual_review`; provenance `Codex full-pair semantic review and corrected-source re-review, 2026-09-05`; verdict `accepted`.
+- Scope：全部 README 段落逐一映射；修正開工停止／首次引導條件、中英偏好範例、高風險確認及配合工具設定步驟，完整對譯。
+- `README.md` SHA-256 `9d88834850a098f66580095525791cdcbc3586948ac562ef22548db8dddea64e`
+- `README.en.md` SHA-256 `16ec9fae93035b9f1195ccb7948f5ca7ec3000c0179a689bac2790921d87fee8`
+
+### Bilingual AI-install semantic gate（v0.3.65，PASS）
+
+- Reviewer：independent read-only agent `/root/candidate_bilingual_review`; provenance `Codex full-pair semantic review, 2026-09-05`; verdict `accepted`.
+- Scope：兩份全部可見內容、例子、指令、連結及結構；新舊安裝、衝突零寫入、migration 與 health 的分別、舊交接於下次明確收工補足事實，語意一致。
+- `agent-handoff-kit-ai-install.html` SHA-256 `63d05963d9c489f54f9eca3f101f6df270a74fff13191738df86b8f609417113`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `08620089f72ceda2f892651c5412f89ec4b2af5bb5159d2153b8d2ddac88c305`
+
+### Bilingual introduction semantic gate（v0.3.65，PASS）
+
+- Reviewer：independent read-only agent `/root/candidate_bilingual_review`; provenance `Codex full-pair semantic review and corrected-source re-review, 2026-09-05`; verdict `accepted`.
+- Scope：全部可見內容、例子、指令、連結及結構；修正安全絕對保證、按任務讀索引、標題控制、權威交接來源及最低安全重疊，完整對譯。
+- `agent-handoff-kit-intro.html` SHA-256 `87b3dba3ac080e4ad7455bedfcff9ae01bead5bd84c274ac4f83d5e6d1779a56`
+- `agent-handoff-kit-intro.en.html` SHA-256 `272d707ef20ebaf455c3aebd841a14fea5c10936f241d8fd0cbd5757d9a008e7`
+
+### Bilingual practical-guide semantic gate（v0.3.65，PASS）
+
+- Reviewer：independent read-only agent `/root/candidate_bilingual_review`; provenance `Codex full-pair semantic review and bounded corrected-section re-review, 2026-09-05`; verdict `accepted`.
+- Scope：header/navigation、first-use、status cycle、work-rules-overview、A1–A7、bridge-step、B1–B7、c-disclaimer、C1/C30/C60/C90、outro/footer 全部逐段映射。修正來源數量、字數口徑、讀取深度、分段授權、真實收工卡流程，恢復英文省略的原對話／指令／schema／時間軸；A5/B5/B7/C60 局部復驗後沒有剩餘 finding。
+- `agent-handoff-kit-guide.html` SHA-256 `c32f4f52ad58329e625b0402244d97d5c9113d5e327350ca2f37c206820527e6`
+- `agent-handoff-kit-guide.en.html` SHA-256 `72953db8830c271b88c1c2a61124ab03d1d7849f2090e1059270be41867cd0cc`
+
 ## v0.3.64 candidate status
 
 - 狀態：v0.3.64 是下一個 source package candidate，原因是 v0.3.63 已正式發布到 npm `@latest`、遠端 tag 與 GitHub Release；v0.3.64 尚未完成 formal full、push、tag、GitHub Release、npm publish 或 postpublish readback。
@@ -1345,10 +1404,10 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 |---|---|---|---|
 | Fresh install → init → first task | 新用戶安裝後是否知道下一步是在 AI 對話中開始，而不是把提示當終端機指令。 | `qa:release` user-flow + R-029 wording sweep + 人工終讀 | 阻擋 publish，直到 CLI / README / onboarding wording 對齊 |
 | AI-assisted install page → folder confirmation → init / upgrade / doctor | 非技術用戶只貼一句「請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html ，並在這個資料夾安裝或升級 Agent Handoff Kit。」時，AI 是否在第一個 `npx` 命令之前已讀到完成報告契約；是否先顯示目前資料夾並請用戶確認；確認後才判斷 fresh install / upgrade dry-run / upgrade / stopped on conflict；遇 conflict 時是否停手零寫入，請能讀寫資料夾的 AI 在用戶授權下做語意合併，再以 Kit dry-run / doctor / hash readback 驗收，而不是要求用戶判斷技術差異或要求 maintainer 為單一用戶內容加例外；完成後是否跑 `doctor`；是否主動輸出完成報告，告訴用戶下一步在 AI 對話輸入 `Start Agent Handoff` /「開工」，而不是只回報命令成功；且不做 commit、push、tag、npm publish 或 GitHub Release。 | `qa:release` AI install page contract + README / intro / guide link sweep + conflict-role wording guard + 人工終讀 | 阻擋 publish，直到 AI 代安裝頁、README 與 onboarding HTML 對齊 |
-| First task → closeout → next session handoff | 收工後下一個 AI 是否不需聊天記憶，也不會重開已完成調查；handoff、`START_NEXT_SESSION_PROMPT.txt` 與 final response 是否同源，不產生表面第三版本。 | `doctor` handoff lifecycle check + negative fixture + prompt mirror checker + final response read-back discipline + opening-message read-through | 阻擋 publish，並補 lifecycle fixture、prompt mirror assertion 或 manual checklist |
+| First task → closeout → next session handoff | 收工後下一個 AI 能否從交接重建父目標／consumer、父子任務、續接點、未完驗收及各真源閱讀深度；不重開已完成子項，不把子項或交接完成當整體成果完成；handoff 與便利副本同源。 | `closeout-status` 正反例 + `check-handoff-continuity.mjs` 真舊版流程 + `test-fixtures/continuity/README.md` 獨立無歷史 writer/reader 與隱藏 rubric + prompt mirror readback；機械 PASS 不代替語意驗收 | 阻擋 publish，直到原要求／真源對照及實際開工邊界通過；保留首次失敗，不補造證據 |
 | Task evidence → closeout disposition → next session startup | 一次性交付要求、build / QC / release evidence、舊 hash / 舊版本狀態、source evidence chain 是否被放到 trace evidence / project index / project decisions / rule pack，而不是 Durable Anchors、Next Priorities 或 opening message；下一輪 AI 是否只被當前目標、有效風險與必要閱讀帶動。 | `doctor` current-state evidence boundary + `qa:release` handoff temperature boundary contract + `SESSION_LOG` Evidence disposition field + `SESSION_HANDOFF` Persistence routing checked field + 人工讀 through state sections | 阻擋 publish，並補 evidence-boundary fixture、欄位遷移或 manual checklist |
 | Existing project upgrade → doctor → closeout | 舊用戶升級後是否不丟本地規則、不覆寫用戶內容、不出現「剛升完又叫再升」或「升級說可用、doctor 立刻失敗」矛盾；升級必須同時完成版本 metadata 對齊、功能 anchor 補齊、升級後穩定通過 `doctor`。 | `qa:upgrade` chain + user-data fixture + upgrade quality matrix + CLI scenario branching sweep | 阻擋 publish，並補 prior-version fixture / scenario / matrix case |
-| Existing project upgrade → anchor drift auto-repair | 正式 `upgrade` 已執行後，不應要求新手自行修補 Kit anchor 缺段。若缺的是 Kit 模板可定位的維護文字，例如 `SESSION_HANDOFF.md` continuity 句、`SESSION_LOG.md`、`PROJECT_DECISIONS.md`、rules pack 必要 anchor 或 onboarding scenario，`upgrade` 應以備份加 migration report 的方式非破壞性補回正確語義位置，並讓自動 `doctor` 通過。`doctor` 不得因裸 anchor 文字被放到檔尾而轉綠；舊 repair marker、裸文字錯位、高風險 pack 章節不可信、或 `SESSION_LOG` 既有審計紀錄可能被覆寫時，必須由自動測試覆蓋停手或保留紀錄。產品實作須維持 single upgrade contract：每個 required anchor 的 snippet、合法位置判斷、缺失 / 錯位分類與可用修補策略要在同一 contract / strategy 表收斂，不可讓 `doctor`、`upgrade`、測試各自維護第二套規則。必測負面 fixture 包括：`SESSION_HANDOFF.md` continuity anchor 錯位、`PROJECT_INDEX.md` fake version row 放錯位置、`dev/rules/safety.md` 同號規則被改成自訂語義、`dev/rules/integrations.md` heading 錯位 / 章節不可信、`dev/rules/onboarding.md` Scenario library 骨架不可信。只有無法定位安全插入點、檔案不可讀寫、或結構衝突時才停手。 | Scenario 4c / 4d / 4e automated + upgrade quality matrix + single-contract source review + misplaced-anchor / misplaced-handoff / fake-project-index / repair-marker / unsafe-safety-custom / unsafe-integrations / unsafe-onboarding / session-log-preserve negative fixtures + anchor auto-repair output + conflict stop output | 阻擋 publish，直到可自動補的 Kit anchor drift 可自動補；真正不可判斷的結構衝突仍停手且不覆寫 |
+| Existing project upgrade → proven content migration or unknown-content conflict | 完整官方核心／rules pack 正文或有界官方片段經來源證明後，才可更新並保留自訂周邊位元組；同名標題、同號規則、標記及缺 anchor 均不授權替换未知內容。未知 marked/unmarked/sandwich core、`dev/rules/safety.md` 自訂句、`dev/rules/integrations.md` 或 `dev/rules/onboarding.md` 未證正文須停止零寫入。`SESSION_HANDOFF.md`、`SESSION_LOG.md`、`PROJECT_DECISIONS.md` 等現有可變狀態只按其專屬受限策略遷移，不捏造重建成功或覆寫歷史。doctor 的 anchor 判定與 upgrade 所需來源證明是不同責任，不能靠把裸 anchor 放回檔尾取得假綠。 | Scenario 4c / 4d / 4e automated + upgrade quality matrix + 官方歷史 artifact 正例 + 前期無 formal guard 的自訂 core 反例 + 缺句 safety/onboarding/governance 反例 + misplaced-anchor / misplaced-handoff / fake-project-index / repair-marker / unsafe-safety-custom / unsafe-integrations / unsafe-onboarding / session-log-preserve | 阻擋 publish，直到官方內容正常更新且未知內容完整保留；衝突由具檔案能力的 AI 在用戶明確授權下作語意合併，不把判斷責任交给新手 |
 | Existing Kit files → official npx doctor path | 舊項目已經有 Kit 文件時，用戶是否明白官方路徑是 `npx --yes @adamchanadam/agent-handoff-kit@latest doctor`；裸 `npx ... doctor` 只是 npm 通用執行方式，不作產品旅程。 | README / CLI help / intro / guide 冷啟動 `npx --yes` 指令 + `qa:release` npx UX guard + 人工終讀 | 阻擋 publish，直到 README、CLI help、doctor 下一步、intro、guide 與 QA guard 對齊 |
 | Non-empty project with local rules | 既有 `AGENTS.md` / `PROJECT_INDEX.md` / `RULE_PACKS.md` 內容是否保留或停手報 conflict。 | `qa:upgrade` merge / custom-row / conflict fixtures | 阻擋 publish，除非明確列為人工-only conflict 類 |
 | Conflict / blocked state | 工具是否清楚停手並說明沒有覆寫；unknown / user content 是否進入授權語意修補流程：用戶只確認需求和授權，能讀寫該資料夾的 AI 負責合併，Kit 只用 dry-run、doctor 與 hash readback 驗收；只有證明未改動正式舊檔被 Kit 誤判時才回報 Kit baseline bug，不得要求維護者收納用戶本地內容作一般產品路徑。 | Scenario 2 / 5 + `qa:upgrade` formal conflict output guard + `qa:release` scenario 5 output guard + semantic-repair two-phase flow + maintainer-exception negative | 阻擋 publish；同類第二次出現即擴充 fixture |
@@ -1452,8 +1511,8 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 | 3c | upgrade stale lifecycle placeholder（舊版本 metadata + 既有 lifecycle 欄位仍為 placeholder + handoff 已有 substantive Completed / Validation） | 「Kit 檔案已更新」/ `Reclassified at upgrade` /「升級驗收完成」/ template version metadata 更新為當前版本 | `missing dev/SESSION_HANDOFF.md (handoff lifecycle mechanical checks)` / `status: failed` /「交接狀態仍需 AI closeout 核對」/「本次升級涵蓋」（避免工具自己升級後又被自己擋住，亦避免升級成功輸出被 release notes 淹沒） |
 | 4 | upgrade no-op（已 latest 零改動，交接健康） | 「你已經是最新版本，沒有檔案需要建立或合併」/ output 行數 ≤ 20 行 | 「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/「migration report」/「升級後自動檢查」 |
 | 4b | upgrade no-op（已 latest 零改動，含任意 user-managed handoff prose） | 「你已經是最新版本，沒有檔案需要建立或合併」/「繼續日常使用即可」/ `doctor` `status: passed` / fixture bytes unchanged | 「完整 doctor 健康檢查未通過」/ `status: failed` / `handoff lifecycle mechanical checks` /「安裝完成」/「升級完成」/「I just installed」/「I just upgraded」/ `migration report` |
-| 4c | upgrade substantive with stale prompt convenience copy（mac 用戶實測類型：正式 upgrade 合併 `AGENTS.md`，但 `START_NEXT_SESSION_PROMPT.txt` 是舊便利副本） | `START_NEXT_SESSION_PROMPT.txt` 便利副本落後只可 warning / 「升級驗收完成」 | `status: failed` / anchor checks failed / 正式 upgrade 後叫用戶回頭跑 `upgrade --dry-run` |
-| 4d | upgrade anchor drift auto-repair（`dev/rules/safety.md` 缺 Kit 維護 anchor） | `dev/rules/safety.md` merge / `restore safety pack high-risk rules in ## Rules section` / `cmd /c rmdir` 被補回到 `## Rules` 語義位置 /「升級驗收完成」 | `anchor checks failed` /「不要重跑 upgrade」/ `Agent Handoff Kit Anchor Repair` / 把可自動補的 rules pack 缺段推給用戶手修 |
+| 4c | upgrade metadata migration with stale prompt convenience copy（current managed core 與 USER_RULES 保持一致，附本地前言；只讓 Stack 版本落後以觸發合法遷移） | `START_NEXT_SESSION_PROMPT.txt` 與 authoritative handoff opening 全文一致；本地 AGENTS/USER_RULES/handoff/log 位元組保留；migration committed / project health: passed | status: failed / 未知 core 被覆寫 / 遷移後便利副本仍落後 |
+| 4d | upgrade unknown safety edit conflict（`dev/rules/safety.md` 的 `cmd /c rmdir` 被未知文字改動） | doctor 顯示 anchor checks failed 與 dev/rules/safety.md；upgrade conflict；zero writes；no lock | migration committed / restore safety pack high-risk rules in ## Rules section / 未知本地規則被覆寫 |
 | 4e | upgrade handoff continuity anchor auto-repair（`dev/SESSION_HANDOFF.md` 缺 Kit 自己的 archive continuity 句） | `dev/SESSION_HANDOFF.md` merge / `insert handoff archive continuity rule` / `do not create an archive directory by default` 被補回 /「升級驗收完成」 | `anchor checks failed` /「不要重跑 upgrade」/ 把可自動補的 handoff template 缺段推給用戶手修 |
 | 4f | upgrade no-op schema auto-repair（已 latest 零改動，但 opening message 缺 root mismatch guard） | `restore root mismatch guard in Next Session Opening Message` / `handoff opening message structure` / `If this root does not match the expected project root` / `status: passed` /「升級驗收完成」 | 「完整 doctor 健康檢查未通過」/ `status: failed` /「你已經是最新版本」成功句 /「繼續日常使用即可」/「安裝完成」/「升級完成」 |
 | 4g | upgrade no-op temperature auto-repair（已 latest 零改動，但歷史 release / npm 證據污染熱層與 prompt mirror） | `move historical evidence out of hot handoff state` / `regenerate prompt from repaired handoff opening message` / `handoff temperature boundary checks` / `historical npm latest state` / `historical GitHub Release state` / `status: passed` /「升級驗收完成」 | 「完整 doctor 健康檢查未通過」/ `status: failed` /「你已經是最新版本」成功句 /「繼續日常使用即可」/「安裝完成」/「升級完成」 |

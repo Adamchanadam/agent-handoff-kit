@@ -2,7 +2,7 @@
 
 [繁體中文](README.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-Source package version: `v0.3.64`. npm `@latest` and GitHub Release are verified by post-publish readback.
+Source package version: `v0.3.65`. npm `@latest` and GitHub Release are verified by post-publish readback.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit overview animation" width="720">
@@ -43,6 +43,8 @@ To see how Agent Handoff Kit sits in a local agentic AI workflow, open [`local-a
 | `( o.o ) continuity ready` | Ready to continue; the AI has loaded resumable state. |
 | `( -.- ) handoff saved` | Closeout has been saved; next time you can say `Start Agent Handoff` or `開工`. |
 | `( x.x ) handoff blocked` | Not broken; something still needs to be saved, committed, verified, or handled. Follow the Blocker line first and do not treat this session as handed off. |
+
+The closeout card checks saved handoff state, required fields, and recorded check results; it does not automatically prove that task conclusions are correct. Blocked work can still be handed off when its cause, impact, and conditions for resuming are clearly saved. “Saved” does not mean the overall task is complete.
 
 ## 🧭 How to read this repository
 
@@ -97,11 +99,11 @@ If the AI is not yet pointed at the project folder, use the path-bearing startup
 Work in <your project folder>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
 ```
 
-A first installation marks onboarding as pending. If you only say `Start Agent Handoff` or `開工` after installing, and you do not provide a clear task in the same message, the AI should show the startup card and enter a short first-use welcome. Upgrades of existing projects do not reset that flow. When your goal and the available facts are clear, the AI may give a brief first-use frame and then begin the first safe task action.
+A first installation marks onboarding as pending. The AI enters a short first-use welcome after the startup card only when that state is still `eligible`, the active objective is empty or `TBD`, and there is no concrete task in the same message. Upgrades of existing projects do not reset the state. When you clearly describe the goal and available facts, the AI may begin the first safe step without going through onboarding first.
 
 For ordinary daily startup, the AI reads `dev/SESSION_HANDOFF.md` first. Inside the same folder it does not reread `START_NEXT_SESSION_PROMPT.txt` or `dev/SESSION_LOG.md` during normal startup. The prompt copy is only for an AI that has not yet been pointed at the project folder.
 
-A bare `Start Agent Handoff` / `開工` restores the minimum current state, shows the startup card, status, and recommended next action, then waits. It does **not** authorize research, planning, QA, packaging, file writes, network use, or sub-agents. To work immediately, say so in the same message, for example: `Start Agent Handoff, continue <task>`.
+`開工，繼續 <task>`, `<project> 開工`, and `Start Agent Handoff and continue <task>` are all continuity commands. The AI asks one short confirmation only when the phrase could genuinely refer to a real-world opening, shift, or unrelated event. A bare startup or one that adds only the project name restores the minimum state, shows the startup card and recommended next action, then waits; it does not authorize research, planning, QA, file writes, network use, or sub-agents. Only a concrete task or explicit long-run instruction in the same message authorizes work. The first-use guidance exception described above still applies.
 
 Then describe your task in ordinary language. The AI should explain the current state, next action, and risk before it starts the requested work.
 
@@ -117,7 +119,9 @@ You can also say `收工`, `Wrap up Agent Handoff`, or `handoff`.
 
 If the phrase could instead mean a real-world closing event, such as a restaurant closing, the AI should ask one short question rather than immediately changing the project handoff.
 
-At a real closeout, the AI updates the handoff and regenerates:
+The AI should record the overall outcome, current subtask, exact resume point, and remaining acceptance checks, together with the necessary source versions, sections read, reading depth, and unresolved gaps. Simple tasks need only the relevant facts, not a multi-level task table. Before closeout, the AI reconstructs the next step using only the handoff, then compares it with your original request and actual results so a completed small step is not mistaken for the overall outcome. When resuming, the AI must still read the sources needed for the task; a predecessor's “read” record is not its own verification.
+
+The AI should update only changed handoff state and compare the next-session prompt copy, regenerating it only when it differs:
 
 ```text
 START_NEXT_SESSION_PROMPT.txt
@@ -154,7 +158,7 @@ You do not need to remember rule file names. The Kit lets the AI classify what y
 | Write code or fix a bug | Reads the project index and relevant files, then changes and tests only what is needed. |
 | Write an article, README, or public copy | Clarifies audience, purpose, tone, and publication surface. |
 | Research or compare tools | Separates verified facts, source summaries, and the AI’s judgement. |
-| Delete files, use Git, publish, or use npm | Explains impact first and waits for your confirmation. |
+| Delete files, use Git, publish, or use npm | For high-risk operations, explains impact first and waits for your confirmation. |
 | Use Notion, Google Drive, or another external tool | Checks the current tool guidance, handles resources by ownership, and keeps secrets out of project files. |
 
 You can simply say what you want, for example: “Help me revise the README”, “Research whether this tool is suitable”, or “Connect this document to Agent Handoff Kit.” The AI chooses the needed rules.
@@ -162,7 +166,7 @@ You can simply say what you want, for example: “Help me revise the README”, 
 For a durable preference, tell the AI rather than editing rule files blindly:
 
 ```text
-For future public English documents, use clear professional English. Connect this rule to Agent Handoff Kit.
+For future public Chinese documents, use written Traditional Chinese and avoid mixing Chinese and English fragments. Connect this rule to Agent Handoff Kit.
 ```
 
 The AI decides whether that belongs in a one-off note, the next handoff, the project index, or a durable work rule. It must not put everything into one file.
@@ -190,7 +194,7 @@ Rules that must persist across future sessions should be written into the approp
 
 Even if you do not write code, the Kit requires an AI to stop and explain high-risk actions.
 
-- **Destructive operations:** commands such as `rm -rf`, `git reset --hard`, and operations against system root paths are prohibited by default. Force-push, branch or tag deletion, and history rewriting need explicit scope, explicit approval, and readback of the affected refs.
+- **Destructive operations:** commands such as `rm -rf`, `git reset --hard`, and operations against system root paths are prohibited. Force-push, branch or tag deletion, and history rewriting need explicit scope, explicit approval, and readback of the affected refs.
 - **Secrets:** do not print, commit, or upload `.env` values, API keys, or tokens.
 - **Verify; do not guess:** before using a third-party service, connector, MCP, CLI, API, or plugin, check current official or already verified local guidance. If it cannot be verified, say so.
 - **External-tool closeout:** an AI may close only resources it can show were created for the current task. Shared, user-owned, other-agent-owned, or unclear resources must be reported and left alone until you confirm.
@@ -204,4 +208,4 @@ Agent Handoff Kit can work alongside [Adam-AI-Instructions](https://github.com/p
 - **Adam-AI-Instructions** governs how an AI works within one conversation: tone, priorities, response structure, calculation discipline, and safety boundaries.
 - **Agent Handoff Kit** governs continuity between conversations: current state, next action, file routes, real closeout, and the next startup.
 
-This pairing is optional. It does not change installation or everyday use of Agent Handoff Kit.
+This pairing is optional. It does not change installation or everyday use of Agent Handoff Kit. To use it, choose the version for your AI tool in that repository and paste it into the AI tool's settings.

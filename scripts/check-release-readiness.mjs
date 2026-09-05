@@ -944,25 +944,26 @@ function checkScenarioBranchingDocAlignment() {
     {
       id: "4c",
       snippets: [
-        "upgrade substantive with stale prompt convenience copy",
+        "upgrade metadata migration with stale prompt convenience copy",
         "START_NEXT_SESSION_PROMPT.txt",
-        "便利副本落後只可 warning",
-        "升級驗收完成",
+        "current managed core",
+        "authoritative handoff opening",
+        "migration committed",
         "status: failed"
       ]
     },
     {
       id: "4d",
       snippets: [
-        "upgrade anchor drift auto-repair",
+        "upgrade unknown safety edit conflict",
         "dev/rules/safety.md",
         "cmd /c rmdir",
-        "restore safety pack high-risk rules in ## Rules section",
-        "升級驗收完成",
+        "zero writes",
+        "no lock",
         "anchor checks failed"
       ],
-      mustHaveCell: ["dev/rules/safety.md", "restore safety pack high-risk rules in ## Rules section", "cmd /c rmdir"],
-      mustNotCell: ["anchor checks failed", "不要重跑 upgrade"]
+      mustHaveCell: ["dev/rules/safety.md", "conflict", "zero writes", "no lock", "anchor checks failed"],
+      mustNotCell: ["migration committed", "restore safety pack high-risk rules in ## Rules section"]
     },
     {
       id: "4e",
@@ -1256,8 +1257,10 @@ function simulateScenarioBranching() {
   const s4gDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s4gRoot], "scenario 4g doctor after temperature auto-repair", { env });
   assert(s4gDoctor.stdout.includes("status: passed"), "scenario 4g doctor must pass after temperature auto-repair");
 
-  // Scenario 4c: stale START_NEXT_SESSION_PROMPT.txt convenience copy. The project
-  // has a legacy unmarked AGENTS core, so upgrade performs a substantive merge.
+  // Scenario 4c: stale START_NEXT_SESSION_PROMPT.txt convenience copy. Keep a
+  // current managed core and its accepted USER_RULES intact, with a local prefix.
+  // A stale Stack version requires a metadata migration; it is not ownership
+  // evidence permitting replacement of any unknown core or project rule.
   // If the authoritative handoff opening message is readable, the prompt copy is
   // Kit-owned and can be regenerated safely; upgrade should repair it instead of
   // leaving a warning for the user.
@@ -1267,17 +1270,15 @@ function simulateScenarioBranching() {
     throw new Error(`Scenario 4c init prep failed: ${s4cInit.stderr || s4cInit.stdout}`);
   }
   const s4cAgentsPath = path.join(s4cRoot, "AGENTS.md");
-  writeFileSync(s4cAgentsPath, [
-    "# Project Local Preamble",
-    "",
-    "Keep this local rule.",
-    "",
-    staleCoreFixture()
-  ].join("\n"), "utf8");
-  // This fixture represents a pre-R-034 legacy project. It cannot retain the
-  // fresh-only formal router after replacing AGENTS with the legacy core: that
-  // mixed state must be a product conflict, not an auto-repair fixture.
-  rmSync(path.join(s4cRoot, "dev", "USER_RULES.md"), { force: true });
+  writeFileSync(s4cAgentsPath, Buffer.concat([
+    Buffer.from("# Project Local Preamble\n\nKeep this local rule.\n\n", "utf8"),
+    readFileSync(s4cAgentsPath)
+  ]));
+  const s4cIndexPath = path.join(s4cRoot, "dev/PROJECT_INDEX.md");
+  writeFileSync(s4cIndexPath, materializeProjectIndexTemplateVersion(readFileSync(s4cIndexPath, "utf8"), "0.3.64"), "utf8");
+  const s4cIndexBefore = readFileSync(s4cIndexPath);
+  const s4cPreserved = new Map(["AGENTS.md", "dev/USER_RULES.md", "dev/SESSION_HANDOFF.md", "dev/SESSION_LOG.md"]
+    .map((rel) => [rel, readFileSync(path.join(s4cRoot, rel))]));
   writeFileSync(
     path.join(s4cRoot, "START_NEXT_SESSION_PROMPT.txt"),
     "Work in <absolute project root>.\n\nRead AGENTS.md and continue.\n",
@@ -1286,7 +1287,7 @@ function simulateScenarioBranching() {
   const s4c = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4cRoot], "scenario 4c upgrade with stale prompt convenience copy", { env });
   assertScenarioOutput("scenario 4c (stale prompt convenience copy auto-repair)", s4c.stdout, {
     mustHave: [
-      /replace unmarked legacy Agent Handoff Kit core with managed-marker block/,
+      /managed core matches current content; local surrounding bytes preserved/,
       /✅ migration committed/,
       /✅ project health: passed/
     ],
@@ -1298,48 +1299,52 @@ function simulateScenarioBranching() {
     ]
   });
   const s4cPrompt = readFileSync(path.join(s4cRoot, "START_NEXT_SESSION_PROMPT.txt"), "utf8");
-  assert(s4cPrompt.includes("Read AGENTS.md, then dev/SESSION_HANDOFF.md"), "scenario 4c prompt copy must be regenerated from handoff opening message");
+  const s4cOpening = extractOpeningMessage(readFileSync(path.join(s4cRoot, "dev/SESSION_HANDOFF.md"), "utf8"));
+  assert(s4cOpening != null && normalizePrompt(s4cPrompt) === normalizePrompt(s4cOpening), "scenario 4c prompt copy must match the full authoritative handoff opening message");
+  for (const [rel, before] of s4cPreserved) {
+    assert(before.equals(readFileSync(path.join(s4cRoot, rel))), `scenario 4c changed preserved ${rel} while repairing its generated mirror`);
+  }
+  assertProjectIndexMetadataTransition("scenario 4c", s4cIndexBefore, readFileSync(s4cIndexPath), currentVersion);
 
-  // Scenario 4d: when a Kit-maintained file lacks a required anchor, upgrade
-  // must repair the bounded missing anchor and pass self-check. A novice should
-  // not be sent to ask AI to repair the upgrade result.
+  // Scenario 4d: an unknown edit inside a safety rule loses a required anchor.
+  // Doctor must expose it, but a missing anchor or familiar numbered-rule shape
+  // cannot authorize deleting that edit. Upgrade must stop without any writes.
   const s4dRoot = path.join(tempBase, "scenario-upgrade-self-check-anchor-failure");
   const s4dInit = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", s4dRoot], { encoding: "utf8", env, cwd: root });
   if (s4dInit.status !== 0) {
     throw new Error(`Scenario 4d init prep failed: ${s4dInit.stderr || s4dInit.stdout}`);
   }
-  const s4dAgentsPath = path.join(s4dRoot, "AGENTS.md");
-  writeFileSync(s4dAgentsPath, [
-    "# Project Local Preamble",
-    "",
-    "Keep this local rule.",
-    "",
-    staleCoreFixture()
-  ].join("\n"), "utf8");
-  // Keep the legacy fixture internally coherent for the same reason as 4c.
-  rmSync(path.join(s4dRoot, "dev", "USER_RULES.md"), { force: true });
   const s4dSafetyPath = path.join(s4dRoot, "dev/rules/safety.md");
   writeFileSync(
     s4dSafetyPath,
     readFileSync(s4dSafetyPath, "utf8").replace("cmd /c rmdir", "cmd command removed from this stale local copy"),
     "utf8"
   );
-  const s4d = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4dRoot], "scenario 4d anchor drift auto-repair", { env });
-  assertScenarioOutput("scenario 4d (upgrade anchor drift auto-repair)", s4d.stdout, {
+  const s4dBefore = directorySnapshot(s4dRoot);
+  const s4dDoctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", s4dRoot], { encoding: "utf8", env, cwd: root });
+  assert(s4dDoctor.status !== null && s4dDoctor.status !== 0, "scenario 4d doctor must reject the missing safety anchor");
+  assertScenarioOutput("scenario 4d (doctor exposes unknown safety edit)", s4dDoctor.stdout, {
+    mustHave: [/missing  dev\/rules\/safety.md/, /cmd \/c rmdir/, /status: failed/, /anchor checks failed/],
+    mustNotHave: [/status: passed/]
+  });
+  const s4d = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4dRoot], { encoding: "utf8", env, cwd: root });
+  assert(s4d.status !== null && s4d.status !== 0, "scenario 4d upgrade must reject an unproven local safety edit");
+  assertScenarioOutput("scenario 4d (upgrade unknown safety edit conflict)", s4d.stdout, {
     mustHave: [
       /dev\/rules\/safety.md/,
+      /conflict: 1/,
+      /升級預檢發現 conflict/,
+      /治理目標檔、版本與 migration artifact 均沒有寫入/
+    ],
+    mustNotHave: [
       /restore safety pack high-risk rules in ## Rules section/,
       /✅ migration committed/,
       /✅ project health: passed/,
-      /status: passed/
-    ],
-    mustNotHave: [
-      /anchor checks failed/,
-      /不要重跑 upgrade/,
-      /非破壞性補回缺失 anchor/,
-      /請執行：npx --yes @adamchanadam\/agent-handoff-kit@latest upgrade --dry-run；不要手動覆寫既有檔案/
+      /migration report:/
     ]
   });
+  assert(equalSnapshots(s4dBefore, directorySnapshot(s4dRoot)), "scenario 4d doctor or rejected upgrade changed fixture bytes or created artifacts");
+  assert(!existsSync(path.join(s4dRoot, "dev/governance_migrations/.upgrade.lock")), "scenario 4d conflict must not create an upgrade lock");
 
   // Scenario 4e: a Kit-owned handoff continuity anchor is missing from
   // SESSION_HANDOFF.md. Unlike user-owned safety-rule drift, this can be
@@ -1708,62 +1713,6 @@ function assertProjectIndexOperationReceipt(label, journal, entry, report) {
   return true;
 }
 
-function staleCoreFixture() {
-  return `# Agent Handoff Kit Core Runtime
-
-This is a stale installed core used to test upgrade replacement.
-
-## 1. Startup Reads
-
-After this core is loaded, read in order:
-
-1. \`dev/SESSION_HANDOFF.md\`
-2. the latest entry in \`dev/SESSION_LOG.md\`
-3. \`dev/PROJECT_INDEX.md\`
-4. \`dev/RULE_PACKS.md\`
-
-Before acting on a non-trivial task, identify required local source-of-truth files and external sources. Reachable is not the same as ingested. Do not treat unread sources as absent.
-
-## 2. Work Loop
-
-Use this loop for every task:
-
-1. PLAN
-2. READ
-3. CHANGE
-4. QC
-5. PERSIST
-
-External skill flows, subagents, task plans, or another tool's "finish" step do not replace this loop.
-
-## 3. Safety Boundaries
-
-Do not delete, reset, overwrite, bulk-move, or publish without explicit user approval.
-
-## 4. Closeout And Handoff
-
-At full closeout:
-
-1. Reconcile \`dev/SESSION_HANDOFF.md\`.
-2. Add a concise entry to \`dev/SESSION_LOG.md\`.
-3. Update \`dev/PROJECT_INDEX.md\` if needed.
-4. Check \`dev/DOC_SYNC_REGISTRY.md\`.
-5. Record unresolved drift risk.
-6. Complete the \`State Reconciliation Check\`.
-7. Run the handoff sufficiency check.
-8. If either check fails, fix \`dev/SESSION_HANDOFF.md\` first.
-9. Regenerate \`START_NEXT_SESSION_PROMPT.txt\` from \`dev/SESSION_HANDOFF.md\`, then read it back or verify it.
-10. Show a short closeout card, then provide the next-session startup entry: \`Start Agent Handoff\` / \`開工\`, plus the path-bearing fallback when the next AI is not yet pointed at this project root.
-
-## 5. Pack Loading
-
-Use \`dev/RULE_PACKS.md\` to decide which pack to read.
-
-## Core Complexity Rule
-
-New default-core rules are allowed only when they apply to most sessions, protect safety or continuity, cannot live in a pack or registry, and keep the core within budget.
-`;
-}
 
 function checkForbiddenVocabulary(label, text, patterns) {
   for (const pattern of patterns) {

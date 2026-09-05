@@ -133,11 +133,10 @@ function ensureStateRegion(routerText) {
 export function renderUserRulesAcceptanceDigest(agentsText, digest) {
   if (typeof digest !== "string" || !/^[a-f0-9]{64}$/.test(digest)) throw new Error("user-rules acceptance digest is invalid");
   const source = String(agentsText);
-  const entry = parseFormalUserRulesEntry(source);
-  const newline = source.includes("\r\n") ? "\r\n" : "\n";
-  const lines = source.split(/\r?\n/);
-  lines[entry.acceptanceDigestLine] = `<!-- ack:user-rules-acceptance:sha256=${digest} -->`;
-  return lines.join(newline);
+  parseFormalUserRulesEntry(source);
+  // Validation above proves there is one active digest. Replace only that
+  // token; splitting/rejoining the file would rewrite mixed-newline user data.
+  return source.replace(acceptanceAnchorPattern, `<!-- ack:user-rules-acceptance:sha256=${digest} -->`);
 }
 
 /**

@@ -841,10 +841,10 @@
   <header class="hero">
     <div class="wrap">
       <div>
-        <span class="kicker">v0.3.64 source version · 60 秒新手入門</span>
+        <span class="kicker">v0.3.65 source version · 60 秒新手入門</span>
         <h1><span class="accent">AI Session</span><br/>之間的<br/><span class="accent2">接力棒</span></h1>
         <p class="lede">AI 每次開新對話都是從零開始,不記得你上次和它做過甚麼,也認不出中途新建的文檔和你引入的參考資料。這套工具的作用,是把進度、下一步、要留神之處,連同一份檔案登記,寫進幾份固定文件;下一次在能讀寫本機專案資料夾的 AI agent 開新對話,只要說 Start Agent Handoff 或「開工」,它就會讀取交接檔案並接上上一棒。普通 web chat AI 若不能讀寫本機資料夾,不屬於支援場景。</p>
-        <p><strong>版本提示：</strong>本頁對齊 v0.3.64；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
+        <p><strong>版本提示：</strong>本頁對齊 v0.3.65；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
         <div class="cta-row">
           <a class="btn primary" href="#howto">看三步上手 →</a>
           <a class="btn secondary" href="agent-handoff-kit-guide.html">實操指南 →</a>
@@ -929,7 +929,7 @@
           <div class="pain-num">04</div>
           <h3>AI 會亂改、亂刪</h3>
           <p>AI 一旦放手做事,可能執行 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">rm -rf</code> 或 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">git reset --hard</code> 一類指令;你當下不在電腦前,根本察覺不到。</p>
-          <div class="kit-line">這套工具內置安全規則,危險指令一律禁止;改檔之前必須先報告計劃</div>
+          <div class="kit-line">這套工具內置安全規則，指定破壞性指令一律禁止；重要改動先核對來源，高風險操作先說明影響並取得所需確認</div>
         </div>
         <div class="pain-card c5">
           <div class="pain-num">05</div>
@@ -966,7 +966,8 @@
       <div class="magic-aftermath">
 <span class="label">AI 收到開工或收工短語之後會做的事:</span>
 開工 · 讀取 AGENTS.md 與權威 SESSION_HANDOFF，顯示目前狀態、風險與建議下一步後結束本輪回覆；只有同一句同時交代明確任務或長程指令時才開始工作
-收工 01 · 逐段對賬交接文件:更新「當前狀態」、「下一步」、「風險」、「驗收」
+收工 01 · 只更新有變的交接狀態，寫清整體目標、目前子任務、續接點、剩餘驗收，以及真源已讀範圍與未解缺口
+交接核對 · AI 只憑交接重建下一步，再對照原始要求與成果；收工卡核對保存及已記錄的檢查，不自動證明任務結論正確。受阻原因與續接條件記清楚，未完成的工作也可交接
 收工 02 · 把本次實際做過的事,寫進工作日誌
 收工 03 · 同步更新 START_NEXT_SESSION_PROMPT.txt,你下次開新對話說「開工」就能接續
       </div>
@@ -974,7 +975,7 @@
       <div class="handoff-flow" aria-label="開工收工循環">
         <div class="flow-step f1"><span class="num">01</span><strong>安裝完成</strong><span>AI 已放好接力文件</span></div>
         <div class="flow-step f2"><span class="num">02</span><strong>說「開工」</strong><span>讀取上一輪狀態</span></div>
-        <div class="flow-step f3"><span class="num">03</span><strong>AI 繼續做事</strong><span>按任務載入規則</span></div>
+        <div class="flow-step f3"><span class="num">03</span><strong>交代任務後工作</strong><span>按已授權任務載入規則</span></div>
         <div class="flow-step f4"><span class="num">04</span><strong>說「收工」</strong><span>保存交接與驗收</span></div>
         <div class="flow-step f5"><span class="num">05</span><strong>下次再說「開工」</strong><span>新對話接回同一棒</span></div>
       </div>
@@ -1129,12 +1130,12 @@
 <span class="hl">開工</span></pre>
           <p style="margin-top:12px;">若 AI 還未指向你的專案資料夾,才使用帶路徑啟動句:</p>
           <pre>Work in <span class="hl">&lt;你的資料夾&gt;</span>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</pre>
-          <p style="margin-top:12px;">AI 會依 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code> 讀取權威 <code style="font-family:var(--font-mono);font-size:13px;">dev/SESSION_HANDOFF.md</code>。單獨輸入「開工」通常只會讀取最小狀態、顯示目前目標／風險／建議下一步，然後等待你的下一句指令；第一次安裝會把新手引導標記為待使用，所以若安裝後只說「開工」且沒有同句明確任務，AI 會進入簡短新手歡迎引導。若平台能安全讀回及控制目前標題，AI 可用已載入事實把 generic / stale title 改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」；已有清楚標題便保留，不支援時靜默略過，也不為命名額外讀檔或連網。標題只供顯示，不代表狀態、進度或授權。只有同一句同時交代明確任務或長程指令時才會直接開始第一個安全步驟。<code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code> 只供尚未指向資料夾的 AI 接入。</p>
-          <p style="margin-top:12px;">「開工,繼續 &lt;任務&gt;」與「&lt;項目&gt; 開工」直接接力;只有語句可能指現實世界的開業、輪班或無關事件時才確認。</p>
+          <p style="margin-top:12px;">AI 會依 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code> 讀取權威 <code style="font-family:var(--font-mono);font-size:13px;">dev/SESSION_HANDOFF.md</code>。單獨輸入「開工」只會讀取最小狀態、顯示目前目標／風險／建議下一步，然後等待你的下一句指令；例外是新手引導仍標記為 <code>eligible</code>、目前目標空白或 <code>TBD</code>，而且沒有同句明確任務時，才進入簡短新手歡迎引導。若平台能安全控制目前標題，AI 可用已載入事實把籠統或過時的標題改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」；能讀回時先保留已知清楚且相關的標題，但安全指向目前對話的標題工具不以讀回為必要條件。不支援時靜默略過，也不為命名額外讀檔或連網。標題只供顯示，不代表狀態、進度或授權。只有同一句同時交代明確任務或長程指令時才會直接開始第一個安全步驟。<code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code> 只供尚未指向資料夾的 AI 接入。</p>
+          <p style="margin-top:12px;">「開工，繼續 &lt;任務&gt;」、「&lt;項目&gt; 開工」及 <code>Start Agent Handoff and continue &lt;task&gt;</code> 都是接力指令；只加項目名稱仍只顯示狀態，有同句明確任務才開始工作。只有語句可能指現實世界的開業、輪班或無關事件時才確認。</p>
           <ol style="margin-top:12px;padding-left:22px;font-size:14px;line-height:1.65;">
             <li>只讀取最低必要的目前交接狀態。</li>
             <li>顯示目前目標、風險與建議下一步，然後等待你的下一句工作指令。</li>
-            <li>只有目標仍含糊或你要求逐步引導時,才顯示情境選單。</li>
+            <li>新手引導仍為 <code>eligible</code>、目標空白或 <code>TBD</code>、沒有同句任務時顯示首次歡迎；只有目標仍含糊或你要求逐步引導時，才顯示情境選單。</li>
             <li>只追問真正缺少而且會影響結果的資料。</li>
             <li>涉及刪除、外部寫入或其他高風險操作時,仍等你確認後才動手。</li>
           </ol>
@@ -1158,7 +1159,7 @@
 
       <div style="margin-top: 40px; padding: 28px; background: var(--paper); border: 3px solid var(--ink); border-left: 12px solid var(--blue);">
         <h3 style="margin: 0 0 12px; font-size: 20px; text-transform: uppercase; letter-spacing: 0.04em;">🚀 第一次用?最簡單版本</h3>
-        <p style="margin: 0; font-size: 16px; max-width: none;">未安裝或不確定是否要升級時,先在目標資料夾打開 AI agent,請它讀 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">agent-handoff-kit-ai-install.html</code> 並在這個資料夾安裝或升級。安裝後在同一個 AI agent 輸入 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">Start Agent Handoff</code> 或「開工」。第一次安裝後單獨輸入時，AI 會讀權威 handoff、顯示目前狀態與建議下一步，並進入簡短新手歡迎；既有項目升級後不會重置這個流程。你在同一句講清目標時才直接開始第一個安全步驟。本介紹頁不需要先讀完。</p>
+        <p style="margin: 0; font-size: 16px; max-width: none;">未安裝或不確定是否要升級時,先在目標資料夾打開 AI agent,請它讀 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">agent-handoff-kit-ai-install.html</code> 並在這個資料夾安裝或升級。安裝後在同一個 AI agent 輸入 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">Start Agent Handoff</code> 或「開工」。AI 先讀權威交接、顯示目前狀態與建議下一步；只有新手引導仍為 <code>eligible</code>、目標空白或 <code>TBD</code>、沒有同句任務時，才加上簡短首次歡迎。既有項目升級不會重置引導；一般開工只顯示狀態，明示要求教學則按引導處理。你在同一句講清目標時才直接開始第一個安全步驟。本介紹頁不需要先讀完。</p>
       </div>
     </div>
   </section>
@@ -1167,7 +1168,7 @@
   <section id="safety">
     <div class="wrap">
       <span class="eyebrow">06 / 為新手而設的安全護欄</span>
-      <h2>就算你不懂代碼,<br/>項目也不會被 AI 弄壞。</h2>
+      <h2>高風險操作之前，<br/>先核對、說明並取得所需確認。</h2>
       <p class="intro">這套工具內置「安全」工作模式。任何時候涉及刪檔、Git、雲端寫入、發佈,AI 都必須切換到安全做法,並遵守以下硬性禁區:</p>
 
       <div class="safety-grid">
@@ -1181,8 +1182,8 @@
           </ul>
         </div>
         <div class="safety-callout">
-          <div class="big">改檔之前,<br/>先講計劃。</div>
-          <p>高風險的工作,例如影響多檔、涉及外部系統、牽涉刪除或重命名,AI 必須先報告完整計劃,等你確認才動手,不會悄悄改動。</p>
+          <div class="big">按改動風險，<br/>決定核對與確認。</div>
+          <p>重要改動先讀相關來源；高風險、外部或不可逆操作先列明範圍、影響、驗收與所需確認。已授權的簡單、低風險改動可直接完成並核對，不必每次另走完整計劃。</p>
         </div>
       </div>
     </div>
@@ -1201,14 +1202,14 @@
           <span class="mode-tag">每次開工必讀</span>
           <h3>每次必讀</h3>
           <p style="font-size:14px;"><strong>SESSION_HANDOFF</strong>:當前狀態、下一步、風險。</p>
-          <p style="font-size:14px;"><strong>PROJECT_INDEX</strong>:檔案登記、真源。</p>
           <p style="font-size:14px;"><strong>AGENTS / CLAUDE / GEMINI.md</strong>:開工規則。</p>
-          <p style="font-size:13px;opacity:0.7;">AI 開工只讀入口規則與權威 handoff；索引、同步表與規則包按任務需要再載入。</p>
+          <p style="font-size:13px;opacity:0.7;">單獨開工讀入口規則與權威交接；項目索引只讀唯一 <code>Stack</code> 段內的版本列供卡片顯示，不藉此載入其他索引內容。</p>
         </div>
         <div class="mode-cell m2">
           <div class="mode-icon" aria-hidden="true"></div>
           <span class="mode-tag">按需要讀</span>
           <h3>按任務讀</h3>
+          <p style="font-size:14px;"><strong>PROJECT_INDEX</strong>:按任務需要讀檔案登記與真源路線。</p>
           <p style="font-size:14px;"><strong>工作規則</strong>:按任務選用的做事守則。</p>
           <p style="font-size:14px;"><strong>PROJECT_DECISIONS</strong>:項目長期演進、決策、學習。</p>
           <p style="font-size:13px;opacity:0.7;">視乎你今日做的任務,AI 自己選擇要讀哪些規則,不需要你決定。長期項目的決策歷史亦放在這裡 —— 遇到「我們之前為何這樣做」的問題時,AI 會在這裡找答案。</p>
@@ -1245,7 +1246,7 @@
         <div class="recap-cell">
           <div class="big">03</div>
           <h3>開工接力,收工保存</h3>
-          <p>下一輪說 Start Agent Handoff 或「開工」,由 AI 自己讀取最新提示。準備結束本輪工作時說「收工」或 Wrap up Agent Handoff,AI 會更新交接文件與 START_NEXT_SESSION_PROMPT.txt。</p>
+          <p>下一輪說 Start Agent Handoff 或「開工」,由 AI 讀取權威 <code>dev/SESSION_HANDOFF.md</code> 恢復狀態。準備結束本輪工作時說「收工」或 Wrap up Agent Handoff,AI 會更新交接文件與 START_NEXT_SESSION_PROMPT.txt。</p>
         </div>
       </div>
     </div>
@@ -1256,7 +1257,7 @@
     <div class="wrap">
       <span class="eyebrow">09 / 配合使用</span>
       <h2>單次對話質素 +<br/>跨對話接力。</h2>
-      <p class="intro">這套工具負責對話之間接力,但 AI 在單一對話內的做事規矩(語氣、優先序、回覆骨架、安全護欄、輸出層分工)就不包含。配合 Adam-AI-Instructions 使用,兩個維度都覆蓋。</p>
+      <p class="intro">Agent Handoff Kit 主責對話之間的接力；Adam-AI-Instructions 主責單一對話內的做事規矩，包括語氣、優先序與回覆結構。兩者可選配合，在安全、機密、不可逆操作與發布底線保留最低限度的共同防線；互不構成父子真源，也不合併成同一套規則。</p>
 
       <div class="what-grid">
         <div class="what-cell before">
@@ -1311,7 +1312,7 @@
         </p>
       </div>
       <div class="meta">
-        v0.3.64 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a>為準。
+        v0.3.65 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a>為準。
       </div>
     </div>
   </footer>

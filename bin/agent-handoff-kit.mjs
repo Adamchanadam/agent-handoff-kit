@@ -616,6 +616,11 @@ async function runCloseoutStatus(root, version) {
   const persistence = projectRequiredPersistence(fieldValueAfterMarker(handoffText, "project-required-persistence"));
   if (outcome !== "complete") findings.push("closeout outcome is not complete");
   if (!new Set(["complete", "not_required"]).has(persistence)) findings.push("project-required persistence is not complete or not required");
+  const sufficiency = assessHandoffSufficiency(handoffText);
+  if (sufficiency.length > 0) {
+    findings.push("handoff sufficiency read-back is incomplete");
+    details.push(...sufficiency);
+  }
   const lifecycle = assessHandoffLifecycleConsistency(handoffText);
   if (!lifecycle.ok) {
     findings.push("handoff lifecycle read-back is not healthy");
@@ -641,6 +646,89 @@ async function runCloseoutStatus(root, version) {
   const result = { ok: findings.length === 0, findings, details };
   printCloseoutStatusCard(version, result);
   if (!result.ok) process.exitCode = 1;
+}
+
+function assessHandoffSufficiency(text) {
+  // Only visible prose is a declaration. Preserve text outside inline comments,
+  // but exclude fenced/indented examples and markers inside comments. This is
+  // local to the sufficiency fields; no project source is opened by the check.
+  const original = text.replace(/\r\n/g, "\n").split("\n");
+  const markerPattern = /^\s{0,3}<!-- (ack:(?:section|field):[\w-]+) -->\s*$/u;
+  const visible = [];
+  let fence = null;
+  let comment = false;
+  for (const raw of original) {
+    if (fence) {
+      const closing = /^ {0,3}(`{3,}|~{3,})\s*$/u.exec(raw);
+      if (closing && closing[1][0] === fence[0] && closing[1].length >= fence.length) fence = null;
+      continue;
+    }
+    if (!comment && /^(?: {4}| {0,3}\t)/u.test(raw)) continue;
+    const rawFence = !comment && /^ {0,3}(`{3,}|~{3,})(.*)$/u.exec(raw);
+    if (rawFence && (rawFence[1][0] !== "`" || !rawFence[2].includes("`"))) { fence = rawFence[1]; continue; }
+    const marker = !comment ? markerPattern.exec(raw)?.[1] : null;
+    if (marker) { visible.push({ text: marker, marker }); continue; }
+    let prose = "";
+    let offset = 0;
+    while (offset < raw.length) {
+      if (comment) {
+        const end = raw.indexOf("-->", offset);
+        if (end < 0) break;
+        comment = false;
+        offset = end + 3;
+      } else {
+        const start = raw.indexOf("<!--", offset);
+        if (start < 0) { prose += raw.slice(offset); break; }
+        prose += raw.slice(offset, start);
+        comment = true;
+        offset = start + 4;
+      }
+    }
+    const opening = /^ {0,3}(`{3,}|~{3,})(.*)$/u.exec(prose);
+    if (opening && (opening[1][0] !== "`" || !opening[2].includes("`"))) { fence = opening[1]; continue; }
+    visible.push({ text: prose.trim(), marker: null });
+  }
+  const marked = (id) => visible.map((line, index) => line.marker === id ? index : -1).filter((index) => index >= 0);
+  const indices = marked("ack:section:handoff-sufficiency-check");
+  if (indices.length !== 1) return ["Handoff: require one active handoff-sufficiency-check section."];
+  const section = [];
+  let headingSeen = false;
+  for (const line of visible.slice(indices[0] + 1)) {
+    if (line.marker?.startsWith("ack:section:")) break;
+    if (/^##\s/u.test(line.text)) {
+      if (headingSeen || section.some((item) => item.trim())) break;
+      headingSeen = true;
+      continue;
+    }
+    section.push(line.text);
+  }
+  const fields = (label) => section.flatMap((line) => {
+    const match = new RegExp(`^(?:[-*]\\s+)?${escapeRegExp(label)}:\\s*(.*)$`, "iu").exec(line);
+    return match ? [match[1].trim()] : [];
+  });
+  const affirmative = (value) => /^yes(?:$|[\s.;:—–-])/iu.test(value);
+  const answers = fields("Answer");
+  const evidence = fields("Reconstruction evidence");
+  const findings = [];
+  if (answers.length !== 1 || !affirmative(answers[0])) {
+    findings.push("Handoff: Answer must occur once and start with yes after the packet-only reconstruction check; no/unknown/missing answers cannot complete closeout.");
+  }
+  const placeholder = /^(?:TBD|pending|unknown|not_started|not_assessed|待定|待補|未核實)(?:$|[\s.;:—–-])|^(?:yes|no|none|n\/?a|verified|complete|passed)[.!。]?$/iu;
+  if (evidence.length !== 1 || !evidence[0] || placeholder.test(evidence[0]) || /^<[^>]*>$/u.test(evidence[0])) {
+    findings.push("Handoff: add one non-placeholder Reconstruction evidence line citing the owning handoff sections; do not invent proof or copy a prior yes.");
+  }
+  const continuation = marked("ack:field:next-ai-can-continue");
+  if (continuation.length > 1) findings.push("Handoff: next-ai-can-continue is duplicated.");
+  if (continuation.length === 1) {
+    const following = [];
+    for (const line of visible.slice(continuation[0] + 1)) {
+      if (line.marker || /^##\s/u.test(line.text)) break;
+      if (line.text) following.push(line.text);
+    }
+    const value = following[0]?.match(/^[*-]\s+[^:]+:\s*(.*)$/u)?.[1] ?? "";
+    if (!affirmative(value)) findings.push("Handoff: next-ai-can-continue must agree with the affirmative sufficiency answer; repair negative, unknown or missing state.");
+  }
+  return findings;
 }
 
 function closeoutDoctorFailureDetails(doctor) {
@@ -1023,7 +1111,7 @@ function hasSubstantiveWorkspaceValue(value) {
 }
 
 function workspaceValueMeansNoGit(value) {
-  return /\b(no git|non-git|not a git repository|not_git)\b|(?:沒有|無|不是).{0,12}\bGit\b/iu.test(value ?? "");
+  return /\b(no git|non-git|not a git repository|not_git)\b|\bgit:\s*no(?=$|[\s,;.])|(?:沒有|無|不是).{0,12}\bGit\b/iu.test(value ?? "");
 }
 
 function workspaceSectionClaimsNoGit(section) {
@@ -1566,6 +1654,9 @@ async function buildTransactionOutputs(command, root, plan, version, options = {
   for (const item of plan) {
     if (item.action !== "create" && item.action !== "merge" && item.action !== "preserve") continue;
     const before = await readOptionalBuffer(item.targetAbs);
+    if (item.plannedInputHash && (!before || sha256(before) !== item.plannedInputHash)) {
+      throw new Error(`${item.targetRel}: input changed after official-region proof; restart the read-only plan`);
+    }
     let afterText = null;
     let after = null;
     let projectIndexVersionMetadataMerge = false;
@@ -1739,13 +1830,11 @@ async function synchronizeFormalUserRulesTransactionState(command, root, byTarge
   routerOutput.afterText = renderUserRulesRouter(routerOutput.afterText, { state, entries });
   const acceptanceDigest = userRulesAcceptanceDigest(entries, state);
   const renderedAgentsText = renderUserRulesAcceptanceDigest(agentsText, acceptanceDigest);
-  if (agentOutput.after) {
-    const renderedBytes = encodeLikeExisting(renderedAgentsText, agentOutput.before, "AGENTS.md");
-    if (!agentOutput.after.equals(renderedBytes)) {
-      agentOutput.after = renderedBytes;
-      agentOutput.reason = "formal user-rules acceptance digest transition";
-    }
-  }
+  const existingAgentsBytes = agentOutput.after ?? agentOutput.before;
+  const renderedBody = Buffer.from(renderedAgentsText, "utf8");
+  const renderedBytes = existingAgentsBytes && decodeUtf8(existingAgentsBytes, "AGENTS.md").bom
+    ? Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), renderedBody]) : renderedBody;
+  agentOutput.after = renderedBytes;
   agentOutput.afterText = renderedAgentsText;
   const witness = createFormalUserRulesWitness(entries, state, acceptanceDigest);
   routerOutput.formalUserRules = witness;
@@ -2176,6 +2265,20 @@ async function validateTransactionOverlay(root, outputs) {
     const text = await finalText(rule.target);
     if (text == null) continue;
     for (const check of rule.checks) if (!check.test(text)) failures.push(`${rule.target}: ${check.label}`);
+  }
+
+  // Structural anchors alone cannot certify that a newer runtime was installed.
+  // Check the current required body before any transaction/version commit.
+  for (const [sourceRel, targetRel] of mappings) {
+    const strategy = installedFileContract(targetRel)?.strategy;
+    if (strategy !== "managed-core" && strategy !== "rule-pack") continue;
+    const text = await finalText(targetRel);
+    if (text == null) continue;
+    const expected = (await readFile(path.join(packageRoot, sourceRel), "utf8")).replace(/\r\n?/g, "\n");
+    const actual = strategy === "managed-core" ? managedCoreTextRegion(text)?.text : text;
+    const normalized = actual?.replace(/\r\n?/g, "\n");
+    const current = strategy === "managed-core" ? normalized === expected.trim() : normalized?.startsWith(expected);
+    if (!current) failures.push(`${targetRel}: current runtime requirements were not completely applied; preserve local content and resolve the merge`);
   }
 
   const handoffText = await finalText("dev/SESSION_HANDOFF.md");
@@ -4115,9 +4218,9 @@ function selectTrustedOfficialBaseline(context) {
   const version = context.rootTemplateVersion;
   if (!isStableSemver(version) || !context.officialCatalog?.releases?.[version]) return null;
   const dynamicTargets = new Set(["START_NEXT_SESSION_PROMPT.txt", "dev/SESSION_HANDOFF.md", "dev/PROJECT_INDEX.md"]);
-  // Normalized/canonical identity only selects a historical baseline for a
-  // preserve decision. It never reaches trustedOfficialOrigin(), which keeps
-  // raw byte equality as the sole authority to replace Kit-managed content.
+  // Normalized/canonical identity selects a historical baseline, never direct
+  // replacement authority. A non-raw update needs the separate complete-region
+  // transport proof below; custom appendices also require a consistent baseline.
   let baselineSupport = 0;
   let contradiction = false;
   for (const [targetRel, origin] of context.officialOrigins) {
@@ -4133,6 +4236,93 @@ function trustedOfficialOrigin(targetRel, context) {
   const origin = context.officialOrigins?.get(targetRel);
   if (!origin) return null;
   if (origin.rawExact) return { kind: "raw-exact", versions: origin.rawExactVersions };
+  return null;
+}
+
+// A transport proof is narrower than canonical identity: every non-newline
+// character in this entire official region must match an artifact-bound
+// catalog body. Never use headings, a version row, or fuzzy/canonical matches
+// to grant ownership of arbitrary local content. Bytes outside the proven
+// region (including BOM and local appendices) are reconstructed unchanged.
+function officialRuntimeBodies(targetRel, context) {
+  const bodies = [];
+  for (const [version, release] of Object.entries(context.officialCatalog?.releases ?? {})) {
+    const npm = release.source?.npm;
+    if (!npm?.integrity?.startsWith("sha512-") || !/^[a-f0-9]{40}$/.test(npm.shasum ?? "")) continue;
+    if (!isStableSemver(version) || compareSemver(version, context.currentVersion) > 0) continue;
+    const baseline = getOfficialBaseline({ version, targetRel, catalog: context.officialCatalog });
+    if (baseline?.state !== "present") continue;
+    const text = baseline.text.replace(/\r\n?/g, "\n");
+    if (sha256(Buffer.from(text, "utf8")) !== baseline.normalizedSha256) continue;
+    bodies.push({ version, text });
+  }
+  return bodies.sort((a, b) => compareSemver(b.version, a.version));
+}
+
+function managedCoreTextRegion(text) {
+  if (countText(text, managedCoreStart) !== 1 || countText(text, managedCoreEnd) !== 1) return null;
+  const match = /^<!-- BEGIN Agent Handoff Kit managed core -->\r?\n([\s\S]*?)\r?\n<!-- END Agent Handoff Kit managed core -->/m.exec(text);
+  if (!match) return null;
+  const start = match.index + match[0].indexOf("\n") + 1;
+  return { start, end: start + match[1].length, text: match[1] };
+}
+
+function replaceProvenTextRegion(targetText, targetBytes, start, end, currentText) {
+  const region = targetText.slice(start, end);
+  const rendered = encodeLikeExisting(currentText, Buffer.from(region, "utf8"), "official runtime region");
+  const bomBytes = decodeUtf8(targetBytes, "official runtime target").bom ? 3 : 0;
+  const byteStart = bomBytes + Buffer.byteLength(targetText.slice(0, start), "utf8");
+  const byteEnd = bomBytes + Buffer.byteLength(targetText.slice(0, end), "utf8");
+  return Buffer.concat([targetBytes.subarray(0, byteStart), rendered, targetBytes.subarray(byteEnd)]);
+}
+
+function planProvenRuntimeRegion(targetRel, targetText, targetBytes, sourceText, context) {
+  const normalize = (text) => text.replace(/\r\n?/g, "\n");
+  const bodies = officialRuntimeBodies(targetRel, context);
+  if (targetRel === "AGENTS.md") {
+    const region = managedCoreTextRegion(targetText);
+    if (!region) return null;
+    const current = sourceText.trim();
+    if (normalize(region.text) === normalize(current)) return { action: "skip", reason: "managed core matches current content; local surrounding bytes preserved" };
+    const official = bodies.find((body) => {
+      const oldCore = managedCoreTextRegion(body.text);
+      return oldCore && normalize(region.text) === normalize(oldCore.text);
+    });
+    if (!official) return null;
+    return {
+      action: "merge",
+      mergedBytes: replaceProvenTextRegion(targetText, targetBytes, region.start, region.end, current),
+      reason: `update artifact-bound official v${official.version} managed core with an explicit newline transform; preserve every surrounding byte`
+    };
+  }
+  if (installedFileContract(targetRel)?.strategy !== "rule-pack") return null;
+  const normalized = normalize(targetText);
+  const candidates = [{ version: context.currentVersion, text: normalize(sourceText), current: true }, ...bodies]
+    .sort((a, b) => b.text.length - a.text.length);
+  for (const candidate of candidates) {
+    if (!normalized.startsWith(candidate.text)) continue;
+    const suffix = normalized.slice(candidate.text.length);
+    if (suffix && !candidate.text.endsWith("\n")) continue;
+    // A custom appendix is not evidence for a forged/missing baseline. Exact
+    // whole official bodies can repair mixed roots from their own provenance.
+    if (suffix && !candidate.current && (
+      !isStableSemver(context.rootTemplateVersion)
+      || compareSemver(candidate.version, context.rootTemplateVersion) > 0
+      || (context.rootTemplateVersion !== context.currentVersion && context.trustedBaselineVersion !== candidate.version)
+    )) continue;
+    if (candidate.current) return { action: "skip", reason: "current official rule content and local appendix preserved" };
+    let localEnd = 0;
+    for (let offset = 0; offset < candidate.text.length; offset += 1) {
+      if (targetText[localEnd] === "\r" && targetText[localEnd + 1] === "\n") localEnd += 2;
+      else localEnd += 1;
+    }
+    if (normalize(targetText.slice(0, localEnd)) !== candidate.text) continue;
+    return {
+      action: "merge",
+      mergedBytes: replaceProvenTextRegion(targetText, targetBytes, 0, localEnd, sourceText),
+      reason: `update artifact-bound official v${candidate.version} ${targetRel} rule body with an explicit newline transform; preserve local appendix bytes`
+    };
+  }
   return null;
 }
 
@@ -4173,6 +4363,10 @@ function findUniqueManagedCoreBoundary(bytes, transform) {
 function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAbs, sourceText, targetText, context = {}, targetBytes = null) {
   const base = { sourceRel, targetRel, sourceAbs, targetAbs };
   if (targetText.replace(/\r\n/g, "\n") === sourceText.replace(/\r\n/g, "\n") && targetRel !== "AGENTS.md") return { ...base, action: "skip", reason: "already current" };
+  if (command === "upgrade" && targetBytes && (targetRel === "AGENTS.md" || installedFileContract(targetRel)?.strategy === "rule-pack")) {
+    const proven = planProvenRuntimeRegion(targetRel, targetText, targetBytes, sourceText, context);
+    if (proven) return { ...base, ...proven, plannedInputHash: sha256(targetBytes) };
+  }
   if (targetRel === "AGENTS.md") {
     // Marker shape, titles, and pathname are never ownership evidence. Exact
     // official bytes may be replaced; otherwise current managed-core structure
@@ -4233,26 +4427,21 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
         reason: `AGENTS.md managed-core markers are unpaired or duplicated (starts=${health.evidence.managedStart}, ends=${health.evidence.managedEnd})`
       };
     }
-    if (health.state === "needs-merge") {
+    if (health.state === "needs-merge" && health.evidence.reason === "no Kit core present") {
       return {
         ...base,
         action: "merge",
-        reason: health.evidence.reason === "sandwich: managed marker + unmarked stale core"
-          ? "replace sandwich dup core (managed marker + unmarked stale core present)"
-          : health.evidence.reason === "legacy duplicate cores"
-            ? "replace duplicated legacy Agent Handoff Kit cores"
-            : "add managed core while preserving existing AGENTS.md content",
+        reason: "add managed core while preserving existing AGENTS.md content",
         mergedText: mergeManagedBlock(targetText, sourceText)
       };
     }
-    // state === "clean": may still need legacy-core replacement or anchor catch-up
-    if (health.evidence?.upgradeable === "legacy-core") {
-      return {
-        ...base,
-        action: "merge",
-        reason: "replace unmarked legacy Agent Handoff Kit core with managed-marker block",
-        mergedText: mergeManagedBlock(targetText, sourceText)
-      };
+    // Titles, marker shape and missing anchors cannot authorize deleting an
+    // unknown rule. Proven official/current bodies returned above; preserve all
+    // other existing cores for explicit reconciliation, including legacy forms.
+    const existingCore = managedCoreTextRegion(targetText);
+    if (health.state === "needs-merge" || health.evidence?.upgradeable === "legacy-core"
+      || !existingCore || existingCore.text.replace(/\r\n?/g, "\n") !== sourceText.trim().replace(/\r\n?/g, "\n")) {
+      return { ...base, action: "conflict", reason: "existing core is not current and no artifact-bound official region proves a safe update; preserve local content for an explicit merge" };
     }
     if (hasRequiredAnchor(targetRel, targetText)) {
       return { ...base, action: "skip", reason: "managed core clean and required anchors present" };
@@ -4324,9 +4513,13 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
       reason: `${targetRel} has local content but the version row and official file fingerprints do not identify one consistent historical baseline; upgrade stopped instead of guessing`
     };
   }
-  // R-029/R-030: RULE_PACKS.md is a routing table, but upgrade still preserves
-  // user-added rows. Missing maintainer rows are merged into the existing table
-  // instead of replacing the whole file.
+  // All proven official/current rule bodies returned above. Do not let older
+  // shape/anchor repair helpers replace unknown rules, even with intact headings.
+  if (command === "upgrade" && installedFileContract(targetRel)?.strategy === "rule-pack") {
+    return { ...base, action: "conflict", reason: `${targetRel} is not current and no artifact-bound official body proves a safe update; preserve local content for an explicit merge` };
+  }
+  // RULE_PACKS.md is a routing table: preserve user-added rows while updating
+  // marker-identified maintainer rows through its separate current contract.
   if (targetRel === "dev/RULE_PACKS.md" && command === "upgrade") {
     const mergedRulePacks = mergeRulePacksRows(targetText, sourceText);
     if (!mergedRulePacks) {
@@ -4954,10 +5147,8 @@ function sessionLogEntryTemplateContract(text) {
 
   const fence = sessionLogTemplateFence(text, section);
   if (!fence) return null;
-  const sectionText = text.slice(section.start, section.end);
   const startMarker = "<!-- ack:log-entry:start -->";
   const endMarker = "<!-- ack:log-entry:end -->";
-  if (countText(sectionText, startMarker) !== 1 || countText(sectionText, endMarker) !== 1) return null;
   if (countText(fence.templateText, startMarker) !== 1 || countText(fence.templateText, endMarker) !== 1) return null;
   const relativeStart = fence.templateText.indexOf(startMarker);
   const relativeEnd = fence.templateText.indexOf(endMarker);
@@ -5555,8 +5746,7 @@ function mergeSessionLogTemplateContract(targetText, sourceText = null) {
   if (!section || !fence) return null;
   const startMarker = "<!-- ack:log-entry:start -->";
   const endMarker = "<!-- ack:log-entry:end -->";
-  const sectionText = merged.slice(section.start, section.end);
-  if (countText(sectionText, startMarker) > 1 || countText(sectionText, endMarker) > 1) return null;
+  if (countText(fence.templateText, startMarker) > 1 || countText(fence.templateText, endMarker) > 1) return null;
   let templateText = fence.templateText;
   if (!templateText.includes(startMarker)) {
     templateText = `${startMarker}\n${templateText}`;

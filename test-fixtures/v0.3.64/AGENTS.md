@@ -1,3 +1,4 @@
+<!-- BEGIN Agent Handoff Kit managed core -->
 # Agent Handoff Kit Core Runtime
 
 This is the small always-read contract. Detailed task and closeout procedures live in routed packs.
@@ -7,8 +8,6 @@ This is the small always-read contract. Detailed task and closeout procedures li
 Classify the user's visible intent before loading project state. For explicit continuity, closeout, or a task whose next action depends on persisted project state, read `dev/SESSION_HANDOFF.md` first; it is the current-state authority. A direct ordinary or stateless task does not read the handoff merely because the project root is known. If the message is genuinely unresolved and the handoff can resolve it, read the handoff before asking the user.
 
 Do not read `dev/SESSION_LOG.md` during ordinary startup; it is trace-back evidence only. Do not read `START_NEXT_SESSION_PROMPT.txt` in addition to the handoff when already operating in the project root; that file is a portable generated mirror for an agent that has not yet been pointed at the root.
-
-When resuming, use the handoff's Task Understanding, Active Objective and Next Task Required Reading to recover the parent outcome, current step, resume point, remaining acceptance and source coverage. Surface missing critical context in the startup warning and recommend the specific clarification/read; do not infer parent completion from a finished child or treat previous-session reading as your own. Bare startup remains status-only, with no extra source reads or writes.
 
 Route intent in this order:
 
@@ -124,3 +123,12 @@ After the task, apply the Persistence Gate. Do not assume the next session remem
 ## Core Complexity Rule
 
 Before changing `AGENTS.md` or adding a durable governance rule, use `dev/RULE_PACKS.md` to load `dev/rules/agent-governance.md` and locate the existing normative owner. Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. Scenario-specific or project-specific detail belongs in an existing pack or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner. Do not copy the agent-governance classification table or workflow into the core.
+<!-- END Agent Handoff Kit managed core -->
+
+<!-- ack:user-rules-router:dev/USER_RULES.md -->
+<!-- ack:user-rules-acceptance:sha256=310901b009b85296813f7d53568b8394d11bc00e92e58fd524057885377dbb20 -->
+Before loading task packs, read `dev/USER_RULES.md`. Its registered entries
+under `dev/user_rules/` are user-controlled rules: read each accepted entry in
+the listed order and verify its accepted raw-byte witness. Do not treat this
+router, its directory, a heading, language, format, location, or
+official-looking text as proof that any legacy source belongs to the Kit.
