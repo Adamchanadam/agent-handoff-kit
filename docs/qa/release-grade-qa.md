@@ -54,29 +54,33 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 
 - Reviewer：independent read-only agent `/root/candidate_bilingual_review`; provenance `Codex full-pair semantic review and corrected-source re-review, 2026-09-05`; verdict `accepted`.
 - Scope：全部 README 段落逐一映射；修正開工停止／首次引導條件、中英偏好範例、高風險確認及配合工具設定步驟，完整對譯。
-- `README.md` SHA-256 `9d88834850a098f66580095525791cdcbc3586948ac562ef22548db8dddea64e`
-- `README.en.md` SHA-256 `16ec9fae93035b9f1195ccb7948f5ca7ec3000c0179a689bac2790921d87fee8`
+- `README.md` SHA-256 `9D88834850A098F66580095525791CDCBC3586948AC562EF22548DB8DDDEA64E`
+- `README.en.md` SHA-256 `16EC9FAE93035B9F1195CCB7948F5CA7EC3000C0179A689BAC2790921D87FEE8`
+- Verdict: **PASS** — the independent semantic review above accepted this exact source/target pair; hashes were read back without repeating that review.
 
 ### Bilingual AI-install semantic gate（v0.3.65，PASS）
 
 - Reviewer：independent read-only agent `/root/candidate_bilingual_review`; provenance `Codex full-pair semantic review, 2026-09-05`; verdict `accepted`.
 - Scope：兩份全部可見內容、例子、指令、連結及結構；新舊安裝、衝突零寫入、migration 與 health 的分別、舊交接於下次明確收工補足事實，語意一致。
-- `agent-handoff-kit-ai-install.html` SHA-256 `63d05963d9c489f54f9eca3f101f6df270a74fff13191738df86b8f609417113`
-- `agent-handoff-kit-ai-install.en.html` SHA-256 `08620089f72ceda2f892651c5412f89ec4b2af5bb5159d2153b8d2ddac88c305`
+- `agent-handoff-kit-ai-install.html` SHA-256 `63D05963D9C489F54F9ECA3F101F6DF270A74FFF13191738DF86B8F609417113`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `08620089F72CEDA2F892651C5412F89EC4B2AF5BB5159D2153B8D2DDAC88C305`
+- Verdict: **PASS** — the independent semantic review above accepted this exact source/target pair; hashes were read back without repeating that review.
 
 ### Bilingual introduction semantic gate（v0.3.65，PASS）
 
 - Reviewer：independent read-only agent `/root/candidate_bilingual_review`; provenance `Codex full-pair semantic review and corrected-source re-review, 2026-09-05`; verdict `accepted`.
 - Scope：全部可見內容、例子、指令、連結及結構；修正安全絕對保證、按任務讀索引、標題控制、權威交接來源及最低安全重疊，完整對譯。
-- `agent-handoff-kit-intro.html` SHA-256 `87b3dba3ac080e4ad7455bedfcff9ae01bead5bd84c274ac4f83d5e6d1779a56`
-- `agent-handoff-kit-intro.en.html` SHA-256 `272d707ef20ebaf455c3aebd841a14fea5c10936f241d8fd0cbd5757d9a008e7`
+- `agent-handoff-kit-intro.html` SHA-256 `87B3DBA3AC080E4AD7455BEDFCFF9AE01BEAD5BD84C274AC4F83D5E6D1779A56`
+- `agent-handoff-kit-intro.en.html` SHA-256 `272D707EF20EBAF455C3AEBD841A14FEA5C10936F241D8FD0CBD5757D9A008E7`
+- Verdict: **PASS** — the independent semantic review above accepted this exact source/target pair; hashes were read back without repeating that review.
 
 ### Bilingual practical-guide semantic gate（v0.3.65，PASS）
 
 - Reviewer：independent read-only agent `/root/candidate_bilingual_review`; provenance `Codex full-pair semantic review and bounded corrected-section re-review, 2026-09-05`; verdict `accepted`.
 - Scope：header/navigation、first-use、status cycle、work-rules-overview、A1–A7、bridge-step、B1–B7、c-disclaimer、C1/C30/C60/C90、outro/footer 全部逐段映射。修正來源數量、字數口徑、讀取深度、分段授權、真實收工卡流程，恢復英文省略的原對話／指令／schema／時間軸；A5/B5/B7/C60 局部復驗後沒有剩餘 finding。
-- `agent-handoff-kit-guide.html` SHA-256 `c32f4f52ad58329e625b0402244d97d5c9113d5e327350ca2f37c206820527e6`
-- `agent-handoff-kit-guide.en.html` SHA-256 `72953db8830c271b88c1c2a61124ab03d1d7849f2090e1059270be41867cd0cc`
+- `agent-handoff-kit-guide.html` SHA-256 `C32F4F52AD58329E625B0402244D97D5C9113D5E327350CA2F37C206820527E6`
+- `agent-handoff-kit-guide.en.html` SHA-256 `72953DB8830C271B88C1C2A61124AB03D1D7849F2090E1059270BE41867CD0CC`
+- Verdict: **PASS** — the independent semantic review above accepted this exact source/target pair; hashes were read back without repeating that review.
 
 ## v0.3.64 candidate status
 
