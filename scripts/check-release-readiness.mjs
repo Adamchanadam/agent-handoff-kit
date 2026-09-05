@@ -548,6 +548,12 @@ async function main() {
 }
 
 function checkCrossSurfaceWordingConsistency() {
+  // The independently accepted README states the same fast path without the
+  // old word "directly". Accept its explicit task condition, not arbitrary prose.
+  const taskGuidance = /直接(?:接力|開始)|你已清楚描述目標和現有資料時，AI 可開始第一個安全步驟，不必先走新手流程/u;
+  const readmeTaskSentence = "你已清楚描述目標和現有資料時，AI 可開始第一個安全步驟，不必先走新手流程";
+  assert(taskGuidance.test(readmeTaskSentence), "accepted concrete-task wording must pass");
+  assert(!taskGuidance.test(readmeTaskSentence.replace("AI 可開始第一個安全步驟，不必先走新手流程", "AI 必須先走完整新手流程")), "missing concrete-task fast path must fail");
   const primaryStartupPhrases = ["Start Agent Handoff", "開工"];
   const pathFallbackPhrase = "Read AGENTS.md first, then Start Agent Handoff";
   const closeoutPhrases = ["Wrap up Agent Handoff", "收工"];
@@ -591,7 +597,7 @@ function checkCrossSurfaceWordingConsistency() {
         throw new Error(`Cross-surface closeout phrase missing in ${surface.file} (${surface.role}). Expected: "${phrase}"`);
       }
     }
-    if (!/直接(?:接力|開始)/.test(text)) {
+    if (!taskGuidance.test(text)) {
       throw new Error(`Concrete-task startup fast path missing in ${surface.file} (${surface.role}).`);
     }
     for (const stalePhrase of staleStandaloneOnboardingPhrases) {
@@ -1819,7 +1825,7 @@ function checkWorkspaceHealthContract() {
 function checkDecisionFirstOnboardingWording() {
   const surfaces = [
     { file: "README.md", required: ["第一次安裝會把新手引導標記為待使用", "簡短新手歡迎引導", "開始第一個安全步驟"] },
-    { file: "agent-handoff-kit-intro.html", required: ["第一次安裝會把新手引導標記為待使用", "簡短新手歡迎引導", "直接開始第一個安全步驟"] },
+    { file: "agent-handoff-kit-intro.html", required: ["單獨輸入「開工」只會讀取最小狀態", "新手引導仍標記為 <code>eligible</code>", "沒有同句明確任務時", "簡短新手歡迎引導", "直接開始第一個安全步驟"] },
     { file: "agent-handoff-kit-guide.html", required: ["第一次安裝會把新手引導標記為待使用", "簡短新手歡迎", "目標清楚就直接開始"] }
   ];
   for (const surface of surfaces) {
