@@ -68,6 +68,7 @@ function validateManifest() {
   const releaseReadiness = readFileSync(path.join(root, "scripts", "check-release-readiness.mjs"), "utf8");
   assert(candidateRunner.includes("validateCandidatePreFreezeEvidence(options.candidate)"), "candidate-preflight does not run pre-freeze evidence validation");
   assert(releaseReadiness.includes("--pre-freeze-evidence"), "release readiness has no pre-freeze evidence entrypoint");
+  assert(releaseReadiness.includes("checkScenarioBranchingDocAlignment();\n    checkChangedBilingualCandidateEvidence(version, { allowDirty: true });"), "pre-freeze evidence does not validate current runtime-to-scenario-to-QA-doc alignment before freeze");
   assert(releaseReadiness.includes("checkChangedBilingualCandidateEvidence(version, { allowDirty: true })"), "pre-freeze evidence does not validate changed bilingual pairs before freeze");
   assert(releaseReadiness.includes("assertLatestCrossMindTableComplete(version)"), "pre-freeze evidence does not validate the current cross-mind table before freeze");
 }
@@ -234,6 +235,7 @@ function validateReleaseReadinessInventory() {
   invoke(["scripts/check-release-readiness.mjs", "--qa-inventory-self-test"], "release-readiness inventory negative self-test", {
     env: { ...process.env, AGENT_HANDOFF_KIT_QA_TEST_MODE: "1" }
   });
+  invoke(["scripts/check-release-readiness.mjs", "--scenario-contract-self-test"], "pre-freeze scenario-contract negative self-test");
 }
 
 function validateCommandDocumentation() {

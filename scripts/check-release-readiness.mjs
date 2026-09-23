@@ -30,6 +30,7 @@ const GITHUB_RELEASE_BODY_HEADINGS = [
   "## 對你已有檔案的影響",
   "## 建議下一步"
 ];
+const rootMismatchGuard = currentRootMismatchGuard();
 
 let passed = false;
 try {
@@ -49,10 +50,15 @@ async function main() {
     checkGithubReleaseNotesContractSelfTest();
     return;
   }
+  if (process.argv.includes("--scenario-contract-self-test")) {
+    checkScenarioBranchingPreFreezeSelfTest();
+    return;
+  }
   if (process.argv.includes("--pre-freeze-evidence")) {
     const packageJson = JSON.parse(read("package.json"));
     const version = packageJson.version;
     assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed for pre-freeze evidence");
+    checkScenarioBranchingDocAlignment();
     checkChangedBilingualCandidateEvidence(version, { allowDirty: true });
     assertLatestCrossMindTableComplete(version);
     console.log(`ok: pre-freeze candidate evidence is complete for v${version}`);
@@ -825,8 +831,29 @@ function checkAiInstallPageContract(version) {
   console.log("ok: AI install page contract");
 }
 
-function checkScenarioBranchingDocAlignment() {
+function currentRootMismatchGuard() {
+  const cliSource = read("bin/agent-handoff-kit.mjs");
+  const match = /^const rootMismatchGuard = ("(?:[^"\\]|\\.)*");$/m.exec(cliSource);
+  assert(match, "bin/agent-handoff-kit.mjs must expose a rootMismatchGuard source contract");
+  const guard = JSON.parse(match[1]);
+  const opening = extractOpeningMessage(read("runtime-core/SESSION_HANDOFF.md"));
+  assert(opening && opening.includes(guard), "runtime-core/SESSION_HANDOFF.md opening message must retain the CLI rootMismatchGuard");
+  return guard;
+}
+
+function checkScenarioBranchingPreFreezeSelfTest() {
+  checkScenarioBranchingDocAlignment();
   const qaDoc = read("docs/qa/release-grade-qa.md");
+  const drifted = qaDoc.replace(rootMismatchGuard, "If this source-to-scenario guard has drifted");
+  assert(drifted !== qaDoc, "scenario-contract self-test fixture did not change the current rootMismatchGuard");
+  assertThrows(
+    () => checkScenarioBranchingDocAlignment({ qaDoc: drifted }),
+    "pre-freeze scenario contract accepted a runtime-to-QA-doc rootMismatchGuard drift"
+  );
+  console.log("ok: pre-freeze scenario contract rejects runtime-to-QA-doc guard drift");
+}
+
+function checkScenarioBranchingDocAlignment({ qaDoc = read("docs/qa/release-grade-qa.md") } = {}) {
   const rows = [
     {
       id: "1",
@@ -934,7 +961,7 @@ function checkScenarioBranchingDocAlignment() {
       snippets: [
         "upgrade no-op schema auto-repair",
         "handoff opening message structure",
-        "If the root does not match the handoff",
+        rootMismatchGuard,
         "restore root mismatch guard in Next Session Opening Message",
         "status: passed",
         "升級驗收完成"
@@ -1201,11 +1228,9 @@ function simulateScenarioBranching() {
     throw new Error(`Scenario 4f init prep failed: ${s4fInit.stderr || s4fInit.stdout}`);
   }
   const s4fHandoffPath = path.join(s4fRoot, "dev/SESSION_HANDOFF.md");
-  writeFileSync(
-    s4fHandoffPath,
-    readFileSync(s4fHandoffPath, "utf8").replace("If the root does not match the handoff", "If this startup guard is missing"),
-    "utf8"
-  );
+  const s4fHandoff = readFileSync(s4fHandoffPath, "utf8");
+  assert(s4fHandoff.includes(rootMismatchGuard), "scenario 4f fixture must include the current CLI rootMismatchGuard");
+  writeFileSync(s4fHandoffPath, s4fHandoff.replace(rootMismatchGuard, "If this startup guard is missing"), "utf8");
   const s4f = run(process.execPath, ["bin/agent-handoff-kit.mjs", "upgrade", "--yes", "--root", s4fRoot], "scenario 4f upgrade no-op schema auto-repair", { env });
   assertScenarioOutput("scenario 4f (upgrade no-op, schema auto-repair)", s4f.stdout, {
     mustHave: [
