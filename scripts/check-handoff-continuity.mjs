@@ -25,6 +25,7 @@ let passed = false;
 try {
   validateSemanticFixtureShape();
   assert(currentVersion !== historicalVersion, "continuity lifecycle needs a candidate newer than the historical fixture");
+  checkCatalogLegacyOpeningMigration();
   const project = fresh("project");
   const gitProbe = spawnSync("git", ["-C", project, "rev-parse", "--show-toplevel"], { encoding: "utf8", env });
   assert(!gitProbe.error, `cannot verify isolated fixture Git boundary: ${gitProbe.error?.message}`);
@@ -124,14 +125,40 @@ function readyHistoricalHandoff(text, project) {
     .replace(/^Answer:.*$/m, "Answer: yes");
 }
 
-function installHistorical(project) {
-  const manifest = JSON.parse(readAt(root, `test-fixtures/v${historicalVersion}/fixture-manifest.json`));
+function checkCatalogLegacyOpeningMigration() {
+  const expectedSourceOpening = extractOpeningMessage(readAt(root, "runtime-core/SESSION_HANDOFF.md"));
+  assert(expectedSourceOpening, "current source handoff lacks an opening message");
+  for (const [label, userOwnedSuffix] of [
+    ["official-only", ""],
+    ["official-prefix-with-custom-suffix", "Project-owned continuation: retain this sentence exactly.\nDo not infer new authorization from it."]
+  ]) {
+    const project = fresh(`legacy-opening-${label}`);
+    installHistorical(project, "0.1.0");
+    let handoff = readAt(project, "dev/SESSION_HANDOFF.md");
+    const oldOpening = extractOpeningMessage(handoff);
+    assert(oldOpening, `${label}: v0.1.0 handoff lacks an opening message`);
+    if (userOwnedSuffix) {
+      const updatedOpening = `${oldOpening}\n${userOwnedSuffix}`;
+      handoff = handoff.replace(oldOpening, updatedOpening);
+      saveHandoff(project, handoff);
+    }
+    cli(["upgrade", "--yes", "--root", project], `${label} v0.1.0 opening upgrade`);
+    const upgradedOpening = extractOpeningMessage(readAt(project, "dev/SESSION_HANDOFF.md"));
+    const expected = `${expectedSourceOpening.replaceAll("<absolute project root>", project)}${userOwnedSuffix ? `\n${userOwnedSuffix}` : ""}`;
+    assert(normalizePrompt(upgradedOpening) === normalizePrompt(expected), `${label}: catalog-proven official opening was not upgraded while preserving user content`);
+    cli(["doctor", "--root", project], `${label} v0.1.0 opening doctor`);
+  }
+  console.log("ok: catalog-proven legacy opening prefixes upgrade to the current contract while user suffixes survive");
+}
+
+function installHistorical(project, version = historicalVersion) {
+  const manifest = JSON.parse(readAt(root, `test-fixtures/v${version}/fixture-manifest.json`));
   const identity = manifest.source.npm;
-  const catalogIdentity = catalog.releases[historicalVersion]?.source?.npm;
+  const catalogIdentity = catalog.releases[version]?.source?.npm;
   assert(identity.integrity === catalogIdentity?.integrity && identity.shasum === catalogIdentity?.shasum, "historical fixture and catalog npm identities disagree");
   const cache = process.env.AGENT_HANDOFF_KIT_HISTORICAL_ARTIFACT_CACHE || (process.platform === "win32" ? "D:\\_temp\\agent-handoff-kit-historical-artifacts" : path.join(tmpdir(), "agent-handoff-kit-historical-artifacts"));
   mkdirSync(cache, { recursive: true });
-  const tarball = path.join(cache, `adamchanadam-agent-handoff-kit-${historicalVersion}.tgz`);
+  const tarball = path.join(cache, `adamchanadam-agent-handoff-kit-${version}.tgz`);
   if (!existsSync(tarball)) {
     const npmCli = [process.env.npm_execpath, path.join(path.dirname(process.execPath), "node_modules/npm/bin/npm-cli.js")].find(item => item && existsSync(item));
     assert(npmCli, "cannot locate npm-cli.js for pinned historical artifact download");
@@ -167,7 +194,7 @@ function installHistorical(project) {
   }
   assert(entries.size === identity.entryCount, "historical artifact entry count mismatch");
   const metadata = JSON.parse(readAt(unpacked, "package/package.json"));
-  assert(metadata.name === "@adamchanadam/agent-handoff-kit" && metadata.version === historicalVersion, "historical package identity mismatch");
+  assert(metadata.name === "@adamchanadam/agent-handoff-kit" && metadata.version === version, "historical package identity mismatch");
   const oldCli = path.join(unpacked, "package/bin/agent-handoff-kit.mjs");
   invoke(oldCli, ["init", "--yes", "--root", project], "authentic historical init");
   const generated = new Set(["START_NEXT_SESSION_PROMPT.txt", "dev/SESSION_HANDOFF.md", "dev/PROJECT_INDEX.md"]);
@@ -205,6 +232,7 @@ function officialOpeningContract(text) {
 }
 function replaceSection(text, id, heading, body) { return text.replace(section(text, id), `<!-- ack:section:${id} -->\n## ${heading}\n\n${body}\n\n`); }
 function saveHandoff(project, text) { writeAt(project, "dev/SESSION_HANDOFF.md", text); writeAt(project, "START_NEXT_SESSION_PROMPT.txt", `${extractOpeningMessage(text)}\n`); }
+function normalizePrompt(text) { return text.replace(/\r\n?/g, "\n"); }
 function expectComplete(project, text, label) { saveHandoff(project, text); const before = snapshot(project); const result = cli(["closeout-status", "--root", project], label); assert(result.stdout.includes("status: complete"), `${label}: missing complete card`); assert(snapshot(project) === before, `${label}: read-only command changed files`); }
 function expectBlocked(project, text, label, reason) { saveHandoff(project, text); const before = snapshot(project); const result = invoke(path.join(root, "bin/agent-handoff-kit.mjs"), ["closeout-status", "--root", project], label, false); assert(result.status !== 0 && result.stdout.includes("status: blocked") && !result.stdout.includes("handoff saved"), `${label}: falsely passed\n${result.stdout}`); assert(`${result.stdout}\n${result.stderr}`.toLowerCase().includes(reason), `${label}: omitted ${reason} reason\n${result.stdout}`); assert(snapshot(project) === before, `${label}: read-only rejection changed files`); }
 function fresh(label) { mkdirSync(qaBase, { recursive: true }); return qaTemp.track(mkdtempSync(path.join(qaBase, `ack-continuity-${label}-`))); }

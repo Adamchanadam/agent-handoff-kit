@@ -22,8 +22,8 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 ## v0.3.67 candidate status
 
 - 狀態：候選來源正在準備；正式 full、GitHub Release、npm 發布及發布後讀回均未完成。本節不把先前版本的驗收或發布結果套用到 v0.3.67。
-- 產品範圍：開工只用最少交接事實安全設定目前 thread 的顯示名稱；名稱不會成為工作真源或權限。收工檢查改以明確的肯定斷言及相同範圍比對，保留否定、限制、待處理、時間和環境條件；同範圍真矛盾仍拒絕。升級只會替換來源目錄精確證明的舊官方 opening instruction，保留用戶餘下內容。候選預檢也會在凍結前檢查已改雙語公開頁的獨立 hash-bound PASS 證據及目前 Cross-mind 表，避免把這類文件缺口延遲到 full gate 才發現。
-- 回歸範圍：開工命名 cases、closeout card contract、pack scenarios、歷史 v0.3.64 init → custom opening message → current upgrade → closeout → repeat no-op，以及 runtime-content upgrade safety 均已在候選前的來源工作中通過；本候選仍須在 commit 凍結、獨立唯讀覆核與正式 full 中重新綁定。
+- 產品範圍：開工只用最少交接事實安全設定目前 thread 的顯示名稱；名稱不會成為工作真源或權限。收工檢查改以明確的肯定斷言及相同範圍比對，保留否定、限制、待處理、時間和環境條件；同範圍真矛盾仍拒絕。升級只會替換來源目錄精確證明的完整舊官方 opening 前綴，保留其後的用戶內容；舊版已代入本機根目錄的首行亦只在完整官方前綴吻合時處理。候選預檢也會在凍結前檢查已改雙語公開頁的獨立 hash-bound PASS 證據及目前 Cross-mind 表，避免把這類文件缺口延遲到 full gate 才發現。
+- 回歸範圍：開工命名 cases、closeout card contract、pack scenarios、歷史 v0.1.0 官方開場／官方前綴加自訂續行內容及 v0.3.64 custom opening message 的升級、closeout、repeat no-op，以及 runtime-content upgrade safety 均已在候選前的來源工作中通過；本候選仍須在 commit 凍結、獨立唯讀覆核與正式 full 中重新綁定。
 - 發布邊界：只會更新 Public source 與本 WORK runtime；不會升級其他 runtime。候選版號、套件內容、正式發布及外部狀態均以對應 gate 的讀回為準。
 
 ### Bilingual README semantic gate（v0.3.67，PASS）
@@ -62,7 +62,7 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 
 | Trigger | Applies | Status | Notes |
 |---|---|---|---|
-| 1. Failure or blocker | yes | iterated | The first full gate exposed missing bilingual evidence and the second exposed this required table; both were repaired at the QA evidence owner, then the candidate was re-frozen and re-reviewed. |
+| 1. Failure or blocker | yes | iterated | The first full gate exposed missing bilingual evidence and the second exposed this required table; both were moved into pre-freeze checks. A later full exposed the v0.1.0 official multi-line opening path; the catalog-proven prefix migration and its official/custom-suffix counterexamples were added before re-freeze. |
 | 2. External side effects | yes | passed | The user authorized the named v0.3.67 release sequence; this source record claims no Git push, tag, Release or npm publish result. |
 | 3. User-visible output | yes | passed | Startup naming, scope-aware closeout reporting and preservation of user opening text have direct regression coverage and clear safe-skip boundaries. |
 | 4. Complexity or boundary | yes | passed | The repair reuses the existing core, closeout pack, official-origin catalog and QA owners; it adds no project-specific exception, second workflow or semantic AI validator. |

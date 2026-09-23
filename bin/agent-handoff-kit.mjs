@@ -5567,19 +5567,27 @@ function migrateSessionHandoff(targetText, sourceText, context = {}) {
   const sourcePrompt = sourceSection.match(/```text\s*\r?\n([\s\S]*?)\r?\n```/);
   if (!targetPrompt || !sourcePrompt) return null;
   // The opening message carries user state. Upgrade must never regenerate it
-  // from a blank template. Replace only an exact catalog-proven official
-  // startup paragraph; custom paragraphs (even similar-looking ones) survive.
+  // from a blank template. A historical official opening may be a whole
+  // multi-line block (and its first line materializes the local root), so
+  // replace only a catalog-proven official prefix. Any remaining paragraph is
+  // user-owned and survives byte-for-content through the migration.
   const sourceInstruction = sourcePrompt[1].split(/\r?\n/).find((line) => line.startsWith("Resume the current objective. A plain "));
+  const officialOpeningPrefixes = new Set();
   const officialInstructions = new Set();
   for (const [version, release] of Object.entries(context.officialCatalog?.releases ?? {})) {
     if (!release.source?.npm?.integrity || compareSemver(version, context.currentVersion) > 0) continue;
     const baseline = getOfficialBaseline({ version, targetRel: "dev/SESSION_HANDOFF.md", catalog: context.officialCatalog });
     const opening = baseline?.state === "present" ? extractOpeningMessage(baseline.text) : null;
+    if (opening) officialOpeningPrefixes.add(normalizeOfficialOpeningPrefix(opening));
     for (const line of opening?.split(/\r?\n/) ?? []) {
       if (line.startsWith("Resume the current objective. A plain ")) officialInstructions.add(line);
     }
   }
-  const currentPrompt = targetPrompt[1].split(/(\r?\n)/).map((line) => (
+  const currentPrompt = replaceOfficialOpeningPrefix(
+    targetPrompt[1],
+    sourcePrompt[1],
+    officialOpeningPrefixes
+  ) ?? targetPrompt[1].split(/(\r?\n)/).map((line) => (
     sourceInstruction && officialInstructions.has(line) ? sourceInstruction : line
   )).join("");
   const updatedSection = targetSection.replace(targetPrompt[1], () => currentPrompt);
@@ -5587,6 +5595,24 @@ function migrateSessionHandoff(targetText, sourceText, context = {}) {
 
   const temperatureRepair = repairHandoffCurrentStateEvidenceBoundary(merged);
   return temperatureRepair.text;
+}
+
+function normalizeOfficialOpeningPrefix(text) {
+  return text
+    .replace(/\r\n?/g, "\n")
+    .replace(/^(Work in )[^\n]+?(\.(?: Read AGENTS\.md, then dev\/SESSION_HANDOFF\.md\.)?)$/m, "$1<ROOT>$2");
+}
+
+function replaceOfficialOpeningPrefix(targetPrompt, sourcePrompt, officialPrefixes) {
+  const targetLines = targetPrompt.replace(/\r\n?/g, "\n").split("\n");
+  for (const prefix of [...officialPrefixes].sort((left, right) => right.length - left.length)) {
+    const prefixLines = prefix.split("\n");
+    if (targetLines.length < prefixLines.length) continue;
+    if (normalizeOfficialOpeningPrefix(targetLines.slice(0, prefixLines.length).join("\n")) !== prefix) continue;
+    const userOwnedSuffix = targetLines.slice(prefixLines.length).join("\n");
+    return userOwnedSuffix ? `${sourcePrompt}\n${userOwnedSuffix}` : sourcePrompt;
+  }
+  return null;
 }
 
 function migrateSessionLog(targetText, sourceText) {
