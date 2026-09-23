@@ -58,6 +58,20 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 - `agent-handoff-kit-guide.en.html` SHA-256 `CAA5C7D9E83EECB1B6F8581AB804113F769EF7FF9C68CBFA3FFCFEC1C94A458E`
 - Verdict: **PASS** — independent review confirmed semantic parity and reciprocal language navigation.
 
+### Cross-mind evidence 9-trigger table（v0.3.67）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | iterated | The first full gate exposed missing bilingual evidence and the second exposed this required table; both were repaired at the QA evidence owner, then the candidate was re-frozen and re-reviewed. |
+| 2. External side effects | yes | passed | The user authorized the named v0.3.67 release sequence; this source record claims no Git push, tag, Release or npm publish result. |
+| 3. User-visible output | yes | passed | Startup naming, scope-aware closeout reporting and preservation of user opening text have direct regression coverage and clear safe-skip boundaries. |
+| 4. Complexity or boundary | yes | passed | The repair reuses the existing core, closeout pack, official-origin catalog and QA owners; it adds no project-specific exception, second workflow or semantic AI validator. |
+| 5. Documentation drift | yes | iterated | Each changed Chinese/English public pair has an independent semantic review, a final hash, reciprocal navigation verification and the source-versus-published-state boundary. |
+| 6. Semantic runtime effect | yes | passed | Historical upgrade replay, closeout assertion counterexamples and naming checkpoint scenarios cover the affected runtime decisions without presenting structure-only checks as semantic truth. |
+| 7. Recurrence or regression | yes | passed | Startup, closeout, handoff continuity, pack-scenario, official catalog and upgrade-safety checks retain the repaired counterexamples. |
+| 8. QA authority | yes | passed | Candidate preflight, independent review, hash-bound evidence and formal full remain distinct gates; a failing evidence check is repaired and re-bound rather than waived. |
+| 9. Release statement | yes | passed | v0.3.67 is only a frozen source candidate in this record; external publication is established only by later tag, GitHub, npm and postpublish readback. |
+
 ## v0.3.66 candidate status
 
 - 狀態：本地來源準備，尚未提交、凍結、正式全面檢或發布。已讀回 npm latest 與 GitHub latest 均為 v0.3.65，remote main / v0.3.65 tag 均為 `04b68b6f0c1e01a284da4842a6fd09ba5c4802c0`。本節不沿用舊版的正式 full 或發布 PASS。
