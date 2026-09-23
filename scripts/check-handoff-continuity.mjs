@@ -26,6 +26,7 @@ try {
   validateSemanticFixtureShape();
   assert(currentVersion !== historicalVersion, "continuity lifecycle needs a candidate newer than the historical fixture");
   checkCatalogLegacyOpeningMigration();
+  checkCurrentOpeningSafetyRepair();
   const project = fresh("project");
   const gitProbe = spawnSync("git", ["-C", project, "rev-parse", "--show-toplevel"], { encoding: "utf8", env });
   assert(!gitProbe.error, `cannot verify isolated fixture Git boundary: ${gitProbe.error?.message}`);
@@ -149,6 +150,26 @@ function checkCatalogLegacyOpeningMigration() {
     cli(["doctor", "--root", project], `${label} v0.1.0 opening doctor`);
   }
   console.log("ok: catalog-proven legacy opening prefixes upgrade to the current contract while user suffixes survive");
+}
+
+function checkCurrentOpeningSafetyRepair() {
+  const project = fresh("current-opening-safety-repair");
+  cli(["init", "--yes", "--root", project], "current opening safety repair init");
+  let handoff = readAt(project, "dev/SESSION_HANDOFF.md");
+  const opening = extractOpeningMessage(handoff);
+  const safetyLine = opening?.split(/\r?\n/).find((line) => line.includes("Do not read dev/SESSION_LOG.md during ordinary startup"));
+  const customLine = "Project-owned continuation: preserve this line while the current safety instruction is restored.";
+  assert(safetyLine, "current source opening lacks its required safety line");
+  handoff = handoff.replace(safetyLine, customLine);
+  saveHandoff(project, handoff);
+
+  cli(["upgrade", "--yes", "--root", project], "current opening safety repair upgrade");
+  const upgradedOpening = extractOpeningMessage(readAt(project, "dev/SESSION_HANDOFF.md"));
+  assert(upgradedOpening.includes(safetyLine), "current opening safety repair did not restore the missing source line");
+  assert(upgradedOpening.includes(customLine), "current opening safety repair overwrote user-owned content");
+  assert(assessPromptMirrorRoot(project).ok, "current opening safety repair did not regenerate the prompt mirror");
+  cli(["doctor", "--root", project], "current opening safety repair doctor");
+  console.log("ok: missing current opening safety line is restored between verified source anchors without removing user content");
 }
 
 function installHistorical(project, version = historicalVersion) {

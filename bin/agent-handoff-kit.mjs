@@ -3494,7 +3494,7 @@ async function checkHandoffTemperatureBoundary(root) {
   return { ok: findings.length === 0, checked: 1, findings };
 }
 
-const rootMismatchGuard = "If this root does not match the expected project root";
+const rootMismatchGuard = "If the root does not match the handoff";
 
 function currentStateEvidenceRules() {
   return [
@@ -5583,13 +5583,14 @@ function migrateSessionHandoff(targetText, sourceText, context = {}) {
       if (line.startsWith("Resume the current objective. A plain ")) officialInstructions.add(line);
     }
   }
-  const currentPrompt = replaceOfficialOpeningPrefix(
+  let currentPrompt = replaceOfficialOpeningPrefix(
     targetPrompt[1],
     sourcePrompt[1],
     officialOpeningPrefixes
   ) ?? targetPrompt[1].split(/(\r?\n)/).map((line) => (
     sourceInstruction && officialInstructions.has(line) ? sourceInstruction : line
   )).join("");
+  currentPrompt = restoreMissingCurrentOpeningLines(currentPrompt, sourcePrompt[1]);
   const updatedSection = targetSection.replace(targetPrompt[1], () => currentPrompt);
   merged = `${merged.slice(0, targetBounds.start)}${updatedSection}${merged.slice(targetBounds.end)}`;
 
@@ -5613,6 +5614,32 @@ function replaceOfficialOpeningPrefix(targetPrompt, sourcePrompt, officialPrefix
     return userOwnedSuffix ? `${sourcePrompt}\n${userOwnedSuffix}` : sourcePrompt;
   }
   return null;
+}
+
+function restoreMissingCurrentOpeningLines(targetPrompt, sourcePrompt) {
+  const sourceLines = sourcePrompt.replace(/\r\n?/g, "\n").split("\n");
+  const targetLines = targetPrompt.replace(/\r\n?/g, "\n").split("\n");
+  const sourceKeys = sourceLines.map(normalizeOfficialOpeningPrefix);
+  const countKey = (lines, key) => lines.filter((line) => normalizeOfficialOpeningPrefix(line) === key).length;
+
+  for (let sourceIndex = 0; sourceIndex < sourceLines.length; sourceIndex += 1) {
+    const sourceLine = sourceLines[sourceIndex];
+    const sourceKey = sourceKeys[sourceIndex];
+    if (!sourceLine.trim() || countKey(sourceLines, sourceKey) !== 1 || countKey(targetLines, sourceKey) !== 0) continue;
+
+    const previousKey = sourceKeys.slice(0, sourceIndex).reverse().find((key, offset) => (
+      sourceLines[sourceIndex - offset - 1].trim() && countKey(sourceLines, key) === 1 && countKey(targetLines, key) === 1
+    ));
+    const nextKey = sourceKeys.slice(sourceIndex + 1).find((key, offset) => (
+      sourceLines[sourceIndex + offset + 1].trim() && countKey(sourceLines, key) === 1 && countKey(targetLines, key) === 1
+    ));
+    if (!previousKey || !nextKey) continue;
+    const previousIndex = targetLines.findIndex((line) => normalizeOfficialOpeningPrefix(line) === previousKey);
+    const nextIndex = targetLines.findIndex((line) => normalizeOfficialOpeningPrefix(line) === nextKey);
+    if (previousIndex < 0 || nextIndex < 0 || previousIndex >= nextIndex) continue;
+    targetLines.splice(previousIndex + 1, 0, sourceLine);
+  }
+  return targetLines.join("\n");
 }
 
 function migrateSessionLog(targetText, sourceText) {
