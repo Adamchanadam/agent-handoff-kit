@@ -934,7 +934,7 @@ function checkScenarioBranchingDocAlignment() {
       snippets: [
         "upgrade no-op schema auto-repair",
         "handoff opening message structure",
-        "If this root does not match the expected project root",
+        "If the root does not match the handoff",
         "restore root mismatch guard in Next Session Opening Message",
         "status: passed",
         "升級驗收完成"
