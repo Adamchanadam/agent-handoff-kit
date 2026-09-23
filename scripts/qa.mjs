@@ -22,11 +22,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const evidenceContractSelfTest = process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1"
   && process.env.AGENT_HANDOFF_KIT_QA_EVIDENCE_CONTRACT_SELF_TEST === "1";
 
-try {
-  await main();
-} catch (error) {
-  console.error(`QA assurance failed: ${error.message}`);
-  process.exitCode = error instanceof QaRunError ? error.exitCode : 1;
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    await main();
+  } catch (error) {
+    console.error(`QA assurance failed: ${error.message}`);
+    process.exitCode = error instanceof QaRunError ? error.exitCode : 1;
+  }
 }
 
 async function main() {
@@ -474,7 +476,7 @@ async function readNpmPublishedMetadata(version) {
     assert(parsed.version === version, "self-test npm metadata version drifted");
     return parsed;
   }
-  const result = await runNpm(["view", `@adamchanadam/agent-handoff-kit@${version}`, "version", "dist-tags.latest", "dist.tarball", "dist.shasum", "dist.integrity", "--json"], "npm published metadata");
+  const result = await runNpm(["view", `@adamchanadam/agent-handoff-kit@${version}`, "version", "dist-tags.latest", "dist.tarball", "dist.shasum", "dist.integrity", "--json", "--prefer-online"], "npm published metadata");
   const parsed = JSON.parse(result.stdout);
   return {
     version: parsed.version,
@@ -489,7 +491,7 @@ async function packPublishedTarballSha256(version) {
   if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_PUBLISHED_TARBALL_SHA256");
   const packDir = mkdtempSync(path.join(tmpdir(), "ahk-published-pack-"));
   try {
-    const result = await runNpm(["pack", `@adamchanadam/agent-handoff-kit@${version}`, "--pack-destination", packDir, "--json"], "npm pack published");
+    const result = await runNpm(["pack", `@adamchanadam/agent-handoff-kit@${version}`, "--pack-destination", packDir, "--cache", path.join(packDir, "cache"), "--prefer-online", "--json"], "npm pack published");
     const parsed = JSON.parse(result.stdout);
     assert(Array.isArray(parsed) && parsed.length === 1, "npm pack published returned an unexpected response");
     const tarball = path.join(packDir, parsed[0].filename);
@@ -510,12 +512,13 @@ async function readGithubRelease(version) {
   return JSON.parse(result.stdout);
 }
 
-async function readRemoteTagCommit(version) {
+export async function readRemoteTagCommit(version, execute = runCommand) {
   if (evidenceContractSelfTest) return requiredSelfTestValue("AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_TAG_COMMIT").toLowerCase();
-  const result = await runCommand("git", ["ls-remote", "--tags", "origin", `v${version}`], "Git tag readback");
+  const ref = `refs/tags/v${version}`;
+  const result = await execute("git", ["ls-remote", "--tags", "origin", ref, `${ref}^{}`], "Git tag readback");
   const lines = result.stdout.trim().split(/\r?\n/u).filter(Boolean);
-  const direct = lines.find((line) => line.endsWith(`refs/tags/v${version}`))?.split(/\s+/u)[0];
-  const peeled = lines.find((line) => line.endsWith(`refs/tags/v${version}^{}`))?.split(/\s+/u)[0];
+  const direct = lines.find((line) => line.endsWith(`\t${ref}`))?.split(/\s+/u)[0];
+  const peeled = lines.find((line) => line.endsWith(`\t${ref}^{}`))?.split(/\s+/u)[0];
   const commit = peeled ?? direct;
   assert(isSha256(commit, 40), "Git tag readback did not return a commit");
   return commit.toLowerCase();

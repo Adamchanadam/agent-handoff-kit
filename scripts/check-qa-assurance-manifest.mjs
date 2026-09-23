@@ -22,6 +22,7 @@ import {
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
 import { assertRunFailed, invokeAsync, runSync, runSyncChecked, TIMEOUT_EXIT_CODE } from "./qa-runner-core.mjs";
+import { readRemoteTagCommit } from "./qa.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "ack-qa-assurance-"));
@@ -39,10 +40,32 @@ try {
   validateRunnerTerminalStateContract();
   await validateProductionRunnerTerminalStateContract();
   validateFailurePropagation();
+  await validateRemoteTagCommitReadback();
   validateEvidenceContracts();
   console.log("ok: QA assurance manifest and runner wiring");
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });
+}
+
+async function validateRemoteTagCommitReadback() {
+  const tagRoot = path.join(fixtureRoot, "remote-tag-readback");
+  mkdirSync(tagRoot);
+  const git = (args) => runSyncChecked("git", args, "local tag fixture", { cwd: tagRoot });
+  git(["init", "--quiet"]);
+  git(["-c", "user.name=QA Fixture", "-c", "user.email=qa@example.invalid", "commit", "--allow-empty", "-m", "fixture", "--quiet"]);
+  git(["remote", "add", "origin", tagRoot]);
+  const commit = git(["rev-parse", "HEAD"]).stdout.trim();
+  git(["tag", "v1.2.3"]);
+  git(["-c", "user.name=QA Fixture", "-c", "user.email=qa@example.invalid", "tag", "-a", "v2.3.4", "-m", "annotated fixture"]);
+  const annotated = git(["rev-parse", "v2.3.4"]).stdout.trim();
+  assert(annotated !== commit, "annotated fixture must differ from the commit object");
+  const execute = (command, args, label) => runSyncChecked(command, args, label, { cwd: tagRoot });
+  assert(await readRemoteTagCommit("1.2.3", execute) === commit, "lightweight tag must resolve to its commit");
+  assert(await readRemoteTagCommit("2.3.4", execute) === commit, "annotated tag must resolve to its peeled commit, not its tag object");
+  let missingRejected = false;
+  try { await readRemoteTagCommit("9.9.9", execute); } catch { missingRejected = true; }
+  assert(missingRejected, "missing remote tag must fail closed");
+  console.log("ok: real Git lightweight, annotated and missing tag readbacks");
 }
 
 function validateManifest() {
