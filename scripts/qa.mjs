@@ -238,6 +238,7 @@ async function validateCandidatePreflight(options, config = {}) {
   assert(/^[a-f0-9]{64}$/.test(QA_RELEASE_READINESS_INVENTORY_DIGEST), "candidate-preflight release-readiness inventory digest is malformed");
   validateCandidateReleaseSurfaces(options.candidate);
   validateCandidateMirrorBoundary(options.candidate);
+  await validateCandidatePreFreezeEvidence(options.candidate);
   await validateCandidatePublishedLineage(options.candidate);
   const status = await candidateGitStatus();
   if (config.requireFrozenIdentity) {
@@ -539,6 +540,13 @@ async function npxHelpEvidence(version) {
     rmSync(cache, { recursive: true, force: true });
     rmSync(cwd, { recursive: true, force: true });
   }
+}
+
+async function validateCandidatePreFreezeEvidence(version) {
+  await runCommand(process.execPath, ["scripts/check-release-readiness.mjs", "--pre-freeze-evidence"], `candidate pre-freeze evidence v${version}`, {
+    cwd: root,
+    timeoutMs: 120_000
+  });
 }
 
 function expectedNpxHelpEvidence(version) {

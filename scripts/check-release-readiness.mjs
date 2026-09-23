@@ -49,6 +49,15 @@ async function main() {
     checkGithubReleaseNotesContractSelfTest();
     return;
   }
+  if (process.argv.includes("--pre-freeze-evidence")) {
+    const packageJson = JSON.parse(read("package.json"));
+    const version = packageJson.version;
+    assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed for pre-freeze evidence");
+    checkChangedBilingualCandidateEvidence(version, { allowDirty: true });
+    assertLatestCrossMindTableComplete(version);
+    console.log(`ok: pre-freeze candidate evidence is complete for v${version}`);
+    return;
+  }
   const packageJson = JSON.parse(read("package.json"));
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
   const version = packageJson.version;
@@ -2469,7 +2478,7 @@ function checkEnglishPublicSurfaces(version) {
   console.log("ok: English public pages and language navigation");
 }
 
-function checkChangedBilingualCandidateEvidence(version) {
+function checkChangedBilingualCandidateEvidence(version, { allowDirty = false } = {}) {
   // Translation semantics cannot be inferred from text shape. This is only a
   // candidate-scoped completeness guard: when a committed candidate actually
   // changes one language pair, require the Writing Pack's independent review
@@ -2488,12 +2497,16 @@ function checkChangedBilingualCandidateEvidence(version) {
   ];
   const relevantPaths = pairs.flatMap((pair) => [pair.chinese, pair.english, ...(pair.assets ?? [])]);
   const dirty = outputText(run("git", ["status", "--porcelain", "--", ...relevantPaths], "candidate bilingual worktree status"));
-  assert(!dirty.trim(), "candidate changes a bilingual public surface but is not commit-bound; create a clean local candidate commit before release readiness");
+  if (!allowDirty) {
+    assert(!dirty.trim(), "candidate changes a bilingual public surface but is not commit-bound; create a clean local candidate commit before release readiness");
+  } else if (dirty.trim()) {
+    console.log("ok: candidate bilingual pre-freeze worktree scope");
+  }
 
   const base = outputText(run("git", ["merge-base", "HEAD", "origin/main"], "candidate bilingual baseline")).trim();
   assert(/^[0-9a-f]{40}$/i.test(base), "candidate bilingual baseline is not a Git commit");
   const changed = new Set(
-    outputText(run("git", ["diff", "--name-only", `${base}..HEAD`, "--", ...relevantPaths], "candidate bilingual change scope"))
+    outputText(run("git", allowDirty ? ["diff", "--name-only", base, "--", ...relevantPaths] : ["diff", "--name-only", `${base}..HEAD`, "--", ...relevantPaths], "candidate bilingual change scope"))
       .split(/\r?\n/u)
       .map((value) => value.trim())
       .filter(Boolean)

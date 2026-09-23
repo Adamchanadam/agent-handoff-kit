@@ -13,7 +13,7 @@ node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evid
 ```
 <!-- qa-assurance-command:block:end -->
 
-`quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full, but is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help semantic command evidence for the claimed version. Historical release records below are evidence, not the current QA command contract.
+`quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full. It also rejects a candidate before freeze when its changed bilingual public pages lack the required version-scoped hash-bound PASS sections, or when its current Cross-mind evidence table is absent or incomplete. It is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help semantic command evidence for the claimed version. Historical release records below are evidence, not the current QA command contract.
 
 Convenience collector: after the external publish actions complete, maintainers may run `node scripts/qa.mjs postpublish --version <version> --collect <postpublish-evidence.json>` to write the evidence JSON and validate it through the same `postpublish` gate. The output path must be inside the Public source repo or Node OS temp directory. The PASS owner remains the command contract above; the collector is only a way to reduce manual readback drift.
 
@@ -22,7 +22,7 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 ## v0.3.67 candidate status
 
 - 狀態：候選來源正在準備；正式 full、GitHub Release、npm 發布及發布後讀回均未完成。本節不把先前版本的驗收或發布結果套用到 v0.3.67。
-- 產品範圍：開工只用最少交接事實安全設定目前 thread 的顯示名稱；名稱不會成為工作真源或權限。收工檢查改以明確的肯定斷言及相同範圍比對，保留否定、限制、待處理、時間和環境條件；同範圍真矛盾仍拒絕。升級只會替換來源目錄精確證明的舊官方 opening instruction，保留用戶餘下內容。
+- 產品範圍：開工只用最少交接事實安全設定目前 thread 的顯示名稱；名稱不會成為工作真源或權限。收工檢查改以明確的肯定斷言及相同範圍比對，保留否定、限制、待處理、時間和環境條件；同範圍真矛盾仍拒絕。升級只會替換來源目錄精確證明的舊官方 opening instruction，保留用戶餘下內容。候選預檢也會在凍結前檢查已改雙語公開頁的獨立 hash-bound PASS 證據及目前 Cross-mind 表，避免把這類文件缺口延遲到 full gate 才發現。
 - 回歸範圍：開工命名 cases、closeout card contract、pack scenarios、歷史 v0.3.64 init → custom opening message → current upgrade → closeout → repeat no-op，以及 runtime-content upgrade safety 均已在候選前的來源工作中通過；本候選仍須在 commit 凍結、獨立唯讀覆核與正式 full 中重新綁定。
 - 發布邊界：只會更新 Public source 與本 WORK runtime；不會升級其他 runtime。候選版號、套件內容、正式發布及外部狀態均以對應 gate 的讀回為準。
 

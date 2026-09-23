@@ -64,6 +64,12 @@ function validateManifest() {
   }
   assert(ids.has("install-lock-smoke"), "quick QA omits install-lock-smoke");
   assert(/^[a-f0-9]{64}$/.test(QA_ASSURANCE_MANIFEST_DIGEST), "manifest digest is malformed");
+  const candidateRunner = readFileSync(path.join(root, "scripts", "qa.mjs"), "utf8");
+  const releaseReadiness = readFileSync(path.join(root, "scripts", "check-release-readiness.mjs"), "utf8");
+  assert(candidateRunner.includes("validateCandidatePreFreezeEvidence(options.candidate)"), "candidate-preflight does not run pre-freeze evidence validation");
+  assert(releaseReadiness.includes("--pre-freeze-evidence"), "release readiness has no pre-freeze evidence entrypoint");
+  assert(releaseReadiness.includes("checkChangedBilingualCandidateEvidence(version, { allowDirty: true })"), "pre-freeze evidence does not validate changed bilingual pairs before freeze");
+  assert(releaseReadiness.includes("assertLatestCrossMindTableComplete(version)"), "pre-freeze evidence does not validate the current cross-mind table before freeze");
 }
 
 function validateReleaseStateContract() {

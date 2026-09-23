@@ -76,13 +76,13 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
       layer: "candidate-preflight",
       required: true,
       executor: Object.freeze({ kind: "internal-validator", timeoutMs: 600_000 }),
-      provenance: "working candidate source tree before freeze, active release surfaces, public mirror contract, official-origin catalog, npm latest readback, and manifest identities",
-      stateAxes: Object.freeze(["candidate version", "surface synchronization", "mirror boundary", "published lineage", "manifest identity"]),
+      provenance: "working candidate source tree before freeze, active release surfaces, pre-freeze candidate evidence, public mirror contract, official-origin catalog, npm latest readback, and manifest identities",
+      stateAxes: Object.freeze(["candidate version", "surface synchronization", "pre-freeze bilingual and cross-mind evidence", "mirror boundary", "published lineage", "manifest identity"]),
       expected: Object.freeze({
-        positive: "candidate source state is internally synchronized before freeze/review/full",
-        negative: "version, surface, mirror, catalog, runner, required source membership, or external readback drift blocks preflight"
+        positive: "candidate source state and evidence prerequisites are internally synchronized before freeze/review/full",
+        negative: "version, surface, pre-freeze evidence, mirror, catalog, runner, required source membership, or external readback drift blocks preflight"
       }),
-      readback: "package.json, active surfaces, required public mirror source membership, derived mirror membership, latest published catalog endpoint, npm latest readback, manifest digest, and release-readiness inventory digest; full adds clean HEAD and evidence binding",
+      readback: "package.json, active surfaces, changed bilingual evidence, current cross-mind table, required public mirror source membership, derived mirror membership, latest published catalog endpoint, npm latest readback, manifest digest, and release-readiness inventory digest; full adds clean HEAD and evidence binding",
       evidenceOutput: "preflight terminal output",
       failureMode: "blocked/indeterminate; no full-gate or release success may be inferred",
       outOfScope: "does not replace independent review, candidate evidence, full gate, postpublish readback, or package file-count validation"
