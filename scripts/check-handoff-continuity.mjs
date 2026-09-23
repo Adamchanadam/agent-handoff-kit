@@ -36,12 +36,19 @@ try {
   invoke(historicalCli, ["closeout-status", "--root", project], "old installation can close out without reconstruction evidence");
   const oldUserSections = ["task-understanding-summary", "active-objective", "completed-this-session", "next-priorities", "next-task-required-reading", "validation-qc", "next-session-opening-message"];
   const oldSections = oldUserSections.map(id => [id, section(handoff, id)]);
+  const oldOpeningContract = officialOpeningContract(readAt(path.resolve(path.dirname(historicalCli), ".."), "runtime-core/SESSION_HANDOFF.md"));
+  const newOpeningContract = officialOpeningContract(readAt(root, "runtime-core/SESSION_HANDOFF.md"));
   const beforeDryRun = snapshot(project);
   cli(["upgrade", "--dry-run", "--root", project], "old installation upgrade preview");
   assert(snapshot(project) === beforeDryRun, "upgrade preview wrote files");
   cli(["upgrade", "--yes", "--root", project], "old installation upgrade");
   handoff = readAt(project, "dev/SESSION_HANDOFF.md");
-  for (const [id, before] of oldSections) assert(section(handoff, id) === before, `upgrade rewrote user-owned ${id}`);
+  for (const [id, before] of oldSections) {
+    // The source templates own this exact boilerplate paragraph. Everything
+    // else, including the custom resume instruction, must remain byte-stable.
+    const expected = id === "next-session-opening-message" ? before.replace(oldOpeningContract, newOpeningContract) : before;
+    assert(section(handoff, id) === expected, `upgrade rewrote user-owned ${id}`);
+  }
   assert(readAt(project, "docs/source.txt").includes("not yet reviewed"), "upgrade lost ordinary source content");
   cli(["doctor", "--root", project], "upgraded old handoff remains healthy for migration");
   expectBlocked(project, handoff, "old yes without evidence", "sufficiency");
@@ -100,6 +107,7 @@ try {
 function readyHistoricalHandoff(text, project) {
   const opening = section(text, "next-session-opening-message");
   let result = (text.slice(0, text.length - opening.length).replaceAll("TBD", "not required for this fixture") + opening).replaceAll("<absolute project root>", project);
+  result = result.replace(/\n```\s*$/, "\n\nProject resume boundary: Sample preparation is verified; the full-cohort report and retry exclusions still require evidence. Do not publish.\nResume the current objective. A plain custom instruction is user-owned, not official boilerplate. 保留此行。\n```\n");
   result = result.replace("Last Updated: not required for this fixture", "Last Updated: 2026-09-01");
   result = replaceSection(result, "task-understanding-summary", "Task Understanding Summary", "<!-- ack:field:user-intent -->\n- User intent: Prepare an internal retention comparison for all cohorts.\n<!-- ack:field:task-essence -->\n- Task essence: Normalize sample columns before full-cohort reconciliation.\n- User value: A reviewable retention report.\n<!-- ack:field:success-criteria -->\n- Success criteria: All cohorts and retry exclusions must be validated.\n- Key background already read: docs/source.txt.\n- Background still unread or blocked: Full-cohort reconciliation remains.\n- Non-goals / boundaries: Do not publish.");
   result = replaceSection(result, "active-objective", "Active Objective", "Reconcile the full-cohort data after the verified sample preparation.");
@@ -189,6 +197,11 @@ function section(text, id) {
   assert(start >= 0 && text.indexOf(marker, start + marker.length) < 0, `missing or duplicate fixture section ${id}`);
   const next = text.indexOf("<!-- ack:section:", start + marker.length);
   return text.slice(start, next < 0 ? text.length : next);
+}
+function officialOpeningContract(text) {
+  const lines = section(text, "next-session-opening-message").split(/\r?\n/).filter(line => line.startsWith("Resume the current objective. A plain "));
+  assert(lines.length === 1, "official opening contract must have one source-owned paragraph");
+  return lines[0];
 }
 function replaceSection(text, id, heading, body) { return text.replace(section(text, id), `<!-- ack:section:${id} -->\n## ${heading}\n\n${body}\n\n`); }
 function saveHandoff(project, text) { writeAt(project, "dev/SESSION_HANDOFF.md", text); writeAt(project, "START_NEXT_SESSION_PROMPT.txt", `${extractOpeningMessage(text)}\n`); }

@@ -64,6 +64,24 @@ Run writer then reader in dependency order. Never repair the writer packet
 before the reader sees it. Preserve first failures; investigate before a clearly
 labeled new run. Do not silently retry until success.
 
+## Startup naming consumer replay
+
+For naming changes, give a fresh reader only the candidate core's Intent And
+Startup section and `startup-title-cases.json`. Ask for each case's ordered
+actions, proposed title or reason to keep/skip, final checkpoint result, and
+whether task work begins. Treat the listed tool responses as fictional; do not
+let the reader call real task-management tools or see an answer key. Preserve
+its first response and grade against the user requirement and actual tool
+schema. The cases cover direct/deferred/unsafe/absent capability, completed
+objectives, unknown projects, user-chosen titles, later tasks, interruption,
+ambiguous writes and bounded correction. These are decision replays, not proof
+that an AI app executed or retained a title. Keep real host set/readback evidence
+separate, and do not claim a universal post-response auto-title timing guarantee.
+
+`scripts/check-startup-status-only.mjs` owns the mechanical naming contract and
+missing-clause mutations; `check-pack-scenarios.mjs` imports it so the existing
+quick/full pack checks exercise it. Core remains the runtime rule owner.
+
 ## Acceptance and limits
 
 For governance rule-writing changes, additionally run

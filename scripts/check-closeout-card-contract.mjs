@@ -110,14 +110,66 @@ try {
   );
   assertCloseoutComplete(monitorOnlyCondition, "Chinese conditional monitor-only text");
 
+  // Completion applies to its assertion, not every topic mentioned in the same
+  // paragraph. These truthful limitations must not require magic prefixes.
+  const scopedLifecycleCases = [
+    ["completed paragraph preserves a limitation", "Completed local report routing. Technical acceptance review remains LIMITED.", "Technical acceptance review remains LIMITED; non-blocking for local routing."],
+    ["Chinese completed paragraph preserves a limitation", "本機報告路由已完成；正式技術接納仍未通過。", "正式技術接納仍未通過；不阻擋本機路由。"],
+    ["mixed risk paragraph repeats a completed fact", "Local report routing is complete.", "Local report routing is complete; technical acceptance remains LIMITED."],
+    ["shared project is not shared acceptance", "Completed Aurora monthly report local routing.", "Aurora monthly report technical acceptance remains LIMITED."],
+    ["negated technical verification", "Completed local report routing; public website verification was not completed.", "Public website verification remains pending."],
+    ["comma separated qualification", "Completed local report routing, but technical acceptance review remains LIMITED.", "Technical acceptance review remains LIMITED."],
+    ["temporal qualifier is substantive scope", "Completed export acceptance before the data migration.", "Export acceptance after the data migration remains pending."],
+    ["dash qualifier is substantive scope", "Completed export acceptance — staging.", "Export acceptance — production remains pending."],
+  ];
+  for (const [label, done, risk] of scopedLifecycleCases) {
+    assertCloseoutComplete(replaceRisksLine(insertCompletedLine(complete, done), risk), label);
+  }
+  assertCloseoutComplete(replaceRisksLine(complete.replace(
+    "fixture closeout state and read-back passed.",
+    "Technical acceptance review is incomplete."
+  ), "Technical acceptance review is incomplete."), "incomplete is not complete in QC");
+
+  for (const [label, done, risk] of [
+    ["same acceptance unfinished", "Technical acceptance review completed.", "Technical acceptance review remains incomplete."],
+    ["nonblocking does not erase contradiction", "Completed technical acceptance review.", "Technical acceptance review remains incomplete; non-blocking for local routing."],
+    ["separate limitation does not erase contradiction", "Completed local report routing; technical acceptance review remains LIMITED.", "Local report routing remains incomplete; technical acceptance review remains LIMITED."],
+    ["Chinese true contradiction", "正式技術接納已通過。", "正式技術接納仍未通過。"],
+    ["unrelated no-blocker claim does not erase contradiction", "Completed technical acceptance review.", "No blockers remain for local routing; technical acceptance review remains incomplete."],
+    ["unrelated reclassification does not erase contradiction", "Completed technical acceptance review.", "Monitor-only local routing — trigger: a new route failure; technical acceptance review remains incomplete."]
+  ]) assertLifecycleBlocked(replaceRisksLine(insertCompletedLine(complete, done), risk), label);
+  for (const [label, done, risk] of [
+    ["unresolved status", "Completed technical acceptance review.", "Technical acceptance review remains unresolved."],
+    ["completion without errors", "Completed technical acceptance review without errors.", "Technical acceptance review remains pending."],
+    ["successful completion adverb", "Completed technical acceptance review successfully.", "Technical acceptance review remains pending."]
+  ]) assertLifecycleBlocked(replaceRisksLine(insertCompletedLine(complete, done), risk), label);
+  assertLifecycleBlocked(replaceRisksLine(complete.replace("fixture closeout state and read-back passed.", "Technical acceptance review: PASS."), "Technical acceptance review remains pending."), "QC PASS is affirmative");
+  assertLifecycleBlocked(insertCompletedLine(complete, "Completed technical acceptance review.").replace("1. follow-up scope — monitor only if a new reproducible failure occurs.", "1. Continue technical acceptance review next session."), "next-session timing does not change scope");
+  // Metamorphic coverage: changing the domain/identifier cannot change the
+  // decision; changing the acceptance scope must. No product-specific bypass.
+  for (const [entity, finishedScope, pendingScope] of [
+    ["Quartz dataset v2.4", "schema validation", "retention audit"],
+    ["Cedar photo catalogue", "thumbnail generation", "copyright review"],
+    ["Orion warehouse console", "offline simulation", "onsite commissioning"]
+  ]) {
+    for (const state of ["pending", "incomplete", "LIMITED"]) {
+      const done = `Completed ${entity} ${finishedScope}.`;
+      assertCloseoutComplete(replaceRisksLine(insertCompletedLine(complete, done), `${entity} ${pendingScope} remains ${state}.`), `${entity}: distinct scope ${state}`);
+      assertLifecycleBlocked(replaceRisksLine(insertCompletedLine(complete, done), `${entity} ${finishedScope} remains ${state}.`), `${entity}: same scope ${state}`);
+    }
+  }
+  console.log("ok: lifecycle completion and limitations are assertion-scoped; real contradictions still block");
+
   const openingContinuation = insertOpeningLine(
-    insertCompletedLine(complete, "Completed Doc\\01_報告 latest draft final review."),
+    insertCompletedLine(complete, "Completed Doc\\01_報告 latest draft final review before delivery."),
     "Continue Doc\\01_報告 latest draft final review before delivery."
   );
   writeFixtureHandoff(openingContinuation);
   const openingContinuationRejected = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
   assert(!openingContinuationRejected.error && openingContinuationRejected.status !== 0, "opening continuation conflict produced a successful closeout card");
   assert(openingContinuationRejected.stdout.includes("handoff lifecycle read-back is not healthy"), "opening continuation conflict omitted lifecycle blocker");
+  assertLifecycleBlocked(insertOpeningLine(insertCompletedLine(complete, "Completed technical acceptance review."), "Local report routing is complete; continue technical acceptance review."), "opening directive after completed context");
+  assertLifecycleBlocked(replaceRisksLine(insertCompletedLine(complete, "Completed export acceptance before the data migration."), "Export acceptance before the data migration remains pending."), "same temporal scope still conflicts");
 
   const blocked = complete.replace(
     /- Project-required persistence:[^\r\n]*/,
@@ -197,6 +249,15 @@ function assertCloseoutComplete(text, label) {
   const result = invoke(["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], label);
   assert(result.stdout.includes("status: complete"), `${label} omitted machine-readable complete state`);
   assert(!result.stdout.includes("handoff blocked"), `${label} showed a blocked state`);
+}
+
+function assertLifecycleBlocked(text, label) {
+  writeFixtureHandoff(text);
+  const before = readAt(fixtureRoot, "dev/SESSION_HANDOFF.md");
+  const result = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!result.error && result.status !== 0 && result.stdout.includes("handoff lifecycle read-back is not healthy"), `${label} was not blocked by lifecycle read-back\n${result.stdout}`);
+  assert(!result.stdout.includes("handoff saved"), `${label} falsely claimed saved`);
+  assert(before === readAt(fixtureRoot, "dev/SESSION_HANDOFF.md"), `${label} mutated the handoff`);
 }
 
 function invoke(args, label) {

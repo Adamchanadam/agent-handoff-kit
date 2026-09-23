@@ -3,6 +3,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+// Own startup contract checks in one script, exercised by quick/full pack QA.
+import "./check-startup-status-only.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -401,27 +403,14 @@ function assertOnboardingDecisionCases() {
   assertIncludes(core, [
     "Clear continuity intent such as \"開工\"",
     "A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery",
-    "one optional display-only current-thread title update when safely supported",
+    "the display-only current-thread naming checkpoint when safely supported",
     "and then the end of the turn",
     "It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions",
     "A concrete objective found only in loaded state is not authority to complete it",
-    "current-thread title control",
-    "not required when the tool safely targets the calling/current thread",
-    "bounded runtime tool-discovery mechanism",
-    "narrow title/rename/current-thread query",
-    "call only the discovered safe current-thread title tool",
-    "Do not list or inspect unrelated threads solely for naming",
-    "Do not title from the raw continuity trigger or before handoff-derived startup facts are final",
-    "last presentation side effect before returning the startup response",
-    "Replace only a generic or stale title",
-    "keep an informative title",
-    "Use `<project name>｜<primary action>` from facts already loaded for startup",
-    "`開始交接工作`",
-    "a concrete same-message task first",
-    "the loaded current objective plus recommended next action",
-    "Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title",
-    "skip silently",
-    "display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth",
+    "### Current-thread naming checkpoint",
+    "not an optional task",
+    "before emitting the final startup card or beginning any same-message authorized task work",
+    "use the project name alone",
     "開工，繼續做到下一個 blocker",
     "First-use exception: when `dev/SESSION_HANDOFF.md` says `First-use guidance state: eligible`",
     "load `dev/rules/onboarding.md` and include a short first-use welcome",
@@ -430,7 +419,7 @@ function assertOnboardingDecisionCases() {
   ], "continuity startup core boundary");
   assert(!core.includes("If the same message or loaded state contains a concrete objective, begin its first safe action in the same response"), "plain 開工 still turns a loaded objective into same-turn full-task authority");
   assert(!core.includes("at most one bounded, low-cost, reversible first checkpoint"), "plain 開工 still permits a task checkpoint");
-  console.log("ok: 開工 only -> restore minimum state, optionally update display title, show card/status, then return control");
+  console.log("ok: 開工 only -> restore minimum state, resolve display-only naming, show card/status, then return control");
   console.log("ok: 開工 + explicit continuation -> may proceed under the normal task rules");
   console.log("ok: direct ordinary task -> no startup ceremony");
   console.log("ok: 新手，教我用 -> onboarding");

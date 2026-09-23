@@ -21,30 +21,32 @@ for (const surface of [core, opening, prompt]) {
   assert(surface.includes("and then the end of the turn"), "plain startup can still continue work after its card");
   assert(surface.includes("It does not authorize task-specific reads"), "plain startup does not deny task-specific work");
   assert(surface.includes("A same-message task may begin normally"), "explicit same-message task no longer has a work path");
-  assert(surface.includes("one optional display-only") && surface.includes("title update when safely supported"), "plain startup does not keep the title update presentation-only and optional");
+  assert(surface.includes("the display-only current-thread naming checkpoint when safely supported"), "startup surface does not route the required display-only naming checkpoint");
   assert(surface.includes("project-file writes, network access, other external actions"), "plain startup does not deny writes/network/external actions after title update");
   for (const prohibited of ["at most one bounded", "one permitted bounded", "begin its first safe action in this response"]) {
     assert(!surface.includes(prohibited), `obsolete plain-start authority remains: ${prohibited}`);
   }
 }
 assert(core.includes("sub-agents, QA, packaging, project-file writes, network access"), "plain startup does not name the heavy operations it must not start");
-assert(core.includes("current-thread title control"), "dynamic title rule does not require safe current-thread title control");
-assert(core.includes("Current-title readback is useful when available") && core.includes("it is not required when the tool safely targets the calling/current thread"), "dynamic title rule still makes readback a hard blocker for safe current-thread rename");
-assert(core.includes("bounded runtime tool-discovery mechanism") && core.includes("narrow title/rename/current-thread query"), "dynamic title rule does not discover deferred title tooling before silently skipping");
-assert(core.includes("call only the discovered safe current-thread title tool"), "dynamic title rule can use unrelated discovered thread tools");
-assert(core.includes("Do not list or inspect unrelated threads solely for naming") && core.includes("do not create, fork, navigate, message, archive, pin"), "dynamic title rule can still inspect or mutate unrelated threads");
-assert(core.includes("Replace only a generic or stale title"), "dynamic title rule can still churn informative titles");
-assert(core.includes("Use `<project name>｜<primary action>` from facts already loaded for startup: a concrete same-message task first, otherwise the loaded current objective plus recommended next action"), "dynamic title rule lost its concise derived format/source boundary");
-assert(core.includes("Do not title from the raw continuity trigger or before handoff-derived startup facts are final"), "dynamic title can still run before meaningful startup-card facts exist");
-assert(core.includes("First derive the startup card's current objective, risk/boundary, and recommended next action") && core.includes("as the last presentation side effect before returning the startup response"), "dynamic title is not sequenced as the last startup presentation step");
-assert(core.includes("Within those facts, select one concrete primary action in this order: the same-message task; the loaded current objective; the recommended next action"), "dynamic title lost its meaningful primary-action priority");
-assert(core.includes("The continuity trigger itself and generic phrases such as `Start Agent Handoff`, `開工`, `開始交接工作`, or `開始工作交接` are not primary actions"), "dynamic title can still rename from the generic continuity trigger");
-assert(core.includes("If the loaded facts do not provide both a concrete project name and a concrete primary action, skip the title update"), "dynamic title no longer skips when meaningful naming facts are unavailable");
-assert(core.includes("Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title"), "dynamic title rule permits extra reads only for naming");
-assert(core.includes("must not contain progress, completion, status, task/session IDs, absolute paths, secrets, or unverified facts"), "dynamic title rule can leak IDs/paths/status/secrets/unverified facts");
-assert(core.includes("If safe current-thread title control is unavailable after the bounded discovery above, skip silently"), "unsupported title control is no longer a silent fallback after bounded discovery");
-assert(core.includes("display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth"), "dynamic title rule became authority or evidence");
-assert(core.includes("does not authorize project/file writes, network activity, external task work, or continuation beyond the startup boundary"), "dynamic title rule weakens the no-auto-execute boundary");
+assertNamingCheckpoint(core);
+// Mutation checks reject the omissions that allowed a no-call startup to pass.
+// These inspect the prompt contract only; independent consumer replay and real
+// host tool/readback evidence are still needed to establish agent behavior.
+for (const phrase of [
+  "not an optional task",
+  "before emitting the final startup card or beginning any same-message authorized task work",
+  "use the project name alone",
+  "call it directly",
+  "successful tool result confirms the title",
+  "Only a verified mismatch permits one safe corrective call",
+  "On a later user-authorized turn"
+]) {
+  let rejected = false;
+  try { assertNamingCheckpoint(core.replace(phrase, "")); } catch { rejected = true; }
+  assert(rejected, `naming contract mutation was accepted: ${phrase}`);
+}
+assert(!core.includes("one optional display-only current-thread title update"), "optional rename wording returned");
+assert(!core.includes("If the loaded facts do not provide both a concrete project name and a concrete primary action, skip the title update"), "completed objectives can still suppress project naming");
 assert(core.includes("A direct ordinary task begins without a startup card"), "ordinary direct tasks were accidentally put behind startup ceremony");
 assert(core.includes("Render the startup card in a fenced `text` block and preserve spacing"), "startup card can still be rendered outside a fenced text block");
 assert(core.includes("the startup card may read only the bounded version evidence from `dev/PROJECT_INDEX.md`"), "bare startup version read is not bounded to display-only evidence");
@@ -83,9 +85,50 @@ const validAfterClosedFence = "````md\n## Stack\n| Agent Handoff Kit template ve
 assert(parseProjectIndexTemplateVersion(validAfterClosedFence) === "0.3.52", "shared parser failed to resume after a valid long-fence close");
 assert(parseProjectIndexTemplateVersion(materializeProjectIndexTemplateVersion(validAfterClosedFence, "0.3.53")) === "0.3.53", "materializer failed to update the real Stack row after a valid long-fence close");
 
-console.log("ok: plain continuity startup is status-only with optional display-only title update; explicit continuation and ordinary direct tasks retain their normal work paths");
-console.log("ok: dynamic title is concise, discovers deferred title control narrowly, uses already-loaded facts, silently skips when unsupported, and never authority/evidence/progress");
+console.log("ok: plain continuity startup resolves its naming checkpoint and stops; explicit continuation and ordinary tasks retain their work paths");
+console.log("ok: naming contract rejects seven missing-checkpoint mutations; host behavior requires separate consumer/tool evidence");
 console.log("ok: bare startup version display uses only the shared Stack-row parser and falls back to version unverified without adding duplicate sources");
+
+function assertNamingCheckpoint(text) {
+  for (const phrase of [
+    "### Current-thread naming checkpoint",
+    "safe current-thread title control",
+    "not an optional task",
+    "before emitting the final startup card or beginning any same-message authorized task work",
+    "Do not defer the tool call until after the final response",
+    "If interrupted before the checkpoint resolves",
+    "do not schedule a background rename",
+    "the concrete current user task first, then an unresolved current objective",
+    "Do not revive a completed child task",
+    "use the project name alone",
+    "If the project name is unknown, skip without guessing or extra source reads",
+    "call it directly",
+    "bounded runtime tool-discovery mechanism once",
+    "narrow title/rename/current-thread query",
+    "not required when the tool safely targets the calling/current thread",
+    "keep an informative title",
+    "preserve an explicitly user-chosen title",
+    "require a verified current-thread identifier",
+    "Do not list or inspect unrelated threads solely for naming",
+    "do not create, fork, navigate, message, archive, pin",
+    "successful tool result confirms the title",
+    "kept (relevant or user-chosen title)",
+    "unavailable (no safe capability)",
+    "skipped (project unknown)",
+    "failed/unverified (error or no confirmation)",
+    "ambiguous write requires readback before any retry",
+    "Only a verified mismatch permits one safe corrective call",
+    "never loop or overwrite a later user rename",
+    "Do not assume a universal timing window or automatic-title overwrite",
+    "An unavailable capability does not block startup; skip silently",
+    "brief startup warning, not a success claim",
+    "On a later user-authorized turn",
+    "do not rename for tests, reviews or small substeps",
+    "Titles must not contain progress, completion, status, task/session IDs, absolute paths, secrets or unverified facts",
+    "display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth",
+    "does not authorize project/file writes, network research, external task work, extra startup reads or continuation beyond the startup boundary"
+  ]) assert(text.includes(phrase), `naming checkpoint missing: ${phrase}`);
+}
 
 function read(relative) {
   return readFileSync(path.join(root, relative), "utf8");

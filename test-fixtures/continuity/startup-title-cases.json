@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "kind": "fictional-reader-inputs",
+  "cases": [
+    {
+      "id": "S01",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "開工",
+      "tools": "direct safe set-current-title; targeted readback",
+      "result": "set succeeds; readback matches"
+    },
+    {
+      "id": "S02",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Publish 2.0",
+      "objectiveState": "complete",
+      "nextAction": "Wait for a new user task",
+      "currentTitle": "開工",
+      "tools": "direct safe set-current-title; targeted readback",
+      "result": "set succeeds; readback matches"
+    },
+    {
+      "id": "S03",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "Cedar｜修復 CSV 匯出",
+      "tools": "direct safe set-current-title; targeted readback",
+      "result": "initial readback confirms currentTitle"
+    },
+    {
+      "id": "S04",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": null,
+      "tools": "direct safe set-current-title; no readback or listing tool",
+      "result": "set returns current thread identifier and saved title"
+    },
+    {
+      "id": "S05",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "開工",
+      "tools": "only narrow tool discovery initially; discovery exposes safe set-current-title",
+      "result": "set confirms saved title"
+    },
+    {
+      "id": "S06",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "開工",
+      "tools": "narrow discovery exposes only title setter requiring threadId; current identifier unknown; global thread list also exposed",
+      "result": "no safe current-thread identifier"
+    },
+    {
+      "id": "S07",
+      "user": "開工，繼續完成目前目標",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "開工",
+      "tools": "direct safe set-current-title",
+      "result": "set confirms saved title; long-running task is interrupted after first implementation step"
+    },
+    {
+      "id": "S08",
+      "user": "請修復搜尋篩選",
+      "project": "Cedar",
+      "objective": "No active task before this message",
+      "objectiveState": "complete",
+      "currentTitle": "Cedar",
+      "context": "Earlier bare startup was resolved; this is the next authorized user turn",
+      "tools": "direct safe set-current-title",
+      "result": "set confirms saved title"
+    },
+    {
+      "id": "S09",
+      "user": "開工",
+      "project": null,
+      "objective": null,
+      "currentTitle": "開工",
+      "tools": "direct safe set-current-title",
+      "result": "no additional facts supplied"
+    },
+    {
+      "id": "S10",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "開工",
+      "tools": "direct safe set-current-title; targeted readback",
+      "result": "set times out; readback shows requested title already saved"
+    },
+    {
+      "id": "S11",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "開工",
+      "tools": "direct safe set-current-title; targeted readback",
+      "result": "set errors; readback unavailable"
+    },
+    {
+      "id": "S12",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "開工",
+      "tools": "direct safe set-current-title; targeted readback",
+      "result": "set confirms requested title; one targeted readback shows generic 開工, with no later user rename; one corrective set and readback succeed"
+    },
+    {
+      "id": "S13",
+      "user": "繼續跑匯出的測試",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "Cedar｜修復 CSV 匯出",
+      "tools": "direct safe set-current-title",
+      "result": "small test step within unchanged primary task"
+    },
+    {
+      "id": "S14",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "My notes",
+      "titleProvenance": "explicit user-chosen name",
+      "tools": "direct safe set-current-title; targeted readback",
+      "result": "readback confirms user-chosen title"
+    },
+    {
+      "id": "S15",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "開工",
+      "tools": "no title setter and no tool discovery",
+      "result": "no safe capability"
+    },
+    {
+      "id": "S16",
+      "user": "開工",
+      "project": "Cedar",
+      "objective": "Fix CSV export",
+      "objectiveState": "unresolved",
+      "currentTitle": "開工",
+      "context": "Prior bare startup was interrupted after minimum reads but before naming; this turn resumes startup only, with no implementation request",
+      "tools": "direct safe set-current-title",
+      "result": "set confirms saved title"
+    }
+  ]
+}

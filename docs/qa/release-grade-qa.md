@@ -19,6 +19,13 @@ Convenience collector: after the external publish actions complete, maintainers 
 
 Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
 
+## v0.3.67 candidate status
+
+- 狀態：候選來源正在準備；正式 full、GitHub Release、npm 發布及發布後讀回均未完成。本節不把先前版本的驗收或發布結果套用到 v0.3.67。
+- 產品範圍：開工只用最少交接事實安全設定目前 thread 的顯示名稱；名稱不會成為工作真源或權限。收工檢查改以明確的肯定斷言及相同範圍比對，保留否定、限制、待處理、時間和環境條件；同範圍真矛盾仍拒絕。升級只會替換來源目錄精確證明的舊官方 opening instruction，保留用戶餘下內容。
+- 回歸範圍：開工命名 cases、closeout card contract、pack scenarios、歷史 v0.3.64 init → custom opening message → current upgrade → closeout → repeat no-op，以及 runtime-content upgrade safety 均已在候選前的來源工作中通過；本候選仍須在 commit 凍結、獨立唯讀覆核與正式 full 中重新綁定。
+- 發布邊界：只會更新 Public source 與本 WORK runtime；不會升級其他 runtime。候選版號、套件內容、正式發布及外部狀態均以對應 gate 的讀回為準。
+
 ## v0.3.66 candidate status
 
 - 狀態：本地來源準備，尚未提交、凍結、正式全面檢或發布。已讀回 npm latest 與 GitHub latest 均為 v0.3.65，remote main / v0.3.65 tag 均為 `04b68b6f0c1e01a284da4842a6fd09ba5c4802c0`。本節不沿用舊版的正式 full 或發布 PASS。

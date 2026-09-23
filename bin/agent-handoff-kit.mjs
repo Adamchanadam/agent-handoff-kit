@@ -3790,52 +3790,47 @@ function isOwnedOpeningLifecycleBoilerplate(line) {
     || /^Upgrade never resets consumed \/ not_applicable first-use state back to eligible\./i.test(line);
 }
 
-function stripResolvedNegatedActionClauses(line) {
-  return line.split(/(?<=[.;；。])\s*/).filter((clause) => {
-    const negated = /\b(?:no|not|never|without|did not|has not|have not)\b/i.test(clause);
-    const action = /\b(?:commit|push|tag|release|publish|deploy|deployment|sync|write|upgrade)\b/i.test(clause);
-    return !(negated && action);
-  }).join(" ");
-}
-
 const ignoredLifecycleEnglish = new Set([
-    "completed", "complete", "finish", "finished", "continue", "incomplete", "passed", "verified", "pending", "blocked", "follow", "scope",
-    "monitor", "only", "reopened", "recommended", "next", "step", "session", "current", "work", "task", "with",
-    "from", "that", "this", "handoff", "lifecycle", "migration", "regression", "agent", "reason", "condition",
-    "the", "and", "for", "into", "still", "remains"
+  "completed", "complete", "finish", "finished", "continue", "resume", "incomplete", "passed", "pass", "verified", "verify",
+  "pending", "blocked", "limited", "failed", "done", "resolved", "unresolved", "successful", "successfully", "success", "run",
+  "the", "and", "is", "are", "was", "were", "has", "have", "been", "not", "no", "yet", "still", "remains", "remain"
 ]);
 
-function lifecycleEnglishTokens(line, stripNegated = false) {
-  const source = stripNegated ? stripResolvedNegatedActionClauses(line) : line;
-  return (source.toLowerCase().match(/[a-z0-9][a-z0-9_-]{2,}/g) ?? [])
+function lifecycleAssertionClauses(line) {
+  // A status belongs to its clause, not every topic in a Completed/QC paragraph.
+  // Keep file extensions and dotted versions intact; separate contrast clauses.
+  return line.split(/[;；](?!\s*(?:condition|trigger|missing evidence|reason|條件|觸發條件|缺少證據|原因)\s*[:：])|[。!?！？]+|\.(?=\s|$)|\b(?:but|however|whereas|while)\b|(?:但|不過|然而)/i)
+    .map((clause) => clause.trim().replace(/^[,，\s]+|[,，\s]+$/g, ""))
+    .filter(Boolean);
+}
+
+function isAffirmativeLifecycleAssertion(clause) {
+  // Word boundaries matter: incomplete, unverified and unsuccessful are not
+  // positive results. Recording a limitation is not completing that work.
+  const assertion = clause.replace(/\b(?:without|no)\s+(?:errors?|failures?|issues?|blockers?)\b/gi, "");
+  if (/\b(?:not|never|without|incomplete|unverified|unsuccessful|unresolved|pending|blocked|limited|failed|missing)\b|(?:尚未|未曾|未完成|未通過|未驗證|未核對|不代表|不涵蓋|沒有|仍需|待驗|受限|受阻)/i.test(assertion)) return false;
+  return /\b(?:completed?|finished|pass(?:ed)?|verified|done|resolved|success(?:ful)?)\b|(?:已完成|完成|通過|已驗證|已核對|已解決)/i.test(assertion);
+}
+
+function lifecycleAssertionCore(clause) {
+  const source = openingLifecycleDirectiveText(clause)
+    .replace(/^checks run this session\s*[:：]\s*/i, "")
+    .replace(/^(?:non[- ]?blocking|risk|非阻擋|非阻塞|風險)\s*[:：—-]\s*/i, "")
+    .replace(/\b(?:without|no)\s+(?:errors?|failures?|issues?|blockers?)\b/gi, "")
+    .replace(/\s+(?:in\s+the\s+)?next\s+(?:session|round)\s*$/i, "")
+    .split(/(?:\b(?:reason|condition|evidence)|原因|條件|證據)\s*[:：]/i)[0]
+    .replace(/(?:尚未完成|已經完成|已完成|未完成|已驗證|未驗證|已核對|未核對|已通過|未通過|尚未|仍然|仍|完成|通過|繼續|待辦|受阻)/g, "");
+  const tokens = (source.toLowerCase().match(/[a-z0-9][a-z0-9_-]*|[\u3400-\u9fff]+/g) ?? [])
     .filter((token) => !ignoredLifecycleEnglish.has(token));
+  return tokens.join(" ");
 }
 
-function lifecycleTopicWindows(line, stripNegated = false) {
-  const source = stripNegated ? stripResolvedNegatedActionClauses(line) : line;
-  const englishTokens = lifecycleEnglishTokens(source);
-  const english = Array.from({ length: Math.max(0, englishTokens.length - 2) }, (_, index) => englishTokens.slice(index, index + 3).join(" "));
-  const chineseRuns = source.match(/[\u3400-\u9fff]{6,}/g) ?? [];
-  const chinese = chineseRuns.flatMap((run) => Array.from({ length: Math.max(0, run.length - 5) }, (_, index) => run.slice(index, index + 6)));
-  return new Set([...english, ...chinese]);
-}
-
-function lifecycleShortChineseCore(line, stripNegated = false) {
-  const rawSource = stripNegated ? stripResolvedNegatedActionClauses(line) : line;
-  const source = rawSource.split(/(?:\s+[—–-]\s*)?(?:reason|condition)\s*[:：]|(?:原因|條件)\s*[:：]/i)[0];
-  const ignored = /(後續追蹤|只監察|尚未完成|已經完成|重新開啟|完成|已驗證|繼續|下一步|待辦|尚未|未完成|通過|風險|受阻|重開|監察|追蹤|修復|修補|修正)/g;
-  const core = (source.match(/[\u3400-\u9fff]+/g) ?? []).join("").replace(ignored, "");
-  return core.length >= 2 && core.length <= 5 ? core : null;
-}
-
-function lifecycleTopicsOverlap(left, right) {
-  const leftWindows = lifecycleTopicWindows(left, true);
-  if ([...lifecycleTopicWindows(right)].some((window) => leftWindows.has(window))) return true;
-  const leftEnglish = lifecycleEnglishTokens(left, true);
-  const rightEnglish = lifecycleEnglishTokens(right);
-  if (leftEnglish.length === 2 && rightEnglish.length === 2 && leftEnglish.join(" ") === rightEnglish.join(" ")) return true;
-  const leftChinese = lifecycleShortChineseCore(left, true);
-  return Boolean(leftChinese && leftChinese === lifecycleShortChineseCore(right));
+function lifecycleAssertionsMatch(left, right) {
+  // Shared product names / paths / three-word windows are not proof of the
+  // same acceptance scope. Only a complete normalized assertion core matches.
+  // This is a conservative mechanical guard, not natural-language adjudication.
+  const core = lifecycleAssertionCore(left);
+  return core.length >= 2 && core === lifecycleAssertionCore(right);
 }
 
 function isExplicitLifecycleReclassification(line) {
@@ -3892,23 +3887,29 @@ function findHandoffLifecycleContradictions(text) {
     ...handoffStateLines(text, "completed-this-session", "Completed This Session")
       .map((line) => ({ section: "Completed This Session", line })),
     ...handoffStateLines(text, "validation-qc", "Validation / QC")
-      .filter((line) => /(pass|passed|verified|complete|success|通過|完成|已驗證|已核對)/i.test(line))
       .map((line) => ({ section: "Validation / QC", line }))
-  ];
+  ].flatMap((entry) => lifecycleAssertionClauses(entry.line)
+    .filter(isAffirmativeLifecycleAssertion)
+    .map((assertion) => ({ ...entry, assertion })));
   const carryForward = [
     ...handoffStateLines(text, "next-priorities", "Next Priorities")
       .map((line) => ({ section: "Next Priorities", line })),
     ...handoffStateLines(text, "risks-blockers", "Risks / Blockers")
       .map((line) => ({ section: "Risks / Blockers", line })),
     ...handoffStateLines(text, "next-session-opening-message", "Next Session Opening Message")
-      .filter((line) => isOpeningLifecycleCarryForwardLine(line))
       .map((line) => ({ section: "Next Session Opening Message", line }))
   ];
   const findings = [];
   for (const pending of carryForward) {
-    if (isResolvedCarryForwardStatement(pending.line) || isExplicitLifecycleReclassification(pending.line)) continue;
-    for (const done of resolved) {
-      if (lifecycleTopicsOverlap(done.line, pending.line)) findings.push({ resolved: done, carryForward: pending });
+    for (const assertion of lifecycleAssertionClauses(pending.line)) {
+      if (pending.section === "Next Session Opening Message" && !isOpeningLifecycleCarryForwardLine(assertion)) continue;
+      // Risks may repeat a completed local fact to explain an unrelated limit.
+      // Next Priorities still rejects completed work listed as a next action.
+      if (pending.section === "Risks / Blockers" && isAffirmativeLifecycleAssertion(assertion)) continue;
+      if (isResolvedCarryForwardStatement(assertion) || isExplicitLifecycleReclassification(assertion)) continue;
+      for (const done of resolved) {
+        if (lifecycleAssertionsMatch(done.assertion, assertion)) findings.push({ resolved: done, carryForward: pending });
+      }
     }
   }
   return findings;
@@ -5565,9 +5566,23 @@ function migrateSessionHandoff(targetText, sourceText, context = {}) {
   const targetPrompt = targetSection.match(/```text\s*\r?\n([\s\S]*?)\r?\n```/);
   const sourcePrompt = sourceSection.match(/```text\s*\r?\n([\s\S]*?)\r?\n```/);
   if (!targetPrompt || !sourcePrompt) return null;
-  const existingRoot = targetPrompt[1].match(/^Work in (.+?)\. Read AGENTS\.md,/m)?.[1] ?? "<absolute project root>";
-  const currentPrompt = sourcePrompt[1].replace("<absolute project root>", existingRoot);
-  const updatedSection = targetSection.replace(targetPrompt[0], `\`\`\`text\n${currentPrompt}\n\`\`\``);
+  // The opening message carries user state. Upgrade must never regenerate it
+  // from a blank template. Replace only an exact catalog-proven official
+  // startup paragraph; custom paragraphs (even similar-looking ones) survive.
+  const sourceInstruction = sourcePrompt[1].split(/\r?\n/).find((line) => line.startsWith("Resume the current objective. A plain "));
+  const officialInstructions = new Set();
+  for (const [version, release] of Object.entries(context.officialCatalog?.releases ?? {})) {
+    if (!release.source?.npm?.integrity || compareSemver(version, context.currentVersion) > 0) continue;
+    const baseline = getOfficialBaseline({ version, targetRel: "dev/SESSION_HANDOFF.md", catalog: context.officialCatalog });
+    const opening = baseline?.state === "present" ? extractOpeningMessage(baseline.text) : null;
+    for (const line of opening?.split(/\r?\n/) ?? []) {
+      if (line.startsWith("Resume the current objective. A plain ")) officialInstructions.add(line);
+    }
+  }
+  const currentPrompt = targetPrompt[1].split(/(\r?\n)/).map((line) => (
+    sourceInstruction && officialInstructions.has(line) ? sourceInstruction : line
+  )).join("");
+  const updatedSection = targetSection.replace(targetPrompt[1], () => currentPrompt);
   merged = `${merged.slice(0, targetBounds.start)}${updatedSection}${merged.slice(targetBounds.end)}`;
 
   const temperatureRepair = repairHandoffCurrentStateEvidenceBoundary(merged);

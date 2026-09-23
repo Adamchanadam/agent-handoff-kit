@@ -24,7 +24,7 @@ const root = path.resolve(__dirname, "..");
 const qaTemp = createQaTempTracker("release readiness QA");
 const tempRoot = qaTemp.track(path.join(tmpdir(), `ack-release-flow-${Date.now()}`));
 const cliNode = process.platform === "win32" ? "node" : process.execPath;
-const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, one optional display-only current-thread title update when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out execution wording.";
+const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, the display-only current-thread naming checkpoint when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out execution wording.";
 const GITHUB_RELEASE_BODY_HEADINGS = [
   "## 本版新加了甚麼",
   "## 對你已有檔案的影響",
@@ -166,27 +166,14 @@ async function main() {
     "Show the startup card only for explicit continuity startup",
     "Render the startup card in a fenced `text` block and preserve spacing",
     "A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery",
-    "one optional display-only current-thread title update when safely supported",
+    "the display-only current-thread naming checkpoint when safely supported",
     "the end of the turn",
     "It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out wording",
     "A concrete objective found only in loaded state is not authority to complete it",
-    "current-thread title control",
-    "Current-title readback is useful when available",
-    "not required when the tool safely targets the calling/current thread",
-    "bounded runtime tool-discovery mechanism",
-    "narrow title/rename/current-thread query",
-    "call only the discovered safe current-thread title tool",
-    "Do not list or inspect unrelated threads solely for naming",
-    "Do not title from the raw continuity trigger or before handoff-derived startup facts are final",
-    "last presentation side effect before returning the startup response",
-    "Replace only a generic or stale title",
-    "keep an informative title",
-    "Use `<project name>｜<primary action>` from facts already loaded for startup",
-    "`開始交接工作`",
-    "Do not read `dev/PROJECT_INDEX.md`, files, network, or other state solely to name the title",
-    "must not contain progress, completion, status, task/session IDs, absolute paths, secrets, or unverified facts",
-    "skip silently",
-    "display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth",
+    "### Current-thread naming checkpoint",
+    "not an optional task",
+    "before emitting the final startup card or beginning any same-message authorized task work",
+    "use the project name alone",
     "開工，繼續完成目前目標",
     "Agent Handoff Kit v<version>",
     "Never print the literal placeholder `v<version>`",
@@ -262,7 +249,9 @@ async function main() {
     "apply the integrations and safety ownership rules",
     "Close only task-owned resources",
     "Retain shared, user-owned, other-agent-owned, system, or ambiguous resources unless separately authorized",
-    "The semantic lifecycle gate is `agent-handoff-kit closeout-status`",
+    "`agent-handoff-kit closeout-status` checks explicit lifecycle declarations and same-scope textual contradictions",
+    "it does not prove natural-language semantic consistency",
+    "preserve the facts, report the checker defect and stop wording retries",
     "first `Resolved [...]` / `Carry-forward [...]` pair"
   ]);
 
