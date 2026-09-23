@@ -26,6 +26,38 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 - 回歸範圍：開工命名 cases、closeout card contract、pack scenarios、歷史 v0.3.64 init → custom opening message → current upgrade → closeout → repeat no-op，以及 runtime-content upgrade safety 均已在候選前的來源工作中通過；本候選仍須在 commit 凍結、獨立唯讀覆核與正式 full 中重新綁定。
 - 發布邊界：只會更新 Public source 與本 WORK runtime；不會升級其他 runtime。候選版號、套件內容、正式發布及外部狀態均以對應 gate 的讀回為準。
 
+### Bilingual README semantic gate（v0.3.67，PASS）
+
+- Reviewer：independent read-only agent `/root/v0367_bilingual_review`，2026-09-23。核對中文／英文 README 的版本、公開發布邊界、相互入口及既有段落語意。
+- Scope：`v0.3.66` → `v0.3.67` 只更新同步版本標示；npm `@latest` 和 GitHub Release 仍明確保留為發布後讀回，沒有把原始碼候選聲稱成已發佈版本。
+- `README.md` SHA-256 `1064CD29238F041F9D4CB7A3B93DB8BF9516034D5C0B88A7E8BB14DB10661806`
+- `README.en.md` SHA-256 `9B8E121F63752BBAD331C28535CE7F129FF54DABF0AB5D9FEB82040BE63B7AB2`
+- Verdict: **PASS** — independent semantic review found no wording, link, navigation or source-versus-published-state drift.
+
+### Bilingual AI-install semantic gate（v0.3.67，PASS）
+
+- Reviewer：independent read-only agent `/root/v0367_bilingual_review`，2026-09-23。核對安裝頁的版本標示、雙語互連、指令與 registry 發佈界線。
+- Scope：八個公開頁面合共的 20 個替換均是 `v0.3.66` → `v0.3.67`；本對頁面沒有改變安裝、升級或驗收語意。
+- `agent-handoff-kit-ai-install.html` SHA-256 `DEB200B336C91D9CE6E4A12D9BFD4ED5DC5069356450B329D8015EE476160B49`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `353321111E8F03F57825163508E1330641C65EFBCB09091974ED7F89D449CA4C`
+- Verdict: **PASS** — independent review confirmed semantic parity and reciprocal language navigation.
+
+### Bilingual introduction semantic gate（v0.3.67，PASS）
+
+- Reviewer：independent read-only agent `/root/v0367_bilingual_review`，2026-09-23。核對 introduction 兩個語言版本的同步版本標示、相互導航及公開版本說法。
+- Scope：只更新同步版本標示；原有 source page 與 npm registry 發佈狀態的區分保留。
+- `agent-handoff-kit-intro.html` SHA-256 `FBC94DB65C14BEA995BB546D07C5684A206F8E21EB86CCDA2107BCCE18BE30D6`
+- `agent-handoff-kit-intro.en.html` SHA-256 `B6E605BDDC2C48B0E1FC83606D855A92BB9A66BA07163553B78B2BF67D467259`
+- Verdict: **PASS** — independent review found no cross-language drift.
+
+### Bilingual practical-guide semantic gate（v0.3.67，PASS）
+
+- Reviewer：independent read-only agent `/root/v0367_bilingual_review`，2026-09-23。核對 practical guide 兩個語言版本的同步版本標示、相互導航及既有流程內容。
+- Scope：只更新同步版本標示；現有指引、案例、連結及產品／發布界線沒有改動。
+- `agent-handoff-kit-guide.html` SHA-256 `F69BFD60DA39F2DBEDD42C55E98EB2D10C6BF942EACEFB17F00F84DC628B169D`
+- `agent-handoff-kit-guide.en.html` SHA-256 `CAA5C7D9E83EECB1B6F8581AB804113F769EF7FF9C68CBFA3FFCFEC1C94A458E`
+- Verdict: **PASS** — independent review confirmed semantic parity and reciprocal language navigation.
+
 ## v0.3.66 candidate status
 
 - 狀態：本地來源準備，尚未提交、凍結、正式全面檢或發布。已讀回 npm latest 與 GitHub latest 均為 v0.3.65，remote main / v0.3.65 tag 均為 `04b68b6f0c1e01a284da4842a6fd09ba5c4802c0`。本節不沿用舊版的正式 full 或發布 PASS。
