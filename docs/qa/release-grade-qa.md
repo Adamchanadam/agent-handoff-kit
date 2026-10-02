@@ -41,6 +41,11 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 - The same mirror check also retained the pre-feature package list. Its exact allowlist and release-readiness now share `RELEASE_PACKAGE_CONTRACT.packageFiles`; unexpected package members remain rejected. No runtime or public UI behavior changes in this repair.
 - R1 failure remains retained. A new commit, affected mirror/manifest checks, independent review and a newly bound formal full are required; unchanged semantic evidence may be reused.
 
+### Formal full R2 finding and scoped repair（v0.4.0）
+
+- R2 full stopped at an obsolete introduction-page assertion requiring only a minimal-state read. The already independently reviewed introduction correctly requires complete handoff reception followed by waiting for the next instruction. The checker now requires both clauses and rejects the obsolete clause; it also runs in the existing pre-freeze evidence path.
+- This repair changes two QA-only files, with no runtime, packaged file or public-page change. R1/R2 failures remain retained; independent counterexamples and a new frozen binding/full are required. Existing bilingual and consumer evidence remains limited to its unchanged source scope.
+
 ### Dashboard capture identity（v0.4.0）
 
 - `images/agent-handoff-kit-dashboard-zh-Hant.webp` SHA-256 `51BB249E403585A995945FE181988A6168C35CE1C0B299DF0D78F0E019F81A7D`

@@ -59,6 +59,7 @@ async function main() {
     const version = packageJson.version;
     assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed for pre-freeze evidence");
     checkScenarioBranchingDocAlignment();
+    checkDecisionFirstOnboardingWording();
     checkChangedBilingualCandidateEvidence(version, { allowDirty: true });
     assertLatestCrossMindTableComplete(version);
     console.log(`ok: pre-freeze candidate evidence is complete for v${version}`);
@@ -1860,13 +1861,14 @@ function checkWorkspaceHealthContract() {
 function checkDecisionFirstOnboardingWording() {
   const surfaces = [
     { file: "README.md", required: ["第一次安裝會把新手引導標記為待使用", "簡短新手歡迎引導", "開始第一個安全步驟"] },
-    { file: "agent-handoff-kit-intro.html", required: ["單獨輸入「開工」只會讀取最小狀態", "新手引導仍標記為 <code>eligible</code>", "沒有同句明確任務時", "簡短新手歡迎引導", "直接開始第一個安全步驟"] },
+    { file: "agent-handoff-kit-intro.html", required: ["單獨輸入「開工」會完整讀取交接包並恢復必要狀態", "然後等待你的下一句指令", "新手引導仍標記為 <code>eligible</code>", "沒有同句明確任務時", "簡短新手歡迎引導", "直接開始第一個安全步驟"] },
     { file: "agent-handoff-kit-guide.html", required: ["第一次安裝會把新手引導標記為待使用", "簡短新手歡迎", "目標清楚就直接開始"] }
   ];
   for (const surface of surfaces) {
     assertIncludes(surface.file, surface.required);
   }
   const combined = surfaces.map((surface) => read(surface.file)).join("\n");
+  assert(!combined.includes("單獨輸入「開工」只會讀取最小狀態"), "public startup copy must not reduce complete handoff reception to a partial state read");
   assert(!combined.includes("再用 5 步引導你:選情境"), "public onboarding copy still forces the legacy five-step chooser path");
   console.log("ok: public decision-first onboarding wording");
 }
