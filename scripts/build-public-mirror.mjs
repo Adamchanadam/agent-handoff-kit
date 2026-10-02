@@ -129,7 +129,7 @@ function checkPackageJson() {
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted in public mirror");
   assert(!("scripts" in packageJson), "public mirror package.json must not expose dev scripts");
   assert(
-    JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "LICENSE"]),
+    JSON.stringify(packageJson.files) === JSON.stringify(RELEASE_PACKAGE_CONTRACT.packageFiles),
     "public mirror npm package files boundary drifted"
   );
   assert(packageJson.bin?.["agent-handoff-kit"] === "bin/agent-handoff-kit.mjs", "public mirror bin entry drifted");

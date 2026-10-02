@@ -155,7 +155,8 @@ export const RELEASE_STATE_CONTRACT = Object.freeze({
 
 export const RELEASE_PACKAGE_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  expectedPackageFileCount: 49
+  expectedPackageFileCount: 49,
+  packageFiles: Object.freeze(["bin/", "runtime-core/", "packs/", "README.md", "docs/progress.md", "docs/commands.md", "LICENSE"])
 });
 
 const PUBLIC_MIRROR_ALLOW_FILES = Object.freeze([

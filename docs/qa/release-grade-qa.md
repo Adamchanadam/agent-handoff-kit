@@ -35,6 +35,12 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 - five-conclusion writer assessment：治理健康有現有 owner／範圍防護；產品路徑有真實安裝、LF/CRLF 升級和整合反例；使用路徑有獨立交接續行及實際雙語 Dashboard／文件畫面；QC 回流有原錯誤反例；規則路由保留 core／closeout／功能 owner。五項來源準備判斷為 passed，四個原生宿主實際口令操作仍明示未驗，不由此提升為普遍相容保證。
 - 發佈前必須以凍結身分取得獨立裁決並通過 full；若來源、產物或受影響條件改變，按現行 QA 契約重綁及補驗。發布授權和外部成功仍以本輪操作及讀回為準。
 
+### Formal full R1 finding and scoped repair（v0.4.0）
+
+- First frozen full stopped at public mirror: the public progress guide referenced an unshipped developer script. Both language clauses were removed; end-user limitations remain intact. Dashboard implementation is `bin/progress/`; its counterexamples are in `scripts/check-progress-view.mjs`, with browser acceptance separate.
+- The same mirror check also retained the pre-feature package list. Its exact allowlist and release-readiness now share `RELEASE_PACKAGE_CONTRACT.packageFiles`; unexpected package members remain rejected. No runtime or public UI behavior changes in this repair.
+- R1 failure remains retained. A new commit, affected mirror/manifest checks, independent review and a newly bound formal full are required; unchanged semantic evidence may be reused.
+
 ### Dashboard capture identity（v0.4.0）
 
 - `images/agent-handoff-kit-dashboard-zh-Hant.webp` SHA-256 `51BB249E403585A995945FE181988A6168C35CE1C0B299DF0D78F0E019F81A7D`

@@ -68,7 +68,7 @@ async function main() {
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
   const version = packageJson.version;
   assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed (expected semver e.g. 0.1.8)");
-  assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "docs/progress.md", "docs/commands.md", "LICENSE"]), "npm package files boundary changed");
+  assert(JSON.stringify(packageJson.files) === JSON.stringify(RELEASE_PACKAGE_CONTRACT.packageFiles), "npm package files boundary changed");
   // This isolated checker executes every required QA script directly below.
   // The public npm package deliberately excludes source QA helpers, so a
   // package.json `scripts` table would neither prove nor run the release gate.
