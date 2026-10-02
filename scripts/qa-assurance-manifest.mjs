@@ -8,6 +8,8 @@ export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
   releaseReadinessCheck("qa-assurance-manifest", "check-qa-assurance-manifest.mjs", "QA assurance manifest wiring", 180_000),
   releaseReadinessCheck("install-lock-smoke", "check-install-lock-smoke.mjs", "install lock smoke QA", 120_000),
   releaseReadinessCheck("public-prototype", "check-public-prototype.mjs", "prototype QA", 120_000),
+  releaseReadinessCheck("command-entry", "check-command-entry.mjs", "portable shortcuts and progress opener QA", 120_000),
+  releaseReadinessCheck("progress-view", "check-progress-view.mjs", "read-only project progress QA", 120_000),
   releaseReadinessCheck("closeout-card", "check-closeout-card-contract.mjs", "closeout card contract QA", 120_000),
   releaseReadinessCheck("handoff-continuity", "check-handoff-continuity.mjs", "published install to upgraded closeout continuity QA", 180_000),
   releaseReadinessCheck("closeout-efficiency", "check-closeout-efficiency.mjs", "closeout efficiency and terminal-state QA", 120_000),
@@ -51,10 +53,20 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
       stateAxes: ["delivery artifact", "fresh install", "formal user-rules", "managed-core drift"],
       readback: "installed CLI, doctor, accepted user-rule bytes, and managed-core anchor drift rejected before generic anchor repair"
     }),
+    claim("command-entry", "quick", "scripts/check-command-entry.mjs", {
+      provenance: "shipped catalog and isolated project roots",
+      stateAxes: ["create-only commands", "platform adapter parity", "conflict and path boundaries", "background progress reuse"],
+      readback: "adapter bytes, conflict zero writes, interruption recovery, isolated service identity and source preservation"
+    }),
+    claim("progress-view", "quick", "scripts/check-progress-view.mjs", {
+      provenance: "current package and isolated Kit records",
+      stateAxes: ["bounded reads", "source-only updates", "missing and incomplete records", "loopback read-only server"],
+      readback: "unchanged source hashes, live update events, bounded long-log bytes, honest missing state and packaged assets"
+    }),
     claim("pack-routing", "quick", "scripts/check-pack-scenarios.mjs", {
       provenance: "current source tree",
       stateAxes: ["task signal", "rule-pack routing"],
-      readback: "router and pack contracts"
+      readback: "router and pack contracts; bounded handoff transport, snapshot drift and offline/zero-write checks (not reader understanding)"
     }),
     claim("closeout-card", "quick", "scripts/check-closeout-card-contract.mjs", {
       provenance: "current source tree and isolated closeout fixture",
@@ -143,12 +155,14 @@ export const RELEASE_STATE_CONTRACT = Object.freeze({
 
 export const RELEASE_PACKAGE_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  expectedPackageFileCount: 34
+  expectedPackageFileCount: 49
 });
 
 const PUBLIC_MIRROR_ALLOW_FILES = Object.freeze([
   "README.md",
   "README.en.md",
+  "docs/progress.md",
+  "docs/commands.md",
   "LICENSE",
   "package.json",
   "agent-handoff-kit-ai-install.html",
@@ -158,6 +172,7 @@ const PUBLIC_MIRROR_ALLOW_FILES = Object.freeze([
   "agent-handoff-kit-intro.en.html",
   "agent-handoff-kit-guide.en.html",
   "agent-handoff-kit-en.css",
+  "agent-handoff-kit-dashboard.css",
   "local-agentic-ai-workflow-case-study.html",
   "robots.txt",
   "sitemap.xml",

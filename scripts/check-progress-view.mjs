@@ -1,0 +1,92 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync,realpathSync,symlinkSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {spawn} from 'node:child_process';
+import {once} from 'node:events';
+import http from 'node:http';
+import {createHash} from 'node:crypto';
+import {parseHandoff,parseLog,createSource,LIMITS} from '../bin/progress/projection.mjs';
+import {startProgress,PROGRESS_IDLE_MS} from '../bin/progress/server.mjs';
+import {probeProgress} from '../bin/progress/open.mjs';
+import './check-dashboard.mjs';
+const sourceRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const testRoot=mkdtempSync(path.join(tmpdir(),'ahk-progress-')),project=path.join(testRoot,'Project with spaces'),outside=path.join(testRoot,'outside');
+mkdirSync(path.join(project,'dev'),{recursive:true});mkdirSync(outside);let application=null,streamReader=null;const children=[];
+const file=path.join(project,'dev/SESSION_HANDOFF.md'),log=path.join(project,'dev/SESSION_LOG.md');
+const fixture=({name='Orchard planning',current='Checking the recorded field survey.',done='- Survey completed; planting is not approved.',pending='- Awaiting the landowner response.',risks='- Approval is still pending.',decisions='- Retain the existing trees; the survey supports this.'}={})=>`# ${name} Handoff\n\nLast Updated: 2026-10-01\n\n## Task Understanding Summary\n- Parent outcome / consumer: A workable planting plan.\n\n## Active Objective\n- Current step: ${current}\n- Remaining acceptance: Review the whole plan.\n\n## Completed This Session\n${done}\n\n## Next Priorities\n${pending}\n\n## Risks / Blockers\n${risks}\n\n## Confirmed Decisions\n${decisions}\n`;
+const digest=f=>createHash('sha256').update(readFileSync(f)).digest('hex');
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function until(fn,label){for(let i=0;i<50;i++){if(await fn())return;await pause(100);}throw Error('Timed out: '+label);}
+function ok(label){console.log('ok: progress '+label);}
+try{
+ const template=readFileSync(path.join(sourceRoot,'runtime-core/SESSION_HANDOFF.md'),'utf8');const empty=parseHandoff(template);assert.equal(empty.current,null);assert.equal(empty.goal,null);assert.deepEqual(empty.collections.done,[]);ok('stock template stays unrecorded');
+ for(const hidden of ['<!--\n- Hidden completed example\n-->','    - Indented code example','```text\n- Code example\n```'])assert.equal(parseHandoff(fixture({done:hidden})).collections.done.length,0);
+ assert.throws(()=>parseHandoff(fixture({done:'```text\n```not-a-closing-fence\n- Not a result'})),/incomplete/);
+ assert.throws(()=>parseHandoff(fixture()+'\n## Active Objective\n- Another objective'),/duplicate/);
+ assert.equal(parseHandoff(fixture({current:'TBD'})).current,null);assert.equal(parseHandoff(fixture({current:'TBD'}).replaceAll(':','：')).current,null);
+ const nested=parseHandoff(fixture({done:'1. Reviewed the survey.\n   - Publication remains blocked.'}));assert.equal(nested.collections.done.length,1);assert.match(nested.collections.done[0].text,/Publication remains blocked/);
+ const deeper=parseHandoff(fixture({done:'1. Reviewed the survey.\n\n    - Publication remains blocked.'}));assert.equal(deeper.collections.done.length,1);assert.match(deeper.collections.done[0].text,/Publication remains blocked/);
+ const blankStart=performance.now();assert.equal(parseHandoff(fixture({done:'\n'.repeat(100000)+'- One result.'})).collections.done.length,1);assert.ok(performance.now()-blankStart<5000,'blank-line input must remain linear');
+ const localized=fixture().replace('## Active Objective','<!-- ack:section:active-objective -->\n## 當前工作').replace('## Next Priorities','<!-- ack:section:next-priorities -->\n## 接續方向').replace('## Risks / Blockers','<!-- ack:section:risks-blockers -->\n## 必須留意');assert.ok(parseHandoff(localized).current);ok('hidden examples, duplicates, unknown state and nested qualifiers');
+ const incomplete='<!-- ack:log-entry:start -->\n## 2026-10-01 — Unfinished entry\n- Summary: Still writing.';
+ assert.equal(parseLog(incomplete).entries.length,0);assert.equal(parseLog(incomplete+'\n<!-- ack:log-entry:end -->',true).entries.length,1);
+ const fencedLog=readFileSync(path.join(sourceRoot,'runtime-core/SESSION_LOG.md'),'utf8');assert.equal(parseLog(fencedLog).entries.length,0);ok('incomplete logs and fenced entry templates');
+ writeFileSync(file,fixture());const firstLog=fencedLog+'\n## 2026-10-01 — Survey received\n- Summary: The existing record changed.\n\n## 2026-09-30 — Earlier decision\n- Summary: Preserve the trees.\n';writeFileSync(log,firstLog);
+ const model=createSource(project);model.refresh({immediate:true});assert.equal(model.snapshot().project.name,'Orchard planning');const baseline={handoff:digest(file),log:digest(log)};
+ const reads=model.state.metrics.reads;for(let i=0;i<10;i++)model.refresh({immediate:true});assert.equal(model.state.metrics.reads,reads);assert.deepEqual({handoff:digest(file),log:digest(log)},baseline);ok('unchanged records are not reread; sources remain byte-identical');
+ writeFileSync(file,template);model.refresh({immediate:true});for(const kind of ['done','pending','risks','decisions'])assert.equal(model.snapshot().sections[kind].total,null);writeFileSync(file,fixture());model.refresh({immediate:true});ok('unknown collections are not zero-completion claims');
+ const longLog=firstLog+Array.from({length:10000},(_,i)=>`\n## 2025-01-01 — Old record ${i}\n- Summary: Historical entry ${'x'.repeat(150)}.\n`).join('');writeFileSync(log,longLog);model.refresh({immediate:true});assert.equal(model.state.metrics.logBytes,LIMITS.log);assert.ok(model.snapshot().recent.total<=10);assert.equal(model.snapshot().recent.limited,true);assert.match(model.snapshot().sections.pending.items[0].text,/landowner/);ok('multi-megabyte logs have fixed reads; unresolved work stays in current state');
+ const saved=model.snapshot().project.current.text;for(const bad of ['# Half-written handoff\n','x'.repeat(LIMITS.handoff+1),fixture()+'\n```text\nunfinished']){writeFileSync(file,bad);model.refresh({immediate:true});assert.equal(model.snapshot().project.current.text,saved);assert.ok(model.snapshot().errors.handoff);}
+ writeFileSync(file,fixture({current:'New saved current work.'}));model.refresh({immediate:true});assert.equal(model.snapshot().project.current.text,'New saved current work.');assert.equal(model.snapshot().errors.handoff,undefined);ok('invalid, oversized and partial writes retain the last valid record and recover');
+ const migrations=path.join(project,'dev/governance_migrations');mkdirSync(migrations);writeFileSync(path.join(migrations,'.upgrade.lock'),'test');const beforeLock=model.state.metrics.reads;writeFileSync(file,fixture({current:'After the upgrade.'}));model.refresh({immediate:true});assert.equal(model.state.metrics.reads,beforeLock);assert.equal(model.snapshot().errors.lock,'upgrade');rmSync(path.join(migrations,'.upgrade.lock'));model.refresh({immediate:true});assert.equal(model.snapshot().project.current.text,'After the upgrade.');ok('active upgrade lock blocks source ingestion');
+ const escaped=path.join(testRoot,'linked-project');mkdirSync(escaped);writeFileSync(path.join(outside,'SESSION_HANDOFF.md'),fixture());symlinkSync(outside,path.join(escaped,'dev'),process.platform==='win32'?'junction':'dir');const linked=createSource(escaped);linked.refresh({immediate:true});assert.equal(linked.state.metrics.reads,0);assert.equal(linked.snapshot().errors.handoff,'boundary');ok('linked dev outside the selected root is rejected before reads');
+ writeFileSync(file,fixture({pending:Array.from({length:40},(_,i)=>'- Outstanding '+i).join('\n')}));writeFileSync(log,firstLog);
+ const fetchLocal=globalThis.fetch;globalThis.fetch=()=>{throw Error('Unexpected outgoing fetch from progress service');};
+ application=await startProgress({root:project,openBrowser:false,idleMs:1000});const base=application.url;
+ const get=async p=>await fetchLocal(base+p);let state=await(await get('/api/state')).json();assert.equal(state.sections.pending.total,40);
+ let page=await(await get('/api/section?kind=pending&offset=36&version='+state.version)).json();assert.equal(page.items.length,4);assert.match(page.items.at(-1).text,/Outstanding 39/);
+ assert.equal((await get('/api/section?kind=pending&offset=0&version=0')).status,409);
+ assert.equal((await fetchLocal(base+'/api/events',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status,405);
+ assert.equal((await get('/dev/SESSION_HANDOFF.md')).status,404);assert.equal((await get('/projection.mjs')).status,404);
+ assert.equal((await fetchLocal(base+'/api/state',{headers:{Origin:'https://example.invalid'}})).status,403);
+ const hostStatus=await new Promise((resolve,reject)=>{const req=http.get(base+'/api/state',{headers:{Host:'example.invalid'}},res=>{res.resume();resolve(res.statusCode);});req.on('error',reject);});assert.equal(hostStatus,403);
+ const malformed=await new Promise((resolve,reject)=>{const target=new URL(base);const req=http.get({hostname:target.hostname,port:target.port,path:'//['},res=>{res.resume();resolve(res.statusCode);});req.on('error',reject);});assert.equal(malformed,400);assert.equal((await get('/api/state')).status,200);
+ for(const asset of ['','styles.css','renderer.js','agent-handoff-kit-logo2-256.png','dashboard-hero.png'])assert.equal((await get('/'+asset)).status,200);
+ const assetHashes=Object.fromEntries(['index.html','styles.css','renderer.js'].map(f=>[f,digest(path.join(sourceRoot,'bin/progress',f))]));
+ const abort=new AbortController(),response=await fetchLocal(base+'/events',{signal:abort.signal});streamReader=response.body.getReader();await streamReader.read();const oldVersion=state.version;
+ writeFileSync(file,fixture({name:'A different project',current:'A real saved change, with no extra progress JSON.'}));
+ let pushed='';const deliveryTimeout=setTimeout(()=>abort.abort(),6000);try{while(!pushed.includes('A real saved change')){const r=await streamReader.read();if(r.done)throw Error('SSE closed before update');pushed+=new TextDecoder().decode(r.value);}}finally{clearTimeout(deliveryTimeout);}state=await(await get('/api/state')).json();assert.equal(state.project.name,'A different project');assert.ok(state.version>oldVersion);assert.equal(state.project.current.text,'A real saved change, with no extra progress JSON.');
+ assert.deepEqual(Object.fromEntries(Object.keys(assetHashes).map(f=>[f,digest(path.join(sourceRoot,'bin/progress',f))])),assetHashes);assert.equal(digest(log),createHash('sha256').update(firstLog).digest('hex'));ok('real dev write pushes to existing connection; template and other source stay unchanged');
+ await streamReader.cancel();streamReader=null;abort.abort();await until(()=>!application.server.listening,'idle shutdown');globalThis.fetch=fetchLocal;application=null;ok('read-only loopback API, packaged assets, pagination and automatic service shutdown');
+ assert.equal(PROGRESS_IDLE_MS,8*60*60*1000);
+ application=await startProgress({root:project,openBrowser:false,idleMs:1600});
+ const idleReads=application.source.state.metrics.reads;
+ writeFileSync(file,fixture({current:'Saved while no page is connected.'}));await pause(650);
+ assert.equal(application.source.state.metrics.reads,idleReads,'idle service must not poll or reread');
+ const connect=async()=>{const control=new AbortController(),r=await fetchLocal(application.url+'/events',{signal:control.signal}),reader=r.body.getReader();return{control,reader,first:new TextDecoder().decode((await reader.read()).value)};};
+ const one=await connect();streamReader=one.reader;assert.match(one.first,/Saved while no page is connected/);
+ await pause(1800);assert.equal(application.server.listening,true,'connected page must outlive idle deadline');
+ const two=await connect();await one.reader.cancel();one.control.abort();streamReader=two.reader;
+ await pause(1800);assert.equal(application.server.listening,true,'closing one tab must not stop another');
+ await two.reader.cancel();two.control.abort();streamReader=null;await pause(80);
+ const disconnectedReads=application.source.state.metrics.reads;writeFileSync(file,fixture({current:'Saved during disconnection.'}));await pause(600);
+ assert.equal(application.source.state.metrics.reads,disconnectedReads);
+ const three=await connect();streamReader=three.reader;assert.match(three.first,/Saved during disconnection/);
+ await three.reader.cancel();three.control.abort();streamReader=null;await pause(900);
+ const recoveryPort=Number(new URL(application.url).port);
+ assert.ok(await probeProgress(recoveryPort,{reopen:true}));await pause(1000);
+ assert.equal(application.server.listening,true,'reopening renews the remaining idle window');
+ await until(()=>!application.server.listening,'renewed idle deadline');application=null;
+ ok('eight-hour default, no idle file polling, fresh return, multiple tabs and renewed idle lifetime');
+ application=await startProgress({root:project,openBrowser:false,idleMs:80});await until(()=>!application.server.listening,'unopened service expiry');application=null;
+ ok('never-opened services expire too');
+ const cli=spawn(process.execPath,[path.join(sourceRoot,'bin/agent-handoff-kit.mjs'),'progress','--root',project,'--no-open'],{stdio:['ignore','pipe','pipe'],windowsHide:true,env:{...process.env,AGENT_HANDOFF_KIT_SKIP_UPDATE_CHECK:'1'}});children.push(cli);let output='';cli.stdout.on('data',b=>output+=b);let error='';cli.stderr.on('data',b=>error+=b);await until(()=>/http:\/\/127\.0\.0\.1:\d+/.test(output),'public CLI URL '+error);const cliURL=output.match(/http:\/\/127\.0\.0\.1:\d+/)[0];assert.equal((await fetchLocal(cliURL+'/api/state')).status,200);assert.match(output,/8 hours/);ok('public CLI entry starts the shipped feature');
+ console.log('Agent Handoff Kit progress checks passed.');
+}finally{
+ if(streamReader)await streamReader.cancel().catch(()=>{});if(application)await application.close();
+ for(const child of children)if(child.exitCode===null){const exited=once(child,'exit');child.kill();await exited;}
+ const resolved=realpathSync(testRoot);if(path.dirname(resolved)===realpathSync(tmpdir())&&path.basename(resolved).startsWith('ahk-progress-'))rmSync(resolved,{recursive:true,force:true});
+}

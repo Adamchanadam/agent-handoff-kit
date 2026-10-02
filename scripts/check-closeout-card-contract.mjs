@@ -30,6 +30,10 @@ try {
   assert(!passed.stdout.includes("handoff blocked"), "complete closeout card showed a blocked state");
 
   assertCloseoutComplete(complete.replace("Git root: no Git repository (fixture root)", "Git root: not_applicable — workspace-health reports git: no, no .git metadata found."), "literal workspace-health no-Git evidence with explanation");
+  for (const noGit of ["none (workspace-health: no .git metadata found)", "not_applicable; checked at closeout", "n/a — fixture has no repository"]) {
+    assertCloseoutComplete(complete.replace("Git root: no Git repository (fixture root)", `Git root: ${noGit}`), "absent Git identity with explanation");
+  }
+  assertCloseoutComplete(complete.replace("Answer: yes", "Answer: yes, packet reconstructed; future reception remains required").replace("history: yes", "history: yes, once received with task authorization"), "affirmative packet sufficiency with reception boundary");
   writeFixtureHandoff(complete.replace("Git root: no Git repository (fixture root)", "Git root: /claimed/repository"));
   const falseGit = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
   assert(!falseGit.error && falseGit.status !== 0 && falseGit.stdout.includes("handoff records Git identity, but live root is not a Git repository"), "unrelated Git identity in a non-Git fixture was accepted");
@@ -187,6 +191,30 @@ try {
   assert(!rejected.stdout.includes("handoff saved"), "blocked closeout card falsely claimed handoff saved");
 
   console.log("ok: closeout card is bound to persistence outcome");
+
+  // A no-repository explanation must never disguise a real branch mismatch.
+  const git = args => {
+    const result = spawnSync("git", ["-c", "core.hooksPath=" + path.join(fixtureRoot, ".no-hooks"), "-C", fixtureRoot, ...args], { encoding: "utf8", env });
+    assert(!result.error && result.status === 0, `local Git fixture failed: ${result.stderr}`);
+    return result.stdout.trim();
+  };
+  git(["init", "-b", "main", "--quiet"]);
+  git(["-c", "user.name=QA Fixture", "-c", "user.email=qa@example.invalid", "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "isolated fixture", "--quiet"]);
+  const gitPacket = complete
+    .replace("Git root: no Git repository (fixture root)", `Git root: ${fixtureRoot}`)
+    .replace("Branch: not_applicable - no Git repository", "Branch: main")
+    .replace("Commit: not_applicable - no Git repository", `Commit: ${git(["rev-parse", "HEAD"])}`)
+    .replace("Worktree / parallel workspace status: not_applicable - no Git repository", "Worktree / parallel workspace status: one registered fixture worktree")
+    .replace("Uncommitted changes summary: not_applicable - no Git repository", "Uncommitted changes summary: untracked fixture files");
+  assertCloseoutComplete(gitPacket, "real Git fixture with matching branch");
+  for (const branch of ["none (release branch)", "not_applicable; named branch", "n/a — named branch"]) {
+    writeFixtureHandoff(gitPacket.replace("Branch: main", `Branch: ${branch}`));
+    const mismatch = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+    assert(!mismatch.error && mismatch.status !== 0 && mismatch.stdout.includes("handoff branch does not match live branch"), "absence-like branch name hid a real branch mismatch");
+  }
+  git(["branch", "-m", "none"]);
+  assertCloseoutComplete(gitPacket.replace("Branch: main", "Branch: none (release branch)"), "matching real branch named none with explanation");
+  console.log("ok: explanatory no-Git root values cannot hide mismatched real Git branch names");
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });
 }

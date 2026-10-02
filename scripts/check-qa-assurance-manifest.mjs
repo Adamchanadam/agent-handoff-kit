@@ -88,7 +88,7 @@ function validateManifest() {
   assert(ids.has("install-lock-smoke"), "quick QA omits install-lock-smoke");
   assert(/^[a-f0-9]{64}$/.test(QA_ASSURANCE_MANIFEST_DIGEST), "manifest digest is malformed");
   const candidateRunner = readFileSync(path.join(root, "scripts", "qa.mjs"), "utf8");
-  const releaseReadiness = readFileSync(path.join(root, "scripts", "check-release-readiness.mjs"), "utf8");
+  const releaseReadiness = readFileSync(path.join(root, "scripts", "check-release-readiness.mjs"), "utf8").replace(/\r\n/g, "\n");
   assert(candidateRunner.includes("validateCandidatePreFreezeEvidence(options.candidate)"), "candidate-preflight does not run pre-freeze evidence validation");
   assert(releaseReadiness.includes("--pre-freeze-evidence"), "release readiness has no pre-freeze evidence entrypoint");
   assert(releaseReadiness.includes("checkScenarioBranchingDocAlignment();\n    checkChangedBilingualCandidateEvidence(version, { allowDirty: true });"), "pre-freeze evidence does not validate current runtime-to-scenario-to-QA-doc alignment before freeze");
@@ -163,7 +163,7 @@ function validateCandidateEvidenceContract() {
 
 function validateReleasePackageContract() {
   assert(RELEASE_PACKAGE_CONTRACT.schemaVersion === 1, "unexpected release package contract schema version");
-  assert(RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount === 34, "release package file count contract drifted");
+  assert(RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount === 49, "release package file count contract drifted");
 }
 
 function validatePublicMirrorContract() {

@@ -468,7 +468,11 @@ function assertProportionateDocumentEditUseCaseMatrix() {
         "without explicit closeout / checkpoint intent",
         "Do not write either file merely because the next AI might misread stale state",
         "update only the named current-state field(s) or one concise log entry",
-        "do not regenerate `START_NEXT_SESSION_PROMPT.txt`"
+        "do not regenerate `START_NEXT_SESSION_PROMPT.txt`",
+        "Without the opening-consistency condition below",
+        "Checkpoint opening consistency: when an authorized checkpoint changes actionable facts",
+        "reconcile only those affected current facts in that same checkpoint",
+        "this condition does not authorize full closeout"
       ],
       pack: [
         "Before any pre-closeout handoff / log write for governance work",

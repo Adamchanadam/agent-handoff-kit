@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractOpeningMessage } from "../bin/prompt-mirror-core.mjs";
+import "./check-handoff-read.mjs";
 import { materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -15,8 +16,31 @@ const handoff = read("runtime-core/SESSION_HANDOFF.md");
 const prompt = read("runtime-core/START_NEXT_SESSION_PROMPT.txt");
 const onboarding = read("packs/onboarding.md");
 const opening = extractOpeningMessage(handoff);
+const receptionRequirements = [
+  "### Handoff reception and recovery checkpoint",
+  "Read all of `dev/SESSION_HANDOFF.md`, including its middle and end, from one unchanged file version",
+  "track contiguous ranges from the start through EOF, with no gaps or mixed versions",
+  "a tool can retain both ends while omitting the middle",
+  "If the file changes during reading, restart coverage for the new version",
+  "Native file tools are valid",
+  "Do not download, install, probe integrations or write a receipt for bare startup",
+  "decision reasons and rejected approaches",
+  "remaining obligations/acceptance",
+  "authorization/stop boundaries",
+  "Eligible first-use TBD state still routes to onboarding",
+  "replace the card's `continuity ready` with `continuity incomplete`",
+  "Do not begin dependent task work",
+  "input, output, downstream use and acceptance against the current request",
+  "continue within the authorized scope, including multiple steps",
+  "Verify its canonical `root` matches the intended workspace",
+  "Checkpoint opening consistency: when an authorized checkpoint changes actionable facts",
+  "reconcile only those affected current facts in that same checkpoint",
+  "Do not merely label an authoritative opening historical",
+  "this condition does not authorize full closeout",
+  "after interrupted reads or context compaction"
+];
 
-assert(opening && opening.trim() === prompt.trim(), "startup prompt is not the handoff's authoritative opening message");
+assert(opening && opening.replace(/\r\n/g, "\n").trim() === prompt.replace(/\r\n/g, "\n").trim(), "startup prompt is not the handoff's authoritative opening message");
 for (const surface of [core, opening, prompt]) {
   assert(surface.includes("and then the end of the turn"), "plain startup can still continue work after its card");
   assert(surface.includes("It does not authorize task-specific reads"), "plain startup does not deny task-specific work");
@@ -29,6 +53,17 @@ for (const surface of [core, opening, prompt]) {
 }
 assert(core.includes("sub-agents, QA, packaging, project-file writes, network access"), "plain startup does not name the heavy operations it must not start");
 assertNamingCheckpoint(core);
+assertReceptionCheckpoint(core);
+for (const phrase of receptionRequirements) {
+  let rejected = false;
+  try { assertReceptionCheckpoint(core.replace(phrase, "")); } catch { rejected = true; }
+  assert(rejected, `reception contract mutation was accepted: ${phrase}`);
+}
+for (const surface of [opening, prompt]) assert(surface.includes("Read AGENTS.md, then dev/SESSION_HANDOFF.md"), "portable startup does not route the core reception owner");
+const closeout = read("packs/closeout.md");
+for (const phrase of ["decision-changing user corrections", "reasons for accepted/rejected approaches", "every remaining consequential obligation", "repeat a rejected attempt", "cannot certify that a future reader received or understood it"]) {
+  assert(closeout.includes(phrase), `writer reconstruction omits ${phrase}`);
+}
 // Mutation checks reject the omissions that allowed a no-call startup to pass.
 // These inspect the prompt contract only; independent consumer replay and real
 // host tool/readback evidence are still needed to establish agent behavior.
@@ -128,6 +163,10 @@ function assertNamingCheckpoint(text) {
     "display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth",
     "does not authorize project/file writes, network research, external task work, extra startup reads or continuation beyond the startup boundary"
   ]) assert(text.includes(phrase), `naming checkpoint missing: ${phrase}`);
+}
+
+function assertReceptionCheckpoint(text) {
+  for (const phrase of receptionRequirements) assert(text.includes(phrase), `reception checkpoint missing: ${phrase}`);
 }
 
 function read(relative) {

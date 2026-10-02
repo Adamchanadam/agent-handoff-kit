@@ -1,6 +1,6 @@
 {
   "name": "@adamchanadam/agent-handoff-kit",
-  "version": "0.3.67",
+  "version": "0.4.0",
   "description": "Lightweight agent harness for project memory, handoff, and multi-session continuity.",
   "type": "module",
   "bin": {
@@ -11,6 +11,8 @@
     "runtime-core/",
     "packs/",
     "README.md",
+    "docs/progress.md",
+    "docs/commands.md",
     "LICENSE"
   ],
   "engines": {

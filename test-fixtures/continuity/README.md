@@ -64,6 +64,75 @@ Run writer then reader in dependency order. Never repair the writer packet
 before the reader sees it. Preserve first failures; investigate before a clearly
 labeled new run. Do not silently retry until success.
 
+## Real-file reception and authorized continuation
+
+Run this additional exercise when changing continuity reception, recovery,
+closeout sufficiency or readiness claims. The packet-only exercise above tests
+writing/reconstruction with complete input; it cannot test file-tool delivery.
+
+Use an isolated local fixture root and the candidate core/closeout pack. Freeze
+candidate hashes and the writer's first unedited handoff. Give a fresh writer
+only the fictional task/history and allowed source files. Give a separate fresh
+reader only the root, normal entry instructions and `開工`; do not paste the
+handoff, the writer request, previous chat, evaluator notes or expected answers.
+The reader may use actual file tools in that root and an already-available
+candidate CLI. Linked task sources are available only when the normal intent
+route authorizes them. The controller keeps the request/oracle and evidence
+outside the reader root; inspect actual tool activity for isolation violations.
+Tool use is required here and does not invalidate isolation. The packet-only
+exercise's no-tools condition continues to apply only to that exercise.
+
+Use a runnable fixture based on the exhibition case: accepted North equipment
+must remain unchanged; a user amendment removes East evening only; an earlier
+all-East-removal/public-announcement draft is rejected. Source rows are North
+day=3, East evening=9, East day=2, West day=6; access is North approved, East and
+West pending. The next authorized local output is a staffing CSV with site,
+included_people and access_status. The controller's withheld acceptance is
+North=3, East=2, West=6, total=11, pending access preserved, accepted equipment
+bytes unchanged and no parent-ready/publication claim. Use distinct values or
+entities for holdouts rather than teaching the reader this answer. The writer
+must record all consequential obligations and their next use, not calculate the
+output during closeout. Actual candidate closeout and mirror readback must pass.
+
+Exercise these transport/decision conditions separately and retain first failures:
+
+- A short sufficient packet; a large packet with critical decisions in its
+  middle and tail; Unicode, CRLF and a long single line. The controller may
+  insert clearly historical inert padding without editing the writer's facts.
+- Actual output-budget truncation, including a response that preserves both
+  header and footer but omits its body middle. A range/digest/footer alone is
+  not reception proof; recover missing text or report incomplete without work.
+- Native bounded reads when the optional helper is unavailable. No download,
+  installation, new receipt file or extra source scan is permitted for startup.
+- A file changed between chunks, an omitted middle range, missing tail,
+  duplicate/reordered ranges, and an unreadable source. Mixed-version coverage
+  cannot pass. Keep transport failure distinct from a task dependency blocker.
+- A complete but insufficient packet, conflicting current instructions,
+  rejected alternatives, a completed child with remaining parent obligations,
+  missing source depth, and changed user intent. Full reception with a plausible
+  but wrong next step fails semantic acceptance.
+- An honest blocked task with a safe independent next step, a completed
+  standalone task, and eligible first-use TBD. Do not convert valid uncertainty
+  into blanket failure, invent extra work or break onboarding.
+
+After bare startup, verify zero task writes and no unauthorized linked-source
+reads. Then give that reader explicit authorization to continue the bounded
+local task. It must read the actual required sources, produce the intended
+artifact, read it back, preserve reusable work, and retain outstanding parent
+acceptance. Add a distinct two-step holdout with explicit authorization to finish both local outputs; stopping after the first child without a blocker fails that scope. A correct summary followed by the wrong action is FAIL. If the authorized action includes a lightweight checkpoint, freeze its output and send a further fresh reader through bare startup: it must recover completed artifacts and the new next step without stale opening/mirror instructions to redo them. Keep unrelated cold evidence byte-stable; the checkpoint is not full closeout. Independently
+grade the writer packet, delivered content, recovered meaning, action and result
+against the withheld original request. Report these as separate evidence scopes;
+do not turn one green card or served-range transcript into overall acceptance.
+
+`check-handoff-read.mjs`, imported by the existing startup/pack scenario path,
+checks bounded transport, snapshot drift, Unicode and unsafe roots, zero writes,
+and no network even under forced update settings. Its observed-output evaluator
+rejects gaps, tail loss, mixed versions and middle clipping with intact ends.
+`check-startup-status-only.mjs` also rejects missing reception-contract clauses.
+These are mechanical floors. Retain actual tool-result/reader/action evidence
+for the real-file exercise, candidate identities, isolation limits and unresolved
+gaps. Never claim universal or cross-model reliability from this bounded run.
+
 ## Startup naming consumer replay
 
 For naming changes, give a fresh reader only the candidate core's Intent And

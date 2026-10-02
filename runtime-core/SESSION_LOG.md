@@ -16,6 +16,8 @@ Before closeout, record whether older log detail was kept, summarized, or archiv
 
 ## Entry Template
 
+Optional concise fields at normal authorized saves: `Work` identifies a related handoff Work Items ID; `Title zh-Hant` and `Summary zh-Hant` provide Chinese display text. An optional `Event ID` uniquely identifies an event across a move or correction; the existing `ID` identifies the agent/session and is not an event identity. Omit unknown or unnecessary fields. Do not rewrite old history or create extra entries to refresh a dashboard.
+
 ````markdown
 <!-- ack:log-entry:start -->
 ## <YYYY-MM-DD> — <short session title>

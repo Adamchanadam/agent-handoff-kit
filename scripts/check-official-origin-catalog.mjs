@@ -38,7 +38,8 @@ const catalog = await loadOfficialOriginCatalog(catalogPath);
 const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
 // Source work can begin after publication, before the next version bump.
 // The generator's npm / remote-tag / Release cross-check owns publication proof.
-const allowedPublishedTips = new Set([previousPatch(packageVersion), packageVersion]);
+// candidate-preflight verifies the endpoint against live npm latest. This
+// offline integrity check must also support a minor/major source version.
 assert(catalog.schemaVersion === OFFICIAL_ORIGIN_CATALOG_SCHEMA, "catalog schema mismatch");
 assert(catalog.packageName === "@adamchanadam/agent-handoff-kit", "catalog package name mismatch");
 
@@ -47,7 +48,7 @@ assert(JSON.stringify(catalog.installedTargets) === JSON.stringify(expectedTarge
 
 const versions = Object.keys(catalog.releases);
 assert(versions.length >= 55, `expected at least 55 formal releases, found ${versions.length}`);
-assert(versions[0] === "0.1.0" && allowedPublishedTips.has(versions.at(-1)), `formal release range must end at the published current version or its preceding patch: v${packageVersion}`);
+assert(versions[0] === "0.1.0" && compareStableVersions(versions.at(-1), packageVersion) <= 0, `formal release range cannot be newer than source v${packageVersion}`);
 
 let presentCount = 0;
 let absentCount = 0;
@@ -185,11 +186,12 @@ function checkRequiredManagedSegmentInvariant() {
   }
 }
 
-function previousPatch(version) {
-  const parts = version.split(".").map(Number);
-  assert(parts.length === 3 && parts.every(Number.isInteger) && parts[2] > 0, `cannot derive previous patch from ${version}`);
-  parts[2] -= 1;
-  return parts.join(".");
+function compareStableVersions(left, right) {
+  const stable = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+  assert(stable.test(left) && stable.test(right), "catalog/source version must be stable semver");
+  const a = left.split('.').map(Number), b = right.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] - b[i];
+  return 0;
 }
 
 function assert(condition, message) {

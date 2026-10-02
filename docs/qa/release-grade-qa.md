@@ -19,6 +19,73 @@ Convenience collector: after the external publish actions complete, maintainers 
 
 Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
 
+## v0.4.0 candidate status
+
+- 狀態：本機原始碼候選準備。這是新增功能的次版本更新，包含八個專案快捷入口、動態雙語 Dashboard，以及開工完整接收／恢復交接的修正。最新已發布版本仍為 v0.3.67；沒有沿用舊版 formal full 或發布結果。
+- 整合範圍：合併先前獨立驗收的交接修正與目前 Dashboard／入口來源；保留已接受的品牌版面、已保存紀錄的低 token 更新、父子工作狀態及全域位置拒絕。WORK 安裝版本仍為 0.3.67。
+- 本輪來源檢查：handoff-read、startup-status-only、install-lock-smoke、progress-view、pack-scenarios、closeout-card-contract、command-entry、public-prototype 及 official-origin-catalog 通過。npm pack 預覽為 49 檔；這不是凍結 tarball 身分。
+- 獨立整合審閱：未參與修改的同模型隔離 reviewer /root/v040_integration_review 另測 CLI 參數交界、離線同版本逐段接收、升級鎖、入口零寫入／重複 no-op、0.3.67 到 0.4.0 的 LF/CRLF 升級及資料保留、Dashboard 父子狀態。另以精確來源反例核對次版本發佈 guard；限定範圍 PASS。這不是跨模型或正式凍結候選收據。
+- 文件與畫面：四組中英文件全文獨立對讀；README 的 ready 邊界及英文截圖日期／批准混用修正後重驗。圖片取自正式 Dashboard 程式與明示虛構的 Atlas 專案資料，沒有暴露內部專案；兩語 intro／guide 新區塊以實際瀏覽器檢查圖片、展開控制、連結及手機寬度，保持既有品牌。截圖是操作中的頁面畫面，不是用圖片生成器重畫 UI。
+- 證據限制：四個原生 AI 工具的選單發現與實際呼叫、跨模型接力、其他 OS／最低 Node 版本，以及最終凍結包尚未由本輪驗收。完整發布需 clean committed candidate、凍結套件、獨立接受收據、正式 full，再另取得具體發布授權。這份記錄不授權 commit、push、tag、GitHub Release 或 npm publish。
+
+### pre-release final audit（v0.4.0，SOURCE_PREPARATION）
+
+- full 必須等 clean commit、最終套件雜湊及獨立接受收據；來源準備的 PASS 不代替正式全面檢。
+- Full-check role isolation：修改者負責本次來源及 five-conclusion writer assessment；獨立唯讀審閱者核對凍結差異、證據適用範圍和套件身分。來源／契約未變的既有獨立演練可沿用，不冒稱重新執行。
+- five-conclusion writer assessment：治理健康有現有 owner／範圍防護；產品路徑有真實安裝、LF/CRLF 升級和整合反例；使用路徑有獨立交接續行及實際雙語 Dashboard／文件畫面；QC 回流有原錯誤反例；規則路由保留 core／closeout／功能 owner。五項來源準備判斷為 passed，四個原生宿主實際口令操作仍明示未驗，不由此提升為普遍相容保證。
+- 發佈前必須以凍結身分取得獨立裁決並通過 full；若來源、產物或受影響條件改變，按現行 QA 契約重綁及補驗。發布授權和外部成功仍以本輪操作及讀回為準。
+
+### Dashboard capture identity（v0.4.0）
+
+- `images/agent-handoff-kit-dashboard-zh-Hant.webp` SHA-256 `51BB249E403585A995945FE181988A6168C35CE1C0B299DF0D78F0E019F81A7D`
+- `images/agent-handoff-kit-dashboard-en.webp` SHA-256 `0BFD545973605FC91A1FADA1BDF610D724BD956DDAF3A46FD08E4407E9EDDDDD`
+
+### Bilingual README semantic gate（v0.4.0，PASS）
+
+- Reviewer：independent read-only agent /root/v040_language_review，2026-10-02；同模型隔離，非跨模型。
+- Scope：完整來源／目標正文、操作條件、限制、案例、連結及圖像語義逐段對照；涵蓋本次功能及既有未提交快捷入口內容。缺口修正後只重審受影響段落；不沿用舊版語义 PASS。
+- `README.md` SHA-256 `A3A0850317EF716A1900607B4BE5B59154783B27F30C1A0A05DD7CF5BC25012E`
+- `README.en.md` SHA-256 `3CB74699B05016D517074FBDB8D74F194E100DA4CECBCFE7BFE276D0F0D4F6BC`
+- Verdict: **PASS** — independent full-pair semantic reading and corrected-image readback; exact hashes verified.
+
+### Bilingual practical-guide semantic gate（v0.4.0，PASS）
+
+- Reviewer：independent read-only agent /root/v040_language_review，2026-10-02；同模型隔離，非跨模型。
+- Scope：完整來源／目標正文、操作條件、限制、案例、連結及圖像語義逐段對照；涵蓋本次功能及既有未提交快捷入口內容。缺口修正後只重審受影響段落；不沿用舊版語义 PASS。
+- `agent-handoff-kit-guide.html` SHA-256 `A81B77660EFF6599A07E4C93CED53ED3D256738EB6F5B1D5B883FB12FF65BC29`
+- `agent-handoff-kit-guide.en.html` SHA-256 `D115E370F9F0998F01E2E2150CEF7CE9F804179BA855B1E593C91121633D5075`
+- Verdict: **PASS** — independent full-pair semantic reading and corrected-image readback; exact hashes verified.
+
+### Bilingual AI-install semantic gate（v0.4.0，PASS）
+
+- Reviewer：independent read-only agent /root/v040_language_review，2026-10-02；同模型隔離，非跨模型。
+- Scope：完整來源／目標正文、操作條件、限制、案例、連結及圖像語義逐段對照；涵蓋本次功能及既有未提交快捷入口內容。缺口修正後只重審受影響段落；不沿用舊版語义 PASS。
+- `agent-handoff-kit-ai-install.html` SHA-256 `4AE8B70EADDD1BB9C4EBEFEB86D83513521EC43BD6B3B63BC1B495DFB10E02F1`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `F80A3B8DAC1163A6C8703F96000B40D38F74EDB2FA77AD3F477B60F0DAD872CC`
+- Verdict: **PASS** — independent full-pair semantic reading and corrected-image readback; exact hashes verified.
+
+### Bilingual introduction semantic gate（v0.4.0，PASS）
+
+- Reviewer：independent read-only agent /root/v040_language_review，2026-10-02；同模型隔離，非跨模型。
+- Scope：完整來源／目標正文、操作條件、限制、案例、連結及圖像語義逐段對照；涵蓋本次功能及既有未提交快捷入口內容。缺口修正後只重審受影響段落；不沿用舊版語义 PASS。
+- `agent-handoff-kit-intro.html` SHA-256 `71F7710B4FE25DCCEF666BC734CEDF6256420A2225B392A5BB7729A7C09B69E9`
+- `agent-handoff-kit-intro.en.html` SHA-256 `DC659A86D57C0F1F5A06E9EAD3D3CB4A4F59895DFFA66BAD1BC22AC8D37EE9F3`
+- Verdict: **PASS** — independent full-pair semantic reading and corrected-image readback; exact hashes verified.
+
+### Cross-mind evidence 9-trigger table（v0.4.0）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | iterated | Retained original truncated-handoff failure and first regression failures; repaired source contracts and minor-version/count assumptions at their existing owners. |
+| 2. External side effects | yes | passed | External-effect boundaries checked. Only authorized local Public source synchronization was performed; Git commit and external publication require separate explicit authorization. |
+| 3. User-visible output | yes | passed | Actual bilingual Dashboard captures, responsive document readback and honest installation/help/reception status labels checked. |
+| 4. Complexity or boundary | yes | passed | Existing core, closeout, commands and progress owners reused; no per-refresh AI call, duplicate progress report or project-specific template. |
+| 5. Documentation drift | yes | iterated | Four full bilingual pairs independently read; incomplete ready wording and date-versus-approval image text repaired and independently rechecked. |
+| 6. Semantic runtime effect | yes | passed | Unchanged prior independent receive/recover/authorized-action rehearsal evidence retains its exact scope; new cross-feature and upgrade behavior has fresh independent exercises. |
+| 7. Recurrence or regression | yes | passed | Actual bounded read, truncation/refusal, global path/junction, source lock and LF/CRLF upgrade counterexamples remain in routed checks. |
+| 8. QA authority | yes | passed | Offline integrity, live published lineage, source preparation, frozen review, formal full and postpublish remain separate; no previous-patch assumption for the minor bump. |
+| 9. Release statement | yes | passed | Only source preparation is claimed. Clean commit, frozen review, formal full and publication remain pending; native host invocation remains unverified. |
+
 ## v0.3.67 candidate status
 
 - 狀態：候選來源正在準備；正式 full、GitHub Release、npm 發布及發布後讀回均未完成。本節不把先前版本的驗收或發布結果套用到 v0.3.67。

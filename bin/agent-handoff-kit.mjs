@@ -10,6 +10,7 @@ import { hostname } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assessPromptMirrorRoot, assessPromptMirrorTexts, extractOpeningMessage } from "./prompt-mirror-core.mjs";
+import { readHandoffChunk, formatHandoffChunk } from "./handoff-read.mjs";
 import { freshInstallMappings, installedFileContract, installedMappings, requiredInstalledTargets, upgradeStateMappings, upgradeStateTargets } from "./installed-file-contract.mjs";
 import { getArtifactBoundManagedSegment, getOfficialBaseline, identifyOfficialOrigin, loadOfficialOriginCatalog } from "./official-origin-catalog.mjs";
 import {
@@ -569,13 +570,25 @@ async function main() {
   const version = await readPackageVersion();
   // `doctor` renders version alignment itself.  Let that single health run own
   // the lookup instead of checking once here and once again inside doctor.
-  if (!new Set(["closeout-status", "doctor", "workspace-health"]).has(command)) await maybePrintUpdateNotice(version);
+  if (!new Set(["closeout-status", "doctor", "workspace-health", "progress", "commands", "handoff-read"]).has(command)) await maybePrintUpdateNotice(version);
   if (!command || options.help) {
+    if (command === "handoff-read") {
+      console.log("Usage: agent-handoff-kit handoff-read [--root <path>] [--max-chars <64..8192>] [--offset <n> --sha256 <digest>]\nRead-only, offline. Offsets count Unicode code points. Continue using nextOffset and the same sha256.\nContent served is not proof of reception, understanding or permission to act.");
+      return;
+    }
     printHelp(version);
     return;
   }
 
   const root = path.resolve(options.root ?? process.cwd());
+
+  if (command === "handoff-read") {
+    if (["dryRun", "yes", "manifest"].some(key => Object.hasOwn(options, key))) throw new Error("handoff-read accepts only --root, --offset, --max-chars and --sha256");
+    output.write(formatHandoffChunk(readHandoffChunk(root, options)));
+    return;
+  }
+
+  if (["offset", "maxChars", "sha256"].some(key => options[key] !== undefined)) throw new Error("chunk options require handoff-read");
 
   if (command === "init" || command === "upgrade") {
     await runInstall(command, root, options, version);
@@ -589,6 +602,31 @@ async function main() {
 
   if (command === "closeout-status") {
     await runCloseoutStatus(root, version);
+    return;
+  }
+
+  if (command === "commands") {
+    const { installCommands } = await import("./commands.mjs");
+    const result = installCommands({ root, agent: options.agent ?? "all", yes: options.yes, dryRun: options.dryRun });
+    console.log("Agent Handoff Kit — Shortcuts / 快捷入口: " + result.status);
+    for (const item of result.plan) console.log(item.action + "  " + item.file);
+    if (result.status === "conflict") { console.error("Existing command differs; no files written. Review the named conflict. / 同名入口有差異，未寫入任何檔案。"); process.exitCode = 1; }
+    else if (result.status === "preview") console.log("Preview only. Add --yes to enable. / 只作預覽，加 --yes 才啟用。");
+    else console.log("Ready. Reload your agent if needed. / 已啟用，必要時重新載入 AI。Claude / Gemini / Antigravity: /handoff-kit-help · Codex: $handoff-kit-help or /skills");
+    return;
+  }
+
+  if (command === "progress") {
+    if (options.background) {
+      const { openProgress } = await import("./progress/open.mjs");
+      const result = await openProgress({ root, port: options.port ?? 0, openBrowser: !options.noOpen, version });
+      console.log("Agent Handoff Kit — Project overview / 專案速覽\n" + result.url + "\n" + (result.reused ? "Reused local service. / 已重用服務。" : "Started local service. / 已啟動服務。"));
+      return;
+    }
+    const { startProgress, PROGRESS_IDLE_MS } = await import("./progress/server.mjs");
+    await startProgress({ root, port: options.port ?? 0, openBrowser: !options.noOpen, version, onReady: ({ url }) => {
+      console.log(`Agent Handoff Kit — Project overview / 專案速覽\n${url}\nRead-only live view. Kept available for ${PROGRESS_IDLE_MS / 3600000} hours without connected pages; no file polling while idle. Ctrl+C stops now.\n唯讀自動更新。全部頁面斷線後保留 ${PROGRESS_IDLE_MS / 3600000} 小時，閒置時暫停讀檔；按 Ctrl+C 可立即停止。`);
+    } });
     return;
   }
 
@@ -706,7 +744,7 @@ function assessHandoffSufficiency(text) {
     const match = new RegExp(`^(?:[-*]\\s+)?${escapeRegExp(label)}:\\s*(.*)$`, "iu").exec(line);
     return match ? [match[1].trim()] : [];
   });
-  const affirmative = (value) => /^yes(?:$|[\s.;:—–-])/iu.test(value);
+  const affirmative = (value) => /^yes(?:$|[\s,.;:—–-])/iu.test(value);
   const answers = fields("Answer");
   const evidence = fields("Reconstruction evidence");
   const findings = [];
@@ -1055,7 +1093,7 @@ function assessHandoffWorkspaceIdentity(handoffText, health) {
 
   const gitRootValue = workspaceFieldValue(section, "Git root");
   if (hasSubstantiveWorkspaceValue(gitRootValue)
-    && !workspaceValueMeansNoGit(gitRootValue)
+    && !workspaceRootMeansNoGit(gitRootValue)
     && !workspaceTextIncludesPath(gitRootValue, health.gitRoot)) {
     findings.push(`Workspace: handoff Git root does not match live Git root ${health.gitRoot}`);
   }
@@ -1114,18 +1152,24 @@ function workspaceValueMeansNoGit(value) {
   return /\b(no git|non-git|not a git repository|not_git)\b|\bgit:\s*no(?=$|[\s,;.])|(?:沒有|無|不是).{0,12}\bGit\b/iu.test(value ?? "");
 }
 
+function workspaceRootMeansNoGit(value) {
+  // Absence labels apply to the repository root, never to a branch/commit name.
+  return /^\s*(?:none|not_applicable|n\/a)(?:$|\s*[;(—–])/iu.test(value ?? "") || workspaceValueMeansNoGit(value);
+}
+
 function workspaceSectionClaimsNoGit(section) {
-  return workspaceValueMeansNoGit(workspaceFieldValue(section, "Git root"))
+  return workspaceRootMeansNoGit(workspaceFieldValue(section, "Git root"))
     || workspaceValueMeansNoGit(section);
 }
 
 function workspaceSectionClaimsGitRepository(section) {
+  const gitRoot = workspaceFieldValue(section, "Git root");
   const values = [
-    workspaceFieldValue(section, "Git root"),
     workspaceFieldValue(section, "Branch"),
     workspaceFieldValue(section, "Commit")
   ];
-  return values.some((value) => hasSubstantiveWorkspaceValue(value) && !workspaceValueMeansNoGit(value));
+  return (hasSubstantiveWorkspaceValue(gitRoot) && !workspaceRootMeansNoGit(gitRoot))
+    || values.some((value) => hasSubstantiveWorkspaceValue(value) && !workspaceValueMeansNoGit(value));
 }
 
 function workspaceSectionClaimsVerifiedState(section) {
@@ -1173,7 +1217,7 @@ function printCloseoutStatusCard(version, result) {
     console.log("status: complete");
     console.log("✅ Done: required closeout state is complete");
     console.log("🔎 QC: fresh doctor and opening-message mirror passed");
-    console.log("📌 Handoff: opening message ready");
+    console.log("📌 Handoff: opening message ready; next-session reception and recovery still required");
     console.log("⚠️ Boundary: none");
     return;
   }
@@ -1201,7 +1245,26 @@ function parseArgs(args) {
     else if (arg === "--yes" || arg === "-y") options.yes = true;
     else if (arg === "--manifest") options.manifest = args[++i];
     else if (arg === "--help" || arg === "-h") options.help = true;
-    else if (arg === "--root") options.root = args[++i];
+    else if (arg === "--root") {
+      if (options.root !== undefined || !args[i + 1] || args[i + 1].startsWith("--")) throw new Error("missing or duplicate value for --root");
+      options.root = args[++i];
+    }
+    else if (["--offset", "--max-chars", "--sha256"].includes(arg)) {
+      const key = { "--offset": "offset", "--max-chars": "maxChars", "--sha256": "sha256" }[arg];
+      if (options[key] !== undefined || args[i + 1] === undefined || args[i + 1].startsWith("--")) throw new Error(`missing or duplicate value for ${arg}`);
+      options[key] = args[++i];
+    }
+    else if (command === "commands" && arg === "--agent") {
+      options.agent = args[++i];
+      if (!options.agent || options.agent.startsWith("--")) throw new Error("--agent requires all, claude, gemini, codex or antigravity");
+    }
+    else if (command === "progress" && arg === "--background") options.background = true;
+    else if (command === "progress" && arg === "--no-open") options.noOpen = true;
+    else if (command === "progress" && arg === "--port") {
+      const value = args[++i];
+      if (!/^\d{1,5}$/.test(value ?? "") || Number(value) > 65535) throw new Error("progress --port must be 0–65535");
+      options.port = Number(value);
+    }
     else throw new Error(`unknown option "${arg}"`);
   }
 
@@ -1284,7 +1347,7 @@ async function runInstall(command, root, options, version) {
     || hasNoTransactionOutputs
   )) {
     const noOpHealth = await assessUpgradeNoopHealth(root, version);
-    if (noOpHealth.ok) printCard(version, "continuity ready", "o.o");
+    if (noOpHealth.ok) printCard(version, "installation verified", "o.o");
     console.log(`command: ${command}`);
     console.log(`current directory: ${process.cwd()}`);
     console.log(`selected root: ${root}`);
@@ -1445,7 +1508,7 @@ async function executeInstallTransaction(command, root, mode, plan, version, can
 
     const created = outputs.filter((item) => !item.before).map((item) => item.targetRel);
     const merged = outputs.filter((item) => item.before).map((item) => item.reason ? `${item.targetRel} - ${item.reason}` : item.targetRel);
-    printCard(version, command === "upgrade" ? "upgrade verified" : "continuity ready", "o.o");
+    printCard(version, command === "upgrade" ? "upgrade verified" : "installation verified", "o.o");
     printInstallSummary(version, command, mode, root, {
       created: created.length,
       merged: merged.length,
@@ -1527,7 +1590,7 @@ async function executeDirectNoClobberCreateInstall(command, root, mode, plan, ve
   }
 
   const created = outputs.map((item) => item.targetRel);
-  printCard(version, "continuity ready", "o.o");
+  printCard(version, "installation verified", "o.o");
   printInstallSummary(version, command, mode, root, {
     created: created.length,
     merged: 0,
@@ -6709,7 +6772,7 @@ async function exists(filePath) {
 }
 
 function printHelp(version) {
-  printCard(version, "continuity ready", "o.o");
+  printCard(version, "command help", "o.o");
   console.log(`Agent Handoff Kit
 
 Usage:
@@ -6717,19 +6780,28 @@ Usage:
   agent-handoff-kit upgrade [--dry-run] [--yes] [--root <path>]
   agent-handoff-kit doctor [--root <path>]
   agent-handoff-kit workspace-health [--root <path>]
+  agent-handoff-kit commands [--agent all|claude|gemini|codex|antigravity] [--root <path>] [--dry-run] [--yes]
+  agent-handoff-kit progress [--root <path>] [--background] [--port <0-65535>] [--no-open]
   agent-handoff-kit closeout-status [--root <path>]
+  agent-handoff-kit handoff-read [--root <path>] [--max-chars <64..8192>] [--offset <n> --sha256 <digest>]
 
 Commands:
   init      Plan or install missing core files and rule packs.
   upgrade   Preserve existing files; merge safe core updates or report conflicts.
   doctor    Check required installed files.
   workspace-health  Read live root / Git / worktree state without writing files.
+  commands  Preview or enable project-local shortcuts; existing different files are preserved.
+  progress  Open the local bilingual overview; --background starts or reuses a service and returns.
   closeout-status  Render the state-bound closeout card after a full closeout.
+  handoff-read  Return one bounded handoff chunk with snapshot/range metadata; no writes or network.
+                Offset counts Unicode code points. Continue with the returned nextOffset and sha256.
+                Ranges show content served, not reception, understanding or permission to act.
 
 中文速讀：
   ✅ 第一次用：先在項目資料夾執行 init。
   🔄 已裝過：執行 upgrade；若想先預覽，才加 --dry-run。
   🩺 不確定狀態：用 doctor 檢查；doctor 只檢查，不會改檔。
+  📖 想看全局：用 progress 開啟專案速覽；紀錄寫入後自動更新。
 
 安裝之後：
   不要把顯示出來的 Start Agent Handoff 或 "Work in ..." 文字輸入終端機。
@@ -6750,6 +6822,7 @@ Commands:
   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade
   npx --yes @adamchanadam/agent-handoff-kit@latest doctor
   npx --yes @adamchanadam/agent-handoff-kit@latest workspace-health
+  npx --yes @adamchanadam/agent-handoff-kit@latest progress
 
   升級前如想先看會改甚麼，才用預演：
   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run

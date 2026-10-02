@@ -2,7 +2,7 @@
 
 English: [README.en.md](README.en.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
 
-原始碼套件版本：`v0.3.67`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
+原始碼套件版本：`v0.4.0`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
@@ -39,7 +39,9 @@ Agent Handoff Kit 是 **AI 對話之間的接力棒**。
 
 | 狀態 | 意思 |
 |---|---|
-| `( o.o ) continuity ready` | 可以接力，AI 已讀到可繼續的狀態。 |
+| `( o.o ) continuity ready` | 已完整接收交接並核對工作脈絡；按你明確提出的任務繼續。 |
+| `( o.o ) installation verified` | 安裝已核對；仍須開工接收交接。 |
+| `continuity incomplete` | 交接內容未讀齊或有關鍵矛盾；AI 須先補讀或處理缺口。 |
 | `( -.- ) handoff saved` | 已收工保存，下次可以再說「開工」。 |
 | `( x.x ) handoff blocked` | 不是壞了；只是仍有未保存、未提交、未驗證或需要處理的事。先照 Blocker 行處理，不要把本輪當作已完成交接。 |
 
@@ -79,6 +81,12 @@ Agent Handoff Kit 適合能讀寫本機專案資料夾的 agentic AI 工具，�
 
 它不適合普通 web chat AI，例如沒有本機檔案讀寫能力的 ChatGPT、Claude、Gemini 網頁版。上載檔案或貼上交接內容不能取代本工具需要的本機讀寫能力；這類工具不能可靠維護專案內的交接文件。
 
+## ⌨️ 常用快捷入口
+
+每個專案啟用一次：對 AI 說「在這個專案啟用 Kit 常用快捷入口」。AI 安裝教學已包含這一步。Claude Code、Gemini CLI、Antigravity CLI 用 <code>/handoff-kit-help</code>；Codex 用 <code>$handoff-kit-help</code>，或在 <code>/skills</code> 選單選取。
+
+選單涵蓋開工、收工、進度頁、文件對齊、新手引導、日後工作規則及安裝檢查。例如 <code>/handoff-kit-progress</code> 會自動開啟或重用本機進度頁。詳見[八個入口及啟用方法](docs/commands.md)。原有自然語句仍可使用。
+
 ## 🟢 開工
 
 打開能讀寫本機專案資料夾的 AI agent。
@@ -101,9 +109,11 @@ Work in <你的專案資料夾>. Read AGENTS.md first, then Start Agent Handoff.
 
 第一次安裝會把新手引導標記為待使用。只有該標記仍為 `eligible`、目前目標空白或 `TBD`，而且沒有同句明確任務時，AI 才在開工卡後進入簡短新手歡迎引導；升級既有項目不會重置這個標記。你已清楚描述目標和現有資料時，AI 可開始第一個安全步驟，不必先走新手流程。日常「開工」先讀 `dev/SESSION_HANDOFF.md`；同一資料夾內不會再重讀 `START_NEXT_SESSION_PROMPT.txt` 或 `dev/SESSION_LOG.md`。提示副本只供尚未指向專案資料夾的 AI 接入。
 
-「開工，繼續 &lt;任務&gt;」、「&lt;項目&gt; 開工」或 `Start Agent Handoff and continue &lt;task&gt;` 都是接力指令。只有語句明顯可能指現實世界的開業、輪班或其他無關事件時，AI 才作一次簡短確認。單獨開工或只加項目名稱，會恢復最小狀態、顯示開工卡與建議下一步，然後等待；不會因此研究、計劃、驗收、改檔、連網或啟用子代理。只有同句明確任務或長程指令才授權開始工作；上面列明的新手引導例外仍適用。
+「開工，繼續 &lt;任務&gt;」、「&lt;項目&gt; 開工」或 `Start Agent Handoff and continue &lt;task&gt;` 都是接力指令。只有語句明顯可能指現實世界的開業、輪班或其他無關事件時，AI 才作一次簡短確認。單獨開工或只加項目名稱，會完整讀取交接包並恢復必要狀態、顯示開工卡與建議下一步，然後等待；不會因此研究、計劃、驗收、改檔、連網或啟用子代理。只有同句明確任務或長程指令才授權開始工作；上面列明的新手引導例外仍適用。
 
 然後用日常話描述你要完成的任務。AI 應先讀交接文件，說明目前狀態、下一步與風險，再開始工作。
+
+開工時，AI 須先完整接收同一版本的交接包，再核對目標、已完成工作、你的修正、未完事項與授權範圍。若讀取結果被截斷，便分段補讀；仍未讀齊或有關鍵矛盾，會顯示 continuity incomplete，不會聲稱已恢復。安裝成功與收工保存都不代表下一個 AI 已接收交接。
 
 ## 💾 收工
 
@@ -142,6 +152,29 @@ START_NEXT_SESSION_PROMPT.txt
 ```
 
 AI 會處理檢查，不會把「檢查通過」誤當成已理解你的專案。真正開始工作前，仍要對 AI 說 `Start Agent Handoff` 或「開工」。
+
+## 📖 動態 Dashboard：一眼找回專案方向
+
+對 AI 說「開啟專案進度頁」，或使用已啟用的 `/handoff-kit-progress`（Codex：`$handoff-kit-progress`）。AI 會開啟或重用這個專案的本機 Dashboard。
+
+![Agent Handoff Kit 繁中 Dashboard：工作主線、待辦事項、最近變更及文件關係](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-dashboard-zh-Hant.webp)
+
+*新版實際介面截圖，Atlas 為虛構範例資料；每個專案都由相同模板讀取自己的紀錄。點開圖片可放大。*
+
+<details>
+<summary>查看英文介面截圖</summary>
+
+![Agent Handoff Kit English Dashboard](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-dashboard-en.webp)
+
+</details>
+
+- **總覽**：目前工作、已完成、等待、待驗收及尚未完成事項，成果可直接查閱。
+- **歷程**：用日期、關鍵字及工作線找回重要改變；長日誌與封存按範圍分批讀取。
+- **文件地圖**：看清 Kit 核心文件及已登記文件的角色、關係與來源。
+
+AI 在正常保存時只維護有變的紀錄；程式讀取既有索引、交接及日誌後自動更新畫面，不用刷新、不另寫報告，也不呼叫 AI。介面可切換繁中／英文；來源沒有翻譯時保留原文。未保存的工作不會出現，畫面也不代替交接接收或成果驗收。
+
+沿用 Node.js 與瀏覽器，無需資料庫或 API key。全部頁面關閉後保留八小時，期間可重開；服務停止或電腦重啟後，再用同一快捷入口開啟。詳見 [Dashboard 使用說明](docs/progress.md)。
 
 ## 🗂️ AI 會替你維護甚麼
 

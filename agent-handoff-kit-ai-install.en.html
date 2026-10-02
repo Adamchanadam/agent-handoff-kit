@@ -13,11 +13,11 @@
 <body>
   <div class="stripe"></div>
   <header><div class="wrap">
-    <span class="kicker">AI-readable install page · v0.3.67</span>
+    <span class="kicker">AI-readable install page · v0.4.0</span>
     <p><a href="agent-handoff-kit-ai-install.html" lang="zh-Hant">繁體中文版本</a></p>
     <h1>Instructions for an AI<br>to install or upgrade safely.</h1>
     <p class="lead">This page is for an agentic AI that can read and write the local folder and run terminal commands. The user should not have to choose an npm command or diagnose a conflict. Read this page before acting in the folder.</p>
-    <p><strong>Version note:</strong> this page is aligned with v0.3.67. <code>@latest</code> means the version currently available from the npm registry.</p>
+    <p><strong>Version note:</strong> this page is aligned with v0.4.0. <code>@latest</code> means the version currently available from the npm registry.</p>
     <div class="prompt"><h2>The user only needs to paste this</h2><div class="code">Please read https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html, and install or upgrade Agent Handoff Kit in this folder.</div></div>
     <div class="ok"><h2>The AI must give this report when it finishes</h2><p>Before running any <code>npx</code> command, remember this section. After installation or upgrade, the AI must not say only “completed” or paste only terminal output. It must explain the result and next step to the user in the following format.</p><p><strong>Completion-report template:</strong> ✅ Installation completed. 📁 Current folder: &lt;absolute path&gt;. 🩺 <code>doctor</code> passed. ⚠️ The next step is not a terminal command; in an AI conversation that can read and write this folder, enter <code>Start Agent Handoff</code> or “開工”. Only if the AI has not yet been pointed at this folder, use: <code>Work in &lt;absolute path&gt;. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</code></p></div>
   </div></header>
@@ -61,6 +61,12 @@
   </div></section>
 
   <section><div class="wrap">
+    <h2>Enable common shortcuts in this project</h2>
+    <p>After the authorized Kit installation or upgrade has passed the verification above, enable the project-local shortcuts as part of this setup. First preview; proceed only when there is no conflict:</p>
+    <div class="code">npx --yes @adamchanadam/agent-handoff-kit@latest commands --root . --dry-run</div>
+    <div class="code">npx --yes @adamchanadam/agent-handoff-kit@latest commands --root . --yes</div>
+    <p>The default enables Claude Code, Gemini CLI, Codex and Antigravity CLI. Use <code>--agent</code> only when the user requests one platform. Missing entries are created; identical files are kept; a different same-name entry stops with zero writes. Do not overwrite it. An interrupted setup retains completed entries; preview again to identify the remaining work. This does not alter global settings or official Kit rules.</p>
+    <p>Report shortcut setup separately from Kit health. Read back <code>ready</code> before saying the entries are enabled. Use <code>/handoff-kit-help</code> in Claude/Gemini/Antigravity; Codex uses <code>$handoff-kit-help</code> or <code>/skills</code>. Reopen the project session if entries are not visible; Gemini can use <code>/commands reload</code>. Details: <a href="https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/commands.md">common shortcuts</a>.</p>
     <h2>AI response format</h2>
     <p>This section is the checklist for the completion-report contract at the top of the page. After acting, the AI must not say only “completed” or paste only terminal output. It must explain the result and next step to the user in short, plain language.</p>
     <ul>

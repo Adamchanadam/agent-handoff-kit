@@ -9,6 +9,7 @@ import { freshInstallMappings, installedMappings, upgradeStateMappings } from ".
 import { parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import { createFreshUserRuleAcceptance, parseUserRulesState, readFormalUserRules, userRulesAcceptanceDigest } from "../bin/user-rules-router.mjs";
 import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
+import { RELEASE_PACKAGE_CONTRACT } from "./qa-assurance-manifest.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -294,7 +295,7 @@ function runNpm(args, label) {
 }
 
 function expectedPackageFileCount() {
-  return 34;
+  return RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount;
 }
 
 function runFailure(command, args, label, env = {}) {

@@ -19,7 +19,7 @@ Stable facts that should survive across sessions. Update only when they change, 
 
 This is the current-state area. At every full closeout, update only sections whose current truth changed; leave already-current sections byte-stable where practical and record checked/no-op only when useful. Do not append a new state snapshot under an old one.
 
-Pre-closeout checkpoint edits, when explicitly authorized or required by the core Persistence Gate, update only the named hot current-state field(s) or one concise log entry. Historical evidence, old validation records, completed-work narratives, and unchanged durable anchors are cold zones: preserve them byte-for-byte where practical instead of rewording, reordering, or refreshing them because another AI might otherwise read stale context.
+Pre-closeout checkpoint edits, when explicitly authorized or required by the core Persistence Gate, update only the named hot current-state field(s) or one concise log entry. Apply the core Persistence Gate's bounded opening-consistency rule when the changed current facts are repeated in the opening. Historical evidence, old validation records, completed-work narratives, and unchanged durable anchors are cold zones: preserve them byte-for-byte where practical instead of rewording, reordering, or refreshing them because another AI might otherwise read stale context.
 
 <!-- ack:section:current-baseline -->
 ## Current Baseline
@@ -45,6 +45,7 @@ Pre-closeout checkpoint edits, when explicitly authorized or required by the cor
 - Success criteria: TBD
 - Key background already read: TBD
 - Background still unread or blocked: TBD
+- Decision-changing corrections / accepted or rejected approaches and reasons: TBD — preserve what would change the next agent's action, not the whole conversation.
 - Non-goals / boundaries: TBD
 
 <!-- ack:section:active-objective -->
@@ -53,6 +54,15 @@ Pre-closeout checkpoint edits, when explicitly authorized or required by the cor
 - Current step: TBD
 - Resume point: TBD — next bounded action, target and last verified result; distinguish finished preparation from unfinished work.
 - Remaining acceptance: TBD — what still proves the current step and the parent outcome; if complete, cite evidence rather than infer from child completion.
+- Reusable work / remaining obligations: TBD — name actual artifacts, their evidence limits, remaining consequential work and its next consumer; preserve restrictions on reuse or retry.
+
+<!-- ack:section:work-items -->
+## Work Items
+
+Use concise human-readable titles and summaries for current meaningful work, not terminal microsteps. Keep stable IDs and explicit parent links; standalone work leaves Parent blank. Valid statuses: `planned`, `active`, `waiting`, `review`, `done`, `paused`, `dropped`. A child being done never completes its parent. Source is an optional existing project-relative result/reference path. Optional `Title zh-Hant` and `Summary zh-Hant` columns add short Chinese display text. Update changed rows during normal authorized state saving, not to refresh the dashboard; keep detailed evidence in its existing sections or log. Empty rows mean unknown, never completed. The dashboard validates this table and rejects invalid states, duplicate IDs, missing parents and cycles.
+
+| ID | Title | Status | Parent | Summary | Source |
+|---|---|---|---|---|---|
 
 <!-- ack:section:completed-this-session -->
 ## Completed This Session
@@ -148,7 +158,7 @@ Closeout-card rule: `closeout-status` reads only these existing handoff fields p
 Can the next AI continue from `AGENTS.md`, this handoff, and only the project index / rule packs required by the next task, without searching old log history?
 
 Answer: TBD
-Reconstruction evidence: TBD — apply the packet-only reconstruction check in `dev/rules/closeout.md`; cite the sections supporting the outcome, task position, resume point, remaining acceptance and source coverage. Record gaps explicitly; a bare yes is insufficient.
+Reconstruction evidence: TBD — apply the packet-only reconstruction check in `dev/rules/closeout.md`; cite the sections supporting the outcome, task position, resume point, decisions/rejected approaches, reusable work, remaining obligations/acceptance, source coverage and permission boundaries. Record gaps explicitly; a bare yes is insufficient. This verifies the saved packet, not a future reader's reception or understanding.
 Keep the `Answer:` and `Reconstruction evidence:` labels. Use `yes`, `no` or `unknown` for Answer, followed by an explanation if needed. Narrative and section headings may use the project's language.
 If no, update this handoff before closeout. Unknown critical context blocks dependent work and is not permission to guess. A saved packet may honestly describe blocked work.
 

@@ -524,6 +524,7 @@
     }
   }
   </script>
+<link rel="stylesheet" href="agent-handoff-kit-dashboard.css">
 </head>
 <body>
 
@@ -543,10 +544,10 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="kicker">v0.3.67 source version · 三個日常情景 · 由第一句指令到長期接力</span>
+    <span class="kicker">v0.4.0 source version · 三個日常情景 · 由第一句指令到長期接力</span>
     <h1>由 <span class="accent">第一句指令</span><br/>到 <span class="accent2">下次接力</span></h1>
     <p class="lede">三個日常情景 —— 整理電腦下載目錄、開咖啡店市場調查、長期 AI 項目演進 —— 完整示範 Agent Handoff Kit 由安裝到接力的流程。每一步都會看到 AI 主動宣告載入哪個工作模式、怎樣計劃、怎樣驗收、何時同步下次接力提示。</p>
-    <p><strong>版本提示：</strong>本頁對齊 v0.3.67；<code>@latest</code> 實際取得版本以 npm registry 為準。以下終端機輸出是 v0.3.67 的示例。</p>
+    <p><strong>版本提示：</strong>本頁對齊 v0.4.0；<code>@latest</code> 實際取得版本以 npm registry 為準。以下終端機輸出是 v0.4.0 的示例。</p>
   </div>
 </header>
 
@@ -565,6 +566,19 @@
   </div>
 </div>
 
+
+<section id="dashboard" class="ahk-dashboard-feature" aria-labelledby="dashboard-heading"><div class="ahk-dashboard-inner">
+ <p class="ahk-dashboard-eyebrow">AGENT HANDOFF KIT · DASHBOARD</p>
+ <h2 id="dashboard-heading">把專案全貌，帶回眼前。</h2>
+ <p class="ahk-dashboard-lead">目前工作、未完事項，以及文件背後的脈絡。同一套介面，自動讀取每個專案自己的已保存紀錄。</p>
+ <figure class="ahk-dashboard-capture"><a href="images/agent-handoff-kit-dashboard-zh-Hant.webp" target="_blank" rel="noopener"><img src="images/agent-handoff-kit-dashboard-zh-Hant.webp" alt="Dashboard 顯示工作主線、最近變更、待辦事項與文件關係" loading="lazy" width="1440" height="1355"></a><figcaption>v0.4.0 實際介面 · Atlas 為虛構範例資料 · 點圖放大</figcaption></figure>
+ <details class="ahk-dashboard-language"><summary>查看英文介面</summary><a href="images/agent-handoff-kit-dashboard-en.webp" target="_blank" rel="noopener"><img src="images/agent-handoff-kit-dashboard-en.webp" loading="lazy" alt="English Dashboard" width="1440" height="1355"></a></details>
+ <div class="ahk-dashboard-benefits"><article><span class="ahk-orb blue" aria-hidden="true"></span><h3>總覽</h3><p>看清目前工作、成果、等待與待驗收事項。</p></article><article><span class="ahk-orb yellow" aria-hidden="true"></span><h3>歷程</h3><p>按日期、關鍵字及工作線找回已保存的變更。</p></article><article><span class="ahk-orb green" aria-hidden="true"></span><h3>文件地圖</h3><p>理解已登記文件各自的用途與關係。</p></article></div>
+ <div class="ahk-dashboard-open"><strong>對 AI 說</strong><p>開啟專案進度頁。</p><small>或使用已啟用的 /handoff-kit-progress；Codex 用 $handoff-kit-progress 或 /skills。</small></div>
+ <p class="ahk-dashboard-note">紀錄保存後，畫面自動更新。不用刷新、不另寫進度報告；查看與畫面更新不呼叫 AI。沿用 Node.js 與瀏覽器。未保存的工作不會顯示，頁面也不代表交接已接收或成果已驗收。</p>
+ <p class="ahk-dashboard-note">每個專案只需對 AI 說一次「在這個專案啟用 Kit 常用快捷入口」，再用 handoff-kit-help 看八個入口選單。全部頁面關閉後八小時內可重開；服務已停止或電腦重啟時，同一入口會重新啟動，舊網址不能自行啟動服務。</p>
+ <a class="ahk-dashboard-link" href="docs/progress.md">Dashboard 用法與範圍 →</a>
+ </div></section>
 <section class="quick-cycle" aria-label="開工收工一屏流程與貓貓狀態圖例">
   <div class="wrap">
     <div class="cycle-grid">
@@ -579,7 +593,7 @@
       <div class="status-tile">
         <div class="face">( o.o )</div>
         <h2>continuity ready</h2>
-        <p>已恢復交接狀態。你在同句或下一句提出任務後，AI 才開始工作。</p>
+        <p>已完整接收交接並核對工作脈絡。你在同句或下一句提出任務後，AI 才開始工作。</p>
       </div>
       <div class="status-tile">
         <div class="face">( -.- )</div>
@@ -602,7 +616,7 @@
   </div>
 </div>
 
-<section class="step-section" id="work-rules-overview">
+<div class="ahk-reception-note"><strong>交接未讀齊時</strong><p>開工時，AI 須先完整接收同一版本的交接包，再核對目標、已完成工作、你的修正、未完事項與授權範圍。若讀取結果被截斷，便分段補讀；仍未讀齊或有關鍵矛盾，會顯示 continuity incomplete，不會聲稱已恢復。安裝成功與收工保存都不代表下一個 AI 已接收交接。</p></div><section class="step-section" id="work-rules-overview">
   <div class="wrap">
     <span class="badge">AI 工作規則</span>
     <h2>AI 不是只讀交接，也會按任務換工作模式</h2>
@@ -697,7 +711,7 @@ dev/rules/communication.md：回覆格式規則，處理語言、輸出格式欄
 
 📋 寫入前確認:目前資料夾未見 Kit 檔案;工具會建立交接文件、AI 入口檔與工作規則。沒有既有檔案會被覆寫。
 
-create: 21
+create: 22
   AGENTS.md
   CLAUDE.md
   GEMINI.md
@@ -716,13 +730,13 @@ create: 21
 
 是否繼續? (yes/no): <span class="hl">yes</span>
 
-✅ created: 21
+✅ created: 22
 🔀 merged: 0
 ⏭️  skipped existing: 0
 
-📦 版本:v0.3.67
+📦 版本:v0.4.0
 🛠️  模式:first-install
-🔎 剛完成:init 命令;create 21 / merge 0 / skip 0 / conflict 0。
+🔎 剛完成:init 命令;create 22 / merge 0 / skip 0 / conflict 0。
 🚀 下一步:不用再留在終端機。打開 AI 工具,啟動 Agent Handoff。
 
 ============================================================
@@ -764,7 +778,7 @@ create: 21
     <div class="wrap">
       <span class="badge">STEP 02 · CASE A</span>
       <h2>開工啟動接力 —— 第一次會有新手歡迎,有任務才開始工作</h2>
-      <p class="narrative">打開能讀寫本機專案資料夾的 AI agent,開一個新對話。若 AI 已在正確專案內,可以只輸入 Start Agent Handoff 或「開工」；第一次安裝且同句沒有任務時,這會恢復最低必要狀態、顯示目前目標、風險與建議下一步，並進入簡短新手歡迎，然後停下等待你下一句。既有項目升級後,同一句 plain start 則維持狀態提示。若平台能安全控制目前對話標題，AI 可用已載入事實把 generic / stale title 改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」;能讀回時先避免覆蓋已有清楚標題；若工具能安全指向目前對話，讀回並非必要條件。不支援時靜默略過，亦不為命名額外讀檔或連網。標題只供顯示,不代表狀態、進度或授權。若你在同一句寫明目標,或明確說「繼續做到下一個 blocker / 完成目前目標」,AI 才可按普通任務規則開始工作。</p>
+      <p class="narrative">打開能讀寫本機專案資料夾的 AI agent,開一個新對話。若 AI 已在正確專案內,可以只輸入 Start Agent Handoff 或「開工」；第一次安裝且同句沒有任務時,這會完整讀取交接包並恢復必要狀態、顯示目前目標、風險與建議下一步，並進入簡短新手歡迎，然後停下等待你下一句。既有項目升級後,同一句 plain start 則維持狀態提示。若平台能安全控制目前對話標題，AI 可用已載入事實把 generic / stale title 改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」;能讀回時先避免覆蓋已有清楚標題；若工具能安全指向目前對話，讀回並非必要條件。不支援時靜默略過，亦不為命名額外讀檔或連網。標題只供顯示,不代表狀態、進度或授權。若你在同一句寫明目標,或明確說「繼續做到下一個 blocker / 完成目前目標」,AI 才可按普通任務規則開始工作。</p>
 
       <div class="chat">
         <div class="chat-row user">
@@ -779,7 +793,7 @@ create: 21
         <span class="label">實際運作</span>
         <h3>開工句不是自動執行授權</h3>
         <ul>
-          <li><strong>第一次單獨開工可含新手歡迎</strong>:AI 只讀 handoff 的最低必要狀態,輸出狀態卡、風險與建議下一步,可加入簡短新手歡迎，但不會自動搜尋、做計劃或開始任務。</li>
+          <li><strong>第一次單獨開工可含新手歡迎</strong>:AI 完整讀取 handoff 並恢復必要狀態,輸出狀態卡、風險與建議下一步,可加入簡短新手歡迎，但不會自動搜尋、做計劃或開始任務。</li>
           <li><strong>同句有任務才開始</strong>:你可以寫「Start Agent Handoff,我要整理 Downloads」;資料足夠時,AI 會自行選擇最接近的工作情境,不用你再選 A 至 F。</li>
           <li><strong>引導要有明確需要</strong>:第一次安裝後單獨開工會進入簡短新手歡迎；其後你說「教我用」、「新手」、「點開始」,或任務本身仍需釐清,AI 才載入新手引導。</li>
         </ul>
@@ -1257,8 +1271,8 @@ Google Drive
         <div class="block-header"><span class="label">終端機</span><span class="meta">~/cafe-research</span></div>
         <div class="block-body">$ <span class="hl">npx --yes @adamchanadam/agent-handoff-kit@latest init</span>
 
-✅ created: 21
-📦 版本:v0.3.67
+✅ created: 22
+📦 版本:v0.4.0
 🛠️  模式:first-install
 🚀 下一步:開新 AI 對話。若 AI 已在資料夾內,輸入 Start Agent Handoff 或「開工」;若尚未指向資料夾,才使用帶路徑啟動句。</div>
       </div>
@@ -1910,7 +1924,7 @@ Before changing anything, tell me the current state and your recommended next st
     </div>
     <div>
       <strong>版本</strong>
-      <p>v0.3.67 · MIT License</p>
+      <p>v0.4.0 · MIT License</p>
     </div>
     <div>
       <strong>作者</strong>

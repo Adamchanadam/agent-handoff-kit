@@ -191,11 +191,11 @@
 
   <header>
     <div class="wrap">
-      <span class="kicker">AI-readable install page · v0.3.67</span>
+      <span class="kicker">AI-readable install page · v0.4.0</span>
       <p style="margin:0 0 18px;"><a href="agent-handoff-kit-ai-install.en.html" lang="en">English version</a></p>
       <h1>給 AI 讀的<br/>安裝與升級指令</h1>
       <p class="lead">本頁給能讀寫本機資料夾、可執行終端機命令的 agentic AI 使用。用戶不用先理解 npm 或選擇指令；AI 讀完本頁後，應在目前資料夾安全判斷要安裝、升級或停止。</p>
-      <p><strong>版本提示：</strong>本頁對齊 v0.3.67；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
+      <p><strong>版本提示：</strong>本頁對齊 v0.4.0；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
 
       <div class="prompt-box">
         <h2>用戶只需貼這一句</h2>
@@ -276,6 +276,12 @@
 
   <section>
     <div class="wrap">
+      <h2>啟用本專案常用快捷入口</h2>
+      <p>已授權的 Kit 安裝或升級通過以上驗收後，把專案內快捷入口一併啟用。先預覽，無衝突才繼續：</p>
+      <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest commands --root . --dry-run</pre></div>
+      <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest commands --root . --yes</pre></div>
+      <p>預設支援 Claude Code、Gemini CLI、Codex 及 Antigravity CLI；只有用戶指定單一平台時才用 <code>--agent</code>。缺少的入口會建立，相同內容保持不動；同名內容不同時零寫入停止，不可覆寫。中斷會保留已完成入口，重新預覽即可找出未完成部分。不修改全機設定或官方規則正文。</p>
+      <p>快捷入口啟用結果須與 Kit 健康狀態分開報告，讀回 <code>ready</code> 後才能說已啟用。Claude／Gemini／Antigravity 用 <code>/handoff-kit-help</code>；Codex 用 <code>$handoff-kit-help</code> 或 <code>/skills</code>。未看到入口便重新開啟專案對話；Gemini 可用 <code>/commands reload</code>。詳見<a href="https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/commands.md">常用快捷入口</a>。</p>
       <h2>AI 回覆格式</h2>
       <p>本段是頁頂完成報告契約的檢查清單。執行完後，AI 不可只說「完成」或只貼終端機輸出。必須用簡短中文向用戶交代結果和下一步。</p>
       <ul>

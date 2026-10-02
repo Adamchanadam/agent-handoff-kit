@@ -2,6 +2,13 @@
 
 Purpose: give a stateless AI a compact map of the project before it reads or edits files.
 
+## Project
+
+- Name: TBD
+- Goal: TBD
+
+Use the actual project name and one plain-language project-wide outcome, not the current task's goal. Optional `Name zh-Hant` and `Goal zh-Hant` fields provide a short Traditional Chinese display counterpart. Maintain these here only when the project's identity or outcome changes; the dashboard reads them without generating another report.
+
 ## Stack
 
 | Field | Value | Last verified |

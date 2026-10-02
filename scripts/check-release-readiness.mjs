@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractOpeningMessage, normalizePrompt } from "../bin/prompt-mirror-core.mjs";
-import { requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
+import { freshInstallMappings, requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
 import { materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import {
   commandDocumentation,
@@ -68,7 +68,7 @@ async function main() {
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
   const version = packageJson.version;
   assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed (expected semver e.g. 0.1.8)");
-  assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "LICENSE"]), "npm package files boundary changed");
+  assert(JSON.stringify(packageJson.files) === JSON.stringify(["bin/", "runtime-core/", "packs/", "README.md", "docs/progress.md", "docs/commands.md", "LICENSE"]), "npm package files boundary changed");
   // This isolated checker executes every required QA script directly below.
   // The public npm package deliberately excludes source QA helpers, so a
   // package.json `scripts` table would neither prove nor run the release gate.
@@ -625,16 +625,20 @@ function checkPublicOnboardingVersion(version) {
     "agent-handoff-kit-guide.html"
   ];
   const currentToken = `v${version}`;
-  const previousPatchToken = `v${previousPatch(version)}`;
+  // A minor/major release has no arithmetically inferable preceding patch.
+  // The generated official catalog identifies the actual published predecessor.
+  const catalog = JSON.parse(read("bin/migration-baselines/official-origin-catalog.json"));
+  const publishedTip = Object.keys(catalog.releases).at(-1);
+  const previousPublishedToken = publishedTip === version ? null : `v${publishedTip}`;
   for (const file of surfaces) {
     const text = read(file);
     const visible = stripHtml(text);
     assert(text.includes(currentToken), `${file} missing current visible version ${currentToken}`);
-    assert(!text.includes(previousPatchToken), `${file} still contains previous patch version ${previousPatchToken}`);
+    assert(!previousPublishedToken || !text.includes(previousPublishedToken), `${file} still contains previous published version ${previousPublishedToken}`);
     assert(visible.includes(`本頁對齊 ${currentToken}`) && visible.includes("@latest 實際取得版本以 npm registry 為準"), `${file} does not state release-aligned page version and npm @latest boundary`);
   }
   const guide = read("agent-handoff-kit-guide.html");
-  const targetCount = requiredInstalledTargets.length;
+  const targetCount = freshInstallMappings.length;
   for (const snippet of [`create: ${targetCount}`, `created: ${targetCount}`, `create ${targetCount} / merge 0 / skip 0 / conflict 0`]) {
     assert(guide.includes(snippet), `guide fresh-install example is not derived from the ${targetCount}-target installed-file contract: ${snippet}`);
   }
@@ -2570,14 +2574,6 @@ function nextPatch(v) {
   return `${major}.${minor}.${patch + 1}`;
 }
 
-function previousPatch(v) {
-  const [major, minor, patch] = v.split(".").map(Number);
-  if (!Number.isInteger(patch) || patch <= 0) {
-    throw new Error(`Cannot derive previous patch version from ${v}`);
-  }
-  return `${major}.${minor}.${patch - 1}`;
-}
-
 function materializePinnedV041ArtifactInit(project) {
   const fixtureManifest = JSON.parse(read("test-fixtures/v0.3.41/fixture-manifest.json"));
   const npmIdentity = fixtureManifest?.source?.npm;
@@ -3009,7 +3005,10 @@ function checkTaskPersistenceGateContract() {
     "semantically requires cross-session force",
     "do not start governance bridge, long-term-governance routing, repo-wide scans, handoff writes, or closeout solely because the task mentions Markdown, README, docs, specs, plans, checklists, or generated outputs",
     "Lightweight checkpoint",
-    "do not regenerate the startup mirror or perform full closeout",
+    "do not perform full closeout",
+    "Checkpoint opening consistency: when an authorized checkpoint changes actionable facts",
+    "reconcile only those affected current facts in that same checkpoint",
+    "Do not merely label an authoritative opening historical",
     "between Persistence Gate decisions",
     "expected lag, not drift",
     "do not update handoff merely to mirror each intermediate step",
