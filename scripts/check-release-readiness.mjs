@@ -59,9 +59,9 @@ async function main() {
     const version = packageJson.version;
     assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed for pre-freeze evidence");
     checkScenarioBranchingDocAlignment();
-    checkDecisionFirstOnboardingWording();
     checkChangedBilingualCandidateEvidence(version, { allowDirty: true });
     assertLatestCrossMindTableComplete(version);
+    checkDecisionFirstOnboardingWording();
     console.log(`ok: pre-freeze candidate evidence is complete for v${version}`);
     return;
   }
