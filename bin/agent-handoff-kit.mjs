@@ -13,7 +13,7 @@ import { assessPromptMirrorRoot, assessPromptMirrorTexts, extractOpeningMessage 
 import { readHandoffChunk, formatHandoffChunk } from "./handoff-read.mjs";
 import { freshInstallMappings, installedFileContract, installedMappings, requiredInstalledTargets, upgradeStateMappings, upgradeStateTargets, requiredShortcutTargets, SHORTCUT_INSTALL_CONTRACT } from "./installed-file-contract.mjs";
 import { commands, commandFiles, planCommands, assertCommandPaths } from "./commands.mjs";
-const legacyShortcutRecoveryToken = Symbol("legacy shortcut recovery only");
+const legacyShortcutRecoveryPermit = Symbol("legacy shortcut recovery only");
 import { getArtifactBoundManagedSegment, getOfficialBaseline, identifyOfficialOrigin, loadOfficialOriginCatalog } from "./official-origin-catalog.mjs";
 import {
   markdownVisibleLinesOutsideHiddenBlocks,
@@ -2872,7 +2872,7 @@ async function recoverInterruptedTransaction(root, options = {}) {
     const doctorStatus = await runDoctor(root, journal.committedVersion, {
       silentCard: true,
       context: "recovered-committed-transaction-health",
-      legacyShortcutRecovery: journal.shortcutInstallContract === undefined ? legacyShortcutRecoveryToken : null,
+      legacyShortcutRecovery: journal.shortcutInstallContract === undefined ? legacyShortcutRecoveryPermit : null,
       skipVersionRegistryLookup: true,
       allowActiveTransaction: true,
       captureFormalUserRules: (state) => { formalRuntimeState = state; }
@@ -3165,7 +3165,7 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
-  if (options.legacyShortcutRecovery !== legacyShortcutRecoveryToken) {
+  if (options.legacyShortcutRecovery !== legacyShortcutRecoveryPermit) {
     let shortcutFailures;
     try { shortcutFailures = planCommands(root).filter(item => item.action !== "keep").map(item => item.file); }
     catch (error) { shortcutFailures = [safeErrorLabel(error)]; }
