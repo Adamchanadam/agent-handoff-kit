@@ -1,59 +1,61 @@
-# 快捷入口 / Kit shortcuts
+# Agent Handoff Kit 常用指令
 
-啟用後，在專案的 AI 對話輸入短口令即可。Claude Code、Gemini CLI、Antigravity CLI 用 `/handoff-kit-help`；Codex 用 `$handoff-kit-help`，或輸入 `/skills` 選擇 `handoff-kit-help`。Codex 並不提供相同的直接 `/handoff-kit-*` 自訂命令。
+[English](#shortcuts)
 
-| 用途 | Claude / Gemini / Antigravity | Codex |
-|---|---|---|
-| 開工、接收交接 | `/handoff-kit-start` | `$handoff-kit-start` |
-| 收工、保存及檢查交接 | `/handoff-kit-close` | `$handoff-kit-close` |
-| 開啟自動更新的進度頁 | `/handoff-kit-progress` | `$handoff-kit-progress` |
-| 檢查文件是否接上治理 | `/handoff-kit-align` | `$handoff-kit-align` |
-| 新手引導 | `/handoff-kit-onboard` | `$handoff-kit-onboard` |
-| 保存日後要遵守的工作規則 | `/handoff-kit-remember` | `$handoff-kit-remember` |
-| 檢查 Kit 安裝狀態 | `/handoff-kit-check` | `$handoff-kit-check` |
-| 顯示這份功能選單 | `/handoff-kit-help` | `$handoff-kit-help` |
+這份說明包含尚未發布的更新；正式下載可用的功能，以已發布版本為準。
 
-可在口令後補充目標，例如 `/handoff-kit-align docs/plan.md`、`/handoff-kit-remember 回覆請用繁體中文`，或 `/handoff-kit-start 繼續完成目前目標`。單獨開工只接收狀態；未指定文件的對齊先列候選，不自行整理整個專案。收工會執行原有完整流程，但不新增提交或發佈權限。原有「開工」「收工」等自然語句仍可使用。
+在專案的 AI 對話輸入指令，不是在終端機。Claude Code、Gemini CLI、Antigravity CLI 用 /；Codex 用 $，也可從 /skills 選取。 例如 Codex 用 `$handoff-kit-start`。
 
-## 每個專案啟用一次
+| 想做甚麼 | 指令 |
+|---|---|
+| 接回上次工作 | [`/handoff-kit-start`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#start) |
+| 看專案全貌 | [`/handoff-kit-progress`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#progress) |
+| 準備結束這次對話 | [`/handoff-kit-close`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#close) |
+| 第一次用，想有人帶路 | [`/handoff-kit-onboard`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#onboard) |
+| 忘了用哪個指令 | [`/handoff-kit-help`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#help) |
+| 讓下次 AI 找得到重要文件 | [`/handoff-kit-align`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#align) |
+| 希望以後都照這樣做 | [`/handoff-kit-remember`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#remember) |
+| 交接功能出了問題 | [`/handoff-kit-check`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#check) |
+| 想用最新正式版 | [`/handoff-kit-update`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#update) |
 
-對 AI 說：「在這個專案啟用 Kit 常用快捷入口。」正常 AI 安裝教學亦包含這一步。AI 應先完成 Kit 安裝／升級及其驗收，再執行：
+日常用開工、進度頁、收工；其他按需要用。每個指令的例子與注意事項都在[使用指南](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)，不用另外讀一套教學。
 
-```text
-npx --yes @adamchanadam/agent-handoff-kit@latest commands --root . --dry-run
-npx --yes @adamchanadam/agent-handoff-kit@latest commands --root . --yes
-```
+### 安裝與選單
 
-預設建立全部平台入口；`--agent claude|gemini|codex|antigravity` 可只建立指定平台。Codex 與 Antigravity 共用一份 `.agents/skills`。程序只建立缺少的入口；相同內容保持不動；任何同名差異會在寫入前停止，不覆寫用戶設定。中斷時保留已完成入口，重新預覽再補齊。此程序不代替 Kit 健康檢查，亦不修改全機設定或官方規則正文。
+安裝或升級時，指令入口會一併放好，只供目前專案使用，不安裝到電腦的共用設定。不用額外啟用。舊對話未顯示時，重新開啟專案對話；Gemini CLI 可用 `/commands reload`。Codex 選單有簡短中英文說明，例如「開工 / Start」。
 
-快捷入口只可安裝在專案內。預覽及啟用都會拒絕使用者主目錄、磁碟根目錄，以及已知的 AI 全域設定位置（包括環境變數指定的位置）；即使目錄已有 Kit 檔案也不例外。若任何入口的輸出位置會落入全域範圍，整批停止，不建立檔案或目錄。主目錄下的一般專案及 Codex 管理的 `worktrees` 內專案仍可使用；全域設定資料夾本身不能當作專案。
+如果入口缺漏，把[安裝頁](../agent-handoff-kit-ai-install.html)的句子交給 AI。同版本也可補齊缺項；你的自訂內容遇到衝突會保留並停止，不會強行覆寫。檔案齊備只證明安裝結果，實際選單和呼叫仍須在所用工具確認。
 
-如入口未出現，重新開啟該專案的 AI 對話；Gemini CLI 亦可用 `/commands reload`。舊版 CLI 若顯示不認識 `commands`，代表執行的套件未包含此功能。未發佈開發版必須使用已選定的本機套件，不能把 npm 舊版當成新功能驗收。
+### 使用成本
 
-入口由 `bin/commands.mjs` 統一產生。Claude 使用 `.claude/skills/handoff-kit-*/SKILL.md`，Gemini 使用 `.gemini/commands/handoff-kit-*.toml`，Codex／Antigravity 使用 `.agents/skills/handoff-kit-*/SKILL.md`。規則仍由專案 `AGENTS.md`、`dev/RULE_PACKS.md` 及其指向的文件負責。這些入口不會因被 AI 自動發現便授權執行。
+叫 AI 執行指令及平常保存紀錄會使用一些 token。進度頁開啟後，查看、篩選和自動更新由本機程式處理，不再叫 AI 寫報告。[進度頁說明](progress.md)包含重開、斷線和資料不完整時的處理。
 
-## 進度頁與使用成本
+## Shortcuts
 
-`handoff-kit-progress` 自動開啟頁面，同一專案重複使用會重用相符服務。全部頁面斷線後保留 8 小時，閒置時暫停讀檔；其後服務才自動停止，下次再用口令會重新啟動。不同專案各自識別；頁面正在顯示哪個專案，以頁面專案名稱為準。詳見[進度頁說明](progress.md)。
+This guide includes updates that have not been released yet. Features available to download depend on the published version.
 
-口令本身由 AI 處理，會使用少量對話內容；進度頁之後由本機程式讀取既有紀錄並自動更新，不需 AI 再寫報告、重做 HTML 或逐步呼叫更新。使用既有 Node.js 18+ 與瀏覽器，不需額外安裝 Python 或服務平台。`npx` 取得工具可能需要網絡；頁面服務本身只在本機運行。
+Enter shortcuts in your project’s AI conversation, not in the terminal. Claude Code, Gemini CLI and Antigravity CLI use /; Codex uses $, or selection through /skills. For example, Codex uses `$handoff-kit-start`.
 
-## English
+| What you want to do | Shortcut |
+|---|---|
+| Pick up where you left off | [`/handoff-kit-start`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#start) |
+| See the whole project | [`/handoff-kit-progress`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#progress) |
+| Finish this conversation | [`/handoff-kit-close`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#close) |
+| Get help getting started | [`/handoff-kit-onboard`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#onboard) |
+| Find the right shortcut | [`/handoff-kit-help`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#help) |
+| Help the next AI find an important file | [`/handoff-kit-align`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#align) |
+| Keep a working preference for next time | [`/handoff-kit-remember`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#remember) |
+| Check whether the tool is installed correctly | [`/handoff-kit-check`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#check) |
+| Get the latest released version | [`/handoff-kit-update`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#update) |
 
-Use `/handoff-kit-*` in Claude Code, Gemini CLI and Antigravity CLI. In Codex, use `$handoff-kit-*` or select the skill through `/skills`; direct custom `/handoff-kit-*` commands are not equivalent Codex syntax.
+Start, Progress and Wrap up are the everyday shortcuts; use the others as needed. Examples and limits for each are in the [guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html), so you do not need a second set of instructions.
 
-The eight entries are **handoff-kit-start** (resume), **handoff-kit-close** (save and verify the full handoff), **handoff-kit-progress** (open the live overview), **handoff-kit-align** (check document governance links), **handoff-kit-onboard** (guided introduction), **handoff-kit-remember** (save an explicitly requested future working rule), **handoff-kit-check** (check the Kit installation), and **handoff-kit-help** (menu).
+### Installation and menus
 
-Add context after an entry, such as `/handoff-kit-align docs/plan.md` or `/handoff-kit-start continue the current objective`. Bare start only recovers state. Alignment without a target lists candidates before any edits. Closeout follows the existing complete workflow without granting Git or publishing permission. Natural-language requests still work.
+Installation and upgrades include the shortcuts for this project only, not shared computer-wide settings. No separate activation is needed. If an older conversation does not show them, reopen the project conversation; Gemini CLI can use `/commands reload`. Codex has short bilingual labels such as “開工 / Start”.
 
-Ask the AI to “Enable Kit shortcuts in this project.” After installing/upgrading Kit and verifying that operation, run the two commands above: preview, then enable with `--yes`. This setup step is included in the AI installation guide. The default enables all platforms; `--agent claude|gemini|codex|antigravity` selects one. Codex and Antigravity share `.agents/skills`. Missing files are created, identical files kept, and any different same-name file stops the preflight with zero writes. After interruption, completed files remain and a new preview shows what is left. This setup does not replace health checks, change global settings or rewrite official rules.
+For missing entries, give the AI the sentence on the [setup page](../agent-handoff-kit-ai-install.en.html). Reapplying the same version can fill missing files. Conflicting custom content is kept and the operation stops, without forced overwrites. Complete files prove installation only; check menus and invocation in the tool you use.
 
-Shortcuts are project-local only. Preview and enable both refuse user home directories, filesystem roots and known shared AI configuration locations, including environment-configured locations, even if Kit files exist there. If any generated entry would land in global scope, the whole operation stops without creating files or directories. Ordinary projects beneath home and projects inside Codex-managed `worktrees` remain supported; the global configuration folder itself cannot serve as a project.
+### Usage cost
 
-Reopen the project's AI session if entries do not appear; Gemini also supports `/commands reload`. An unrecognized `commands` option means the running package lacks this feature. Use the selected local package for unreleased development; testing npm's older release cannot verify new features.
-
-`bin/commands.mjs` owns the shared content and generates Claude `.claude/skills/handoff-kit-*/SKILL.md`, Gemini `.gemini/commands/handoff-kit-*.toml`, and Codex/Antigravity `.agents/skills/handoff-kit-*/SKILL.md`. Project `AGENTS.md`, `dev/RULE_PACKS.md` and their routed owners still define procedures. Automatic skill discovery does not authorize action.
-
-`handoff-kit-progress` opens the view and reuses a matching service for the same project. The service stays available for eight hours after all pages disconnect, without idle file polling; invoke the entry again to reuse it or restart it after expiry. Projects have separate identities; check the displayed project name. See [the progress guide](progress.md). An AI invocation uses some conversation tokens; subsequent page updates read existing records locally, without more AI reports, redesigned HTML or per-step update calls. It uses the existing Node.js 18+ environment and a browser; no Python or hosting platform is required. `npx` tool acquisition may need network access, while the view itself runs locally.
-
-Platform references: [Claude skills](https://code.claude.com/docs/en/skills), [Gemini custom commands](https://geminicli.com/docs/cli/custom-commands/), [Antigravity CLI skills](https://antigravity.google/docs/skills?app=cli), [Codex skills](https://learn.chatgpt.com/docs/build-skills).
+Asking the AI to run a shortcut and saving normal records use some tokens. Once the dashboard is open, viewing, filtering and automatic updates run locally without asking the AI to write another report. [Dashboard help](progress.md) covers reopening, disconnections and incomplete data.

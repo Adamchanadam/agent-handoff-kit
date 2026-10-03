@@ -3,7 +3,23 @@
 // path cannot silently become current lifecycle authority before that route is
 // explicitly present.
 
+import { commandFiles } from './commands.mjs';
+
+// Source-to-delivery routing. Unknown new shipped modules must receive an owner.
+// QA stages/evidence are defined by the existing assurance gate, not runtime doctor.
+export const deliveredFeatureContracts = Object.freeze([
+ {id:'installer',sources:['package.json','bin/agent-handoff-kit.mjs','bin/installed-file-contract.mjs','bin/official-origin-catalog.mjs','bin/migration-baselines/','bin/upgrade-inventory.mjs','bin/user-rules-router.mjs']},
+ {id:'shortcuts',sources:['bin/commands.mjs'],hosts:['claude','gemini','codex','antigravity'],nativeAcceptanceHosts:['codex'],nativeInvocationEntries:['handoff-kit-progress']},
+ {id:'dashboard',sources:['bin/progress/']},
+ {id:'continuity',sources:['runtime-core/','bin/handoff-read.mjs','bin/prompt-mirror-core.mjs']},
+ {id:'task-packs',sources:['packs/']}
+].map(x=>Object.freeze(x)));
+
 export const INSTALLED_FILE_CONTRACT_SCHEMA = 1;
+// Generated project entries share one content owner. Only these exact paths
+// enter installer recovery; platform directories are never blanket-owned.
+export const SHORTCUT_INSTALL_CONTRACT = 1;
+export const requiredShortcutTargets = Object.freeze(commandFiles().map(({file})=>file));
 
 export const installedFileContracts = Object.freeze([
   contract("runtime-core/AGENTS.core.md", "AGENTS.md", "managed-core"),

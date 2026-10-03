@@ -11,7 +11,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assessPromptMirrorRoot, assessPromptMirrorTexts, extractOpeningMessage } from "./prompt-mirror-core.mjs";
 import { readHandoffChunk, formatHandoffChunk } from "./handoff-read.mjs";
-import { freshInstallMappings, installedFileContract, installedMappings, requiredInstalledTargets, upgradeStateMappings, upgradeStateTargets } from "./installed-file-contract.mjs";
+import { freshInstallMappings, installedFileContract, installedMappings, requiredInstalledTargets, upgradeStateMappings, upgradeStateTargets, requiredShortcutTargets, SHORTCUT_INSTALL_CONTRACT } from "./installed-file-contract.mjs";
+import { commands, commandFiles, planCommands, assertCommandPaths } from "./commands.mjs";
+const legacyShortcutRecoveryToken = Symbol("legacy shortcut recovery only");
 import { getArtifactBoundManagedSegment, getOfficialBaseline, identifyOfficialOrigin, loadOfficialOriginCatalog } from "./official-origin-catalog.mjs";
 import {
   markdownVisibleLinesOutsideHiddenBlocks,
@@ -570,7 +572,7 @@ async function main() {
   const version = await readPackageVersion();
   // `doctor` renders version alignment itself.  Let that single health run own
   // the lookup instead of checking once here and once again inside doctor.
-  if (!new Set(["closeout-status", "doctor", "workspace-health", "progress", "commands", "handoff-read"]).has(command)) await maybePrintUpdateNotice(version);
+  if (!new Set(["closeout-status", "doctor", "workspace-health", "progress", "commands", "handoff-read", "update"]).has(command)) await maybePrintUpdateNotice(version);
   if (!command || options.help) {
     if (command === "handoff-read") {
       console.log("Usage: agent-handoff-kit handoff-read [--root <path>] [--max-chars <64..8192>] [--offset <n> --sha256 <digest>]\nRead-only, offline. Offsets count Unicode code points. Continue using nextOffset and the same sha256.\nContent served is not proof of reception, understanding or permission to act.");
@@ -595,6 +597,25 @@ async function main() {
     return;
   }
 
+  if (command === "update") {
+    assertCommandPaths(root);
+    await validateTransactionRoot(root, [], { createMissingRoot: false });
+    const installed = await readProjectIndexTemplateVersion(root);
+    if (!installed) throw new Error('Project version is unverified; check the existing Kit installation before updating. / 無法確認專案版本，未升級。');
+    const latest = await fetchLatestVersion();
+    if (!latest || !isStableSemver(latest)) throw new Error('npm latest could not be verified; no upgrade performed. / 未能確認 npm 最新版，未升級。');
+    console.log('Installed / 已安裝: ' + installed + '; npm latest / 最新版: ' + latest);
+    if (compareSemver(installed, latest) > 0) throw new Error('Project is newer than npm latest; refusing downgrade. / 專案版本較新，不會降級。');
+    if (version !== latest) throw new Error('Acquire the verified public CLI and retry: npx --yes @adamchanadam/agent-handoff-kit@' + latest + ' update --root <project-root> (quote the verified root as one argument in your active shell)');
+    if (installed === latest && !await exists(path.join(root, 'dev/governance_migrations/.upgrade.lock'))) {
+      console.log('Already current; checking installation without writing. / 已是最新版，唯讀核對安裝。');
+      await runDoctor(root, version);
+      return;
+    }
+    await runInstall('upgrade', root, { ...options, yes: true }, version);
+    return;
+  }
+
   if (command === "doctor") {
     await runDoctor(root, version);
     return;
@@ -610,7 +631,8 @@ async function main() {
     const result = installCommands({ root, agent: options.agent ?? "all", yes: options.yes, dryRun: options.dryRun });
     console.log("Agent Handoff Kit — Shortcuts / 快捷入口: " + result.status);
     for (const item of result.plan) console.log(item.action + "  " + item.file);
-    if (result.status === "conflict") { console.error("Existing command differs; no files written. Review the named conflict. / 同名入口有差異，未寫入任何檔案。"); process.exitCode = 1; }
+    if (result.status === "upgrade-required") { console.error('Official entries need a transactional update. Run upgrade --dry-run, then upgrade --yes. / 官方入口需要安全升級，請用 Kit 升級流程。'); process.exitCode = 1; }
+    else if (result.status === "conflict") { console.error("Existing command differs; no files written. Review the named conflict. / 同名入口有差異，未寫入任何檔案。"); process.exitCode = 1; }
     else if (result.status === "preview") console.log("Preview only. Add --yes to enable. / 只作預覽，加 --yes 才啟用。");
     else console.log("Ready. Reload your agent if needed. / 已啟用，必要時重新載入 AI。Claude / Gemini / Antigravity: /handoff-kit-help · Codex: $handoff-kit-help or /skills");
     return;
@@ -1280,6 +1302,7 @@ async function needsProjectIndexVersionInject(root, command, version) {
 }
 
 async function runInstall(command, root, options, version) {
+  assertCommandPaths(root); // Before recovery: recovery itself can write.
   // Guard the selected root before reading or recovering any persisted
   // transaction. Recovery is a write path and must not run through a junction.
   await validateTransactionRoot(root, [], { createMissingRoot: false });
@@ -1572,7 +1595,9 @@ async function executeDirectNoClobberCreateInstall(command, root, mode, plan, ve
   }
 
   for (const output of outputs) {
+    await validateTransactionRoot(root, plan, { createMissingRoot: false });
     await mkdir(path.dirname(output.targetAbs), { recursive: true });
+    assertCommandPaths(root);
     await writeFile(output.targetAbs, output.after, { mode: 0o600, flag: "wx" });
     const written = await readOptionalBuffer(output.targetAbs);
     if (!written || sha256(written) !== output.afterHash) {
@@ -1717,6 +1742,7 @@ async function buildTransactionOutputs(command, root, plan, version, options = {
   for (const item of plan) {
     if (item.action !== "create" && item.action !== "merge" && item.action !== "preserve") continue;
     const before = await readOptionalBuffer(item.targetAbs);
+    if (item.generatedText != null && item.action === "create" && before) throw new Error(`${item.targetRel}: target appeared after shortcut planning; restart the read-only plan`);
     if (item.plannedInputHash && (!before || sha256(before) !== item.plannedInputHash)) {
       throw new Error(`${item.targetRel}: input changed after official-region proof; restart the read-only plan`);
     }
@@ -1737,7 +1763,7 @@ async function buildTransactionOutputs(command, root, plan, version, options = {
         after = Buffer.from(before);
       }
     } else if (item.action === "create") {
-      const sourceText = await readTemplateSource(command, item.sourceRel, item.targetRel, item.sourceAbs);
+      const sourceText = item.generatedText ?? await readTemplateSource(command, item.sourceRel, item.targetRel, item.sourceAbs);
       afterText = item.targetRel === "AGENTS.md" ? mergeManagedBlock("", sourceText) : sourceText;
     } else if (item.action === "merge" && item.targetRel === "dev/PROJECT_INDEX.md" && item.metadataTransition === projectIndexTemplateVersionMetadataTransition) {
       if (!before) throw new Error(`${item.targetRel}: template-version metadata transition disappeared before preparation`);
@@ -1785,6 +1811,9 @@ async function buildTransactionOutputs(command, root, plan, version, options = {
     if (materializedText !== indexOutput.afterText) {
       indexOutput.after = Buffer.from(materializedText, "utf8");
       indexOutput.afterText = null;
+    } else if (indexOutput.before && decodeUtf8(indexOutput.before, indexRel).text === materializedText) {
+      indexOutput.after = Buffer.from(indexOutput.before);
+      indexOutput.afterText = null; // Preserve mixed line endings when only shortcuts need repair.
     } else {
       indexOutput.afterText = materializedText;
     }
@@ -1976,6 +2005,7 @@ async function prepareTransaction(root, command, version, outputs, mode, plan, a
     command,
     mode,
     attemptedVersion: version,
+    shortcutInstallContract: SHORTCUT_INSTALL_CONTRACT,
     committedVersion: null,
     plannedSkips: plan.filter((item) => item.action === "skip").length,
     host: hostname(),
@@ -2269,6 +2299,7 @@ async function pathExists(filePath) {
 }
 
 async function validateTransactionRoot(root, plan, { createMissingRoot = true } = {}) {
+  assertCommandPaths(root);
   let rootStats;
   try {
     rootStats = await lstat(root);
@@ -2316,6 +2347,7 @@ async function validateTransactionOverlay(root, outputs) {
     .map((item) => [item.targetRel, decodeUtf8(item.after, item.targetRel).text]));
   const finalText = async (relative) => outputMap.get(relative) ?? await readOptionalText(path.join(root, relative));
   const failures = [];
+  for (const item of commandFiles()) if ((await finalText(item.file)) !== item.text) failures.push(`${item.file}: required shortcut missing or different after transaction`);
   for (const target of requiredTargets) if ((await finalText(target)) == null) failures.push(`${target}: missing after transaction`);
   for (const rule of requiredAnchors) {
     if (preservedRuntimeTargets.has(rule.target)) continue;
@@ -2386,6 +2418,7 @@ function bridgeTextFailure(targetRel, text) {
 }
 
 async function atomicReplaceFromBuffer(root, targetAbs, buffer, id, expectedHash, options = {}) {
+  assertCommandPaths(root);
   const targetRel = options.targetRel ?? path.relative(root, targetAbs);
   const phase = options.phase ?? "forward";
   const escrowDir = options.escrowDir;
@@ -2537,6 +2570,7 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
   }
   if (!Array.isArray(journal.entries) || journal.entries.length === 0) throw new Error("upgrade journal has no valid entries; no recovery writes attempted");
   if (!isStableSemver(journal.attemptedVersion ?? "")) throw new Error("upgrade journal attempted version is invalid; no recovery writes attempted");
+  if (journal.shortcutInstallContract !== undefined && journal.shortcutInstallContract !== SHORTCUT_INSTALL_CONTRACT) throw new Error("unknown shortcut install contract; no recovery writes attempted");
   const allowedStates = new Set(["prepared", "committing", "rollback-needed", "manual-recovery-required", "committed", "rolled-back"]);
   if (!allowedStates.has(journal.state)) throw new Error("upgrade journal state is invalid; no recovery writes attempted");
 
@@ -2594,6 +2628,7 @@ async function validateRecoveryJournal(root, journal, journalPath, lockId = null
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error("upgrade journal entry schema is invalid; no recovery writes attempted");
     const allowedTarget = requiredTargets.includes(entry.targetRel)
       || upgradeStateTargets.includes(entry.targetRel)
+      || (journal.shortcutInstallContract === SHORTCUT_INSTALL_CONTRACT && requiredShortcutTargets.includes(entry.targetRel))
       || formalWitness?.contentPaths.has(entry.targetRel);
     if (!allowedTarget || seen.has(entry.targetRel)) throw new Error("upgrade journal target is unknown or duplicated; no recovery writes attempted");
     seen.add(entry.targetRel);
@@ -2837,6 +2872,7 @@ async function recoverInterruptedTransaction(root, options = {}) {
     const doctorStatus = await runDoctor(root, journal.committedVersion, {
       silentCard: true,
       context: "recovered-committed-transaction-health",
+      legacyShortcutRecovery: journal.shortcutInstallContract === undefined ? legacyShortcutRecoveryToken : null,
       skipVersionRegistryLookup: true,
       allowActiveTransaction: true,
       captureFormalUserRules: (state) => { formalRuntimeState = state; }
@@ -3128,6 +3164,22 @@ async function runDoctor(root, version, options = {}) {
     process.exitCode = 1;
     return "failed";
   }
+
+  if (options.legacyShortcutRecovery !== legacyShortcutRecoveryToken) {
+    let shortcutFailures;
+    try { shortcutFailures = planCommands(root).filter(item => item.action !== "keep").map(item => item.file); }
+    catch (error) { shortcutFailures = [safeErrorLabel(error)]; }
+    console.log(`\nproject shortcut checks: 1 (${commands.length} entries / ${requiredShortcutTargets.length} files)`);
+    console.log(shortcutFailures.length ? "missing or different  project shortcuts" : "ok  project shortcuts ready");
+    rows.push({target: "project shortcuts", ok: shortcutFailures.length === 0});
+    if (shortcutFailures.length) {
+      for (const failure of shortcutFailures) console.log('  ' + failure);
+      printDoctorSummary(version, root, "needs-fix", {checked: rows.length, failedKind: "project shortcuts", failedCount: shortcutFailures.length,
+        nextStep: "Kit 安裝未齊備。請執行 upgrade --dry-run；缺少的入口會一併補齊，同名差異需先處理。"});
+      process.exitCode = 1;
+      return "failed";
+    }
+  } else console.log("legacy transaction recovery: shortcut acceptance deferred to the current install plan");
 
   const archiveCasing = await checkSessionLogArchiveCasing(root);
   console.log(`\nSESSION_LOG archive casing checks: 1`);
@@ -4255,6 +4307,12 @@ async function buildPlan(root, command, version = null) {
       ...(reason ? { reason } : {})
     });
   }
+  for (const item of planCommands(root)) plan.push({
+    targetRel: item.file, targetAbs: item.target, generatedText: item.text,
+    action: item.action === 'keep' ? 'skip' : item.action,
+    ...(item.action === 'merge' ? { mergedText: item.text, plannedInputHash: item.plannedInputHash } : {}),
+    reason: item.action === 'conflict' ? 'project shortcut differs; preserve it and resolve before installation' : item.action === 'merge' ? `verified official v${item.officialVersion} shortcut update` : 'required project shortcut'
+  });
   return plan;
 }
 
@@ -6623,29 +6681,9 @@ function printCard(version, status, eyes) {
 function printInstallNextSteps(root, conflictCount, mode = "first-install", skippedCount = 0, options = {}) {
   console.log("");
   console.log("============================================================");
-  const needsPartialRepairStep = skippedCount > 0 && options.directCreateOnly !== true;
-  if (needsPartialRepairStep) {
-    console.log("⚠️  已補齊缺少檔案，但仍要檢查入口連接");
-  } else {
-    console.log("✅ 安裝完成：下一步請在 AI 對話中操作");
-  }
+  console.log("✅ 安裝完成：下一步請在 AI 對話中操作");
+  console.log("✅ 專案快捷入口已就緒；進度頁可直接由 handoff-kit-progress 開啟。");
   console.log("============================================================");
-  if (conflictCount > 0) {
-    console.log("⚠️  狀態：有既有檔案未能證明可安全合併。");
-    console.log("⚠️  這不是檔案壞掉；工具已停手，沒有覆寫 conflict 檔案。");
-    console.log(conflictRepairNextStepLine());
-    console.log("");
-  }
-  if (needsPartialRepairStep) {
-    console.log("你原本已有部分 AI 記憶檔，工具已保留它們，沒有覆寫。");
-    console.log("下一步先不要開始新任務；請在終端機執行以下預演，讓工具檢查能否安全補入口連接：");
-    console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run");
-    console.log("");
-    console.log("如預演顯示沒有 conflict，再執行：");
-    console.log("   npx --yes @adamchanadam/agent-handoff-kit@latest upgrade");
-    console.log("============================================================");
-    return;
-  }
   console.log("------------------------------------------------------------");
   console.log("⚠️  下面這句不是終端機指令。");
   console.log("📋 不用再留在終端機；請打開能讀寫此資料夾的 AI agent。若 AI 已在此資料夾內，新增對話後輸入：");
@@ -6681,6 +6719,7 @@ function printUpgradeNextSteps(root, conflictCount) {
     console.log("============================================================");
     return;
   }
+  console.log("✅ 專案快捷入口已就緒；進度頁可直接由 handoff-kit-progress 開啟。");
   console.log("🛠️  Kit migration 已通過離線遷移驗收；已由正式 doctor 的同輪讀回確認提交與健康使用同一狀態");
   console.log("============================================================");
   console.log("📋 如你正在進行中的工作對話已熟悉 Agent Handoff Kit，繼續使用原本的開工方式即可，無需重新做新手引導。");
@@ -6787,6 +6826,7 @@ Usage:
 
 Commands:
   init      Plan or install missing core files and rule packs.
+  update    Check npm latest; safely upgrade this project if newer.
   upgrade   Preserve existing files; merge safe core updates or report conflicts.
   doctor    Check required installed files.
   workspace-health  Read live root / Git / worktree state without writing files.

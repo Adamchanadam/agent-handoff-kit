@@ -7,7 +7,7 @@ import http from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {commands,commandFiles,bodyFor,installCommands} from '../bin/commands.mjs';
+import {commands,commandFiles,bodyFor,installCommands,progressFiles} from '../bin/commands.mjs';
 import {openProgress,probeProgress} from '../bin/progress/open.mjs';
 import {startProgress,progressIdentity} from '../bin/progress/server.mjs';
 const run=promisify(execFile),source=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -19,16 +19,18 @@ function snapshot(root){const out={};function walk(dir){for(const e of fs.readdi
 const ok=s=>console.log('ok: commands '+s);
 try{
  const root=project('專案 with spaces & symbols');
- const baseline=snapshot(root),files=commandFiles();assert.equal(files.length,24);
+ const baseline=snapshot(root),files=commandFiles();assert.equal(files.length,commands.length*4+progressFiles().length);
+ const ui=files.filter(f=>f.file.endsWith("/agents/openai.yaml"));assert.equal(ui.length,commands.length);
+ for(const item of ui){const label=JSON.parse(item.text.match(/short_description: (.+)/)[1]);assert.match(label,/[\u3400-\u9fff]/);assert.match(label,/[A-Za-z]/);assert.ok([...label].length<=24);assert.equal(item.text.includes("policy:"),false);}
  assert.equal(installCommands({root}).status,'preview');assert.deepEqual(snapshot(root),baseline);
  const preview=await run(process.execPath,[cli,'commands','--root',root,'--dry-run'],options);assert.match(preview.stdout,/preview/);assert.deepEqual(snapshot(root),baseline);
  const installed=await run(process.execPath,[cli,'commands','--root',root,'--yes'],options);assert.match(installed.stdout,/ready/);
  for(const f of files)assert.equal(fs.readFileSync(path.join(root,f.file),'utf8'),f.text);
  const times=files.map(f=>fs.statSync(path.join(root,f.file)).mtimeMs);assert.equal(installCommands({root,yes:true}).written.length,0);assert.deepEqual(files.map(f=>fs.statSync(path.join(root,f.file)).mtimeMs),times);
- for(const agent of ['claude','gemini','codex','antigravity']){const p=project(agent);assert.equal(installCommands({root:p,agent,yes:true}).written.length,8);}
+ for(const agent of ['claude','gemini','codex','antigravity']){const p=project(agent);assert.equal(installCommands({root:p,agent,yes:true}).written.length,(["codex","antigravity"].includes(agent)?commands.length*2:commands.length)+progressFiles().length);}
  assert.deepEqual(commandFiles('codex'),commandFiles('antigravity'));
  for(const command of commands){const body=bodyFor(command),gemini=files.find(f=>f.file===`.gemini/commands/${command.name}.toml`);assert.equal(JSON.parse(gemini.text.split('\n')[1].slice(9)),body);assert.ok(files.filter(f=>f.file.endsWith(`/${command.name}/SKILL.md`)).every(f=>f.text.endsWith(body)));assert.match(body,/Loading or discovering this skill is not authorization/);}
- assert.throws(()=>installCommands({root,agent:'../../bad'}),/Unknown agent/);ok('CLI preview, 24 adapters, shared content, special-character roots and repeat no-op');
+ assert.throws(()=>installCommands({root,agent:'../../bad'}),/Unknown agent/);ok('CLI preview, all adapters and concise bilingual Codex menu files, shared content, special-character roots and repeat no-op');
  // Real filesystem/CLI exercises use a disposable home, never the user's configuration.
  const fakeHome=project('scope-home'),customClaude=project('scope-claude'),customCodex=project('scope-codex'),customGemini=project('scope-gemini');
  const scopeEnv={HOME:fakeHome,USERPROFILE:fakeHome,CLAUDE_CONFIG_DIR:customClaude,CODEX_HOME:customCodex,GEMINI_CLI_HOME:customGemini,ProgramFiles:path.join(temp,'scope-programs'),PROGRAMDATA:path.join(temp,'scope-data')};
@@ -77,10 +79,24 @@ try{
  const link=path.join(temp,'linked-root');fs.symlinkSync(root,link,process.platform==='win32'?'junction':'dir');assert.throws(()=>installCommands({root:link,yes:true}),/non-linked/);ok('conflicts, upgrade lock, file collision and junctions stop before writes');
  const partial=project('interrupted'),originalWrite=fs.writeFileSync;let writes=0;
  try{fs.writeFileSync=function(...args){if(args[2]?.flag==='wx'&&++writes===4)throw Error('simulated device failure');return originalWrite.apply(this,args);};assert.throws(()=>installCommands({root:partial,yes:true}),/interrupted after 3 files/);}finally{fs.writeFileSync=originalWrite;}
- const partialPreview=installCommands({root:partial});assert.equal(partialPreview.plan.filter(p=>p.action==='keep').length,3);assert.equal(installCommands({root:partial,yes:true}).written.length,21);assert.deepEqual(snapshot(partial),snapshot(root));ok('interrupted setup resumes remaining files without replacing completed files');
+ const partialPreview=installCommands({root:partial});assert.equal(partialPreview.plan.filter(p=>p.action==='keep').length,3);assert.equal(installCommands({root:partial,yes:true}).written.length,files.length-3);assert.deepEqual(snapshot(partial),snapshot(root));ok('interrupted setup resumes remaining files without replacing completed files');
  await assert.rejects(run(process.execPath,[cli,'commands','--root'],options),e=>e.stderr.includes('missing or duplicate value for --root'));
  await assert.rejects(run(process.execPath,[cli,'commands','--agent'],options),e=>e.stderr.includes('--agent requires'));
  const missing=path.join(temp,'missing');fs.mkdirSync(missing);await assert.rejects(openProgress({root:missing,version,openBrowser:false}),/SESSION_HANDOFF/);await assert.rejects(openProgress({root:locked,version,openBrowser:false}),/lock/);
+ // Exercise the INSTALLED launcher with no npm executable, invalid cache and offline registry.
+ const installedLaunch=path.join(root,'dev/handoff-kit/launch.mjs'),cacheFile=path.join(temp,'not-a-cache');fs.writeFileSync(cacheFile,'preserve');
+ const beforeLocal=snapshot(root),offline={...options,env:{...options.env,PATH:'',npm_config_cache:cacheFile,npm_config_registry:'http://127.0.0.1:1',npm_config_offline:'true'}};
+ const launched=JSON.parse((await run(process.execPath,[installedLaunch,'--root',root,'--no-open'],offline)).stdout);if(launched.pid)ownedPids.add(launched.pid);
+ assert.equal((await fetch(launched.url)).status,200);assert.match(await(await fetch(launched.url)).text(),/Agent Handoff Kit/);
+ const logo=Buffer.from(await(await fetch(launched.url+'/agent-handoff-kit-logo2-256.png')).arrayBuffer());assert.deepEqual(logo,fs.readFileSync(path.join(source,'bin/progress/agent-handoff-kit-logo2-256.png')));
+ const localAgain=JSON.parse((await run(process.execPath,[installedLaunch,'--root',root,'--no-open'],offline)).stdout);assert.equal(localAgain.url,launched.url);assert.equal(localAgain.reused,true);
+ if(process.platform==='win32'){const alias=JSON.parse((await run(process.execPath,[installedLaunch,'--root',root.toLowerCase(),'--no-open'],offline)).stdout);assert.equal(alias.url,launched.url);assert.equal(alias.reused,true);}
+ assert.deepEqual(snapshot(root),beforeLocal);assert.equal(fs.readFileSync(cacheFile,'utf8'),'preserve');
+ await assert.rejects(run(process.execPath,[installedLaunch,'--root',outside,'--no-open'],offline),e=>e.stderr.includes('different project'));
+ fs.mkdirSync(path.join(root,'dev/governance_migrations'),{recursive:true});fs.writeFileSync(path.join(root,'dev/governance_migrations/.upgrade.lock'),'test');
+ await assert.rejects(run(process.execPath,[installedLaunch,'--root',root,'--no-open'],offline),e=>e.stderr.includes('Upgrade lock'));fs.unlinkSync(path.join(root,'dev/governance_migrations/.upgrade.lock'));fs.rmdirSync(path.join(root,'dev/governance_migrations'));
+ process.kill(launched.pid);ownedPids.delete(launched.pid);for(let i=0;i<30&&await probeProgress(Number(new URL(launched.url).port));i++)await new Promise(r=>setTimeout(r,100));
+ ok('installed offline launcher opens/reuses without npm/cache writes; exact image bytes, project binding and upgrade lock verified');
  const first=await openProgress({root,version,openBrowser:false});if(first.pid)ownedPids.add(first.pid);assert.equal(first.reused,false);
  const again=await openProgress({root,version,openBrowser:false});assert.equal(again.url,first.url);assert.equal(again.reused,true);
  const identity=await(await fetch(first.url+'/api/identity')).json();assert.deepEqual(identity,progressIdentity(root,version));assert.equal(JSON.stringify(identity).includes(root),false);

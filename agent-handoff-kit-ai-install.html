@@ -3,46 +3,44 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Agent Handoff Kit — AI 安裝指令頁</title>
-  <meta name="description" content="給 agentic AI 讀取的 Agent Handoff Kit 安裝與升級指令頁。用戶只需請 AI 讀本頁，AI 便可在目前資料夾安全判斷 init、upgrade 或 doctor。" />
+  <title>Agent Handoff Kit — 把安裝交給 AI</title>
+  <meta name="description" content="用所有專案快捷入口開工、收工、看進度、記住要求及更新這套工具。不用懂程式，也不用自己維護交接文件。" />
   <link rel="canonical" href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html" />
   <meta name="robots" content="index,follow" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Agent Handoff Kit — AI 安裝指令頁" />
-  <meta property="og:description" content="給 agentic AI 讀取的 Agent Handoff Kit 安裝與升級指令頁。" />
+  <meta property="og:title" content="Agent Handoff Kit — 把安裝交給 AI" />
+  <meta property="og:description" content="用所有專案快捷入口開工、收工、看進度、記住要求及更新這套工具。不用懂程式，也不用自己維護交接文件。" />
   <meta property="og:url" content="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html" />
   <meta property="og:site_name" content="Agent Handoff Kit" />
   <meta property="og:image" content="https://adamchanadam.github.io/agent-handoff-kit/images/agent-handoff-kit-main-visual2.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Agent Handoff Kit — AI 安裝指令頁" />
-  <meta name="twitter:description" content="給 agentic AI 讀取的 Agent Handoff Kit 安裝與升級指令頁。" />
+  <meta name="twitter:title" content="Agent Handoff Kit — 把安裝交給 AI" />
+  <meta name="twitter:description" content="用所有專案快捷入口開工、收工、看進度、記住要求及更新這套工具。不用懂程式，也不用自己維護交接文件。" />
   <meta name="twitter:image" content="https://adamchanadam.github.io/agent-handoff-kit/images/agent-handoff-kit-main-visual2.png" />
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "HowTo",
-    "name": "安裝或升級 Agent Handoff Kit",
-    "description": "請能讀寫本機資料夾的 AI 讀取本頁，讓 AI 安全判斷 init、upgrade 或 doctor。",
-    "url": "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html",
-    "step": [
-      {
-        "@type": "HowToStep",
-        "name": "請 AI 讀取安裝頁",
-        "text": "在目標資料夾打開能讀寫本機資料夾的 AI，請它讀取本頁。"
-      },
-      {
-        "@type": "HowToStep",
-        "name": "確認目前資料夾",
-        "text": "AI 必須先顯示目前資料夾並請用戶確認。"
-      },
-      {
-        "@type": "HowToStep",
-        "name": "安裝、升級或檢查",
-        "text": "AI 按資料夾狀態判斷 fresh install、upgrade dry-run、正式 upgrade、conflict stop 或 doctor。"
-      }
-    ]
-  }
-  </script>
+  <script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "Agent Handoff Kit — 把安裝交給 AI",
+  "description": "用所有專案快捷入口開工、收工、看進度、記住要求及更新這套工具。不用懂程式，也不用自己維護交接文件。",
+  "url": "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html",
+  "step": [
+    {
+      "@type": "HowToStep",
+      "name": "請 AI 讀取安裝頁",
+      "text": "在目標資料夾打開能讀寫本機資料夾的 AI，請它讀取本頁。"
+    },
+    {
+      "@type": "HowToStep",
+      "name": "確認目前資料夾",
+      "text": "AI 必須先顯示目前資料夾並請用戶確認。"
+    },
+    {
+      "@type": "HowToStep",
+      "name": "安裝、升級或檢查",
+      "text": "AI 按資料夾狀態判斷 fresh install、upgrade dry-run、正式 upgrade、conflict stop 或 doctor。"
+    }
+  ]
+}</script>
   <style>
     :root {
       --ink: #0a0a0a;
@@ -185,123 +183,35 @@
       header { padding-top: 44px; }
     }
   </style>
+
+<style>
+/* Command reading path; uses the existing brand palette and artwork. */
+.kit-body .kit-wrap{width:min(1080px,calc(100% - 40px));margin:auto}.kit-body main{display:block}.kit-body .kit-section{padding:56px 0;border-top:2px solid #181b22}.kit-body .kit-section h2{font-size:clamp(27px,4vw,42px);line-height:1.25;margin:0 0 20px}.kit-body p,.kit-body li{line-height:1.85}.kit-body .kit-lead{font-size:clamp(18px,2vw,22px);max-width:760px}.kit-body .kit-note{font-size:14px;color:#525660;line-height:1.7}.kit-body .kit-nav{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:18px 0;flex-wrap:wrap}.kit-brand{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none;font-weight:700}.kit-brand img{width:42px;height:42px}.kit-nav-links{display:flex;gap:18px;flex-wrap:wrap}.kit-body .kit-hero{padding:58px 0;border:0}.kit-hero-inner{display:grid;grid-template-columns:1.2fr 1fr;gap:32px;align-items:center}.kit-body .kit-hero h1{font-size:clamp(38px,6vw,76px);line-height:1.16;margin:14px 0 22px}.kit-body .kit-hero img{width:100%;max-height:400px;object-fit:contain}.kit-body .kit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.kit-body .kit-card{background:#fffdf8;border:2px solid #202329;border-radius:18px;padding:24px;min-width:0;box-shadow:0 14px 30px #48403510;position:relative}.kit-body .kit-card:nth-child(3n+1){border-top:7px solid #e63946}.kit-body .kit-card:nth-child(3n+2){border-top:7px solid #2e5bff}.kit-body .kit-card:nth-child(3n){border-top:7px solid #06a77d}.kit-body .kit-card h3{font-size:23px;margin:4px 0 14px}.kit-body .kit-card p{margin:10px 0}.kit-body .kit-card code{font-size:13px;overflow-wrap:anywhere}.kit-body .kit-command-line{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px;background:#efeae0;border-radius:10px;margin:16px 0}.kit-body .kit-command-line code{font-size:14px;overflow-wrap:anywhere}.kit-body button,.kit-body select{font:inherit;font-size:14px;min-height:40px;padding:8px 13px;border:2px solid #181b22;border-radius:10px;background:linear-gradient(145deg,#fffefa,#eee8db);box-shadow:inset 0 1px 0 #ffffff,0 4px 12px #49351d15;color:#181b22;cursor:pointer}.kit-body button:hover{background:#ffd60a}.kit-body :focus-visible{outline:3px solid #2e5bff;outline-offset:4px}.kit-body .kit-tool{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:22px 0}.kit-body .kit-actions{display:flex;gap:14px;flex-wrap:wrap;margin-top:26px}.kit-body .kit-link{display:inline-block;padding:12px 20px;border:2px solid #181b22;border-radius:12px;background:#ffd60a;color:#181b22;text-decoration:none;font-weight:700;box-shadow:0 6px 16px #ba921326}.kit-body .kit-link.secondary{background:#fffdf8}.kit-body .kit-prompt{white-space:pre-wrap;overflow-wrap:anywhere;font:15px/1.7 Consolas,monospace;color:#161a20;background:#eee9df;border:0;border-radius:12px;padding:20px;max-width:100%}.kit-body .kit-screen{display:block;width:100%;border:2px solid #181b22;border-radius:16px;margin:24px 0 12px}.kit-body .kit-faq{border-bottom:1px solid #cfc8bb;padding:18px 0}.kit-body .kit-faq summary{font-size:18px;font-weight:700;cursor:pointer}.kit-body .kit-faq p{max-width:860px}.kit-body footer{padding:28px 0;background:#efeae0;color:#181b22;border-top:2px solid #181b22}.kit-body footer a{color:inherit}.kit-body .kit-alert{padding:13px 18px;border-left:4px solid #2e5bff;background:#ebeef7}.kit-body section[id],.kit-body article[id]{scroll-margin-top:24px}.kit-body .kit-install-details{padding:25px;border:2px solid #181b22;border-radius:16px}.kit-body .kit-install-details>summary{font-size:22px;font-weight:700;cursor:pointer}.kit-body .kit-install-details h3{margin-top:34px}.kit-body .kit-status{font-size:14px;min-height:24px}.kit-body .kit-video{aspect-ratio:16/9;width:100%;border:2px solid #181b22;border-radius:16px}.kit-body .kit-steps{padding-left:24px}.kit-body .kit-steps li{padding:6px 0}.kit-body .kit-long{max-width:850px}.kit-body .kit-screen-link{display:block}.kit-body .kit-mini{font-size:13px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+@media(max-width:820px){.kit-body .kit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kit-hero-inner{grid-template-columns:1fr}.kit-body .kit-hero img{max-height:260px}.kit-body .kit-hero{padding:32px 0}}
+@media(max-width:560px){.kit-body .kit-grid{grid-template-columns:1fr}.kit-body .kit-section{padding:36px 0}.kit-body .kit-card{padding:20px}.kit-body .kit-wrap{width:calc(100% - 32px)}.kit-body .kit-nav-links{gap:12px;font-size:14px}.kit-body .kit-command-line{gap:8px}.kit-body .kit-install-details{padding:16px}}
+</style>
+<link rel="stylesheet" href="agent-handoff-kit-docs.css?v=824948b224"/>
 </head>
-<body>
-  <div class="stripe"><div></div><div></div><div></div></div>
-
-  <header>
-    <div class="wrap">
-      <span class="kicker">AI-readable install page · v0.4.0</span>
-      <p style="margin:0 0 18px;"><a href="agent-handoff-kit-ai-install.en.html" lang="en">English version</a></p>
-      <h1>給 AI 讀的<br/>安裝與升級指令</h1>
-      <p class="lead">本頁給能讀寫本機資料夾、可執行終端機命令的 agentic AI 使用。用戶不用先理解 npm 或選擇指令；AI 讀完本頁後，應在目前資料夾安全判斷要安裝、升級或停止。</p>
-      <p><strong>版本提示：</strong>本頁對齊 v0.4.0；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
-
-      <div class="prompt-box">
-        <h2>用戶只需貼這一句</h2>
-        <pre>請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html ，並在這個資料夾安裝或升級 Agent Handoff Kit。</pre>
-      </div>
-
-      <div class="ok">
-        <h2>AI 完成後必須回覆這份報告</h2>
-        <p>執行任何 `npx` 命令前，先記住本段。安裝或升級完成後，AI 不可只說「完成」或只貼終端機輸出；必須用以下格式向用戶交代結果和下一步。</p>
-        <p><strong>完成報告範本：</strong>✅ 安裝完成。📁 目前資料夾：&lt;絕對路徑&gt;。🩺 `doctor` 已通過。⚠️ 下一步不是終端機指令；請在能讀寫此資料夾的 AI 對話輸入 `Start Agent Handoff` 或「開工」。若 AI 還未指向此資料夾，才使用：`Work in &lt;絕對路徑&gt;. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.`</p>
-      </div>
-    </div>
-  </header>
-
-  <section>
-    <div class="wrap">
-      <h2>AI 必須先確認目前資料夾</h2>
-      <ol>
-        <li>顯示目前工作資料夾的絕對路徑。</li>
-        <li>問用戶：「這是否就是要安裝或升級 Agent Handoff Kit 的資料夾？」</li>
-        <li>未能確認時停止，不執行 `init`、`upgrade` 或 `doctor`。</li>
-        <li>確認後才檢查本資料夾是否已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`START_NEXT_SESSION_PROMPT.txt` 或 `dev/`。</li>
-      </ol>
-      <div class="stop">
-        <strong>安全邊界：</strong>
-        不刪除、不覆寫衝突、不處理 credential、不執行 git commit、不執行 git push、不執行 git tag、不執行 npm publish、不建立 GitHub Release。
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="wrap">
-      <h2>判斷安裝方式</h2>
-      <div class="grid">
-        <div class="card">
-          <h3>情況一：完全未安裝</h3>
-          <p>如果沒有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`START_NEXT_SESSION_PROMPT.txt`、`dev/`，使用 fresh install。</p>
-          <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest init --yes --root .</pre></div>
-        </div>
-        <div class="card">
-          <h3>情況二：已有 Kit 或 AI 記憶檔</h3>
-          <p>如果已有任何 Kit 檔案或既有 AI 記憶檔，先預演升級，不直接覆寫。</p>
-          <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run --root .</pre></div>
-        </div>
-      </div>
-
-      <div class="ok">
-        <strong>預演無衝突時：</strong>
-        才執行正式升級。
-        <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes --root .</pre></div>
-      </div>
-
-      <div class="stop">
-        <strong>預演有 conflict 時：</strong>
-        停止並保持零寫入。用戶不用判斷技術差異，也不用選 npm 指令；能讀寫此資料夾的 AI 要讀 CLI 輸出、衝突檔與正式來源，先取得用戶授權，再把本地有價值的內容與新版 Kit 要求合併。未知本地 hash 只證明內容存在且未被偷換，不代表 Kit 可以理解或覆寫。合併後重新跑 `upgrade --dry-run`，再用 `doctor` 與 hash 讀回驗收；只有能證明是 Kit 誤判未改動的正式舊檔時，才把版本、來源與 hash 證據回報 Kit maintainer。不要用重裝或整檔覆寫繞過 conflict。
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="wrap">
-      <h2>完成後驗收</h2>
-      <p>本版亦補強日常規則寫入邊界。之後用戶要求加入長期規則時，依已安裝的 <code>dev/rules/agent-governance.md</code> 中 <code>Governance Write Boundary</code> 查找既有可寫位置、保護官方正文並核對讀取路徑。這不會自動整理先前混入正文的本地規則；遇到這類衝突，仍按上面的授權合併流程處理。</p>
-      <p>升級結果與整個項目的健康狀態要分開報告。版本號更新本身不是完成證據。原有交接內容會保留，AI 應在下一次正式收工時按新版規則核對整體目標、子任務、續接點與真源閱讀缺口，不得在升級時猜補工作狀態。</p>
-      <ol>
-        <li>先讀回同次操作的根目錄、CLI 版本、完整終態及健康結果。只有程序以成功退出碼結束、安裝完成或升級已提交（或確定無需更新）、沒有未完成交易、健康結果明示通過，而且其後沒有相關檔案變更或不明狀態時，才直接採用同次 <code>doctor</code> 結果，不再執行一次；所有提醒仍須保留。不能只憑版本號、畫面中的「成功」或舊對話紀錄判斷。</li>
-        <li>若操作失敗、中斷、輸出不完整或其後改過相關檔案，不採用先前的通過結果。存在未完成升級交易時，先按 CLI 指引執行 <code>upgrade --yes --root .</code> 恢復，再核對完整終態；不要刪鎖，也不要用單獨 <code>doctor</code> 取代恢復。沒有未完成交易而仍缺乏有效健康結果，或用戶另行要求檢查時，才重新執行以下命令。</li>
-      </ol>
-      <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .</pre></div>
-      <p>同次健康結果只證明該次本地檢查，不代表重新查過 npm 最新版。需要宣稱版本最新時，仍須核對 npm registry 與實際 CLI／安裝版本；預演通過也不能代替正式安裝或升級完成。此規則不取消正式收工或獨立驗收另有要求的檢查。</p>
-      <ol start="3">
-        <li>若 `doctor` 通過，讀 `AGENTS.md`，再按 `Start Agent Handoff` 的開工流程接上本資料夾。</li>
-        <li>若 `doctor` 失敗，停止並向用戶列出失敗項；不要重裝覆寫。</li>
-        <li>若 `doctor` 只提示 `START_NEXT_SESSION_PROMPT.txt` 便利副本落後，說明它會在正式收工時重新產生；不要因此重裝。</li>
-      </ol>
-    </div>
-  </section>
-
-  <section>
-    <div class="wrap">
-      <h2>啟用本專案常用快捷入口</h2>
-      <p>已授權的 Kit 安裝或升級通過以上驗收後，把專案內快捷入口一併啟用。先預覽，無衝突才繼續：</p>
-      <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest commands --root . --dry-run</pre></div>
-      <div class="code"><pre>npx --yes @adamchanadam/agent-handoff-kit@latest commands --root . --yes</pre></div>
-      <p>預設支援 Claude Code、Gemini CLI、Codex 及 Antigravity CLI；只有用戶指定單一平台時才用 <code>--agent</code>。缺少的入口會建立，相同內容保持不動；同名內容不同時零寫入停止，不可覆寫。中斷會保留已完成入口，重新預覽即可找出未完成部分。不修改全機設定或官方規則正文。</p>
-      <p>快捷入口啟用結果須與 Kit 健康狀態分開報告，讀回 <code>ready</code> 後才能說已啟用。Claude／Gemini／Antigravity 用 <code>/handoff-kit-help</code>；Codex 用 <code>$handoff-kit-help</code> 或 <code>/skills</code>。未看到入口便重新開啟專案對話；Gemini 可用 <code>/commands reload</code>。詳見<a href="https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/commands.md">常用快捷入口</a>。</p>
-      <h2>AI 回覆格式</h2>
-      <p>本段是頁頂完成報告契約的檢查清單。執行完後，AI 不可只說「完成」或只貼終端機輸出。必須用簡短中文向用戶交代結果和下一步。</p>
-      <ul>
-        <li>✅ 結果：安裝完成、升級完成，或因 conflict 停止。</li>
-        <li>📁 目前資料夾：顯示已確認的絕對路徑。</li>
-        <li>🩺 健康檢查：說明 `doctor` 是通過、失敗，還是只提示便利副本落後。</li>
-        <li>⚠️ 下一步不是終端機指令：`Start Agent Handoff` /「開工」要輸入到能讀寫此資料夾的 AI 對話。</li>
-        <li>🚀 下一步：若 AI 已在此資料夾內，請用戶輸入 `Start Agent Handoff` 或「開工」；若 AI 還未指向資料夾，才提供帶路徑啟動句。</li>
-      </ul>
-      <div class="ok">
-        <strong>完成報告範本：</strong>
-        <p>✅ 安裝完成。📁 目前資料夾：&lt;絕對路徑&gt;。🩺 `doctor` 已通過。下一步不要留在終端機；請在能讀寫此資料夾的 AI 對話輸入 `Start Agent Handoff` 或「開工」。若 AI 還未指向此資料夾，才使用：`Work in &lt;絕對路徑&gt;. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.`</p>
-      </div>
-    </div>
-  </section>
-
-  <footer>
-    <div class="wrap">
-      Agent Handoff Kit · AI install page · <a href="https://github.com/Adamchanadam/agent-handoff-kit">GitHub README</a>
-    </div>
-  </footer>
-</body>
+<body class="kit-body"><div class="top-banner stripe" aria-hidden="true"><div></div><div></div><div></div></div><div class="kit-wrap"><nav class="kit-nav" aria-label="主要導覽"><a class="kit-brand" href="agent-handoff-kit-intro.html"><img src="images/agent-handoff-kit-logo2-256.png" alt="Agent Handoff Kit logo" width="42" height="42"/>Agent Handoff Kit</a><div class="kit-nav-links"><a href="agent-handoff-kit-guide.html#commands">常用指令</a><a href="agent-handoff-kit-ai-install.html">安裝</a><a href="agent-handoff-kit-ai-install.en.html" lang="en">English</a></div></nav></div><main><header class="kit-hero"><div class="kit-wrap"><span class="kit-mini">Agent Handoff Kit · v0.4.1</span><h1>把安裝交給 AI。</h1><p class="kit-lead">你只需選對專案資料夾，再貼一句話。</p><p class="kit-note">這份說明包含尚未發布的更新；正式下載可用的功能，以已發布版本為準。</p></div></header><section class="kit-section" id="setup"><div class="kit-wrap"><h2>複製這句，貼到 AI 對話。</h2><p>在要工作的專案資料夾打開 AI，把下面一句貼進對話。AI 會先確認資料夾，再安裝或升級及檢查，你不用選指令。</p><pre class="kit-prompt" id="install-request">請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html ，並在這個資料夾安裝或升級 Agent Handoff Kit。</pre><button type="button" data-copy="install-request">複製安裝句</button><p class="kit-status" data-copy-status role="status" aria-live="polite"></p><p class="kit-note">需要能讀寫專案資料夾的 AI 工具及 Node.js 18 以上。普通網頁聊天若不能存取資料夾便不適用；不確定時先請 AI 檢查。已有舊版或 AI 工作文件也用同一句。</p></div></section><section class="kit-section" id="after-setup"><div class="kit-wrap"><h2>完成後，從指令開始。</h2><p>常用指令隨安裝或升級放好，不用額外啟用。第一次學用 handoff-kit-onboard；已有工作要接續用 handoff-kit-start。</p><a class="kit-link" href="agent-handoff-kit-guide.html#commands">常用指令使用指南 →</a></div></section><section class="kit-section" id="ai-instructions"><div class="kit-wrap"><h2>以下交給 AI 讀。</h2><details class="kit-install-details"><summary>AI 安裝步驟與檢查</summary><p>以下交給 AI 執行。用戶只需確認目標資料夾，不用自行選擇安裝指令。</p>
+<h3>執行前先讀：完成後怎樣回覆</h3><p>用簡短中文交代：安裝／升級是否完成、已確認的資料夾、檢查結果及提醒、快捷入口狀態，以及一個下一步。doctor 失敗便列出失敗項，不能重裝覆蓋；若只有 START_NEXT_SESSION_PROMPT.txt 提示副本落後，說明正式收工時會更新，不為此重裝。</p>
+<p>完成後讓用戶在本專案的 AI 對話使用 handoff-kit-onboard（首次學習）或 handoff-kit-start（接回工作），不是在終端機輸入。Claude Code、Gemini CLI、Antigravity CLI 用 /；Codex 用 $ 或 /skills。未顯示選單時，重新開啟專案對話，Gemini 也可 /commands reload。已安裝不代表原生選單及呼叫已驗證，須如實區分。不要因安裝完成就自行開始已保存的任務。</p><h3>1. 確認資料夾</h3><p>顯示目前資料夾的絕對路徑，請用戶確認是否在這裏安裝或升級。未確認前，不執行 init、upgrade 或 doctor。確認後，先檢查是否有未完成升級，再檢查現有交接工具或 AI 工作文件。</p>
+<p>只處理本專案，不安裝到共用設定。不刪除、不覆寫衝突、不接觸登入憑證；不執行 git commit、git push、git tag、npm publish，也不建立 GitHub Release。</p>
+<h3>2. 安裝、升級或恢復</h3><p>若完全沒有 AGENTS.md、CLAUDE.md、GEMINI.md、START_NEXT_SESSION_PROMPT.txt 或 dev/，執行：</p><pre class="kit-prompt">npx --yes @adamchanadam/agent-handoff-kit@latest init --yes --root .</pre>
+<p>若已有任何交接工具或 AI 工作文件，先預演：</p><pre class="kit-prompt">npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run --root .</pre>
+<p>預演無衝突，才執行：</p><pre class="kit-prompt">npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes --root .</pre>
+<p>若有衝突（conflict），新計畫保持零寫入並停止。AI 應讀取衝突檔案及官方版本，提出保留用戶內容的合併方式，取得具體授權後才修改。內容不明不能當作可覆寫；檔案雜湊只可核對內容有沒有改變，不能判斷內容可否丟棄。合併後重新預演、完成適用的升級，再檢查及讀回內容。不得靠重裝或整檔覆寫繞過衝突；若能證明是未改過的舊官方檔被誤判，向維護者提供版本、來源和雜湊證據。</p>
+<p>若已有未完成升級，先按工具指示，用 upgrade --yes --root . 恢復；不能手動刪鎖，也不能以單獨 doctor 取代恢復。首次安裝中斷則重新執行安裝，補齊缺少部分。部分成功不能當作全部完成。</p>
+<h3>3. 確認結果</h3><p>讀回同次操作的根目錄、CLI 版本、完整終態及健康結果。只有程序成功退出、安裝完成或升級已提交（或確定無需更新）、沒有未完成交易、健康結果明示通過，且其後沒有相關檔案變更或不明狀態，才可沿用同次 doctor 結果，不必重跑。保留所有提醒；不能只憑版本號或一句「成功」判定。</p>
+<p>操作失敗、中斷、輸出不完整或相關檔案其後有變動時，舊結果無效。先恢復未完成升級；沒有待恢復升級但仍缺有效健康結果，或用戶另行要求檢查時，才執行：</p><pre class="kit-prompt">npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .</pre>
+<p>同次健康檢查不等於再次核對 npm 最新版；要說「已是最新版」，須核對 npm registry、實際 CLI 與安裝版本。預演通過不代替真正完成。正式收工及獨立驗收的另有要求仍適用。</p>
+<p>init／upgrade 會在同一次操作安裝及檢查所有專案快捷入口，包括 Codex 的中英文短說明；無須另外啟用。缺漏不能報成功，同版本升級也可補齊。相同內容不改，能確認是未改過的舊官方入口才安全更新；自訂或來源不明的同名內容須停止並保留。</p>
+<p>不要為升級猜補工作進度。保留原有交接；下一次正式收工再按已安裝規則整理。新增長期要求時，依已安裝的 dev/rules/agent-governance.md 中 Governance Write Boundary 找合適位置，保護官方正文；舊有混入正文的自訂內容仍按衝突合併處理。</p>
+</details></div></section></main><footer><div class="kit-wrap"><strong>Agent Handoff Kit</strong><p><a href="https://github.com/Adamchanadam/agent-handoff-kit">GitHub</a> · <a href="https://www.npmjs.com/package/@adamchanadam/agent-handoff-kit">npm</a> · <a href="agent-handoff-kit-intro.html">介紹</a> · <a href="agent-handoff-kit-guide.html">指南</a></p><p class="kit-note">v0.4.1 · MIT License · Adam Chan</p></div></footer><script>
+const picker=document.querySelector('[data-tool-picker]');
+const lang=document.documentElement.lang==='en'?'en':'zh';
+const status=document.querySelector('[data-copy-status]');
+function updateCommands(){const prefix=picker?.value==='codex'?'$':'/';document.querySelectorAll('[data-command]').forEach(el=>{el.textContent=prefix+'handoff-kit-'+el.dataset.command+(el.dataset.suffix?' '+el.dataset.suffix:'');});}
+picker?.addEventListener('change',updateCommands);updateCommands();
+document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{const el=document.getElementById(button.dataset.copy);try{await navigator.clipboard.writeText(el.textContent);button.textContent=lang==='en'?'Copied':'已複製';status.textContent=lang==='en'?'Copied. Paste it into your project’s AI conversation.':'已複製，貼到專案的 AI 對話即可。';}catch{const range=document.createRange();range.selectNodeContents(el);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);button.textContent=lang==='en'?'Select & copy':'請手動複製';status.textContent=lang==='en'?'Copy was unavailable. The text is selected; copy it manually.':'未能自動複製，已選取文字，請手動複製。';}}));
+</script></body>
 </html>

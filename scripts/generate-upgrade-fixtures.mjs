@@ -28,7 +28,7 @@ const catalogPath = path.join(root, "bin", "migration-baselines", "official-orig
 const npmCache = path.join(tmpdir(), "agent-handoff-kit-official-catalog-npm-cache");
 const retainedFixtureFiles = new Set(["AGENTS.md", "dev/PROJECT_INDEX.md"]);
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
 
 function main() {
   const npmVersions = readNpmVersions();
@@ -48,7 +48,8 @@ function main() {
     sourcePolicy: "npm published package; remote Git tag and public GitHub Release cross-checked",
     installedTargets: installedFileContracts.map(({ targetRel, strategy }) => ({ targetRel, strategy })),
     releases: {},
-    contents: {}
+    contents: {},
+    generatedShortcuts: previousCatalog?.generatedShortcuts ?? {}
   };
 
   try {
@@ -82,6 +83,8 @@ function generateVersion({ version, workspace, downloadsDir, remoteTags, release
   extractPackage(path.join(downloadsDir, packMetadata.filename), extractDir);
   const packageRoot = path.join(extractDir, "package");
   runCliInit(packageRoot, initRoot, version);
+  const shortcuts=collectOfficialShortcuts({packageRoot,tarballPath:path.join(downloadsDir,packMetadata.filename),version,npmIdentity:packMetadata});
+  if(shortcuts)catalog.generatedShortcuts[version]=shortcuts;
 
   rmSync(fixtureDir, { recursive: true, force: true });
   mkdirSync(fixtureDir, { recursive: true });
@@ -362,4 +365,18 @@ function writeFixtureReadme(versions) {
     ].join("\n"),
     "utf8"
   );
+}
+
+// Use the retrieved artifact's own generator, not today's content or path names.
+export function collectOfficialShortcuts({packageRoot,tarballPath,version,npmIdentity}) {
+  const generator=path.join(packageRoot,'bin/commands.mjs');
+  if(!existsSync(generator))return null;
+  const artifact=readFileSync(tarballPath);
+  if(createHash('sha1').update(artifact).digest('hex')!==npmIdentity.shasum || 'sha512-'+createHash('sha512').update(artifact).digest('base64')!==npmIdentity.integrity)throw Error('shortcut artifact npm identity mismatch');
+  const code="import {pathToFileURL} from 'node:url';import {createHash} from 'node:crypto';const m=await import(pathToFileURL(process.argv[1]));process.stdout.write(JSON.stringify(m.commandFiles().map(f=>({file:f.file,sha256:createHash('sha256').update(f.text).digest('hex')}))));";
+  const result=spawnSync(process.execPath,['--input-type=module','-e',code,generator],{cwd:packageRoot,encoding:'utf8',windowsHide:true,timeout:30000,maxBuffer:1024*1024});
+  if(result.error||result.status!==0)throw Error('published shortcut generator failed');
+  const files=JSON.parse(result.stdout);
+  if(!Array.isArray(files)||!files.length||new Set(files.map(x=>x.file)).size!==files.length||files.some(f=>typeof f.file!=='string'||!/^[a-f0-9]{64}$/.test(f.sha256)))throw Error('invalid published shortcut outputs');
+  return{npm:{spec:packageName+'@'+version,shasum:npmIdentity.shasum,integrity:npmIdentity.integrity,tarballSha256:createHash('sha256').update(artifact).digest('hex')},generatorSha256:createHash('sha256').update(readFileSync(generator)).digest('hex'),files:Object.fromEntries(files.map(f=>[f.file,f.sha256]))};
 }

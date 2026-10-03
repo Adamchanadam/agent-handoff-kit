@@ -1,246 +1,77 @@
 # Agent Handoff Kit
 
-[繁體中文](README.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
+[繁體中文](README.md) · [Introduction](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Command guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html)
 
-Source package version: `v0.4.0`. npm `@latest` and GitHub Release are verified by post-publish readback.
+**Your session relay baton.** Help the next AI conversation pick up your work: keep progress, key decisions, file locations and unfinished tasks.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit overview animation" width="720">
-</p>
+Code version covered: `v0.4.1`. This guide includes updates that have not been released yet. Features available to download depend on the published version.
 
-Agent Handoff Kit is a **handoff baton between AI conversations**.
+[![Agent Handoff Kit introduction video](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif)](https://youtu.be/RopbfBiSw1I)
 
-It solves one narrow but important problem: AI conversations forget. A new conversation may not know where the last one stopped, which new files or reference sources matter, what is safe to change, or which document is authoritative. The kit keeps the current state, next action, risks, file routes, and the next-session prompt in the project so the next local AI can continue honestly.
+## How this tool helps your project
 
-📌 You describe the outcome you want. An AI that can read and write the local folder confirms the folder, decides whether to install or upgrade, runs the technical checks, and explains the result. You do not need to learn npm commands or diagnose file conflicts.
+- **Carry work between conversations**: save goals, your corrections, important decisions, completed work and outstanding items, so you do not retell everything. Supported tools can reuse saved content in the same project.
+- **Keep important files connected**: record what files are for, when to read them and what related content needs updating, reducing missing material and wrong-version use.
+- **Keep a useful long-term record**: preserve important choices and reasons so you can ask “Why did we do this?” later. Older records are organized and archived as needed, without rereading everything every time.
+- **Adapt to the task**: writing checks audience and tone; research checks sources; coding reads files and tests results; cloud document work checks permissions. You do not select the rules yourself.
+- **Keep future working requirements**: save the preferences you explicitly want followed in this project for relevant work next time, beyond the current chat.
+- **Handle tools and data carefully**: check important actions and obtain required approval, keep secrets out of records, and close only temporary processes confirmed to belong to this task.
 
-## 🚀 Start in three steps
+The commands are entry points to these functions. The dashboard brings saved progress, history and file connections into view. The tool is not a cloud sync tool and does not automatically carry unsaved chats between tools.
 
-For a first use, do not start by reading every technical detail. Do these three things:
+## First time here
 
-1. Open a local AI agent in the folder where you want to use Agent Handoff Kit and send:
+1. Open your project folder in your AI tool and paste the sentence below into the conversation.
+2. The AI confirms the folder, installs or upgrades the tool, then checks the result. You do not have to choose installation commands.
+3. Once it is ready, use `handoff-kit-onboard` for guidance or `handoff-kit-start` to pick up your work.
 
-   ```text
-   Read https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html and install or upgrade Agent Handoff Kit in this folder.
-   ```
+```text
+Read https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html and install or upgrade Agent Handoff Kit in this project folder.
+```
 
-   You can also open the [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html) first to see the procedure the AI must follow.
+Use the same sentence if you have an older version, existing AI work files, or are unsure whether setup is complete. You need an AI tool that can read and write your project folder, plus Node.js 18 or later. Ordinary web chat without folder access is not supported; the AI can check your setup first.
 
-2. When installation finishes, say `Start Agent Handoff` or `開工` to the AI.
-3. When you are genuinely ending this work session, say `wrap up` or `收工`.
+## Useful commands, as you need them
 
-You do not decide whether the folder needs an install, upgrade, health check, or a safe stop. The AI must show the folder it sees, explain risk and the next action, and ask when your confirmation is needed.
+Enter shortcuts in your project’s AI conversation, not in the terminal. Claude Code, Gemini CLI and Antigravity CLI use /; Codex uses $, or selection through /skills. For example, the Codex start shortcut is `$handoff-kit-start`.
 
-If the folder already contains older Kit files or AI memory files such as `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`, use the same request. The AI inspects first; it must not silently overwrite them.
-
-For a non-technical introduction, open the [English introduction](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html). For complete walkthroughs, open the [English practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html).
-To see how Agent Handoff Kit sits in a local agentic AI workflow, open [`local-agentic-ai-workflow-case-study.en.html`](https://adamchanadam.github.io/agent-handoff-kit/local-agentic-ai-workflow-case-study.en.html).
-
-## 🐱 How to read the status card
-
-| Status | Meaning |
+| What you want to do | Shortcut |
 |---|---|
-| `( o.o ) continuity ready` | The AI has received the complete handoff and reconciled the work context; it continues only on your explicit task. |
-| `( o.o ) installation verified` | Installation checked; startup must still receive the handoff. |
-| `continuity incomplete` | Content is missing or critically contradictory; the AI must resolve the gap first. |
-| `( -.- ) handoff saved` | Closeout has been saved; next time you can say `Start Agent Handoff` or `開工`. |
-| `( x.x ) handoff blocked` | Not broken; something still needs to be saved, committed, verified, or handled. Follow the Blocker line first and do not treat this session as handed off. |
+| Pick up where you left off | [`/handoff-kit-start`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#start) |
+| See the whole project | [`/handoff-kit-progress`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#progress) |
+| Finish this conversation | [`/handoff-kit-close`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#close) |
 
-The closeout card checks saved handoff state, required fields, and recorded check results; it does not automatically prove that task conclusions are correct. Blocked work can still be handed off when its cause, impact, and conditions for resuming are clearly saved. “Saved” does not mean the overall task is complete.
+[All commands: guidance, files, working requirements, checks and updates](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#commands)
 
-## 🧭 How to read this repository
+The daily rhythm: **start → describe your task → check progress when useful → wrap up before ending the conversation**. You do not need all commands every time. Natural phrases such as “Start Agent Handoff” and “wrap up” still work.
 
-If you only want to use the kit, start from these four pages:
+Start on its own reads the full handoff, explains the current state and waits for your task. On first use, with no goal yet, it adds a short welcome. To continue immediately, add “continue the current goal”. If the handoff has not been read in full, the AI must say so instead of claiming it has resumed.
 
-| Entry | Purpose |
-|---|---|
-| [This README](README.en.md) | Product purpose, safe use, and boundaries. |
-| [60-second introduction](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) | A non-technical overview. |
-| [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) | Three detailed scenarios: everyday local work, research with external tools, and a long-lived project. |
-| [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html) | The instructions an AI follows to install, upgrade, check, or stop safely. |
+Installation and upgrades include the shortcuts for this project only, without installing them in shared computer-wide settings. If an older conversation does not show them, reopen the project conversation. See [shortcut help](docs/commands.md) for other issues.
 
-This public repository keeps the material needed for use, installation, GitHub Pages, and the npm runtime. Normal users only need the four entries above.
+## The dashboard: find your bearings
 
-## 🔎 What problem does it solve?
+Use `handoff-kit-progress` to see current work, unfinished items, things waiting or needing confirmation, recent changes and connections between important files.
 
-Long-running work with AI commonly has five problems:
+![Traditional Chinese dashboard](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-dashboard-zh-Hant.webp)
 
-| Problem | What Agent Handoff Kit does |
-|---|---|
-| A new AI does not know the current state | Keeps `dev/SESSION_HANDOFF.md` with the current objective, risks, validation, and next action. |
-| New files or reference sources become disconnected | Lets you ask the AI to connect a document to the Kit, recording what it is for, which source is authoritative, and when it must be refreshed. |
-| Different local AI tools start differently | Installs `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` as routes into one startup flow. Antigravity CLI reads the work folder’s `AGENTS.md` and `GEMINI.md`. |
-| An AI could overwrite, delete, or publish carelessly | Requires an explanation and confirmation for high-risk work; destructive commands and unapproved release actions are prohibited. |
-| External tools leave resources behind or clear shared resources | Applies ownership: resources demonstrably created for this task may be closed; shared, user-owned, or unclear resources are reported with evidence and kept until confirmed. |
-
-It is not a chatbot and not a development framework. Think of it as a durable project handoff book.
-
-## 🧰 Supported tools
-
-Agent Handoff Kit is for agentic AI tools that can read and write a local project folder, such as Claude Code, OpenAI Codex, Gemini CLI, Google Antigravity, or another local-workspace agent. Antigravity CLI uses the work folder’s `AGENTS.md` and `GEMINI.md` routes to reach the same startup flow.
-
-It is not for ordinary web-chat AI that cannot access your local folder. Uploading a file or pasting a handoff into a web chat does not give that chat the ability to maintain the project’s handoff files safely.
-
-## ⌨️ Common shortcuts
-
-Enable shortcuts once in each project: ask the AI to “Enable Kit shortcuts in this project.” The AI installation guide includes this step. Claude Code, Gemini CLI and Antigravity CLI use <code>/handoff-kit-help</code>; Codex uses <code>$handoff-kit-help</code> or the <code>/skills</code> picker.
-
-The menu covers start, closeout, the live progress page, document alignment, onboarding, future working rules and installation checks. For example, <code>/handoff-kit-progress</code> opens or reuses the local overview automatically. See [all eight entries and setup](docs/commands.md). Natural-language requests still work.
-
-## 🟢 Start work
-
-Open a local AI agent in the correct project folder.
-
-If the AI is already in that folder, ordinary continuity startup is simply:
-
-```text
-Start Agent Handoff
-```
-
-You may also say `開工`.
-
-When the active platform can safely control the current conversation title, a plain start may replace a generic or stale title with a concise `<project name>｜<primary action>` title. The title is generated from the startup card's already-finalized current objective or recommended next action; generic triggers such as `Start Agent Handoff`, `開工`, or "start handoff" cannot be the primary action. It performs no extra file or network reads, keeps an informative title, and skips silently when title control is unavailable. The title is display-only: it is not project state, progress, completion evidence, or additional authority.
-
-If the AI is not yet pointed at the project folder, use the path-bearing startup sentence:
-
-```text
-Work in <your project folder>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
-```
-
-A first installation marks onboarding as pending. The AI enters a short first-use welcome after the startup card only when that state is still `eligible`, the active objective is empty or `TBD`, and there is no concrete task in the same message. Upgrades of existing projects do not reset the state. When you clearly describe the goal and available facts, the AI may begin the first safe step without going through onboarding first.
-
-For ordinary daily startup, the AI reads `dev/SESSION_HANDOFF.md` first. Inside the same folder it does not reread `START_NEXT_SESSION_PROMPT.txt` or `dev/SESSION_LOG.md` during normal startup. The prompt copy is only for an AI that has not yet been pointed at the project folder.
-
-`開工，繼續 <task>`, `<project> 開工`, and `Start Agent Handoff and continue <task>` are all continuity commands. The AI asks one short confirmation only when the phrase could genuinely refer to a real-world opening, shift, or unrelated event. A bare startup or one that adds only the project name reads the complete handoff and restores the necessary state, shows the startup card and recommended next action, then waits; it does not authorize research, planning, QA, file writes, network use, or sub-agents. Only a concrete task or explicit long-run instruction in the same message authorizes work. The first-use guidance exception described above still applies.
-
-Then describe your task in ordinary language. The AI should explain the current state, next action, and risk before it starts the requested work.
-
-At startup, the AI must receive the complete handoff from one unchanged version, then reconcile the goal, completed work, your corrections, remaining obligations and permission boundaries. Truncated output requires smaller follow-up reads. Missing content or a critical contradiction displays continuity incomplete instead of a recovery claim. Successful installation or saved closeout does not prove that the next AI has received the handoff.
-
-## 💾 Wrap up
-
-When the work session is really ending, say:
-
-```text
-wrap up
-```
-
-You can also say `收工`, `Wrap up Agent Handoff`, or `handoff`.
-
-If the phrase could instead mean a real-world closing event, such as a restaurant closing, the AI should ask one short question rather than immediately changing the project handoff.
-
-The AI should record the overall outcome, current subtask, exact resume point, and remaining acceptance checks, together with the necessary source versions, sections read, reading depth, and unresolved gaps. Simple tasks need only the relevant facts, not a multi-level task table. Before closeout, the AI reconstructs the next step using only the handoff, then compares it with your original request and actual results so a completed small step is not mistaken for the overall outcome. When resuming, the AI must still read the sources needed for the task; a predecessor's “read” record is not its own verification.
-
-The AI should update only changed handoff state and compare the next-session prompt copy, regenerating it only when it differs:
-
-```text
-START_NEXT_SESSION_PROMPT.txt
-```
-
-That file is a portable convenience copy for an AI that is not yet in the project folder. The authority remains the next-session opening message in `dev/SESSION_HANDOFF.md`; if the two differ, the AI rebuilds the copy from the handoff.
-
-## 🩺 When you are unsure about the state
-
-If you are unsure whether the folder is installed correctly, needs an upgrade, or is healthy after an upgrade, ask the AI:
-
-```text
-Read the AI install page and check the Agent Handoff Kit state of this folder.
-```
-
-The AI performs the check. A successful check does not mean it has understood your project task; when you want continuity work, still say `Start Agent Handoff` or `開工`.
-
-## 📖 Dynamic Dashboard: find your project at a glance
-
-Ask your AI to “Open the project progress page”, or use an enabled `/handoff-kit-progress` entry (Codex: `$handoff-kit-progress`). The AI starts or reuses this project's local Dashboard.
-
-![Agent Handoff Kit English Dashboard: workstreams, outstanding work, recent changes and document connections](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-dashboard-en.webp)
-
-*Actual interface capture with fictional Atlas example data. The same template reads each project's own records. Open the image to enlarge it.*
+*Actual interface screenshot; Atlas is a fictional example. The same page reads each project’s own saved records.*
 
 <details>
-<summary>View the Traditional Chinese interface</summary>
+<summary>View the English interface</summary>
 
-![Agent Handoff Kit Traditional Chinese Dashboard](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-dashboard-zh-Hant.webp)
+![English dashboard](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-dashboard-en.webp)
 
 </details>
 
-- **Overview:** current work, completed items, waiting, review and outstanding work, with access to results.
-- **History:** find important changes by date, keyword and workstream; long logs and archives are read in bounded batches.
-- **Document map:** see the roles, relationships and sources of core Kit files and registered project documents.
+The page updates automatically when the AI saves records, without a refresh. Asking the AI to open it and saving normal records use some tokens. After that, viewing, filtering and page updates run locally without asking the AI to write another report. Unsaved work does not appear. [Dashboard help](docs/progress.md)
 
-At normal saves, the AI maintains only changed records. The program reads the existing index, handoff and logs and updates the page without refreshes, a second report or model calls. Switch the interface between Traditional Chinese and English; untranslated source content stays in its original language. Unsaved work is not shown, and the view does not replace handoff reception or result acceptance.
+## A few things to know
 
-It uses Node.js and your browser, without a database or API key. After all pages close, the service stays available for eight hours. If it stops or the computer restarts, use the same entry again. See the [Dashboard guide](docs/progress.md).
+- The AI handles reading, organizing, doing the work and checking results. You give requirements, feedback and necessary decisions; you do not maintain internal files.
+- Wrapping up saves a handoff. Unfinished work stays unfinished; it does not mean the whole project is complete.
+- Checking the installation does not repair or upgrade it. Checking for updates automatically upgrades when a newer release exists. Conflicting custom content is kept, and the operation stops.
+- Before deleting important data, uploading, publishing or changing access, the AI must explain the effects and obtain the required approval. Passwords and secret keys must not go into handoff records.
+- The tool’s rules and checks support handoff; they cannot guarantee an AI will never make a mistake. Missing context, failed reads and incomplete checks should be clearly reported.
 
-## 🗂️ What the AI maintains for you
-
-After installation, the Kit places a small set of handoff files in the project. You do not need to read or maintain each one manually.
-
-- **Startup entries:** `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `START_NEXT_SESSION_PROMPT.txt` route local AI tools into the same startup flow.
-- **Current state:** `dev/SESSION_HANDOFF.md` records progress, next action, risks, and validation.
-- **Trace record:** recent work remains available for trace-back; long-running use is compacted so the record does not grow without limit.
-- **Project index and decisions:** important files, external sources, synchronization responsibilities, and durable decisions remain findable when you later ask “why did we choose this?”
-- **Routed work rules:** the AI loads the rules needed for the task; you do not have to memorize rule-file names.
-
-## 🧭 How work rules operate
-
-You do not need to remember rule file names. The Kit lets the AI classify what you need and load only the relevant work rules.
-
-| What you want to do | What the AI does |
-|---|---|
-| Write code or fix a bug | Reads the project index and relevant files, then changes and tests only what is needed. |
-| Write an article, README, or public copy | Clarifies audience, purpose, tone, and publication surface. |
-| Research or compare tools | Separates verified facts, source summaries, and the AI’s judgement. |
-| Delete files, use Git, publish, or use npm | For high-risk operations, explains impact first and waits for your confirmation. |
-| Use Notion, Google Drive, or another external tool | Checks the current tool guidance, handles resources by ownership, and keeps secrets out of project files. |
-
-You can simply say what you want, for example: “Help me revise the README”, “Research whether this tool is suitable”, or “Connect this document to Agent Handoff Kit.” The AI chooses the needed rules.
-
-For a durable preference, tell the AI rather than editing rule files blindly:
-
-```text
-For future public Chinese documents, use written Traditional Chinese and avoid mixing Chinese and English fragments. Connect this rule to Agent Handoff Kit.
-```
-
-The AI should distinguish a current request from a durable rule, then read the existing categories, relevant rule pack, and project supplements; when a suitable home exists, it should merge the change there. Project rules belong in a writable supplement or registered reference, preserving the Kit's official body. On the next relevant task, the AI should read and apply the rule through the existing route, respecting your objective and instruction priority without inventing a new goal or acceptance threshold.
-
-These requirements guide the AI and check the result; they cannot intercept arbitrary editor writes. If older local rules are already mixed into official prose, the AI still needs to verify their sources and preserve and reconcile them after receiving merge authorization. Upgrades will not guess what to delete.
-
-## 💬 Things you can ask an AI to do
-
-State the goal in natural language. The AI decides which handoff files, rules, or indexes it needs to read.
-
-| What you want | Example |
-|---|---|
-| Continue the last session | `Start Agent Handoff` or `開工` |
-| End this session | `wrap up` or `收工` |
-| Keep a new document from becoming disconnected | “Connect this document to Agent Handoff Kit so the next AI knows when to read and update it.” |
-| Find important unconnected documents | “Scan for important documents not yet connected to Agent Handoff Kit.” |
-| Avoid the same mistake in future work | “Turn this mistake into a durable work rule for future sessions.” |
-| Keep an API or tool practice usable | “Use this API approach in future sessions too.” |
-| Use Notion, Google Drive, GitHub, or another external tool | “This project uses these tools. Record what can be used directly and keep secrets out of project files.” |
-| Finish a long task that used MCP, browser, or automation tools | “At wrap up, show the external-tool resource closeout: which task-owned resources were closed and which uncertain resources were retained with evidence.” |
-
-When scanning for important documents, the AI first lists candidates and reasons. It does not automatically modify, merge, or retire them. For deletion, rename, authority changes, publication, upload, or permission changes, it must explain the impact and wait for confirmation.
-
-Rules that must persist across future sessions should be written into the appropriate project file, not left only in the current chat summary.
-
-## 🛡️ Safety boundaries
-
-Even if you do not write code, the Kit requires an AI to stop and explain high-risk actions.
-
-- **Destructive operations:** commands such as `rm -rf`, `git reset --hard`, and operations against system root paths are prohibited. Force-push, branch or tag deletion, and history rewriting need explicit scope, explicit approval, and readback of the affected refs.
-- **Secrets:** do not print, commit, or upload `.env` values, API keys, or tokens.
-- **Verify; do not guess:** before using a third-party service, connector, MCP, CLI, API, or plugin, check current official or already verified local guidance. If it cannot be verified, say so.
-- **External-tool closeout:** an AI may close only resources it can show were created for the current task. Shared, user-owned, other-agent-owned, or unclear resources must be reported and left alone until you confirm.
-- **Permission failures:** if a file is locked or permission is missing, stop and provide safe manual steps; do not bypass the protection.
-- **Publishing:** tags, GitHub Releases, npm publication, deployment, and upload always require explicit approval. “Ready” is never approval.
-
-## 🔗 Optional companion: Adam-AI-Instructions
-
-Agent Handoff Kit can work alongside [Adam-AI-Instructions](https://github.com/prompt-templates/Adam-AI-Instructions). They are complementary, not competing authorities. They deliberately keep a minimum shared baseline for safety, secrets, irreversible operations, and release boundaries; neither is the parent source of truth for the other, and they should not be merged into one rule set:
-
-- **Adam-AI-Instructions** governs how an AI works within one conversation: tone, priorities, response structure, calculation discipline, language discipline, safety boundaries, and output-layer roles.
-- **Agent Handoff Kit** governs continuity between conversations: current state, next action, file routes, real closeout, and the next startup.
-
-This pairing is optional. It does not change installation or everyday use of Agent Handoff Kit. To use it, choose the version for your AI tool in that repository and paste it into the AI tool's settings.
+For step-by-step help, open the [guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html). To set the AI’s reply style separately, you can also use [Adam-AI-Instructions](https://github.com/prompt-templates/Adam-AI-Instructions). It is optional, not a requirement for the tool.

@@ -230,25 +230,25 @@ const governanceBridgeUseCases = [
     name: "new stock list source-of-truth",
     route: ["Governance bridge / bridge governance", "equivalent Chinese user phrases", "dev/rules/agent-governance.md"],
     pack: ["stock list", "target file itself", "dev/PROJECT_INDEX.md", "dev/DOC_SYNC_REGISTRY.md", "duplicate source-of-truth risk"],
-    publicDocs: ["把 docs/stock-list.md 接入 Agent Handoff Kit", "治理打通 docs/stock-list.md", "bridge governance for docs/stock-list.md"]
+    publicDocs: ["handoff-kit-align", "在指令後加文件名稱"]
   },
   {
     name: "production guide / runbook",
     route: ["equivalent Chinese user phrases", "connect this document to governance", "dev/rules/agent-governance.md"],
     pack: ["production guide", "runbook", "related workflows, guides, runbooks, or rule packs", "Acceptance: give one concrete check"],
-    publicDocs: ["把 docs/production-guide.md 接入 Agent Handoff Kit", "我剛建立了 <code>docs/production-guide.md</code>,把這份文件接入 Agent Handoff Kit"]
+    publicDocs: ["handoff-kit-align docs/plan.md", "何時要讀"]
   },
   {
     name: "repo-wide unbridged document scan",
     route: ["equivalent Chinese user phrases", "scan for unbridged governance documents", "dev/rules/agent-governance.md"],
     pack: ["bounded repo scan", "For repo-wide scans, report candidates as candidates", "Do not fail ordinary docs merely because they are not indexed"],
-    publicDocs: ["掃描未接入 Agent Handoff Kit 的重要文件", "scan for unbridged governance documents", "AI 只會先列出可能需要接入的文件與原因"]
+    publicDocs: ["沒有指定文件時，先列出值得檢查的文件與建議"]
   },
   {
     name: "duplicate source-of-truth risk",
     route: ["Governance bridge / bridge governance", "dev/rules/agent-governance.md"],
     pack: ["duplicate source-of-truth risk", "recommend merge, reference, or retire options", "do not delete, rename, or move files without explicit approval"],
-    publicDocs: ["不會自動刪除、改名或合併文件", "不亂改"]
+    publicDocs: ["你確認修改範圍後才改"]
   }
 ];
 
@@ -257,19 +257,19 @@ const longTermGovernanceUseCases = [
     name: "recurring AI mistake becomes mechanism",
     route: ["寫入長期治理", "轉成長期機制", "dev/rules/agent-governance.md"],
     pack: ["recurring AI mistake", "the relevant rule pack, registered reference, or QA check", "Do not persist long-term governance knowledge only in", "Repeat-failure escalation", "same failure class recurs", "counterexample or replay check"],
-    publicDocs: ["把今次錯誤整理成日後工作規則", "讓下次 AI 知道要怎樣避免"]
+    publicDocs: ["handoff-kit-remember", "讓下次處理相關工作時讀得到"]
   },
   {
     name: "API MCP tool pattern survives sessions",
     route: ["always use this API or MCP pattern", "future sessions should remember", "dev/rules/agent-governance.md"],
     pack: ["API / MCP / tool-use pattern", "project index / registered reference", "promote it to the correct durable home"],
-    publicDocs: ["以後都用這個 API 調用方式", "之後開新對話也要沿用"]
+    publicDocs: ["在指令後寫下要求", "這個專案合適的位置"]
   },
   {
     name: "content-based classification without exact trigger",
     route: ["之後都要遵守", "跨 session 有效", "dev/rules/agent-governance.md"],
     pack: ["Content-based trigger", "Even if the user does not use explicit governance-routing phrases", "future sessions must follow it"],
-    publicDocs: ["需要長期保留的規則", "不是只留在當次對話摘要"]
+    publicDocs: ["希望以後都照這樣做", "沒有說明要求時，AI 會先問清楚"]
   }
 ];
 

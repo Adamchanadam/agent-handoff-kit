@@ -64,6 +64,16 @@ export function validateOfficialOriginCatalog(catalog) {
     }
     if (!referenced.has(contentId)) throw new Error(`official origin catalog has orphan content: ${contentId}`);
   }
+  for (const [version, entry] of Object.entries(catalog.generatedShortcuts ?? {})) {
+    if (!/^\d+\.\d+\.\d+$/.test(version) || entry.npm?.spec !== catalog.packageName + '@' + version
+      || !/^[a-f0-9]{40}$/.test(entry.npm?.shasum) || !entry.npm?.integrity?.startsWith('sha512-')
+      || !/^[a-f0-9]{64}$/.test(entry.npm?.tarballSha256) || !/^[a-f0-9]{64}$/.test(entry.generatorSha256)
+      || !entry.files || !Object.keys(entry.files).length) throw Error('invalid official shortcut artifact: ' + version);
+    for (const [file, digest] of Object.entries(entry.files)) {
+      if (!/^(?:dev\/handoff-kit\/(?:launch|open|server|projection|dashboard|project-version|assets)\.mjs|\.(?:agents|claude)\/skills\/handoff-kit-[a-z]+\/(?:SKILL\.md|agents\/openai\.yaml)|\.gemini\/commands\/handoff-kit-[a-z]+\.toml)$/.test(file)
+        || !/^[a-f0-9]{64}$/.test(digest)) throw Error('invalid official shortcut path/hash: ' + version);
+    }
+  }
   return true;
 }
 

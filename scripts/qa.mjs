@@ -15,6 +15,7 @@ import {
   QA_RELEASE_READINESS_INVENTORY_DIGEST,
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
+import { validateFeatureDelivery } from "./feature-delivery.mjs";
 import { loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
 import { LONG_QA_TIMEOUT_MS, QaRunError, runChecked, runNodeScriptChecked } from "./qa-runner-core.mjs";
 
@@ -147,6 +148,23 @@ async function validateCandidateEvidence(options) {
   validateRoleIsolationEvidence(evidence, head);
   validateCandidateReportSection(options.candidate);
   validateEvidenceRecords(evidence.evidence);
+  await validateCandidateFeatureDelivery(evidence, head);
+}
+
+async function validateCandidateFeatureDelivery(evidence, head) {
+  const delivery = evidence.featureDelivery;
+  assert(delivery && /^\d+\.\d+\.\d+$/.test(delivery.baseVersion), 'featureDelivery requires a stable published baseVersion');
+  let baseCommit, changedFiles;
+  if (evidenceContractSelfTest) { baseCommit = delivery.baseCommit; changedFiles = ['bin/commands.mjs']; }
+  else {
+    const tags = await runChecked('git', ['tag', '--merged', head], 'delivery baseline tags', {cwd:root});
+    const previous = tags.stdout.trim().split(/\r?\n/).filter(t => /^v\d+\.\d+\.\d+$/.test(t) && compareSemver(t.slice(1), evidence.candidate.version) < 0).sort((a,b)=>compareSemver(b.slice(1),a.slice(1)))[0];
+    assert(previous === 'v' + delivery.baseVersion, 'featureDelivery baseline must be the latest preceding release tag');
+    baseCommit = (await runChecked('git', ['rev-parse', previous + '^{commit}'], 'delivery baseline identity', {cwd:root})).stdout.trim();
+    changedFiles = (await runChecked('git', ['diff','--name-only',baseCommit,head], 'affected delivery sources', {cwd:root})).stdout.trim().split(/\r?\n/).filter(Boolean);
+  }
+  const baselineNpm = evidenceContractSelfTest ? null : await readNpmPublishedMetadata(delivery.baseVersion);
+  validateFeatureDelivery(delivery,{root,baseCommit,changedFiles,baselineNpm,tarballSha256:evidence.candidate.tarballSha256});
 }
 
 async function validatePostpublishEvidence(options) {
@@ -268,10 +286,10 @@ function validateCandidateReleaseSurfaces(version) {
   const forbidden = RELEASE_STATE_CONTRACT.forbiddenPatterns.map((pattern) => new RegExp(pattern.source, pattern.flags));
   const readmeHead = readRepoText("README.md").split(/\r?\n/u).slice(0, 12).join("\n");
   const englishReadmeHead = readRepoText("README.en.md").split(/\r?\n/u).slice(0, 12).join("\n");
-  assert(readmeHead.includes(`原始碼套件版本：\`${current}\``), "README.md first screen is not synchronized to the candidate package version");
-  assert(readmeHead.includes("npm `@latest` 與 GitHub Release 以發佈後讀回為準"), "README.md must keep npm/GitHub publication as an external readback boundary");
-  assert(englishReadmeHead.includes(`Source package version: \`${current}\``), "README.en.md first screen is not synchronized to the candidate package version");
-  assert(englishReadmeHead.includes("npm `@latest` and GitHub Release are verified by post-publish readback"), "README.en.md must keep npm/GitHub publication as an external readback boundary");
+  assert(readmeHead.includes(`原始碼套件版本：\`${current}\``) || readmeHead.includes(`文件對應程式版本：\`${current}\``), "README.md first screen is not synchronized to the candidate package version");
+  assert(readmeHead.includes("npm `@latest` 與 GitHub Release 以發佈後讀回為準") || readmeHead.includes("正式下載可用的功能，以已發布版本為準"), "README.md must keep npm/GitHub publication as an external readback boundary");
+  assert(englishReadmeHead.includes(`Source package version: \`${current}\``) || englishReadmeHead.includes(`Code version covered: \`${current}\``), "README.en.md first screen is not synchronized to the candidate package version");
+  assert(englishReadmeHead.includes("npm `@latest` and GitHub Release are verified by post-publish readback") || englishReadmeHead.includes("Features available to download depend on the published version"), "README.en.md must keep npm/GitHub publication as an external readback boundary");
   for (const file of activeSurfaces) {
     const text = readRepoText(file);
     assert(text.includes(current), `${file} does not expose candidate source version ${current}`);
@@ -393,6 +411,7 @@ function validateReviewBundle(bundle, evidence, head) {
   const computedSubjectDigest = sha256(Buffer.from(JSON.stringify(parsed.reviewSubject), "utf8"));
   assert(parsed.reviewSubjectDigest === computedSubjectDigest, "review bundle reviewSubjectDigest does not match reviewSubject bytes");
   assert(parsed.reviewSubjectDigest === evidence.roleIsolation.reviewSubjectDigest, "review bundle reviewSubjectDigest does not match evidence");
+  assert(JSON.stringify(parsed.reviewSubject?.featureDelivery) === JSON.stringify(evidence.featureDelivery), "reviewSubject featureDelivery does not match evidence");
   assert(parsed.reviewSubject?.candidateCommit === evidence.candidate.commit, "reviewSubject candidateCommit does not match evidence");
   assert(parsed.reviewSubject?.tarballSha256 === evidence.candidate.tarballSha256, "reviewSubject tarballSha256 does not match evidence");
   assert(parsed.reviewSubject?.manifestDigest === evidence.manifestDigest, "reviewSubject manifestDigest does not match evidence");

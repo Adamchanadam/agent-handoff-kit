@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 import {progressIdentity,openProgressBrowser} from './server.mjs';
 import {createSource} from './projection.mjs';
-const cli=fileURLToPath(new URL('../agent-handoff-kit.mjs',import.meta.url));
+const cli=fileURLToPath(new URL('./launch.mjs',import.meta.url));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export function probeProgress(port,{reopen=false}={}){
  return new Promise(resolve=>{
@@ -27,10 +27,11 @@ export async function openProgress({root,version,port=0,openBrowser=true}){
  const source=createSource(root);source.refresh({immediate:true});
  if(source.state.errors.lock)throw Error('Upgrade lock exists; recover the Kit upgrade before opening progress.');
  if(source.state.errors.handoff==='missing')throw Error('No dev/SESSION_HANDOFF.md found. Select an installed Kit project with --root.');
- const ports=port?[port]:Array.from({length:12},(_,i)=>42000+((parseInt(identity.rootId.slice(0,8),16)+i)%18000));
+ // Spread deterministic choices across ranges: Windows can reserve adjacent port blocks.
+ const ports=port?[port]:Array.from({length:12},(_,i)=>42000+((parseInt(identity.rootId.slice(0,8),16)+i*997)%18000));
  const same=other=>other&&Object.keys(identity).every(key=>other[key]===identity[key]);
  for(const candidate of ports){const existing=await probeProgress(candidate);if(same(existing)&&same(await probeProgress(candidate,{reopen:true}))){const url=`http://127.0.0.1:${candidate}`;if(openBrowser)openProgressBrowser(url);return{url,reused:true};}}
- for(const candidate of ports){let error=null,ended=false;const child=spawn(process.execPath,[cli,'progress','--root',root,'--port',String(candidate),'--no-open'],{detached:true,windowsHide:true,stdio:'ignore'});
+ for(const candidate of ports){let error=null,ended=false;const child=spawn(process.execPath,[cli,'--serve','--root',root,'--port',String(candidate),'--version',version,'--no-open'],{detached:true,windowsHide:true,stdio:'ignore'});
   child.once('error',e=>{error=e;ended=true;});child.once('exit',()=>{ended=true;});
   const deadline=Date.now()+6000;
   while(Date.now()<deadline&&!ended){if(same(await probeProgress(candidate))){child.unref();const url=`http://127.0.0.1:${candidate}`;if(openBrowser)openProgressBrowser(url);return{url,reused:false,pid:child.pid};}await sleep(80);}

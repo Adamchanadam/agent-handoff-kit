@@ -155,7 +155,7 @@ export const RELEASE_STATE_CONTRACT = Object.freeze({
 
 export const RELEASE_PACKAGE_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  expectedPackageFileCount: 49,
+  expectedPackageFileCount: 52,
   packageFiles: Object.freeze(["bin/", "runtime-core/", "packs/", "README.md", "docs/progress.md", "docs/commands.md", "LICENSE"])
 });
 
@@ -224,6 +224,7 @@ export const PUBLIC_MIRROR_CONTRACT = Object.freeze({
 
 export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
   schemaVersion: 1,
+  featureDelivery: Object.freeze({ schemaVersion: 1, owner: "scripts/feature-delivery.mjs", sourceOwner: "bin/installed-file-contract.mjs", requiredStages: ["package", "freshInstall", "upgrade", "entry"], nativeMenusAndInvocationRequired: true }),
   manualVerdictKeys: Object.freeze([
     "governanceHealth",
     "productJourney",

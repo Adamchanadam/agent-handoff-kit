@@ -7,6 +7,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractOpeningMessage, normalizePrompt } from "../bin/prompt-mirror-core.mjs";
+import { collectOfficialShortcuts } from "./generate-upgrade-fixtures.mjs";
+import { commands, commandFiles } from "../bin/commands.mjs";
 import { freshInstallMappings, requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
 import { materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import {
@@ -42,6 +44,22 @@ try {
 }
 
 async function main() {
+  if (process.argv.includes('--public-docs-only')) {
+    checkShortcutTeachingDocuments();
+    checkShortcutTeachingCounterexamples();
+    checkCrossSurfaceWordingConsistency();
+    checkPublicOnboardingVersion(JSON.parse(read('package.json')).version);
+    checkNpxColdStartUxGuidance();
+    checkAiInstallPageContract(JSON.parse(read('package.json')).version);
+    checkDecisionFirstOnboardingWording();
+    checkEnglishPublicSurfaces(JSON.parse(read('package.json')).version);
+    console.log('Public user-document checks passed; semantic and browser review are separate evidence.');
+    return;
+  }
+  if (process.argv.includes('--packaged-features-only')) {
+    checkPackedPackageUpgradeSmoke(JSON.parse(read('package.json')).version,{featuresOnly:true});
+    return;
+  }
   if (process.argv.includes("--qa-inventory-self-test")) {
     checkReleaseReadinessInventorySelfTest();
     return;
@@ -105,34 +123,8 @@ async function main() {
   assert(!existsSync(path.join(root, `adamchanadam-agent-handoff-kit-${version}.tgz`)), "npm dry-run left a tarball behind");
   checkPackedPackageUpgradeSmoke(version);
 
-  assertIncludes("README.md", [
-    `v${version}`,
-    "AI 對話之間的接力棒",
-    "AI 跨對話失憶",
-    "適合能讀寫本機專案資料夾的 agentic AI 工具",
-    "不適合普通 web chat AI",
-    "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
-    "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html",
-    "不需要研究終端機指令",
-    "你不用判斷安裝、升級、檢查或檔案結構",
-    "START_NEXT_SESSION_PROMPT.txt",
-    "## 🚀 三步上手",
-    "## 🔎 它解決甚麼問題",
-    "## 🟢 開工",
-    "收工",
-    "wrap up",
-    "handoff",
-    "## 🗂️ AI 會替你維護甚麼",
-    "## 💬 你可以怎樣叫 AI",
-    "讓新文件不變成孤兒",
-    "掃描未接入 Agent Handoff Kit 的重要文件",
-    "AI 只會先列出可能需要接入的文件與原因",
-    "把今次錯誤整理成日後工作規則",
-    "讓下次 AI 知道要怎樣避免",
-    "之後開新對話也要沿用",
-    "不是只留在當次對話摘要",
-    "機密不要寫入項目文件"
-  ]);
+  checkShortcutTeachingDocuments();
+  checkShortcutTeachingCounterexamples();
 
   assertIncludes("CHANGELOG.md", [
     `## v${version} — `,
@@ -579,10 +571,7 @@ function checkCrossSurfaceWordingConsistency() {
     "開新對話，貼一段字"
   ];
   const surfaces = [
-    { file: "bin/agent-handoff-kit.mjs", role: "CLI printInstallNextSteps" },
-    { file: "README.md", role: "README first-screen startup callout + 三步上手 step 2" },
-    { file: "agent-handoff-kit-intro.html", role: "intro #howto Step 2 + #recap cell 1" },
-    { file: "agent-handoff-kit-guide.html", role: "guide hero startup callout" }
+    { file: "bin/agent-handoff-kit.mjs", role: "CLI printInstallNextSteps" }
   ];
   for (const surface of surfaces) {
     const text = read(surface.file);
@@ -612,228 +601,35 @@ function checkCrossSurfaceWordingConsistency() {
     }
     console.log(`ok: ${surface.file} cross-surface startup boundary`);
   }
-  const intro = read("agent-handoff-kit-intro.html");
-  assert(intro.includes("開工接上狀態"), "intro #magic section must explain startup as well as closeout");
-  assert(intro.includes("收工留下交接"), "intro #magic section must explain closeout as part of the full flow");
-  assert(!intro.includes("03 / 只需記住三個字"), "intro #magic section must not frame the flow as closeout-only three-word memory");
-  assert(!intro.includes("AI 自動收工"), "intro #magic heading must not frame Agent Handoff Kit as closeout-only");
+  checkShortcutTeachingDocuments();
 }
 
 function checkPublicOnboardingVersion(version) {
-  const surfaces = [
-    "agent-handoff-kit-ai-install.html",
-    "agent-handoff-kit-intro.html",
-    "agent-handoff-kit-guide.html"
-  ];
-  const currentToken = `v${version}`;
-  // A minor/major release has no arithmetically inferable preceding patch.
-  // The generated official catalog identifies the actual published predecessor.
-  const catalog = JSON.parse(read("bin/migration-baselines/official-origin-catalog.json"));
-  const publishedTip = Object.keys(catalog.releases).at(-1);
-  const previousPublishedToken = publishedTip === version ? null : `v${publishedTip}`;
-  for (const file of surfaces) {
-    const text = read(file);
-    const visible = stripHtml(text);
-    assert(text.includes(currentToken), `${file} missing current visible version ${currentToken}`);
-    assert(!previousPublishedToken || !text.includes(previousPublishedToken), `${file} still contains previous published version ${previousPublishedToken}`);
-    assert(visible.includes(`本頁對齊 ${currentToken}`) && visible.includes("@latest 實際取得版本以 npm registry 為準"), `${file} does not state release-aligned page version and npm @latest boundary`);
+  for (const kind of ['intro','guide','ai-install']) for (const suffix of ['', '.en']) {
+    const file=`agent-handoff-kit-${kind}${suffix}.html`,text=read(file);
+    assert(text.includes(`v${version}`), `${file} missing source version`);
+    assert(text.includes(suffix?'published version':'已發布版本'), `${file} must not imply unreleased code is downloadable`);
   }
-  const guide = read("agent-handoff-kit-guide.html");
-  const targetCount = freshInstallMappings.length;
-  for (const snippet of [`create: ${targetCount}`, `created: ${targetCount}`, `create ${targetCount} / merge 0 / skip 0 / conflict 0`]) {
-    assert(guide.includes(snippet), `guide fresh-install example is not derived from the ${targetCount}-target installed-file contract: ${snippet}`);
-  }
-  console.log(`ok: public onboarding HTML version aligned to ${currentToken}`);
+  assert(!read('agent-handoff-kit-guide.html').includes('created: 22'), 'guide must not show obsolete installation output');
+  console.log('ok: public page versions and download boundary');
 }
 
 function checkNpxColdStartUxGuidance() {
-  const readme = read("README.md");
-  const cli = read("bin/agent-handoff-kit.mjs");
-  const qaDoc = read("docs/qa/release-grade-qa.md");
-  const intro = stripHtml(read("agent-handoff-kit-intro.html"));
-  const guide = stripHtml(read("agent-handoff-kit-guide.html"));
-  const aiInstall = stripHtml(read("agent-handoff-kit-ai-install.html"));
-  const commonEntryCommands = [
-    "npx --yes @adamchanadam/agent-handoff-kit@latest init",
-    "npx --yes @adamchanadam/agent-handoff-kit@latest doctor",
-    "npx --yes @adamchanadam/agent-handoff-kit@latest upgrade"
-  ];
-  for (const command of commonEntryCommands) {
-    assert(cli.includes(command), `CLI help / next-step output missing npx cold-start-safe command: ${command}`);
-    assert(aiInstall.includes(command.replace(" upgrade", " upgrade")) || command.endsWith("doctor"), `AI install page missing npx cold-start-safe command: ${command}`);
+  checkShortcutTeachingDocuments();
+  const cli=read('bin/agent-handoff-kit.mjs'),install=read('agent-handoff-kit-ai-install.html');
+  for(const command of ['init','doctor','upgrade']) {
+    const text=`npx --yes @adamchanadam/agent-handoff-kit@latest ${command}`;
+    assert(cli.includes(text) && install.includes(text), `AI/CLI setup route missing ${command}`);
   }
-  assert(readme.includes("使用時，你只需要說明目的；確認資料夾、判斷安裝或升級、執行指令和檢查結果，交給能讀寫本機資料夾的 AI 處理。"), "README must state the product principle: user states goal, AI handles technical work");
-  assert(readme.includes("第一次用，不需要先讀完整 README，也不需要研究終端機指令。只做三件事："), "README first path must keep installation as a simple user journey");
-  assert(readme.includes("你不用判斷安裝、升級、檢查或檔案結構。"), "README must keep install/upgrade/status decisions on the AI side");
-  for (const forbidden of [
-    "## 🖼️ 最新功能圖解",
-    "最新圖解會直接顯示在這裡",
-    "最多保留 3 張",
-    "舊圖解放到完整索引",
-    "agent-handoff-kit-resource-lifecycle-v035.png",
-    "看完整圖解",
-    "看正式 Release",
-    "全部圖解"
-  ]) {
-    assert(!readme.includes(forbidden), `README must not carry visual-explainer shelf or maintainer display policy: ${forbidden}`);
-  }
-  const visualIndex = read("docs/whatsnew/README.md");
-  assert(visualIndex.includes("# 功能圖解與版本頁索引"), "docs/whatsnew index must be framed as visual explainers plus version pages");
-  assert(visualIndex.includes("正式版本紀錄以 [GitHub Releases]"), "docs/whatsnew index must point official release history to GitHub Releases");
-  assert(!visualIndex.includes("README 首頁會直接展示最新功能圖解"), "docs/whatsnew index must not claim README displays visual explainers");
-  assert(!visualIndex.includes("集中放 Agent Handoff Kit 的版本說明與功能圖解"), "docs/whatsnew index must not present itself as a second complete version-history surface");
-  const quickStart = sectionBetween(readme, "## 🚀 三步上手", "## 🔎 它解決甚麼問題");
-  assert(quickStart.includes("1. 在你想使用 Agent Handoff Kit 的資料夾打開 AI，貼上這句話："), "README quick start step 1 must be user-goal wording, not technical procedure");
-  assert(quickStart.includes("https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html"), "README quick start must route installation and upgrade to the AI install page");
-  assert(quickStart.includes("2. 安裝完成後，對 AI 說 `Start Agent Handoff` 或「開工」。"), "README quick start step 2 must be user action only");
-  assert(quickStart.includes("3. 完成本輪工作後，對 AI 說「收工」。"), "README quick start step 3 must be user action only");
-  const quickStartActionLines = quickStart
-    .split(/\r?\n/)
-    .filter((line) => /^[123]\. /.test(line.trim()))
-    .join("\n");
-  for (const forbidden of ["init", "upgrade", "doctor", "dry-run", "確認資料夾", "衝突", "預演"]) {
-    assert(!quickStartActionLines.includes(forbidden), `README quick start action lines must not expose AI technical work to users: ${forbidden}`);
-  }
-  assert(!readme.includes("| 第一次在新資料夾使用 | `npx --yes @adamchanadam/agent-handoff-kit@latest init` |"), "README must not reintroduce a parallel manual init table");
-  assert(!readme.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "README must keep direct init commands out of the user-facing main path");
-  assert(!readme.includes("npx --yes @adamchanadam/agent-handoff-kit@latest upgrade"), "README must keep direct upgrade commands out of the user-facing main path");
-  assert(!readme.includes("npx --yes @adamchanadam/agent-handoff-kit@latest doctor"), "README must keep direct doctor commands out of the user-facing main path");
-  assert(!readme.includes("### 手動入口"), "README must not label direct npx commands as a parallel manual entry");
-  assert(!readme.includes("### 常見入口"), "README must not present the direct npx table as the general common entry after AI-assisted install became the simplest path");
-  assert(!readme.includes("| 已裝過舊版，想先看升級會改甚麼 | `npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run` |"), "README common entries must not present upgrade --dry-run as the old-install entry");
-  assert(!readme.includes("`dry-run` 只會預覽"), "README must not teach dry-run as a user-facing parallel path");
-  assert(cli.includes("已裝過：執行 upgrade；若想先預覽，才加 --dry-run"), "CLI help must present upgrade as the old-install entry and dry-run as optional preview");
-  assert(cli.includes("--dry-run 只預覽、不寫入；它不是正式升級完成"), "CLI help must explain dry-run is not a completed upgrade");
-  assert(qaDoc.includes("README 不另開一套平行安裝教學"), "Release-grade QA must preserve AI install page as the single README install entry");
-  assert(intro.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "intro page missing canonical npx init command");
-  assert(intro.includes("未安裝或不確定是否要升級時") && intro.includes("agent-handoff-kit-ai-install.html"), "intro page must route unsure users to the AI install page before manual terminal commands");
-  assert(aiInstall.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "AI install page missing canonical npx init command");
-  assert(aiInstall.includes("npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run"), "AI install page missing canonical npx upgrade dry-run command");
-  assert(aiInstall.includes("npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes"), "AI install page missing canonical npx upgrade command");
-  assert(aiInstall.includes("npx --yes @adamchanadam/agent-handoff-kit@latest doctor"), "AI install page missing canonical npx doctor command");
-  assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest init"), "guide page missing canonical npx init command");
-  assert(guide.includes("npx --yes @adamchanadam/agent-handoff-kit@latest doctor"), "guide page missing canonical npx doctor command");
-  assert(guide.includes("請它讀 agent-handoff-kit-ai-install.html") || guide.includes("請它讀安裝指令頁"), "guide page must route first-time users to the AI install page before manual terminal commands");
-  assert(readme.includes("已裝過舊版，或資料夾裡已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 等 AI 記憶文件，也用同一句交給 AI 判斷。"), "README must keep old Kit files on the same AI-assisted install path");
-  assert(aiInstall.includes("若 `doctor` 通過") && aiInstall.includes("若 `doctor` 失敗"), "AI install page must explain doctor follow-up without moving the technical distinction into README");
-  assert(cli.includes("真正會建立項目文件的是 init；doctor 只檢查"), "CLI output must explain init writes project files and doctor only checks");
-  assert(cli.includes("即使資料夾已有 AGENTS.md 或 dev/"), "CLI output must explain existing Kit files can still require npx to fetch the executable tool");
-  assert(cli.includes("不是本工具的建議用戶路徑"), "CLI help must discourage bare npx doctor as an official user path");
-  assert(qaDoc.includes("不列為官方建議用戶路徑"), "Release-grade QA must classify bare npx doctor as non-canonical");
-
-  const misleadingExamples = [
-    { file: "README.md", text: readme },
-    { file: "bin/agent-handoff-kit.mjs", text: cli },
-    { file: "agent-handoff-kit-ai-install.html", text: aiInstall },
-    { file: "agent-handoff-kit-intro.html", text: intro },
-    { file: "agent-handoff-kit-guide.html", text: guide }
-  ];
-  for (const surface of misleadingExamples) {
-    assert(!surface.text.includes("npx @adamchanadam/agent-handoff-kit doctor"), `${surface.file} still contains misleading bare npx doctor example`);
-    assert(!surface.text.includes("npx @adamchanadam/agent-handoff-kit init"), `${surface.file} still contains misleading bare npx init example`);
-  }
-
-  const terminalFirstDriftPhrases = [
-    "第一步完全與 AI 無關",
-    "由終端機一句安裝",
-    "然後再在項目資料夾執行 `npx",
-    "準備好 Notion 資料庫與本機資料夾結構之後,在 <code>~/cafe-research/</code> 打開終端機"
-  ];
-  for (const phrase of terminalFirstDriftPhrases) {
-    for (const surface of misleadingExamples) {
-      assert(!surface.text.includes(phrase), `${surface.file} still contains terminal-first install drift phrase: ${phrase}`);
-    }
-  }
-  console.log("ok: npx cold-start UX guidance");
+  for(const snippet of ['已裝過：執行 upgrade；若想先預覽，才加 --dry-run','--dry-run 只預覽、不寫入；它不是正式升級完成','真正會建立項目文件的是 init；doctor 只檢查','即使資料夾已有 AGENTS.md 或 dev/','不是本工具的建議用戶路徑']) assert(cli.includes(snippet), `CLI cold-start contract missing: ${snippet}`);
+  for(const file of ['README.md','README.en.md','agent-handoff-kit-intro.html','agent-handoff-kit-guide.html','agent-handoff-kit-ai-install.html','bin/agent-handoff-kit.mjs']) assert(!/npx @adamchanadam\/agent-handoff-kit (?:init|doctor)/u.test(read(file)), `${file} exposes cold-start-unsafe example`);
+  console.log('ok: single AI-assisted setup route; CLI safety instructions preserved');
 }
 
 function checkAiInstallPageContract(version) {
-  assert(existsSync(path.join(root, "agent-handoff-kit-ai-install.html")), "AI install GitHub Pages HTML is missing");
-
-  const page = read("agent-handoff-kit-ai-install.html");
-  const plain = stripHtml(page);
-  assert(page.includes(`v${version}`), `AI install page missing current visible version v${version}`);
-  assert(read("README.md").includes("agent-handoff-kit-ai-install.html"), "README must link the AI install page");
-  assert(read("agent-handoff-kit-intro.html").includes("agent-handoff-kit-ai-install.html"), "intro page must link the AI install page");
-  assert(read("agent-handoff-kit-guide.html").includes("agent-handoff-kit-ai-install.html"), "guide page must link the AI install page");
-  assert(read("docs/qa/release-grade-qa.md").includes("AI 代安裝頁驗收"), "release-grade QA must include AI install page acceptance");
-  assert(read("docs/qa/release-grade-qa.md").includes("AI-assisted install page"), "Product Journey Matrix must include AI-assisted install page scenario");
-
-  assertIncludes("agent-handoff-kit-ai-install.html", [
-    "請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html ，並在這個資料夾安裝或升級 Agent Handoff Kit。",
-    "顯示目前工作資料夾的絕對路徑",
-    "這是否就是要安裝或升級 Agent Handoff Kit 的資料夾？",
-    "未能確認時停止",
-    "npx --yes @adamchanadam/agent-handoff-kit@latest init --yes --root .",
-    "npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --dry-run --root .",
-    "npx --yes @adamchanadam/agent-handoff-kit@latest upgrade --yes --root .",
-    "npx --yes @adamchanadam/agent-handoff-kit@latest doctor --root .",
-    "預演有 conflict 時",
-    "停止並保持零寫入",
-    "用戶不用判斷技術差異，也不用選 npm 指令",
-    "能讀寫此資料夾的 AI",
-    "先取得用戶授權",
-    "未知本地 hash 只證明內容存在且未被偷換",
-    "`doctor` 與 hash 讀回驗收",
-    "不要用重裝或整檔覆寫繞過 conflict",
-    "Start Agent Handoff",
-    "AI 完成後必須回覆這份報告",
-    "執行任何 `npx` 命令前，先記住本段",
-    "AI 不可只說「完成」或只貼終端機輸出",
-    "✅ 結果：安裝完成、升級完成，或因 conflict 停止",
-    "📁 目前資料夾：顯示已確認的絕對路徑",
-    "🩺 健康檢查：說明 `doctor` 是通過、失敗，還是只提示便利副本落後",
-    "⚠️ 下一步不是終端機指令",
-    "🚀 下一步：若 AI 已在此資料夾內",
-    "完成報告範本"
-  ]);
-
-  assertIncludes("agent-handoff-kit-ai-install.html", [
-    "同次操作的根目錄、CLI 版本、完整終態及健康結果",
-    "程序以成功退出碼結束", "所有提醒仍須保留", "舊對話紀錄",
-    "不要用單獨", "取代恢復", "其後改過相關檔案",
-    "用戶另行要求檢查", "不代表重新查過 npm 最新版"
-  ]);
-  assert(!plain.includes("安裝或升級完成後執行健康檢查。"), "install page still mandates a redundant standalone doctor");
-
-  const firstCommandIndex = plain.indexOf("npx --yes @adamchanadam/agent-handoff-kit@latest init --yes --root .");
-  const completionContractIndex = plain.indexOf("AI 完成後必須回覆這份報告");
-  assert(firstCommandIndex >= 0, "AI install page missing first npx command");
-  assert(completionContractIndex >= 0, "AI install page missing completion report contract heading");
-  assert(
-    completionContractIndex < firstCommandIndex,
-    "AI install completion report contract must appear before the first npx command so prompt-driven agents see it before execution"
-  );
-
-  const preCommandText = plain.slice(0, firstCommandIndex);
-  for (const snippet of [
-    "AI 完成後必須回覆這份報告",
-    "AI 不可只說「完成」或只貼終端機輸出",
-    "完成報告範本",
-    "⚠️ 下一步不是終端機指令",
-    "Start Agent Handoff",
-    "開工"
-  ]) {
-    assert(preCommandText.includes(snippet), `AI install pre-command contract missing: ${snippet}`);
-  }
-
-  const forbiddenActions = ["git commit", "git push", "git tag", "npm publish", "GitHub Release"];
-  for (const action of forbiddenActions) {
-    assert(plain.includes(action), `AI install page must explicitly forbid or mention safe boundary for: ${action}`);
-  }
-  assert(plain.includes("不刪除") && plain.includes("不覆寫衝突"), "AI install page must forbid deletion and conflict overwrite");
-  for (const forbidden of [
-    "Kit 開發者",
-    "可讀取專案的 AI",
-    "可讀取檔案的 AI",
-    "支援本地 hash",
-    "maintainer local-hash",
-    "舊 migration 資料夾、stage 或已回滾報告只屬歷史證據"
-  ]) {
-    assert(!plain.includes(forbidden), `AI install page retained stale conflict route: ${forbidden}`);
-  }
-  assert(!read("package.json").includes("agent-handoff-kit-ai-install.html"), "AI install page must remain outside npm files whitelist");
-  console.log("ok: AI install page contract");
+  for(const suffix of ['', '.en']) validateAiSetupDocument(read(`agent-handoff-kit-ai-install${suffix}.html`),suffix==='');
+  assert(!read('package.json').includes('agent-handoff-kit-ai-install.html'), 'AI install HTML must remain outside npm files whitelist');
+  console.log('ok: AI install safety, recovery, same-run checks and one pre-command completion reply');
 }
 
 function currentRootMismatchGuard() {
@@ -1859,18 +1655,8 @@ function checkWorkspaceHealthContract() {
 }
 
 function checkDecisionFirstOnboardingWording() {
-  const surfaces = [
-    { file: "README.md", required: ["第一次安裝會把新手引導標記為待使用", "簡短新手歡迎引導", "開始第一個安全步驟"] },
-    { file: "agent-handoff-kit-intro.html", required: ["單獨輸入「開工」會完整讀取交接包並恢復必要狀態", "然後等待你的下一句指令", "新手引導仍標記為 <code>eligible</code>", "沒有同句明確任務時", "簡短新手歡迎引導", "直接開始第一個安全步驟"] },
-    { file: "agent-handoff-kit-guide.html", required: ["第一次安裝會把新手引導標記為待使用", "簡短新手歡迎", "目標清楚就直接開始"] }
-  ];
-  for (const surface of surfaces) {
-    assertIncludes(surface.file, surface.required);
-  }
-  const combined = surfaces.map((surface) => read(surface.file)).join("\n");
-  assert(!combined.includes("單獨輸入「開工」只會讀取最小狀態"), "public startup copy must not reduce complete handoff reception to a partial state read");
-  assert(!combined.includes("再用 5 步引導你:選情境"), "public onboarding copy still forces the legacy five-step chooser path");
-  console.log("ok: public decision-first onboarding wording");
+  checkShortcutTeachingDocuments();
+  console.log('ok: startup waits for a task; first use guidance and complete reception remain reader-visible');
 }
 
 function checkRecommendedNextStepContract() {
@@ -2357,10 +2143,10 @@ function checkReleaseStateCoherence(version) {
   const current = `v${version}`;
   const readmeHead = read("README.md").split(/\r?\n/).slice(0, 12).join("\n");
   const englishReadmeHead = read("README.en.md").split(/\r?\n/).slice(0, 12).join("\n");
-  assert(readmeHead.includes(`原始碼套件版本：\`${current}\``), "README.md first screen must state the source package version without claiming it is already published");
-  assert(readmeHead.includes("npm `@latest` 與 GitHub Release 以發佈後讀回為準"), "README.md first screen must keep npm/GitHub release state as an external readback boundary");
-  assert(englishReadmeHead.includes(`Source package version: \`${current}\``), "README.en.md first screen must state the source package version without claiming it is already published");
-  assert(englishReadmeHead.includes("npm `@latest` and GitHub Release are verified by post-publish readback"), "README.en.md first screen must keep npm/GitHub release state as an external readback boundary");
+  assert(readmeHead.includes(`文件對應程式版本：\`${current}\``), "README.md first screen must state the source package version without claiming it is already published");
+  assert(readmeHead.includes("正式下載可用的功能，以已發布版本為準"), "README.md first screen must keep npm/GitHub release state as an external readback boundary");
+  assert(englishReadmeHead.includes(`Code version covered: \`${current}\``), "README.en.md first screen must state the source package version without claiming it is already published");
+  assert(englishReadmeHead.includes("Features available to download depend on the published version"), "README.en.md first screen must keep npm/GitHub release state as an external readback boundary");
 
   const activeSurfaces = RELEASE_STATE_CONTRACT.surfaces.map((surface) => materializeVersionedPath(surface.path, version));
   const forbidden = RELEASE_STATE_CONTRACT.forbiddenPatterns.map((pattern) => new RegExp(pattern.source, pattern.flags));
@@ -2417,7 +2203,7 @@ function expectedPackageFileCount() {
   return RELEASE_PACKAGE_CONTRACT.expectedPackageFileCount;
 }
 
-function checkPackedPackageUpgradeSmoke(version) {
+function checkPackedPackageUpgradeSmoke(version, {featuresOnly=false} = {}) {
   const smokeBase = qaTemp.track(path.join(tmpdir(), `ack-packed-smoke-${Date.now()}`));
   const packDir = path.join(smokeBase, "pack");
   const prefix = path.join(smokeBase, "prefix");
@@ -2437,6 +2223,8 @@ function checkPackedPackageUpgradeSmoke(version) {
   assert(existsSync(packedBin), "packed smoke installed CLI missing");
   assert(!existsSync(path.join(packageRoot, "docs", "whatsnew")), "packed smoke unexpectedly includes docs/whatsnew");
 
+  checkPackedShortcutDelivery({smokeBase,packedBin,tgzPath,version});
+  if(featuresOnly)return;
   materializePinnedV041ArtifactInit(upgradeRoot);
   const agentsPath = path.join(upgradeRoot, "AGENTS.md");
   const userSuffix = Buffer.from("\n\nKeep this unheaded local rule effective after the packed upgrade.\n", "utf8");
@@ -2476,6 +2264,45 @@ function checkPackedPackageUpgradeSmoke(version) {
   assertAcceptedCurrentStateDoctorOutput(outputText(secondDoctor), version, "packed package second doctor");
 }
 
+function checkPackedShortcutDelivery({smokeBase,packedBin,tgzPath,version}) {
+  const official=JSON.parse(read('bin/migration-baselines/official-origin-catalog.json')).generatedShortcuts['0.4.0'];
+  const baselineDir=path.join(smokeBase,'published-shortcuts'),baselinePrefix=path.join(smokeBase,'old-cli');
+  mkdirSync(baselineDir,{recursive:true});
+  const packed=JSON.parse(runNpm(['pack',official.npm.spec,'--json','--pack-destination',baselineDir],'published shortcut artifact').stdout)[0];
+  const baselineTar=path.join(baselineDir,packed.filename),bytes=readFileSync(baselineTar);
+  assert(createHash('sha256').update(bytes).digest('hex')===official.npm.tarballSha256,'published shortcut artifact mismatch');
+  assert('sha512-'+createHash('sha512').update(bytes).digest('base64')===official.npm.integrity,'published shortcut npm integrity mismatch');
+  runNpm(['install','--prefix',baselinePrefix,'--ignore-scripts',baselineTar],'published shortcut package extract');
+  const oldRoot=path.join(baselinePrefix,'node_modules/@adamchanadam/agent-handoff-kit');
+  const oldBin=path.join(oldRoot,'bin/agent-handoff-kit.mjs');
+  assert(JSON.stringify(collectOfficialShortcuts({packageRoot:oldRoot,tarballPath:baselineTar,version:'0.4.0',npmIdentity:official.npm}))===JSON.stringify(official),'published shortcut history regeneration drifted');
+  const fresh=path.join(smokeBase,'fresh-features'),upgraded=path.join(smokeBase,'old-shortcut-features');
+  const call=(bin,args,label,env={})=>run(process.execPath,[bin,...args],label,{env:{...process.env,AGENT_HANDOFF_KIT_SKIP_UPDATE_CHECK:'1',...env}});
+  const ready=project=>{for(const f of commandFiles())assert(readFileSync(path.join(project,f.file),'utf8')===f.text,'packaged entry mismatch: '+f.file);};
+  call(packedBin,['init','--yes','--root',fresh],'packed fresh feature delivery');ready(fresh);
+  call(oldBin,['init','--yes','--root',upgraded],'published normal init');
+  call(oldBin,['commands','--yes','--root',upgraded],'published optional shortcuts baseline');
+  for(const [file,digest]of Object.entries(official.files))assert(createHash('sha256').update(readFileSync(path.join(upgraded,file))).digest('hex')===digest,'old official shortcut not reproduced');
+  const userPath=path.join(upgraded,'private-project-note.txt');writeFileSync(userPath,'preserve custom work\n');
+  const agents=path.join(upgraded,'AGENTS.md');writeFileSync(agents,'# Local project instructions\n\n'+readFileSync(agents,'utf8'));
+  call(packedBin,['upgrade','--yes','--root',upgraded],'published-to-packed normal upgrade');ready(upgraded);
+  assert(readFileSync(userPath,'utf8')==='preserve custom work\n','packed upgrade lost ordinary work');
+  assert(readFileSync(agents,'utf8').startsWith('# Local project instructions\n\n'),'packed upgrade lost local AGENTS prefix');
+  const before=commandFiles().map(f=>readFileSync(path.join(upgraded,f.file),'utf8'));
+  call(packedBin,['upgrade','--yes','--root',upgraded],'packed repeat upgrade');
+  assert(JSON.stringify(before)===JSON.stringify(commandFiles().map(f=>readFileSync(path.join(upgraded,f.file),'utf8'))),'packed repeat changed shortcuts');
+  call(packedBin,['commands','--dry-run','--root',upgraded],'packed shortcut usage entry');
+  call(packedBin,['update','--root',upgraded],'packed update entry',{AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST:version});
+  // Missing generated output must make the actual packaged doctor fail.
+  const missing=commandFiles().at(-1);rmSync(path.join(fresh,missing.file));
+  const negative=spawnSync(process.execPath,[packedBin,'doctor','--root',fresh],{encoding:'utf8',env:{...process.env,AGENT_HANDOFF_KIT_SKIP_UPDATE_CHECK:'1'}});
+  assert(!negative.error && Number.isInteger(negative.status) && negative.status!==0 && outputText(negative).includes(missing.file),'packaged doctor must actually reject the missing feature output');
+  call(packedBin,['upgrade','--yes','--root',fresh],'packed missing output repair');ready(fresh);
+  console.log('ok: actual package fresh init, published0.4.0-to-candidate normal upgrade, all generated entries, custom preservation, repeat and usage CLI; native hosts remain separate');
+  console.log('delivery package sha256: '+createHash('sha256').update(readFileSync(tgzPath)).digest('hex'));
+  console.log('delivery baseline sha256: '+official.npm.tarballSha256);
+}
+
 function checkEnglishPublicSurfaces(version) {
   const pairs = [
     { chinese: "README.md", english: "README.en.md" },
@@ -2497,7 +2324,7 @@ function checkEnglishPublicSurfaces(version) {
       // assertion for every historical language pair.
       if (pair.versioned !== false && pair.english !== "agent-handoff-kit-guide.en.html") {
         assert(english.includes(`v${version}`), `${pair.english} is not aligned to v${version}`);
-        assert(english.includes("npm registry"), `${pair.english} must distinguish source-page and npm versions`);
+        assert(english.includes("published version"), `${pair.english} must distinguish source-page and npm versions`);
       }
     }
   }
@@ -2914,29 +2741,7 @@ function checkGovernanceBridgeContract() {
     "mergeAgentGovernanceBridgeWorkflow"
   ]);
 
-  assertIncludes("README.md", [
-    "讓新文件不變成孤兒",
-    "把這份文件接入 Agent Handoff Kit",
-    "掃描未接入 Agent Handoff Kit 的重要文件",
-    "AI 只會先列出可能需要接入的文件與原因",
-    "是否接入、合併或退役由你確認",
-    "如涉及刪除、改名、合併權威文件、發佈、上傳或權限變更，AI 應先說明影響並等你確認"
-  ]);
-
-  assertIncludes("agent-handoff-kit-intro.html", [
-    "id=\"bridge\"",
-    "把 docs/stock-list.md 接入 Agent Handoff Kit",
-    "治理打通 docs/stock-list.md",
-    "bridge governance for docs/stock-list.md",
-    "只列缺口,不亂改"
-  ]);
-
-  assertIncludes("agent-handoff-kit-guide.html", [
-    "id=\"bridge-step\"",
-    "把 docs/example.md 接入 Agent Handoff Kit",
-    "我剛建立了 <code>docs/production-guide.md</code>,把這份文件接入 Agent Handoff Kit",
-    "我不會自動刪除、改名或合併文件"
-  ]);
+  checkShortcutTeachingDocuments();
 
   assertIncludes("scripts/check-upgrade-safety.mjs", [
     "governance bridge RULE_PACKS marker migration",
@@ -3078,19 +2883,7 @@ function checkTaskPersistenceGateContract() {
     "upgrade --dry-run changed handoff, log, or startup mirror"
   ]);
 
-  assertIncludes("README.md", [
-    "完成本輪工作後，對 AI 說「收工」"
-  ]);
-
-  assertIncludes("agent-handoff-kit-intro.html", [
-    "準備結束本輪工作時說一聲「收工」",
-    "準備結束本輪工作時說「收工」"
-  ]);
-
-  assertIncludes("agent-handoff-kit-guide.html", [
-    "準備結束本輪工作時講「收工」",
-    "準備結束本輪工作時一句「收工」"
-  ]);
+  checkShortcutTeachingDocuments();
 
   const guide = read("agent-handoff-kit-guide.html");
   assert(!guide.includes("正式執行 + 寫入交接"), "guide must not teach task completion as immediate handoff write");
@@ -3216,4 +3009,99 @@ function assertThrows(fn, message) {
     return;
   }
   throw new Error(message);
+}
+
+
+// Human guidance is checked here once. Detailed runtime behavior remains owned by
+// the existing core/pack/installer checks; these assertions never replace full reading.
+function publicProse(text) { return stripHtml(text.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'')); }
+function validateAiSetupDocument(text,zh) {
+  const plain=publicProse(text),first=plain.indexOf('npx --yes @adamchanadam/agent-handoff-kit@latest init');
+  const report=plain.indexOf(zh?'執行前先讀：完成後怎樣回覆':'Before running: the completion reply');
+  assert(report>=0 && report<first,'one completion reply contract must precede execution');
+  assert((plain.match(new RegExp(zh?'執行前先讀：完成後怎樣回覆':'Before running: the completion reply','g'))||[]).length===1,'completion reply must have one owner');
+  for(const command of ['init --yes','upgrade --dry-run','upgrade --yes','doctor']) assert(plain.includes(`npx --yes @adamchanadam/agent-handoff-kit@latest ${command} --root .`),`AI setup missing ${command}`);
+  const required=zh?['不刪除、不覆寫衝突','沒有未完成交易、健康結果明示通過','絕對路徑','未確認前，不執行 init、upgrade 或 doctor','零寫入','取得具體授權後才修改','不得靠重裝或整檔覆寫繞過衝突','不能手動刪鎖','不能以單獨 doctor 取代恢復','程序成功退出','完整終態','其後沒有相關檔案變更或不明狀態','保留所有提醒','用戶另行要求檢查','不等於再次核對 npm 最新版','所有專案快捷入口','不要為升級猜補工作進度','已安裝不代表原生選單及呼叫已驗證','不要因安裝完成就自行開始已保存的任務']:['Do not delete files, overwrite conflicts','no transaction remains unfinished, health explicitly passed','absolute path','Before confirmation, do not run init, upgrade or doctor','zero writes','obtain specific authorization before editing','Do not bypass conflicts by reinstalling','Do not delete locks manually','substitute standalone doctor for recovery','process exited successfully','full final state','no relevant file changed or became uncertain afterward','Keep all warnings','user separately requests a check','does not recheck the latest npm release','all project shortcuts','Do not invent work progress','Installed files do not prove native menus and invocation were verified','Finishing setup does not authorize starting the saved task'];
+  for(const phrase of required)assert(plain.includes(phrase),`AI setup lost boundary: ${phrase}`);
+  for(const action of ['git commit','git push','git tag','npm publish','GitHub Release'])assert(plain.includes(action),`AI setup missing explicit external-action boundary: ${action}`);
+}
+function checkShortcutTeachingDocuments(readDoc=read) {
+  const names=['README.md','README.en.md','docs/commands.md','docs/progress.md',...['intro','guide','ai-install'].flatMap(k=>[`agent-handoff-kit-${k}.html`,`agent-handoff-kit-${k}.en.html`]),'local-agentic-ai-workflow-case-study.html','local-agentic-ai-workflow-case-study.en.html'];
+  for(const name of names){
+    const text=readDoc(name),plain=name.endsWith('.html')?publicProse(text):text;
+    assert(!/(?<!Agent Handoff )\bKit\b/.test(plain),`${name}: unexplained product shorthand`);
+    if(name.endsWith('.html')){
+      const body=text.split('<body')[1],ids=[...body.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
+      assert(new Set(ids).size===ids.length,`${name}: duplicate HTML IDs`);
+      for(const m of body.matchAll(/\bdata-copy="([^"]+)"/g))assert(ids.includes(m[1]),`${name}: copy target missing`);
+      if(body.includes('data-copy='))assert(body.includes('data-copy-status role="status" aria-live="polite"'),`${name}: missing accessible copy feedback`);
+      for(const m of body.matchAll(/\bhref="#([^"]+)"/g))assert(ids.includes(m[1]),`${name}: missing section link`);
+      for(const m of body.matchAll(/\b(?:src|href)="([^"#:]+)(?:#[^"]*)?"/g)){const url=m[1];if(!url.startsWith('//'))assert(existsSync(path.resolve(root,path.dirname(name),url.split('?')[0])),`${name}: missing local asset/link ${url}`);}
+      for(const m of text.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g))JSON.parse(m[1]);
+    }
+    if(!name.includes('ai-install')){
+      for(const jargon of ['Reconstruction evidence','eligible','RULE_PACKS','DOC_SYNC_REGISTRY','cold-start','source-of-truth','loop engineering','harness engineering'])assert(!plain.includes(jargon),`${name}: reader-facing internal term ${jargon}`);
+      assert(!/npx --yes @adamchanadam\/agent-handoff-kit@latest (?:init|upgrade|doctor)/.test(plain),`${name}: duplicate manual installation journey`);
+    }
+    if(!name.includes('case-study')&&!name.includes('progress.md')&&!name.includes('ai-install')){
+      const entryNames=name.startsWith('README')||name.includes('-intro')?['handoff-kit-start','handoff-kit-progress','handoff-kit-close']:commands.map(c=>c.name);
+      for(const entry of entryNames)assert(text.includes(entry),`${name}: missing reader shortcut ${entry}`);
+      assert(text.includes('agent-handoff-kit-guide'),'reader shortcut list must link to the complete guide');
+      assert(text.includes('/skills') && (text.includes('Codex 用 $')||text.includes('Codex uses $')||text.includes('$handoff-kit-start')),`${name}: missing Codex syntax distinction`);
+    }
+  }
+  // Product coverage complements command teaching: a complete menu cannot replace
+  // the explanation of continuity, files, enduring requirements and working methods.
+  // Semantic/bilingual review remains required; phrases below only catch deletion.
+  for (const suffix of ['', '.en']) {
+    const zh=suffix==='';
+    const coverage=[
+      [`README${suffix}.md`, zh?['跨對話接力','重要文件不漏掉','長期紀錄找得回','按任務選做法','保留日後要求']:['Carry work between conversations','Keep important files connected','Keep a useful long-term record','Adapt to the task','Keep future working requirements']],
+      [`agent-handoff-kit-intro${suffix}.html`,zh?['你的修正和未完事項','文件用途','重要決定、選擇原因','工作要求','按任務採用合適的做法']:['your corrections and unfinished items','what files are for','important decisions, their reasons','working requirements','applies the relevant approach']],
+      [`agent-handoff-kit-guide${suffix}.html`,zh?['保存重點，日後找得回','按工作需要，換合適做法']:['Keep the context you will need later','Use the right approach for the task']]
+    ];
+    for(const [name,phrases]of coverage)for(const phrase of phrases)assert(publicProse(readDoc(name)).includes(phrase),`${name}: product explanation missing: ${phrase}`);
+  }
+  for(const suffix of ['','.en']){
+    const guide=readDoc(`agent-handoff-kit-guide${suffix}.html`),zh=suffix==='';
+    for(const c of commands){const id=c.name.replace('handoff-kit-','');assert(guide.includes(`id="${id}"`) && guide.includes(`data-command="${id}"`),`guide lacks copyable ${c.name}`);}
+    const required=zh?['第一次使用而尚未有目標','再等你提出任務','交接未讀齊或有重要矛盾','不等於整個專案完成','不修復、不升級','你確認修改範圍後才改','沒有說明要求時','有新版便自動升級','不在背景定時更新','不強行覆寫','檔案已安裝不等於工具選單已重新載入','結束對話前','之後查看、篩選和畫面更新不另叫 AI']:['On first use, with no goal yet','then waits for your task','incomplete or contains an important contradiction','does not mean the whole project is complete','does not repair or upgrade','edits wait for your approval of the scope','If no requirement is given','If a newer release exists','not on a background schedule','does not force overwrites','Installed files do not mean a tool has reloaded its menu','ending the conversation','subsequent page updates do not make further AI calls'];
+    for(const phrase of required)assert(publicProse(guide).includes(phrase),`guide boundary missing: ${phrase}`);
+    const install=readDoc(`agent-handoff-kit-ai-install${suffix}.html`);validateAiSetupDocument(install,zh);
+    assert(readDoc(`README${suffix}.md`).includes(`agent-handoff-kit-ai-install${suffix}.html`),'README must use the AI setup page');
+    assert(guide.includes('images/agent-handoff-kit-dashboard-en.webp')&&guide.includes('images/agent-handoff-kit-dashboard-zh-Hant.webp'),'guide must show both dashboard languages');
+  }
+}
+function checkShortcutTeachingCounterexamples(){
+  const cases=[
+    ['agent-handoff-kit-guide.html','data-copy-status role="status" aria-live="polite"','','missing accessible copy feedback'],
+    ['agent-handoff-kit-guide.html','不修復、不升級','會修復及升級','guide boundary missing: 不修復、不升級'],
+    ['agent-handoff-kit-guide.en.html','then waits for your task','then starts the saved task','guide boundary missing: then waits for your task'],
+    ['agent-handoff-kit-guide.html','id="troubleshooting"','id="help"','duplicate HTML IDs'],
+    ['agent-handoff-kit-intro.html','src="images/agent-handoff-kit-main-visual2.png','src="images/missing-brand.png','missing local asset/link images/missing-brand.png'],
+    ['agent-handoff-kit-ai-install.html','不能手動刪鎖','可手動刪鎖','AI setup lost boundary: 不能手動刪鎖'],
+    ['agent-handoff-kit-ai-install.html','不刪除、不覆寫衝突','可以刪除、可覆寫衝突','AI setup lost boundary: 不刪除、不覆寫衝突'],
+    ['agent-handoff-kit-ai-install.html','健康結果明示通過','健康結果不必通過','AI setup lost boundary: 沒有未完成交易、健康結果明示通過'],
+    ['agent-handoff-kit-ai-install.en.html','Do not delete files, overwrite conflicts','You may delete files and overwrite conflicts','AI setup lost boundary: Do not delete files, overwrite conflicts'],
+    ['agent-handoff-kit-ai-install.en.html','health explicitly passed','health need not pass','AI setup lost boundary: no transaction remains unfinished, health explicitly passed']
+  ];
+  for(const[file,from,to,expected]of cases){
+    const source=read(file);assert(source.includes(from),`mutation anchor missing ${from}`);
+    let rejection='';try{checkShortcutTeachingDocuments(n=>n===file?source.replace(from,to):read(n));}catch(error){rejection=error.message;}
+    assert(rejection.includes(expected),`bad teaching mutation rejected for wrong reason or accepted: ${file} ${from}: ${rejection}`);
+  }
+  const shorthandFile='agent-handoff-kit-intro.html', shorthandSource=read(shorthandFile);
+  assert(shorthandSource.includes('替你留下甚麼？'),'reader heading anchor missing');
+  let shorthandRejection='';
+  try{checkShortcutTeachingDocuments(n=>n===shorthandFile?shorthandSource.replace('替你留下甚麼？','Kit 幫你留下甚麼？'):read(n));}catch(error){shorthandRejection=error.message;}
+  assert(shorthandRejection.includes('unexplained product shorthand'),'unexplained Kit shorthand must be rejected');
+  // Remove the product story while leaving the everyday command navigation intact.
+  for(const file of ['agent-handoff-kit-intro.html','agent-handoff-kit-intro.en.html']){
+    const source=read(file),mutated=source.replace(/<section class="kit-section" id="what">[\s\S]*?<\/section>/,'<section class="kit-section" id="what"></section>');
+    assert(source!==mutated,'product-section mutation must change input');
+    assert(['handoff-kit-start','handoff-kit-progress','handoff-kit-close'].every(c=>mutated.includes(c)),'product mutation must retain everyday shortcuts');
+    let rejection='';try{checkShortcutTeachingDocuments(n=>n===file?mutated:read(n));}catch(error){rejection=error.message;}
+    assert(rejection.includes('product explanation missing:'),`command-only product story accepted or wrong rejection: ${file}: ${rejection}`);
+  }
+  console.log('ok: missing product explanation, feedback, unsafe behavior, duplicate anchors and broken images fail document checks');
 }

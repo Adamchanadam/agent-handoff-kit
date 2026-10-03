@@ -19,6 +19,73 @@ Convenience collector: after the external publish actions complete, maintainers 
 
 Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
 
+## v0.4.1 candidate status
+
+- 狀態：來源準備完成；正式 full 及發布讀回尚未完成。基線是已發布 v0.4.0；不得沿用其發布 PASS。
+- 範圍：正常安裝／升級交付專案指令；精確官方內容安全升級、自訂內容保留；新增檢查更新入口、精簡雙語指引。進度頁程式隨安裝交付，開頁不再下載 npm；品牌版面及保存紀錄更新方式保留。
+- 實際套件：52檔，SHA-256 `233ae2c370042f9b1887419e325eeae0a26fe47036075b02a50178020969e5ea`。正常新安裝及已發布0.4.0升級，npm不可用／快取不可写條件下本機開頁、重用、圖像相同及專案零寫入均通過。來源逐byte對應52檔。
+- 沿用：未變的交接、版面、讀者全文語意及既有安裝交易反例。補驗：本機程式交付、Windows大小寫根身分、分散候選端口、官方來源收集輸出上限及必要原生入口證據；失敗與修正均保留。
+- 獨立審閱：delivery_review 實作反例及文件差異接受。Codex CLI 真實選單顯示九入口；實際 progress 呼叫啟動本機程式並核對HTTP200。其他八個指令動作、Desktop GUI及其餘三個工具未由此證明；用戶選定本次原生驗收只用Codex。
+- 預檢補齊：淺白README版本文字仍須通過版本／已發布界線檢查；官方來源產生器補入已發布0.4.0完整基線。r4只重驗受影響套件安裝／升級，原生入口檔案與程式未變。
+- 尚欠：固定提交、獨立凍結收據、正式全面檢及授權發布後讀回。新session沿用有效證據及執行邊界依 WORK QA owner，不另定程序。
+
+### pre-release final audit（v0.4.1，SOURCE_PREPARATION）
+
+- full 必須等 clean commit、實際套件及獨立收據；來源準備不是正式全面檢通過。
+- Full-check role isolation：作者與獨立唯讀審閱分開。受影響實作及雙語差異已有獨立審閱；凍結時只核對來源身分及證據適用性。
+- five-conclusion writer assessment：governanceHealth、productJourney、userJourney、qcBackflow、rulesPacksRouting 的來源準備判斷為passed。依據為既有owner局部修正、真實套件安裝升級、Codex實際使用與讀者畫面、失敗反例回歸及來源到功能交付映射。範圍限制保留，正式full另驗。
+
+### Bilingual README semantic gate（v0.4.1，PASS）
+
+- Reviewer：independent /root/delivery_review，2026-10-03；同模型隔離，非跨模型。沿用已逐句接受的讀者稿及產品故事，先重建核對12份舊hash，再對照當前全部差異；只有同步版本號及progress說明兩句變更，未改部分不重做。
+- `README.md` SHA-256 `12A0E54C3979316DFB06D7FFBB676D17616FE363936BF2EF81821D0A2DC9A910`
+- `README.en.md` SHA-256 `1CB576CB06287EFFCE87F6B9B98A2DBD2E75579B7C6766944EFB1056D1E03450`
+- Verdict: **PASS** — independent semantic delta review with unchanged accepted full-reading evidence; no new universal compatibility or aesthetic approval claim.
+
+### Bilingual practical-guide semantic gate（v0.4.1，PASS）
+
+- Reviewer：independent /root/delivery_review，2026-10-03；同模型隔離，非跨模型。沿用已逐句接受的讀者稿及產品故事，先重建核對12份舊hash，再對照當前全部差異；只有同步版本號及progress說明兩句變更，未改部分不重做。
+- `agent-handoff-kit-guide.html` SHA-256 `23BCF078C4BD764720CCB43FF2D51F15B832B3387C9AD123F26275843A4D1B76`
+- `agent-handoff-kit-guide.en.html` SHA-256 `9A35062F4D75C388478D47A957E0D9E54FA18D3293F77637DA92A419756A42A1`
+- Verdict: **PASS** — independent semantic delta review with unchanged accepted full-reading evidence; no new universal compatibility or aesthetic approval claim.
+
+### Bilingual AI-install semantic gate（v0.4.1，PASS）
+
+- Reviewer：independent /root/delivery_review，2026-10-03；同模型隔離，非跨模型。沿用已逐句接受的讀者稿及產品故事，先重建核對12份舊hash，再對照當前全部差異；只有同步版本號及progress說明兩句變更，未改部分不重做。
+- `agent-handoff-kit-ai-install.html` SHA-256 `388E48F4870467DEE005558C8CD2D122BA4F01F5754BB8B85FD208EC998A3118`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `444714116AD51DC2DD249BD79415D79731F725502317244408AB8CA3713B8FC7`
+- Verdict: **PASS** — independent semantic delta review with unchanged accepted full-reading evidence; no new universal compatibility or aesthetic approval claim.
+
+### Bilingual introduction semantic gate（v0.4.1，PASS）
+
+- Reviewer：independent /root/delivery_review，2026-10-03；同模型隔離，非跨模型。沿用已逐句接受的讀者稿及產品故事，先重建核對12份舊hash，再對照當前全部差異；只有同步版本號及progress說明兩句變更，未改部分不重做。
+- `agent-handoff-kit-intro.html` SHA-256 `C678A4F321BCBD58EB2D025DEFA4B738A3BF923549A2FF79C2327CADCDD7D774`
+- `agent-handoff-kit-intro.en.html` SHA-256 `3CF57EFD30DF69F73165347D85D4E7ECF9C57230375939C67F042994C6A15456`
+- Verdict: **PASS** — independent semantic delta review with unchanged accepted full-reading evidence; no new universal compatibility or aesthetic approval claim.
+
+### Bilingual local-workflow case-study semantic gate（v0.4.1，PASS）
+
+- Reviewer：independent /root/delivery_review，2026-10-03；同模型隔離，非跨模型。沿用已逐句接受的讀者稿及產品故事，先重建核對12份舊hash，再對照當前全部差異；只有同步版本號及progress說明兩句變更，未改部分不重做。
+- `local-agentic-ai-workflow-case-study.html` SHA-256 `486393DA37EA9F91D139FB48E1AA810ABC8E95D69F6150035DC98BE4B276FE03`
+- `local-agentic-ai-workflow-case-study.en.html` SHA-256 `DEA7FE93D6468424BE771CCB31880E71B453B566C87DE2B567A83E2ABFF43182`
+- `images/local-agentic-ai-workflow-blueprint.png` SHA-256 `BAC9FB0E4F08BFA7B9954DFD4593825240934FBB67962EFE1220EBE93B57EFE8`
+- `images/local-agentic-ai-workflow-blueprint.en.png` SHA-256 `99FAE71B9AF5698797B81AE87ADFC641FECB4177764CA94BC27F1E676B24E6BA`
+- Verdict: **PASS** — independent semantic delta review with unchanged accepted full-reading evidence; no new universal compatibility or aesthetic approval claim.
+
+### Cross-mind evidence 9-trigger table（v0.4.1）
+
+| Trigger | Applies | Status | Notes |
+|---|---|---|---|
+| 1. Failure or blocker | yes | iterated | Cache-dependent progress failure repaired by normal installed local delivery; first port and case-identity failures preserved. |
+| 2. External side effects | yes | passed | Explicit Public release sequence authorized; this snapshot records no external release success or WORK Git authority. |
+| 3. User-visible output | yes | passed | Native Codex menu and progress invocation; bilingual reader browser and semantic evidence retained within hashes. |
+| 4. Complexity or boundary | yes | passed | Existing installer transaction and command owner reused; fixed local helpers, no global cache or permission change. |
+| 5. Documentation drift | yes | iterated | Full reader-content reviews retained, final version/local-progress language deltas independently accepted. |
+| 6. Semantic runtime effect | yes | passed | Normal install/upgrade/use and independent custom-preservation/recovery cases; existing continuity evidence unaffected. |
+| 7. Recurrence or regression | yes | passed | Offline local launch, exact official history, user modifications, failed recovery and false native evidence have counterexamples. |
+| 8. QA authority | yes | passed | Required feature routes bind actual artifacts and native entry; unaffected prior evidence retains bounded scope. |
+| 9. Release statement | yes | passed | Source preparation only; frozen independent receipt, formal full and external publication are separate. |
+
 ## v0.4.0 candidate status
 
 - 狀態：本機原始碼候選準備。這是新增功能的次版本更新，包含八個專案快捷入口、動態雙語 Dashboard，以及開工完整接收／恢復交接的修正。最新已發布版本仍為 v0.3.67；沒有沿用舊版 formal full 或發布結果。
@@ -1558,7 +1625,7 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 | 交接狀態對賬驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `SESSION_HANDOFF` 分清 Durable Anchors 與 Closeout-Reconciled State，具備 Task Understanding Summary 與 State Reconciliation Check，並用負面測試確認 stale snapshot 不能當作已對賬；v0.3.6 起再加入交接生命週期一致性反例，確認已完成事項不能被下一輪當成未解待辦；同時檢查一次性驗收、舊版本、舊發佈與研究證據鏈不可污染 Durable Anchors / Next Priorities / opening message。 | 是 |
 | 交接語言本地化驗收 | 已併入 `doctor` 與 `npm run qa:release` | 檢查 `SESSION_HANDOFF` 保留 `ack:section:*` 與 `ack:field:*` 語義標記時，標題與可見欄位名稱可翻成中文或其他語言。 | 是 |
 | 安裝後指示驗收 | 已併入 `npm run qa:prototype` 與 `npm run qa:release` | 檢查安裝成功後的終端機輸出不會令用戶誤把提示文字當成命令，並確認 README 說明安裝後第一步；同時檢查 `npx` 取得 CLI 工具與項目內 Kit 文件安裝不可混淆。 | 是 |
-| AI 代安裝頁驗收 | 已併入 `npm run qa:release` | 檢查 `agent-handoff-kit-ai-install.html` 是 GitHub Pages 普通 HTML 入口，README / intro / guide 均有連結；頁面要求 AI 先顯示並確認目前資料夾，未確認不執行 `init` / `upgrade` / `doctor`，遇 conflict 停手，不把差異裁決交給一般用戶，也不把維護者收納用戶本地內容列為一般路徑；unknown hash 只作內容 witness，真正合併由能讀寫該資料夾的 AI 在用戶授權下完成，之後再跑 `upgrade --dry-run`、`doctor` 與 hash / readback；完成後跑 `doctor`，並明確禁止 commit / push / tag / npm publish / GitHub Release。完成報告契約必須出現在第一個 `npx` 命令之前，避免 prompt-driven agent 只讀到操作步驟便停止；Prompt 安裝完成後，AI 不可只說「完成」或只貼終端機輸出，必須輸出完成報告，說明結果、目前資料夾、`doctor` 結果、`Start Agent Handoff` /「開工」不是終端機指令，以及下一步要在 AI 對話中開始。此頁不屬於 npm package。 | 是 |
+| AI 代安裝頁驗收 | 已併入 `npm run qa:release`；局部文件驗收可用 `node scripts/check-release-readiness.mjs --public-docs-only` | AI 安裝頁是唯一技術安裝教學，讀者主路徑只要貼一句話。AI 指示保留資料夾確認、零寫入衝突、授權合併、升級中斷恢復、同次完整 doctor 重用條件及例外、版本最新另查、九入口同装、禁止未授權 Git／發布。一份完成回報指示置於首命令之前。已安裝不可冒充原生工具選單及呼叫已實測。此頁不屬 npm package。 | 是 |
 | 技能／子代理流程仲裁驗收 | 已併入 `npm run qa:packs` 與 `npm run qa:release` | 檢查外部技能、子代理、demo workspace 或其他工具的 closeout 不可取代目前根目錄自己的 Agent Handoff Kit 持久化。 | 是 |
 | 任務持久化分流驗收 | 已併入 `npm run qa:release` 與人工終讀 | 檢查完成任務不等於完整收工；核心 runtime 是唯一分流真源，README / intro / guide 只保留用戶操作語句，不暴露內部治理分類；例行通過檢查、未拍板草稿不得觸發輕量保存或完整收工，新增或刪除文件、新來源、用戶要求把經驗轉成機制時才按角色保存到正確位置；長任務中途分批新增或改動產品目標、開發清單、驗收規則、非目標或優先序時，必須先合併到單一當前任務契約，不能只留在聊天或分散到多份文件片段。 | 是 |
 | Generated artifact governance 驗收 | 已併入 `doctor`、`npm run qa:prototype`、`npm run qa:release` 與人工終讀 | `doctor` 的機器範圍只掃 Markdown：未登記 `outputs/*.md` 必須 fail，精確登記或同一紀錄分類後才 pass。其他持久格式沿用人工治理與索引責任，不得宣稱由 doctor 掃描。 | 是 |
@@ -1573,8 +1640,8 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 | Onboarding HTML 書面語紀律 | 已併入 `npm run qa:release` | 對 `agent-handoff-kit-intro.html` 與 `agent-handoff-kit-guide.html` 跑廣東口語字符 grep（「嘅 / 咁 / 喺 / 揀 / 唔 / 乜 / 啱 / 嚟 / 咗 / 嗰」）；命中數必為 0（onboarding HTML 必為繁體中文書面語）。 | 是 |
 | Onboarding Pack 結構驗收 (R-029) | 已併入 `doctor` 與 `npm run qa:release` 與 `npm run qa:packs` | 檢查 `dev/rules/onboarding.md` 含 H2 sections（Scope / Load When / Discipline / Application Scenario Library / Cross-reference to guide.html / Tone Discipline / Closeout）並保持順序；含 6 個 Scenario H3 heading（A 建構系統 / B 整理研究資料 / C 整理電腦檔案 / D 學寫代碼 / E 其他 / F 外部工具治理）；含 `Infer when sufficient; ask only when unresolved` 決策錨點與可選的 guided 5-step pattern；含 Tone Discipline 5 條（書面語 / 講人話 / 敍事+解釋 / 不過度解釋 internals / 鼓勵性而非考試）。 | 是 |
 | 新手直接路由與安全邊界驗收 | `npm run qa:packs`、`npm run qa:prototype`、`npm run qa:upgrade`、`npm run qa:release` | 固定驗證三種情境：目標與資料足夠時直接判斷並開始，不顯示 A-F 或重問；真正含糊或用戶要求引導時保留選單；外部、權限、費用、發佈及不可逆操作仍須明確確認。升級驗收須把 0.3.38 的可信舊流程語義合併為新流程，保留自訂規則列與本地段落，結構含糊時報 conflict；初始提示、交接與日誌副本須一致。 | 是 |
-| Cross-surface wording consistency 驗收 (R-029.1 → v0.3.19 startup-entry update) | 已併入 `npm run qa:release` 與 `npm run qa:prototype` 與 `npm run qa:upgrade` | 對 4 個 user-facing surface（`bin/agent-handoff-kit.mjs` printInstallNextSteps + `README.md` first-screen callout 同三步上手 step 2 + `agent-handoff-kit-intro.html` #howto Step 2 + #recap cell 1 + `agent-handoff-kit-guide.html` hero callout）grep `Start Agent Handoff` /「開工」主入口、`Read AGENTS.md first, then Start Agent Handoff` 帶路徑 fallback、普通 web chat AI 不支援邊界、`Wrap up Agent Handoff` /「收工」收工入口與「某某開工 / 某某收工」歧義保護；current surface 不得再把舊長句「Read AGENTS.md first. Then open START_NEXT_SESSION_PROMPT.txt」、任何 AI 工具均可用、貼一段提示 / 貼一段字、或「固定開工句 / 貼回提示」當成主流程。README 必須符合「產品設計與用戶旅程優先原則」：用戶講目的，AI 做技術；README 不另開一套平行安裝教學；安裝／升級主路徑是 AI 安裝頁，CLI help 與 AI 安裝頁保留 `init` / `upgrade` / `doctor` 技術細節；README 不能要求用戶自行判斷安裝或升級，也不能把確認資料夾、衝突判斷、預演升級等 AI 技術工作塞回主路徑。`upgrade --dry-run` 只可作升級前預演，並須明示它不會完成升級。執行規則仍以 runtime `AGENTS.md` 單一真源為準；qa:upgrade chain test final hop 須含「Explicit onboarding requests」+「dev/rules/onboarding.md」routing row，並確認「開工」只啟動接力讀取，不列入教學關鍵詞。 | 是 |
-| Public README journey discipline | 已併入 `npm run qa:packs`、`npm run qa:release` 與人工終讀 | README、新手頁與其他用戶文檔必須按「用戶講目的，AI 做技術」維護：主路徑只保留一條用戶旅程；可點擊 AI 安裝頁連結可保留；`init` / `upgrade` / `doctor` / `dry-run` 等技術指令留在 AI 安裝頁、CLI help 或進階示範頁；不得把手動安裝段、命令表、狀態檢查段與三步上手重複成多套同等方法。人工終讀必須逐段判斷每句是否屬公眾用戶需要的產品資訊；AI 內部工作訊息、維護策略、source / mirror / publish 狀態、驗收口徑、候選狀態、展示規則與「這裡會放甚麼」一類編輯說明不得進入 README 或 onboarding HTML。已知回歸詞由 `scripts/check-release-readiness.mjs` 作負向斷言，但機器 grep 只是底線，不能取代語意審閱。`packs/writing.md` 必須含此原則，`scripts/check-pack-scenarios.mjs` 必須守住 writing pack 錨點。 | 是 |
+| Cross-surface wording consistency 驗收 | 已併入 `npm run qa:release` 與人工終讀 | README、intro、guide 以九個 `handoff-kit-*` 入口為操作主線；README 快速上手、intro 說明價值、guide 是逐個口令教學，其他文件只連回需要段落。Codex `$`／`/skills` 與其他工具 `/` 差異明示。AI 安裝頁與 CLI 保留技術細節；README 不另開一套平行安裝教學。完整接收、單獨開工等任務、收工不等於整體完成、check 不修／不升、update 明示自動升級及衝突停、align 掃描先不改、remember 要具體要求等行為由 runtime／packs 負責，文件只保留會改變用戶操作或理解的界線。 | 是 |
+| Public README journey discipline | 已併入 `npm run qa:packs`、`npm run qa:release` 與人工終讀 | 按普通非技術讀者逐句終讀，中英文同義。用日常話解釋目的及結果，不要求用戶學內部檔案、治理詞、檢查流程；安裝命令僅留 AI 安裝區及 CLI。避免同內容分散成多套教學。簡化不可刪會影響使用者決定的安全或功能限制。來源版本與可下載版本須如實區分；不得以檔案齊全宣稱原生使用已驗證。機器檢查連結、複製目標、完整九入口、行為反例與已知術語回歸；仍須獨立全文語義覆核和實際瀏覽器讀回。 | 是 |
 
 ## QC 觸發分層
 
@@ -1660,7 +1727,7 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 | 執行落差 | 檢查規則是否有 `doctor`、QA 腳本、負面測試或人工審閱承接；不得只增加提醒文字。 |
 | 技能流程覆蓋 | 用核心規則、治理規則包與 QA 錨點確認外部技能流程只能作 subordinate evidence，不能讓 active root 跳過 handoff/log/index/registry 持久化。 |
 | Rules / packs 路由與入庫範圍 | 每次 release 前確認 `runtime-core/RULE_PACKS.md` 有自然語言任務訊號到各 pack 的路由；每個 `packs/*.md` 都有 Scope / Load When / Rules / Checks / Closeout；`runtime-core/AGENTS.core.md` 與 `packs/agent-governance.md` 都要求可重用操作程序進既有 rule pack 或 registered reference，不可只放 handoff / log，也不可未分類就新建治理文件。 |
-| 治理打通 | 每次 release 前確認 `runtime-core/RULE_PACKS.md` 可由「把文件接入 Agent Handoff Kit」/「掃描未接入 Agent Handoff Kit 的重要文件」/「治理打通」/ `bridge governance` / `connect this document to governance` / `scan for unbridged governance documents` 路由至 `agent-governance`；`packs/agent-governance.md` 有完整治理打通流程、輸出格式、not applicable 原因、bridged / partially bridged 判斷與重複真源風險邊界；README、intro、guide 均解釋用途、使用方法，以及不得自動刪除、重命名或合併真源。`qa:packs` 必須自動覆蓋 stock list、production guide / runbook、repo-wide scan、duplicate source-of-truth 四個情景。 |
+| 治理打通 | 每次 release 前確認 `runtime-core/RULE_PACKS.md` 可由「把文件接入 Agent Handoff Kit」/「掃描未接入 Agent Handoff Kit 的重要文件」/「治理打通」/ `bridge governance` / `connect this document to governance` / `scan for unbridged governance documents` 路由至 `agent-governance`；`packs/agent-governance.md` 有完整治理打通流程、輸出格式、not applicable 原因、bridged / partially bridged 判斷與重複真源風險邊界；README／intro 導到 guide 的 handoff-kit-align；guide 說明指定文件、無指定先掃描、先確認修改範圍及不自動作破壞性操作。`qa:packs` 必須自動覆蓋 stock list、production guide / runbook、repo-wide scan、duplicate source-of-truth 四個情景。 |
 | 任務持久化分流 | 每次 release 前確認 `runtime-core/AGENTS.core.md` 是唯一分流真源；`packs/agent-governance.md` 只引用核心 persistence gate、不複製門檻；README / intro / guide 不得把「任務完成」寫成「立即完整收工」，也不得把內部 persistence gate 術語當成新手說明。例行通過檢查、未拍板草稿、普通中途進度屬反向場景；新增或刪除文件、新來源、用戶要求把經驗轉成機制、分批新增產品目標 / 開發清單 / 驗收規則屬正向場景，必須按文件角色保存並收斂到單一當前任務契約。 |
 | 跨 workspace 外部影響紀錄 | 每次 release 前確認 `runtime-core/AGENTS.core.md` 要求 expected root 以外的讀取、寫入、生成 artifact、push、publish 或 remote write 必須即時留下 External Impact Note；每個外部 target 一行；外部同步必須寫明種類與回讀驗證；不得掃描 sibling folders，不得自動寫目標 handoff，不得把紀錄當成 clean / stash / commit / push / publish / release 授權；目標 handoff 未更新、只讀內容被摘要或持久化、未回讀或未核實時都必須明說。 |
 | 舊核心殘留 | 用升級負面測試確認舊版 `AGENTS.md` core 被替換而不是附加；`doctor` 必須擋下同一檔案內兩個 core runtime 標題。 |

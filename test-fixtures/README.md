@@ -13,7 +13,7 @@ Do not edit generated fixtures or the official-origin catalog by hand.
 The fixtures stay outside the npm package; the deduplicated runtime catalog
 is published under `bin/migration-baselines/`.
 
-Covered formal releases: 81
+Covered formal releases: 82
 
 - v0.1.0
 - v0.1.1
@@ -96,3 +96,4 @@ Covered formal releases: 81
 - v0.3.65
 - v0.3.66
 - v0.3.67
+- v0.4.0

@@ -7,6 +7,7 @@ import { hostname, tmpdir as systemTmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
+import { checkInstallFeatures } from "./install-feature-cases.mjs";
 import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,7 @@ function main() {
   checkCreateOnlyUpgradeNoMigrationArtifacts();
   checkStaleCompletedCreateOnlyInitLockDoesNotBlock();
   checkSameOperationHealthAndRecovery();
+  checkInstallFeatures({root,fresh,cli,snapshot,sameSnapshot});
   console.log("ok: install lock smoke QA");
 }
 

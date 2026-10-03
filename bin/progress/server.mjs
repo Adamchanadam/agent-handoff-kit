@@ -6,15 +6,17 @@ import {randomUUID,createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {createSource} from './projection.mjs';
 import {createDashboard} from './dashboard.mjs';
+import {assetBytes,assetNames} from './assets.mjs';
 
 const assets=path.dirname(fileURLToPath(import.meta.url));
 // Fingerprint the shipped view so an old process is not reused after a source update.
 const buildId=createHash('sha256');
-for(const file of ['server.mjs','projection.mjs','dashboard.mjs','renderer.js','styles.css','index.html','agent-handoff-kit-logo2-256.png','dashboard-hero.png','icons.svg','../upgrade-inventory.mjs'])buildId.update(readFileSync(path.join(assets,file)));
+for(const file of ['server.mjs','projection.mjs','dashboard.mjs','project-version.mjs','open.mjs','launch.mjs'])buildId.update(readFileSync(path.join(assets,file)));
+for(const file of assetNames)buildId.update(assetBytes(file));
 const build=buildId.digest('hex');
 export const PROGRESS_IDLE_MS=8*60*60*1000;
 export function progressIdentity(root,version='unknown'){
- const canonical=realpathSync(path.resolve(root));
+ const canonical=realpathSync.native(path.resolve(root));
  return {service:'agent-handoff-kit-progress',rootId:createHash('sha256').update(canonical).digest('hex'),version,build};
 }
 export function openProgressBrowser(url){
@@ -60,7 +62,7 @@ export async function startProgress({root,port=0,openBrowser=true,version='unkno
    const file=Object.hasOwn(routes,url.pathname)?routes[url.pathname]:null;if(!file){json(res,404,{error:'not_found'});return;}
    deferShutdown();
    const type=file.endsWith('.png')?'image/png':file.endsWith('.svg')?'image/svg+xml':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html';
-   res.writeHead(200,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"});res.end(readFileSync(path.join(assets,file)));
+   res.writeHead(200,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"});res.end(assetBytes(file));
   }catch{json(res,400,{error:'unavailable'});}
  });
  const close=()=>new Promise(resolve=>{if(stopping){resolve();return;}stopping=true;stopPolling();clearTimeout(idleTimer);for(const c of clients)c.end();server.close(resolve);for(const socket of sockets)socket.destroy();process.removeListener('SIGINT',signal);process.removeListener('SIGTERM',signal);});

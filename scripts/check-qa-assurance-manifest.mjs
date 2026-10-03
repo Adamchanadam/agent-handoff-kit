@@ -22,10 +22,20 @@ import {
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
 import { assertRunFailed, invokeAsync, runSync, runSyncChecked, TIMEOUT_EXIT_CODE } from "./qa-runner-core.mjs";
+import { checkFeatureDeliveryEvidence } from "./feature-delivery-cases.mjs";
 import { readRemoteTagCommit } from "./qa.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "ack-qa-assurance-"));
+
+if (process.argv.includes('--feature-delivery-only')) {
+  checkFeatureDeliveryEvidence({root,evidencePath:'scripts/feature-delivery.mjs',evidenceSha256:sha256(readFileSync(path.join(root,'scripts/feature-delivery.mjs')))});
+  const runner=readFileSync(path.join(root,'scripts/qa.mjs'),'utf8');
+  assert(runner.includes('await validateCandidateFeatureDelivery(evidence, head)'), 'full gate must invoke feature delivery');
+  assert(runner.includes('reviewSubject?.featureDelivery'), 'independent review must bind feature evidence');
+  rmSync(fixtureRoot,{recursive:true,force:true});
+  process.exit(0);
+}
 
 try {
   validateManifest();
@@ -412,7 +422,9 @@ function validateEvidenceContracts() {
   };
   const roleStateHistory = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.fullGateAcceptedPath;
   const reviewSubjectStateHistory = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath;
+  const featureDelivery = checkFeatureDeliveryEvidence({root,evidencePath:releaseQaPath,evidenceSha256:releaseQaSha256});
   const reviewSubject = {
+    featureDelivery,
     version,
     candidateCommit: head,
     tarballSha256: candidateTarballSha256,
@@ -502,6 +514,7 @@ function validateEvidenceContracts() {
   const validCandidate = {
     schemaVersion: 1,
     kind: "candidate-assurance",
+    featureDelivery,
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
     candidate: { version, packageJsonVersion: version, commit: head, cleanWorktree: true, tarballSha256: candidateTarballSha256 },
@@ -770,8 +783,8 @@ function releaseSurfacesMatchCandidate(version) {
   };
   const readmeHead = readText("README.md")?.split(/\r?\n/u).slice(0, 12).join("\n") ?? "";
   const englishReadmeHead = readText("README.en.md")?.split(/\r?\n/u).slice(0, 12).join("\n") ?? "";
-  if (!readmeHead.includes(`原始碼套件版本：\`${current}\``)) return false;
-  if (!englishReadmeHead.includes(`Source package version: \`${current}\``)) return false;
+  if (!readmeHead.includes(`文件對應程式版本：\`${current}\``)) return false;
+  if (!englishReadmeHead.includes(`Code version covered: \`${current}\``)) return false;
   for (const surface of RELEASE_STATE_CONTRACT.surfaces) {
     const text = readText(surface.path.replace("${version}", version));
     if (!text?.includes(current)) return false;

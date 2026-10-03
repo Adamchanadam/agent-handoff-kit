@@ -1,252 +1,77 @@
 # Agent Handoff Kit
 
-English: [README.en.md](README.en.md) · [Getting started](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Practical guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html) · [AI install page](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.en.html)
+[English](README.en.md) · [入門介紹](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) · [常用指令用法](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)
 
-原始碼套件版本：`v0.4.0`。npm `@latest` 與 GitHub Release 以發佈後讀回為準。
+**Session 接力棒**。讓下一次 AI 對話接得上：保留進度、重要決定、文件位置和未完事項。
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif" alt="Agent Handoff Kit 功能簡介動畫" width="720">
-</p>
+文件對應程式版本：`v0.4.1`。這份說明包含尚未發布的更新；正式下載可用的功能，以已發布版本為準。
 
-Agent Handoff Kit 是 **AI 對話之間的接力棒**。
+[![Agent Handoff Kit 宣傳動畫](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif)](https://youtu.be/RopbfBiSw1I)
 
-它只處理一件狹窄但重要的事：AI 跨對話失憶。每次開新對話，AI 往往不記得你上次做到哪裡，也認不出中途新建的文件、你引入的參考資料、哪份文件才是最新依據。這套工具把進度、下一步、風險、檔案登記與下次開工提示寫進固定文件，讓下一個 AI 工具能接得上上一棒。
+## 這套工具怎樣幫你
 
-📌 使用時，你只需要說明目的；確認資料夾、判斷安裝或升級、執行指令和檢查結果，交給能讀寫本機資料夾的 AI 處理。
+- **跨對話接力**：保存目標、你的修正、重要決定、已完成和未完事項，下次不用從頭交代。不同支援工具開啟同一專案，可沿用已保存內容。
+- **重要文件不漏掉**：記下文件用途、何時要讀、哪些改動需要一起更新，減少拿錯版本或找不到資料。
+- **長期紀錄找得回**：保留重要選擇及原因，讓你日後追問「之前為甚麼這樣做」。舊紀錄按需要整理和封存，不必每次全部重讀。
+- **按任務選做法**：寫作先看讀者和語氣，研究先核對來源，寫程式先讀檔再測試，整理雲端文件先查權限。你不用自己選規則。
+- **保留日後要求**：把你明示要長期遵守的習慣留在專案，讓下一次相關工作讀得到；不是只記在當次聊天。
+- **安全處理工具與資料**：重要操作先核對及取得所需批准，秘密不寫進紀錄；用完只關閉確定屬於本次工作的臨時程式，不亂停其他工作。
 
-## 🚀 三步上手
+常用指令是這些功能的使用入口。Dashboard 則把已保存的進度、歷程和文件關係放到眼前。這套工具不是雲端同步工具，也不會自動帶走未保存的對話。
 
-第一次用，不需要先讀完整 README，也不需要研究終端機指令。只做三件事：
+## 第一次使用
 
-1. 在你想使用 Agent Handoff Kit 的資料夾打開 AI，貼上這句話：
+1. 在你的專案資料夾打開 AI，把下面這句貼進對話。
+2. AI 會確認資料夾、安裝或升級，然後檢查結果；你不用選安裝指令。
+3. 完成後用 `handoff-kit-onboard` 取得引導，或用 `handoff-kit-start` 接回工作。
 
-   ```text
-   請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html ，並在這個資料夾安裝或升級 Agent Handoff Kit。
-   ```
+```text
+請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html ，並在這個資料夾安裝或升級 Agent Handoff Kit。
+```
 
-   你也可以先打開 [`agent-handoff-kit-ai-install.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html) 看看 AI 會照甚麼步驟處理。
+已裝過舊版、資料夾已有 AI 工作文件，或不確定是否裝好，都用同一句。需要能讀寫專案資料夾的 AI 工具及 Node.js 18 以上；普通網頁聊天若不能存取資料夾便不適用，AI 可先替你檢查環境。
 
-2. 安裝完成後，對 AI 說 `Start Agent Handoff` 或「開工」。
-3. 完成本輪工作後，對 AI 說「收工」。
+## 常用指令，按需要用
 
-🔎 你不用判斷安裝、升級、檢查或檔案結構。AI 會先說明它看到的資料夾、風險與下一步；需要你確認時才停下來。
+在專案的 AI 對話輸入指令，不是在終端機。Claude Code、Gemini CLI、Antigravity CLI 用 /；Codex 用 $，也可從 /skills 選取。 例如 Codex 的開工指令是 `$handoff-kit-start`。
 
-已裝過舊版，或資料夾裡已有 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 等 AI 記憶文件，也用同一句交給 AI 判斷。AI 會先檢查，不會靜默覆寫。
-
-想先看非技術版介紹，可打開 GitHub Pages 上的 [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html)。想看完整操作示範，可開 [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)。想了解它在本機 Agentic AI 工作系統中的位置，可看 [`local-agentic-ai-workflow-case-study.html`](https://adamchanadam.github.io/agent-handoff-kit/local-agentic-ai-workflow-case-study.html)。
-
-## 🐱 狀態卡怎樣讀
-
-| 狀態 | 意思 |
+| 想做甚麼 | 指令 |
 |---|---|
-| `( o.o ) continuity ready` | 已完整接收交接並核對工作脈絡；按你明確提出的任務繼續。 |
-| `( o.o ) installation verified` | 安裝已核對；仍須開工接收交接。 |
-| `continuity incomplete` | 交接內容未讀齊或有關鍵矛盾；AI 須先補讀或處理缺口。 |
-| `( -.- ) handoff saved` | 已收工保存，下次可以再說「開工」。 |
-| `( x.x ) handoff blocked` | 不是壞了；只是仍有未保存、未提交、未驗證或需要處理的事。先照 Blocker 行處理，不要把本輪當作已完成交接。 |
+| 接回上次工作 | [`/handoff-kit-start`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#start) |
+| 看專案全貌 | [`/handoff-kit-progress`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#progress) |
+| 準備結束這次對話 | [`/handoff-kit-close`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#close) |
 
-收工卡核對交接是否保存、必要欄位與已記錄的檢查結果；它不會自動證明任務結論正確。工作仍受阻時，只要原因、影響與續接條件已清楚保存，也可以完成交接；「已保存」不等於整體任務完成。
+[完整指令用法：新手引導、整理文件、記住要求、檢查及更新](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#commands)
 
-## 🧭 這個 repo 怎樣讀
+日常節奏：**開工 → 說明任務 → 需要時看進度 → 結束對話前收工**。不用每次跑完常用指令。原有「開工」「收工」說法仍可使用。
 
-如果你只是想使用 Agent Handoff Kit，只需要看四個入口：
+單獨開工會先完整讀取交接、說明現況，再等你提出任務；初次使用而尚未有目標時會簡短引導。想立即繼續，可在指令後加「繼續完成目前目標」。交接未讀齊時，AI 必須明說，不能假裝已接上。
 
-| 入口 | 用途 |
-|---|---|
-| `README.md` | 正式用途、安裝路徑與安全邊界。 |
-| [`agent-handoff-kit-intro.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html) | 非技術版 60 秒入門與宣傳動畫。 |
-| [`agent-handoff-kit-guide.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html) | 三個實操情景，示範開工、工作、收工。 |
-| [`agent-handoff-kit-ai-install.html`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html) | 給 AI 讀的安裝與升級指令頁。 |
+新安裝或升級會一併放好快捷入口，只供這個專案使用，不會安裝到整部電腦的共用設定。舊對話未顯示入口時，重新開啟專案對話；其他問題見[快捷入口說明](docs/commands.md)。
 
-這個公開 repo 保留使用、安裝、入門、GitHub Pages 與 npm 執行所需內容。日常使用時，你只需要從上面四個入口開始。
+## 進度頁：一眼找回方向
 
-## 🔎 它解決甚麼問題
+用 `handoff-kit-progress` 打開 Dashboard，看目前工作、未完成／等待／待確認事項、最近變更及重要文件的關係。
 
-用 AI 做長期項目，常見五個問題：
+![繁中 Dashboard](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-dashboard-zh-Hant.webp)
 
-| 問題 | Agent Handoff Kit 怎樣處理 |
-|---|---|
-| 新 AI 不知做到哪 | 用 `dev/SESSION_HANDOFF.md` 保存目前狀態、下一步、風險與驗收。 |
-| 新建檔案、參考資料變孤兒 | 你可以叫 AI 把文件接入 Agent Handoff Kit，記低每份文件的用途、哪份作準、何時要同步。 |
-| 不同 AI 工具入口不同 | 同時安裝 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`，全部指向同一套開工流程；Antigravity CLI 會讀工作資料夾內的 `AGENTS.md` 與 `GEMINI.md`。 |
-| AI 可能亂改、亂刪或誤發佈 | 內置安全規則；高風險操作必須先講計劃，破壞性指令與未批准發佈一律禁止。 |
-| 外部工具用完後殘留或亂清理 | 使用 MCP、browser、自動化工具、notebook 或 helper server 後，AI 會按 ownership 判斷：本任務資源可收口，不明或共享資源先回報證據並等你確認。 |
-
-
-它不是聊天機器人，也不是開發框架。它比較像一本固定放在專案內的交接簿。
-
-## 🧰 適用工具
-
-Agent Handoff Kit 適合能讀寫本機專案資料夾的 agentic AI 工具，例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity，或其他具備本機工作區讀寫能力的工具。
-
-它不適合普通 web chat AI，例如沒有本機檔案讀寫能力的 ChatGPT、Claude、Gemini 網頁版。上載檔案或貼上交接內容不能取代本工具需要的本機讀寫能力；這類工具不能可靠維護專案內的交接文件。
-
-## ⌨️ 常用快捷入口
-
-每個專案啟用一次：對 AI 說「在這個專案啟用 Kit 常用快捷入口」。AI 安裝教學已包含這一步。Claude Code、Gemini CLI、Antigravity CLI 用 <code>/handoff-kit-help</code>；Codex 用 <code>$handoff-kit-help</code>，或在 <code>/skills</code> 選單選取。
-
-選單涵蓋開工、收工、進度頁、文件對齊、新手引導、日後工作規則及安裝檢查。例如 <code>/handoff-kit-progress</code> 會自動開啟或重用本機進度頁。詳見[八個入口及啟用方法](docs/commands.md)。原有自然語句仍可使用。
-
-## 🟢 開工
-
-打開能讀寫本機專案資料夾的 AI agent。
-
-若 AI 已經在正確專案資料夾內，日常開工只需輸入：
-
-```text
-Start Agent Handoff
-```
-
-中文可說「開工」。
-
-若目前平台能安全控制當前對話標題，單獨開工可順手把過於籠統或過時的標題改成簡潔的「`<項目名稱>｜<主要動作>`」。標題要從開工卡片已載入的目前目標或推薦下一步產生；「開工」、「開始交接工作」這類泛稱不能當主要動作。它不為命名額外讀檔或連網；已有清楚標題便保留，不支援標題控制時則靜默略過。標題只供顯示，不代表項目狀態、進度、完成證據或額外授權。
-
-若 AI 還未指向你的專案資料夾，才使用帶路徑啟動句：
-
-```text
-Work in <你的專案資料夾>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.
-```
-
-第一次安裝會把新手引導標記為待使用。只有該標記仍為 `eligible`、目前目標空白或 `TBD`，而且沒有同句明確任務時，AI 才在開工卡後進入簡短新手歡迎引導；升級既有項目不會重置這個標記。你已清楚描述目標和現有資料時，AI 可開始第一個安全步驟，不必先走新手流程。日常「開工」先讀 `dev/SESSION_HANDOFF.md`；同一資料夾內不會再重讀 `START_NEXT_SESSION_PROMPT.txt` 或 `dev/SESSION_LOG.md`。提示副本只供尚未指向專案資料夾的 AI 接入。
-
-「開工，繼續 &lt;任務&gt;」、「&lt;項目&gt; 開工」或 `Start Agent Handoff and continue &lt;task&gt;` 都是接力指令。只有語句明顯可能指現實世界的開業、輪班或其他無關事件時，AI 才作一次簡短確認。單獨開工或只加項目名稱，會完整讀取交接包並恢復必要狀態、顯示開工卡與建議下一步，然後等待；不會因此研究、計劃、驗收、改檔、連網或啟用子代理。只有同句明確任務或長程指令才授權開始工作；上面列明的新手引導例外仍適用。
-
-然後用日常話描述你要完成的任務。AI 應先讀交接文件，說明目前狀態、下一步與風險，再開始工作。
-
-開工時，AI 須先完整接收同一版本的交接包，再核對目標、已完成工作、你的修正、未完事項與授權範圍。若讀取結果被截斷，便分段補讀；仍未讀齊或有關鍵矛盾，會顯示 continuity incomplete，不會聲稱已恢復。安裝成功與收工保存都不代表下一個 AI 已接收交接。
-
-## 💾 收工
-
-本輪工作完成、準備結束時，只需輸入：
-
-```text
-收工
-```
-
-也可以輸入：
-
-```text
-Wrap up Agent Handoff
-wrap up
-handoff
-```
-
-若你說的是「某某收工」（例如餐廳收工、今天活動收工）這類帶其他上下文的話，AI 應先反問你是否要執行 Agent Handoff Kit 收工交接，而不是立即改寫交接文件。
-
-AI 應把整體目標、目前子任務、準確續接點和剩餘驗收寫清楚，保留必要真源的版本、已讀段落、閱讀深度與未解缺口。簡單任務只記必要資訊，不必建立多層任務表。收工前，AI 要只憑交接內容重建下一步，再對照你的原始要求和實際成果，避免把小步完成當成整體完成；接續時仍須讀取任務所需真源，不能把上一位的「已讀」當作自己已核實。
-
-AI 應只更新有變的交接狀態，並核對下一次開工提示副本；有差異時才重新產生：
-
-```text
-START_NEXT_SESSION_PROMPT.txt
-```
-
-這個檔案保存下一次真正要讀的開工內容。你下次仍只需說 `Start Agent Handoff` 或「開工」；若 AI 尚未指向專案資料夾，才使用帶路徑啟動句。真正的權威來源仍是 `dev/SESSION_HANDOFF.md` 裡的「下次開工提示」段。若兩者不同，永遠以 `dev/SESSION_HANDOFF.md` 為準重新產生副本。
-
-## 🩺 不確定狀態時
-
-如你不確定目前資料夾是否安裝完整、是否需要升級，或剛升級後想確認狀態，直接叫 AI：
-
-```text
-請讀取頁頂的安裝頁，幫我檢查這個資料夾的 Agent Handoff Kit 狀態。
-```
-
-AI 會處理檢查，不會把「檢查通過」誤當成已理解你的專案。真正開始工作前，仍要對 AI 說 `Start Agent Handoff` 或「開工」。
-
-## 📖 動態 Dashboard：一眼找回專案方向
-
-對 AI 說「開啟專案進度頁」，或使用已啟用的 `/handoff-kit-progress`（Codex：`$handoff-kit-progress`）。AI 會開啟或重用這個專案的本機 Dashboard。
-
-![Agent Handoff Kit 繁中 Dashboard：工作主線、待辦事項、最近變更及文件關係](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-dashboard-zh-Hant.webp)
-
-*新版實際介面截圖，Atlas 為虛構範例資料；每個專案都由相同模板讀取自己的紀錄。點開圖片可放大。*
+*實際介面截圖；Atlas 是虛構範例。相同頁面會讀取每個專案自己的紀錄。*
 
 <details>
-<summary>查看英文介面截圖</summary>
+<summary>查看英文介面</summary>
 
-![Agent Handoff Kit English Dashboard](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-dashboard-en.webp)
+![English Dashboard](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-dashboard-en.webp)
 
 </details>
 
-- **總覽**：目前工作、已完成、等待、待驗收及尚未完成事項，成果可直接查閱。
-- **歷程**：用日期、關鍵字及工作線找回重要改變；長日誌與封存按範圍分批讀取。
-- **文件地圖**：看清 Kit 核心文件及已登記文件的角色、關係與來源。
+AI 保存紀錄後，畫面自動更新，不用刷新。你叫 AI 開啟頁面及平常保存紀錄會使用一些 token；之後查看、篩選和更新畫面由本機程式處理，不另叫 AI 寫報告。未保存的工作不會出現。[進度頁用法與常見問題](docs/progress.md)
 
-AI 在正常保存時只維護有變的紀錄；程式讀取既有索引、交接及日誌後自動更新畫面，不用刷新、不另寫報告，也不呼叫 AI。介面可切換繁中／英文；來源沒有翻譯時保留原文。未保存的工作不會出現，畫面也不代替交接接收或成果驗收。
+## 放心使用前，知道這幾點
 
-沿用 Node.js 與瀏覽器，無需資料庫或 API key。全部頁面關閉後保留八小時，期間可重開；服務停止或電腦重啟後，再用同一快捷入口開啟。詳見 [Dashboard 使用說明](docs/progress.md)。
+- AI 負責讀取、整理、執行及檢查；你提出需求、回饋和必要決定，不用維護內部文件。
+- 收工保存的是交接，未做完的工作會保留為未完成；這不等於整個專案已完成。
+- 檢查安裝不會修復或升級；檢查更新會在有正式新版時自動升級。你的自訂內容遇到衝突會保留並停止處理。
+- 刪除重要資料、上傳、發布或更改權限等操作，AI 必須先說明影響並取得所需批准。密碼和金鑰不可寫入交接。
+- 這套工具用規則和檢查協助交接，不能保證 AI 永不出錯。交接缺漏、讀取失敗或未完成的檢查，應明確告訴你。
 
-## 🗂️ AI 會替你維護甚麼
-
-安裝後，Agent Handoff Kit 會在你的專案中放入一組交接文件。你不需要逐一閱讀，也不需要手動維護。
-
-- **開工入口**：讓不同 AI 工具找到同一套開工方式，例如 `AGENTS.md`、`CLAUDE.md`、`GEMINI.md` 和 `START_NEXT_SESSION_PROMPT.txt`。
-- **目前狀態**：保存做到哪裡、下一步、風險和檢查結果，例如 `dev/SESSION_HANDOFF.md`。
-- **追溯紀錄**：保存近期做過的事；長期使用後，AI 會自動整理，避免紀錄無止境膨脹。
-- **項目索引與決策**：記錄重要文件、外部來源、同步責任和長期決策，方便你日後問「之前為何這樣做」。
-- **工作規則**：AI 會按你的任務自己載入需要的規則；你不用記規則名稱。
-
-## 🧭 AI 工作規則怎樣運作
-
-你不需要記住任何規則檔名。Agent Handoff Kit 會讓 AI 先判斷你現在要做甚麼，再只載入需要的工作規則。
-
-| 你要做的事 | AI 會套用的規則 |
-|---|---|
-| 寫程式 / 修錯誤 | 先讀項目索引、相關檔案，再改動和測試。 |
-| 寫文章 / README / 社交帖文 | 先確認讀者、目的、語氣和發布位置。 |
-| 查資料 / 比較工具 | 分清已驗證事實、來源摘要和 AI 的判斷。 |
-| 刪檔 / Git / 發佈 / npm | 高風險操作必須先說明影響，並等你確認。 |
-| Notion / Google Drive 等外部工具 | 先核對目前工具說明或官方文件；用後按資源歸屬安全收口；機密不寫入項目文件。 |
-
-你只要用日常話說目的，例如「幫我改 README」、「幫我查這個工具是否適合」、「把這份文件接入 Agent Handoff Kit」。AI 會自己判斷要用哪些規則。
-
-想加入自己的長期規則，也不用手改規則檔。你可以直接說：
-
-```text
-以後寫公開中文文件時，請用繁體中文書面語，避免半中半英。請把這條規則接入 Agent Handoff Kit。
-```
-
-AI 應先區分當次要求與長期規則，再查閱既有分類、相關規則包及專案補充；有合適位置便合併修改。專案規則放在可修改的補充區或已登記的參考文件，保留 Kit 官方正文。下一次處理相關任務時，AI 應沿原有路徑讀取並運用規則，遵守你的目標及指令優先級，不自行另定目標或通過門檻。
-
-這些要求用來引導 AI 並檢查結果，不能攔截任意編輯器寫入。若舊規則已混入官方正文，仍需由 AI 核對來源，在取得合併授權後保留並整理；升級不會自動猜刪。
-
-## 💬 你可以怎樣叫 AI
-
-你只要用自然語言講目的，AI 會自己判斷要讀哪些交接文件、規則或索引。
-
-| 你想做的事 | 可以這樣說 |
-|---|---|
-| 接上上次工作 | `Start Agent Handoff` 或「開工」 |
-| 結束本輪工作 | 「收工」 |
-| 讓新文件不變成孤兒 | 「把這份文件接入 Agent Handoff Kit，讓下次 AI 知道何時要讀、何時要更新。」 |
-| 掃描可能被遺漏的重要文件 | 「掃描未接入 Agent Handoff Kit 的重要文件。」 |
-| 讓 AI 下次避免同類錯誤 | 「把今次錯誤整理成日後工作規則，讓下次 AI 知道要怎樣避免。」 |
-| 讓 API / 工具用法下次仍生效 | 「以後都用這個 API 調用方式，之後開新對話也要沿用。」 |
-| 使用外部工具，例如 Notion、Google Drive、GitHub | 「這個項目會用到這些外部工具，請記住哪些能直接使用，機密不要寫入項目文件。」 |
-| 長任務用了 MCP、browser 或自動化工具 | 「收工時請顯示外部工具資源收口結果：已關閉哪些本任務資源，哪些因歸屬不明而保留並列證據。」 |
-
-掃描重要文件時，AI 只會先列出可能需要接入的文件與原因，不會自動修改；是否接入、合併或退役由你確認。
-
-需要長期保留的規則，AI 應寫入合適的項目文件，而不是只留在當次對話摘要。
-
-如涉及刪除、改名、合併權威文件、發佈、上傳或權限變更，AI 應先說明影響並等你確認。
-
-## 🛡️ 安全護欄
-
-就算你不懂代碼，這套工具也會要求 AI 在高風險操作前停下來講清楚。
-
-- 破壞性操作分界：`rm -rf`、`git reset --hard` 等指定破壞性命令及系統根路徑操作一律禁止；強制推送、分支或標籤刪除及歷史改寫，須另取明確授權並核對受影響 ref。
-- 機密保護：`.env`、API key、token 不可印出、不可提交、不可上傳。
-- 查證不猜：使用第三方服務、Connector、MCP、CLI、API 或 plugin API 前，先核對目前工具說明、官方文件或已驗證的本地操作說明；查不到就標示未核實。
-- 外部工具安全收口：用完 MCP、browser、自動化工具、notebook 或 helper server 後，AI 只可自動關閉能證明屬於本任務的資源；不明、共享、使用者或其他 AI agent 可能擁有的程序與暫存資料，必須先回報並等你確認。
-- 權限不足就停手：檔案被鎖或沒有權限時，輸出手動操作清單，不嘗試繞過。
-- 發佈需明確批准：建立版本標籤、GitHub Release、npm publish、部署或上傳，都不能因「準備好了」而自動執行。
-
-## 🔗 可選配合：Adam-AI-Instructions
-
-Agent Handoff Kit 可與 [Adam-AI-Instructions](https://github.com/prompt-templates/Adam-AI-Instructions) 配合使用。兩者分工互補，但在安全、機密、不可逆操作及發佈底線上刻意保留最低限度的共同防線；這不是父子真源，也不應合併成同一套規則：
-
-- **Adam-AI-Instructions** 負責 AI 在**單一對話**內的做事規矩：語氣、做事優先序、回覆骨架、計算紀律、用語紀律、安全護欄、輸出層分工。屬「AI 應該怎樣答你」的持久基準。
-- **Agent Handoff Kit** 負責 AI 在**對話之間**的接力：當前狀態、下一步、檔案登記、收工同下次開工。屬「AI 在對話之間怎樣記住你的項目」的持久基準。
-
-這是可選配合，不影響 Agent Handoff Kit 的安裝和日常使用。想使用時，到該倉庫選擇適合你 AI 工具的版本，貼入 AI 工具設定即可。
+想一步步學，開啟[使用指南](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)。想另外設定 AI 的回覆語氣，可選用 [Adam-AI-Instructions](https://github.com/prompt-templates/Adam-AI-Instructions)；它不是使用這套工具的必要條件。

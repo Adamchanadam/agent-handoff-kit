@@ -3,7 +3,7 @@ import {openSync,closeSync,readSync,fstatSync,statSync,realpathSync,existsSync} 
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {readBounded,signature,markdown,safe,logEntry} from './projection.mjs';
-import {parseProjectIndexTemplateVersion} from '../upgrade-inventory.mjs';
+import {parseProjectIndexTemplateVersion} from './project-version.mjs';
 
 export const DASH_LIMITS=Object.freeze({document:1024*1024,metadata:512*1024,items:128,documents:160,historyBytes:256*1024,historyFiles:4,historyPage:20,entryBytes:64*1024,cursors:32});
 const digest=s=>createHash('sha256').update(s).digest('hex');

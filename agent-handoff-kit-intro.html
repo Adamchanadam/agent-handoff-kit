@@ -3,20 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Agent Handoff Kit — 新手 60 秒入門</title>
-  <meta name="description" content="一套讓 AI 在不同對話、不同工具之間記得專案進度的輕量交接工具。給完全 AI 新手的入門介紹。" />
+  <title>Agent Handoff Kit — Session 接力棒</title>
+  <meta name="description" content="Session 接力棒：把進度、重要決定、文件關係和工作要求留在專案，讓下一次 AI 對話接得上。" />
   <link rel="canonical" href="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html" />
   <meta name="robots" content="index,follow" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Agent Handoff Kit — 新手 60 秒入門" />
-  <meta property="og:description" content="一套讓 AI 在不同對話、不同工具之間記得專案進度的輕量交接工具。" />
+  <meta property="og:title" content="Agent Handoff Kit — Session 接力棒" />
+  <meta property="og:description" content="Session 接力棒：把進度、重要決定、文件關係和工作要求留在專案，讓下一次 AI 對話接得上。" />
   <meta property="og:url" content="https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html" />
   <meta property="og:site_name" content="Agent Handoff Kit" />
   <meta property="og:image" content="https://adamchanadam.github.io/agent-handoff-kit/images/agent-handoff-kit-main-visual2.png" />
   <meta property="og:image:alt" content="Agent Handoff Kit 主視覺" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Agent Handoff Kit — 新手 60 秒入門" />
-  <meta name="twitter:description" content="一套讓 AI 在不同對話、不同工具之間記得專案進度的輕量交接工具。" />
+  <meta name="twitter:title" content="Agent Handoff Kit — Session 接力棒" />
+  <meta name="twitter:description" content="Session 接力棒：把進度、重要決定、文件關係和工作要求留在專案，讓下一次 AI 對話接得上。" />
   <meta name="twitter:image" content="https://adamchanadam.github.io/agent-handoff-kit/images/agent-handoff-kit-main-visual2.png" />
 
   <!-- 字體:Bauhaus 復興常用的幾何 sans + 等寬 mono,離線時退回系統字體 -->
@@ -780,558 +780,46 @@
       nav.links { display: none; }
     }
   </style>
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "Agent Handoff Kit",
-    "applicationCategory": "DeveloperApplication",
-    "operatingSystem": "Windows, macOS, Linux",
-    "description": "Agent Handoff Kit 是一套讓 AI 在不同對話、不同工具之間接續專案進度的輕量交接工具。",
-    "url": "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
-    "codeRepository": "https://github.com/Adamchanadam/agent-handoff-kit",
-    "license": "https://github.com/Adamchanadam/agent-handoff-kit/blob/main/LICENSE",
-    "video": {
-      "@type": "VideoObject",
-      "name": "Agent Handoff Kit 宣傳動畫",
-      "description": "60 秒介紹 Agent Handoff Kit 如何讓 AI 跨對話接續專案進度。",
-      "embedUrl": "https://www.youtube.com/embed/RopbfBiSw1I",
-      "contentUrl": "https://youtu.be/RopbfBiSw1I",
-      "uploadDate": "2026-06-26"
-    },
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    }
+  <script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Agent Handoff Kit — Session 接力棒",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Windows, macOS, Linux",
+  "description": "Session 接力棒：把進度、重要決定、文件關係和工作要求留在專案，讓下一次 AI 對話接得上。",
+  "url": "https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.html",
+  "codeRepository": "https://github.com/Adamchanadam/agent-handoff-kit",
+  "license": "https://github.com/Adamchanadam/agent-handoff-kit/blob/main/LICENSE",
+  "video": {
+    "@type": "VideoObject",
+    "name": "Agent Handoff Kit 宣傳動畫",
+    "description": "60 秒介紹 Agent Handoff Kit 如何讓 AI 跨對話接續專案進度。",
+    "embedUrl": "https://www.youtube.com/embed/RopbfBiSw1I",
+    "contentUrl": "https://youtu.be/RopbfBiSw1I",
+    "uploadDate": "2026-06-26"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
   }
-  </script>
+}</script>
 <link rel="stylesheet" href="agent-handoff-kit-dashboard.css">
+
+<style>
+/* Command reading path; uses the existing brand palette and artwork. */
+.kit-body .kit-wrap{width:min(1080px,calc(100% - 40px));margin:auto}.kit-body main{display:block}.kit-body .kit-section{padding:56px 0;border-top:2px solid #181b22}.kit-body .kit-section h2{font-size:clamp(27px,4vw,42px);line-height:1.25;margin:0 0 20px}.kit-body p,.kit-body li{line-height:1.85}.kit-body .kit-lead{font-size:clamp(18px,2vw,22px);max-width:760px}.kit-body .kit-note{font-size:14px;color:#525660;line-height:1.7}.kit-body .kit-nav{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:18px 0;flex-wrap:wrap}.kit-brand{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none;font-weight:700}.kit-brand img{width:42px;height:42px}.kit-nav-links{display:flex;gap:18px;flex-wrap:wrap}.kit-body .kit-hero{padding:58px 0;border:0}.kit-hero-inner{display:grid;grid-template-columns:1.2fr 1fr;gap:32px;align-items:center}.kit-body .kit-hero h1{font-size:clamp(38px,6vw,76px);line-height:1.16;margin:14px 0 22px}.kit-body .kit-hero img{width:100%;max-height:400px;object-fit:contain}.kit-body .kit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.kit-body .kit-card{background:#fffdf8;border:2px solid #202329;border-radius:18px;padding:24px;min-width:0;box-shadow:0 14px 30px #48403510;position:relative}.kit-body .kit-card:nth-child(3n+1){border-top:7px solid #e63946}.kit-body .kit-card:nth-child(3n+2){border-top:7px solid #2e5bff}.kit-body .kit-card:nth-child(3n){border-top:7px solid #06a77d}.kit-body .kit-card h3{font-size:23px;margin:4px 0 14px}.kit-body .kit-card p{margin:10px 0}.kit-body .kit-card code{font-size:13px;overflow-wrap:anywhere}.kit-body .kit-command-line{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px;background:#efeae0;border-radius:10px;margin:16px 0}.kit-body .kit-command-line code{font-size:14px;overflow-wrap:anywhere}.kit-body button,.kit-body select{font:inherit;font-size:14px;min-height:40px;padding:8px 13px;border:2px solid #181b22;border-radius:10px;background:linear-gradient(145deg,#fffefa,#eee8db);box-shadow:inset 0 1px 0 #ffffff,0 4px 12px #49351d15;color:#181b22;cursor:pointer}.kit-body button:hover{background:#ffd60a}.kit-body :focus-visible{outline:3px solid #2e5bff;outline-offset:4px}.kit-body .kit-tool{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:22px 0}.kit-body .kit-actions{display:flex;gap:14px;flex-wrap:wrap;margin-top:26px}.kit-body .kit-link{display:inline-block;padding:12px 20px;border:2px solid #181b22;border-radius:12px;background:#ffd60a;color:#181b22;text-decoration:none;font-weight:700;box-shadow:0 6px 16px #ba921326}.kit-body .kit-link.secondary{background:#fffdf8}.kit-body .kit-prompt{white-space:pre-wrap;overflow-wrap:anywhere;font:15px/1.7 Consolas,monospace;color:#161a20;background:#eee9df;border:0;border-radius:12px;padding:20px;max-width:100%}.kit-body .kit-screen{display:block;width:100%;border:2px solid #181b22;border-radius:16px;margin:24px 0 12px}.kit-body .kit-faq{border-bottom:1px solid #cfc8bb;padding:18px 0}.kit-body .kit-faq summary{font-size:18px;font-weight:700;cursor:pointer}.kit-body .kit-faq p{max-width:860px}.kit-body footer{padding:28px 0;background:#efeae0;color:#181b22;border-top:2px solid #181b22}.kit-body footer a{color:inherit}.kit-body .kit-alert{padding:13px 18px;border-left:4px solid #2e5bff;background:#ebeef7}.kit-body section[id],.kit-body article[id]{scroll-margin-top:24px}.kit-body .kit-install-details{padding:25px;border:2px solid #181b22;border-radius:16px}.kit-body .kit-install-details>summary{font-size:22px;font-weight:700;cursor:pointer}.kit-body .kit-install-details h3{margin-top:34px}.kit-body .kit-status{font-size:14px;min-height:24px}.kit-body .kit-video{aspect-ratio:16/9;width:100%;border:2px solid #181b22;border-radius:16px}.kit-body .kit-steps{padding-left:24px}.kit-body .kit-steps li{padding:6px 0}.kit-body .kit-long{max-width:850px}.kit-body .kit-screen-link{display:block}.kit-body .kit-mini{font-size:13px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+@media(max-width:820px){.kit-body .kit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kit-hero-inner{grid-template-columns:1fr}.kit-body .kit-hero img{max-height:260px}.kit-body .kit-hero{padding:32px 0}}
+@media(max-width:560px){.kit-body .kit-grid{grid-template-columns:1fr}.kit-body .kit-section{padding:36px 0}.kit-body .kit-card{padding:20px}.kit-body .kit-wrap{width:calc(100% - 32px)}.kit-body .kit-nav-links{gap:12px;font-size:14px}.kit-body .kit-command-line{gap:8px}.kit-body .kit-install-details{padding:16px}}
+</style>
+<style>.kit-body .kit-features{grid-template-columns:repeat(2,minmax(0,1fr))}.kit-body .kit-command-menu{list-style:none;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.kit-command-menu a{display:flex;flex-direction:column;gap:5px;padding:16px;text-decoration:none;color:inherit;background:#fffdf8;border-radius:12px;box-shadow:0 4px 18px #4435210c}.kit-command-menu code{font-size:12px;overflow-wrap:anywhere}.kit-command-menu a:hover{background:#fff4c7}@media(max-width:650px){.kit-body .kit-features,.kit-body .kit-command-menu{grid-template-columns:1fr}}</style><link rel="stylesheet" href="agent-handoff-kit-docs.css?v=824948b224"/>
 </head>
-
-<body>
-
-  <!-- ───── 頂部 Bauhaus 三色長條 ───── -->
-  <div class="top-banner" aria-hidden="true">
-    <div></div><div></div><div></div>
-  </div>
-
-  <!-- ───── 導航 ───── -->
-  <nav class="bar" aria-label="主導航">
-    <div class="wrap">
-      <div class="logo">
-        <img class="logo-mark" src="images/agent-handoff-kit-logo2-256.png" alt="Agent Handoff Kit logo" width="36" height="36" />
-        <span>Agent Handoff Kit</span>
-      </div>
-      <div class="links">
-        <a href="agent-handoff-kit-intro.en.html" lang="en">English</a>
-        <a href="#promo-video">宣傳動畫</a>
-        <a href="#what">為何需要</a>
-        <a href="#pain">五類問題</a>
-        <a href="#magic">開工 / 收工</a>
-        <a href="#modes">工作模式</a>
-        <a href="#howto">三步上手</a>
-        <a href="#safety">安全</a>
-        <a href="#tiers">分檔有層次</a>
-        <a href="#combo">配合使用</a>
-      </div>
-    </div>
-  </nav>
-
-  <!-- ───── Hero ───── -->
-  <header class="hero">
-    <div class="wrap">
-      <div>
-        <span class="kicker">v0.4.0 source version · 60 秒新手入門</span>
-        <h1><span class="accent">AI Session</span><br/>之間的<br/><span class="accent2">接力棒</span></h1>
-        <p class="lede">AI 每次開新對話都是從零開始,不記得你上次和它做過甚麼,也認不出中途新建的文檔和你引入的參考資料。這套工具的作用,是把進度、下一步、要留神之處,連同一份檔案登記,寫進幾份固定文件;下一次在能讀寫本機專案資料夾的 AI agent 開新對話,只要說 Start Agent Handoff 或「開工」,它就會讀取交接檔案並接上上一棒。普通 web chat AI 若不能讀寫本機資料夾,不屬於支援場景。</p>
-        <p><strong>版本提示：</strong>本頁對齊 v0.4.0；<code>@latest</code> 實際取得版本以 npm registry 為準。</p>
-        <div class="cta-row">
-          <a class="btn primary" href="#howto">看三步上手 →</a>
-          <a class="btn secondary" href="agent-handoff-kit-guide.html">實操指南 →</a>
-          <a class="btn" href="https://github.com/Adamchanadam/agent-handoff-kit" target="_blank" rel="noopener">GitHub</a>
-        </div>
-      </div>
-      <div class="hero-art">
-        <img src="images/agent-handoff-kit-main-visual2.png" alt="Agent Handoff Kit 主視覺:紅方、黃圓、藍三角 Bauhaus 幾何構成" />
-      </div>
-    </div>
-  </header>
-
-  <!-- ───── 一句講清楚 ───── -->
-  <section id="promo-video">
-    <div class="wrap">
-      <span class="eyebrow">00 / 宣傳動畫</span>
-      <h2>先用一分鐘，看它解決甚麼</h2>
-      <p class="intro">這段影片示範 Agent Handoff Kit 怎樣把 AI 對話之間的進度、規則、文件與下一步接起來。若影片無法載入，可直接到 <a href="https://youtu.be/RopbfBiSw1I" target="_blank" rel="noopener">YouTube 觀看宣傳動畫</a>。</p>
-      <div class="video-frame">
-        <iframe
-          src="https://www.youtube.com/embed/RopbfBiSw1I"
-          title="Agent Handoff Kit 宣傳動畫"
-          loading="lazy"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowfullscreen></iframe>
-      </div>
-    </div>
-  </section>
-
-  <section id="what">
-    <div class="wrap">
-      <span class="eyebrow">01 / 一句講清楚</span>
-      <h2>它只處理一件事:<br/>AI 跨對話失憶。</h2>
-      <p class="intro">這套工具的工作很窄,只是一件事:跨對話失憶。失憶不只是「上次做到哪」,還包括中途新建的文檔、你引入的參考資料。它的作用,是把進度、下一步、檔案登記寫進幾份固定文件,讓下一輪能自動接得回去。</p>
-
-      <div class="what-grid">
-        <div class="what-cell before">
-          <div>
-            <h3>未用這套工具</h3>
-            <p>每次開新對話都要重新交代背景、貼舊文件、列哪些檔案是真源、哪些只是參考,然後再講上次做到哪。一旦交代得不齊,AI 就會憑空推斷,把參考檔當真源,或者把你已做完的事重做一遍。</p>
-          </div>
-          <div class="glyph" role="img" aria-label="混亂、重複"></div>
-        </div>
-        <div class="what-cell after">
-          <div>
-            <h3>用了之後</h3>
-            <p>準備結束本輪工作時說一聲「收工」,AI 自動更新交接文件與檔案登記表,並同步更新 <code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code>。下次在同一專案內說 <code style="font-family:var(--font-mono);font-size:13px;">Start Agent Handoff</code> 或「開工」,下一個 AI 立即讀齊狀態:做到哪、下一步是甚麼、哪些檔案是真源、哪些只是參考。</p>
-          </div>
-          <div class="glyph" role="img" aria-label="清晰、連續"></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ───── 三大痛點 ───── -->
-  <section id="pain">
-    <div class="wrap">
-      <span class="eyebrow">02 / 解決五類常見問題</span>
-      <h2>用 AI 做長期項目,<br/>常見的五件事。</h2>
-      <p class="intro">如果你曾經和 AI 講了一個小時,隔日回來它甚麼都不記得;又或者你建過好幾份新文檔、貼過幾份 PDF 給它做參考,下次它卻分不清哪份是真源——你已經遇上以下其中一個情況。</p>
-
-      <div class="pain-grid">
-        <div class="pain-card c1">
-          <div class="pain-num">01</div>
-          <h3>新 AI 不知做到哪</h3>
-          <p>一個項目做幾天,中間試過 Codex、Claude Code、Claude Cowork、Antigravity 不同工具。每次開新對話都要重新交代;到後來,連你自己都不肯定哪個版本是最新。</p>
-          <div class="kit-line">這套工具用 SESSION_HANDOFF 文件記住「當前狀態 + 下一步」</div>
-        </div>
-        <div class="pain-card c2">
-          <div class="pain-num">02</div>
-          <h3>新建檔案、引入資料變孤兒</h3>
-          <p>AI 過程中會建立新文檔,你也會引入 PDF、Notion 連結、研究筆記作參考。這些檔案當下 AI 都記得,但新對話一開,它就分不清哪份是正式來源、哪份只是草稿,甚至不知道有這些檔案存在。</p>
-          <div class="kit-line">說「把這份文件接入 Agent Handoff Kit」,AI 會檢查它是否已接入索引、同步責任與相關流程</div>
-        </div>
-        <div class="pain-card c3">
-          <div class="pain-num">03</div>
-          <h3>每個 AI 工具入口都不同</h3>
-          <p>不同 AI 工具會找不同入口檔。這套工具同時放置 AGENTS.md、CLAUDE.md、GEMINI.md,把常見工具導回同一套開工規矩。Antigravity CLI 會讀工作資料夾內的 AGENTS.md 與 GEMINI.md；因此 AGENTS.md 仍是唯一真源,GEMINI.md 只做橋接。</p>
-          <div class="kit-line">這套工具同時放置三個入口檔,全部指向同一套規則,工具之間沒有漂移</div>
-        </div>
-        <div class="pain-card c4">
-          <div class="pain-num">04</div>
-          <h3>AI 會亂改、亂刪</h3>
-          <p>AI 一旦放手做事,可能執行 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">rm -rf</code> 或 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">git reset --hard</code> 一類指令;你當下不在電腦前,根本察覺不到。</p>
-          <div class="kit-line">這套工具內置安全規則，指定破壞性指令一律禁止；重要改動先核對來源，高風險操作先說明影響並取得所需確認</div>
-        </div>
-        <div class="pain-card c5">
-          <div class="pain-num">05</div>
-          <h3>外部工具用完後不收口</h3>
-          <p>長任務常會調用 MCP、browser、自動化工具、notebook 或 helper server。若 AI 用完不收口,程序與 cache 會累積;若它只憑 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper);padding:1px 4px;">node.exe</code> 或 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper);padding:1px 4px;">chrome.exe</code> 亂清理,又可能中斷你或另一個 AI agent 正在做的事。</p>
-          <div class="kit-line">用後按 ownership 安全收口:本任務資源可關閉,不明或共享資源先列證據並等你確認</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ───── 開工收工短語 ───── -->
-  <section id="magic">
-    <div class="wrap">
-      <span class="eyebrow">03 / 開工與收工</span>
-      <h2>開工接上狀態,<br/>收工留下交接。</h2>
-      <p class="intro">你不需要記住長指令,也不需要自己打開交接文件。新對話在同一專案內說「開工」,AI 會讀取上一輪狀態;準備結束本輪工作時說「收工」,AI 會更新交接文件,並把下一次接力內容寫入提示副本。</p>
-
-      <div class="magic-row">
-        <div class="magic-word w1">
-          <div class="word">開工</div>
-          <div class="lang">中文</div>
-        </div>
-        <div class="magic-word w2">
-          <div class="word">Start</div>
-          <div class="lang">Start Agent Handoff</div>
-        </div>
-        <div class="magic-word w3">
-          <div class="word">收工</div>
-          <div class="lang">中文收工</div>
-        </div>
-      </div>
-
-      <div class="magic-aftermath">
-<span class="label">AI 收到開工或收工短語之後會做的事:</span>
-開工 · 讀取 AGENTS.md 與權威 SESSION_HANDOFF，顯示目前狀態、風險與建議下一步後結束本輪回覆；只有同一句同時交代明確任務或長程指令時才開始工作
-收工 01 · 只更新有變的交接狀態，寫清整體目標、目前子任務、續接點、剩餘驗收，以及真源已讀範圍與未解缺口
-交接核對 · AI 只憑交接重建下一步，再對照原始要求與成果；收工卡核對保存及已記錄的檢查，不自動證明任務結論正確。受阻原因與續接條件記清楚，未完成的工作也可交接
-收工 02 · 把本次實際做過的事,寫進工作日誌
-收工 03 · 同步更新 START_NEXT_SESSION_PROMPT.txt,你下次開新對話說「開工」就能接續
-      </div>
-
-      <div class="handoff-flow" aria-label="開工收工循環">
-        <div class="flow-step f1"><span class="num">01</span><strong>安裝完成</strong><span>AI 已放好接力文件</span></div>
-        <div class="flow-step f2"><span class="num">02</span><strong>說「開工」</strong><span>讀取上一輪狀態</span></div>
-        <div class="flow-step f3"><span class="num">03</span><strong>交代任務後工作</strong><span>按已授權任務載入規則</span></div>
-        <div class="flow-step f4"><span class="num">04</span><strong>說「收工」</strong><span>保存交接與驗收</span></div>
-        <div class="flow-step f5"><span class="num">05</span><strong>下次再說「開工」</strong><span>新對話接回同一棒</span></div>
-      </div>
-
-      <div class="status-legend" aria-label="貓貓狀態圖例">
-        <div class="status-card">
-          <div class="face">( o.o )</div>
-          <h3>continuity ready</h3>
-          <p>已完整接收交接並核對工作脈絡；你提出任務後才開始工作。</p>
-        </div>
-        <div class="status-card">
-          <div class="face">( -.- )</div>
-          <h3>handoff saved</h3>
-          <p>已收工保存。下次在同一專案說「開工」即可接續。</p>
-        </div>
-        <div class="status-card">
-          <div class="face">( x.x )</div>
-          <h3>handoff blocked</h3>
-          <p>不是壞了,而是仍有未保存、未提交、未驗證或待處理事項。先照 Blocker 行處理,不要當作已完成交接。</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ───── 工作模式 ───── -->
-  <div class="ahk-reception-note"><strong>交接未讀齊時</strong><p>開工時，AI 須先完整接收同一版本的交接包，再核對目標、已完成工作、你的修正、未完事項與授權範圍。若讀取結果被截斷，便分段補讀；仍未讀齊或有關鍵矛盾，會顯示 continuity incomplete，不會聲稱已恢復。安裝成功與收工保存都不代表下一個 AI 已接收交接。</p></div><section id="modes">
-    <div class="wrap">
-      <span class="eyebrow">04 / 八個常見任務情境</span>
-      <h2>你描述任務,<br/>AI 自動切換工作模式。</h2>
-      <p class="intro">你不需要記任何規則名稱,只要用日常話講你要做甚麼。AI 會說明它準備按哪種方式工作,以及為甚麼這樣做。這些規則是給 AI 自己遵守,不是要你逐句閱讀的說明書。</p>
-
-      <div class="modes-grid">
-        <div class="mode-cell m1">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">寫代碼</span>
-          <h3>寫 / 改代碼</h3>
-          <p>AI 會先讀項目索引、找測試指令、看相關檔案,再動手;不會一上來就亂改。</p>
-        </div>
-        <div class="mode-cell m2">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">研究</span>
-          <h3>查資料 / 做研究</h3>
-          <p>AI 會分清來源、日期、事實、推論、未核實的內容,不把估算當作結論。</p>
-        </div>
-        <div class="mode-cell m3">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">寫作</span>
-          <h3>寫文案 / 改 README</h3>
-          <p>AI 會先看受眾、用途、語氣、格式,不會只做漂亮但不準確的文字。</p>
-        </div>
-        <div class="mode-cell m4">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">知識整理</span>
-          <h3>整理 Notion / Google Drive / Obsidian</h3>
-          <p>AI 會先判斷外部文件是正式來源、索引、附件還是輸出位置。Notion、Google Drive 或 Obsidian 只有在目前 runtime 的讀寫入口已核實可用,而且目標來源或 vault 路徑可見並獲授權時,AI 才會直接讀寫;安裝了應用程式本身不代表 AI 有寫入權。否則 AI 會產生需要手動同步的內容,任何寫入完成後都必須回讀核對。</p>
-        </div>
-        <div class="mode-cell m5">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">溝通</span>
-          <h3>輸出格式 / 報告</h3>
-          <p>AI 會先講結論、再交代背景;標清未核實的內容;指令可直接複製使用。</p>
-        </div>
-        <div class="mode-cell m6">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">安全</span>
-          <h3>刪檔 / Git / 外部服務</h3>
-          <p>rm -rf、git reset --hard 等指定破壞性命令一律禁止;強制推送則須另取明確授權並核對受影響 ref。刪除、不可回復操作、外部寫入及原始資料改動前要列明目標與影響;只有破壞性、不可回復或原始資料操作才要求備份或保留原件。</p>
-        </div>
-        <div class="mode-cell m7">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">發佈</span>
-          <h3>準備發佈 / 出版</h3>
-          <p>AI 會把「準備版本說明」和「真正發佈、上傳、建立版本」分開處理,不會誤發佈。</p>
-        </div>
-        <div class="mode-cell m8">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">規則整理</span>
-          <h3>改規則 / 改流程</h3>
-          <p>AI 會先檢查既有規則能否擴充,以合併為先,不盲目新增,避免規則越疊越亂。</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ───── 文件接入 ───── -->
-  <section id="bridge">
-    <div class="wrap">
-      <span class="eyebrow">04 / 接入 Handoff Kit</span>
-      <h2>重要文件完成後,<br/>讓下一個 AI 找得到、用得對。</h2>
-      <p class="intro">當 AI 新建 stock list、production guide、runbook、workflow、checklist 或研究真源時,不要只把它留在當前對話。你可以直接說「把 docs/production-guide.md <span class="hl">接入 Agent Handoff Kit</span>」,AI 會檢查這份文件是否已登記、何時要讀、哪條流程會更新它,以及是否存在重複真源。</p>
-
-      <div class="steps">
-        <div class="step s1">
-          <div class="step-num">1</div>
-          <h3>兩種常見用法</h3>
-          <div class="command-examples">
-            <div>
-              <span class="command-label">用法一:指定文件</span>
-              <pre><span class="hl">把 docs/stock-list.md 接入 Agent Handoff Kit</span>
-或舊說法:
-<span class="hl">治理打通 docs/stock-list.md</span>
-或英文:
-<span class="hl">bridge governance for docs/stock-list.md</span></pre>
-            </div>
-            <div>
-              <span class="command-label">用法二:掃描候選</span>
-              <pre><span class="hl">掃描未接入 Agent Handoff Kit 的重要文件</span>
-或英文:
-<span class="hl">scan for unbridged governance documents</span></pre>
-            </div>
-          </div>
-          <p>第一種直接審核指定文件;第二種不指定文件,只先掃描 repo 中可能漏接的重要文件。</p>
-        </div>
-        <div class="step s2">
-          <div class="step-num">2</div>
-          <h3>先找候選與缺口</h3>
-          <p>AI 會看文件本身、PROJECT_INDEX、DOC_SYNC_REGISTRY、相關 workflow、handoff/log 角色分工,並搜索是否有同用途舊文件。repo-wide 掃描只列候選,不把普通文件當成錯誤。</p>
-        </div>
-        <div class="step s3">
-          <div class="step-num">3</div>
-          <h3>只列缺口,不亂改</h3>
-          <p>若發現漏接,AI 會列出建議補丁與需要你判斷的項目。掃描不會自動改檔;刪除、重命名、合併真源等動作仍要你明確確認。</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ───── 三步上手 ───── -->
-
-<section id="dashboard" class="ahk-dashboard-feature" aria-labelledby="dashboard-heading"><div class="ahk-dashboard-inner">
- <p class="ahk-dashboard-eyebrow">AGENT HANDOFF KIT · DASHBOARD</p>
- <h2 id="dashboard-heading">把專案全貌，帶回眼前。</h2>
- <p class="ahk-dashboard-lead">目前工作、未完事項，以及文件背後的脈絡。同一套介面，自動讀取每個專案自己的已保存紀錄。</p>
- <figure class="ahk-dashboard-capture"><a href="images/agent-handoff-kit-dashboard-zh-Hant.webp" target="_blank" rel="noopener"><img src="images/agent-handoff-kit-dashboard-zh-Hant.webp" alt="Dashboard 顯示工作主線、最近變更、待辦事項與文件關係" loading="lazy" width="1440" height="1355"></a><figcaption>v0.4.0 實際介面 · Atlas 為虛構範例資料 · 點圖放大</figcaption></figure>
- <details class="ahk-dashboard-language"><summary>查看英文介面</summary><a href="images/agent-handoff-kit-dashboard-en.webp" target="_blank" rel="noopener"><img src="images/agent-handoff-kit-dashboard-en.webp" loading="lazy" alt="English Dashboard" width="1440" height="1355"></a></details>
- <div class="ahk-dashboard-benefits"><article><span class="ahk-orb blue" aria-hidden="true"></span><h3>總覽</h3><p>看清目前工作、成果、等待與待驗收事項。</p></article><article><span class="ahk-orb yellow" aria-hidden="true"></span><h3>歷程</h3><p>按日期、關鍵字及工作線找回已保存的變更。</p></article><article><span class="ahk-orb green" aria-hidden="true"></span><h3>文件地圖</h3><p>理解已登記文件各自的用途與關係。</p></article></div>
- <div class="ahk-dashboard-open"><strong>對 AI 說</strong><p>開啟專案進度頁。</p><small>或使用已啟用的 /handoff-kit-progress；Codex 用 $handoff-kit-progress 或 /skills。</small></div>
- <p class="ahk-dashboard-note">紀錄保存後，畫面自動更新。不用刷新、不另寫進度報告；查看與畫面更新不呼叫 AI。沿用 Node.js 與瀏覽器。未保存的工作不會顯示，頁面也不代表交接已接收或成果已驗收。</p>
-
- <a class="ahk-dashboard-link" href="agent-handoff-kit-guide.html#dashboard">Dashboard 用法與範圍 →</a>
- </div></section>
-<section id="commands"><div class="wrap"><h2>常用功能，<br/>一句短口令即可。</h2><p>對 AI 說「在這個專案啟用 Kit 常用快捷入口」。每個專案只需啟用一次，AI 安裝教學亦已包含這一步。</p><ul><li><code>/handoff-kit-start</code> — 開工</li><li><code>/handoff-kit-close</code> — 收工</li><li><code>/handoff-kit-progress</code> — 進度頁</li><li><code>/handoff-kit-align</code> — 文件對齊</li><li><code>/handoff-kit-onboard</code> — 新手引導</li><li><code>/handoff-kit-remember</code> — 保存工作規則</li><li><code>/handoff-kit-check</code> — 檢查 Kit</li><li><code>/handoff-kit-help</code> — 功能選單</li></ul><p>Claude Code、Gemini CLI、Antigravity CLI 使用上面的入口。Codex 改用 <code>$handoff-kit-help</code> 等 <code>$handoff-kit-*</code> 技能，或在 <code>/skills</code> 選取。<code>handoff-kit-progress</code> 會自動開啟或重用進度頁；紀錄保存後自行更新，不需 AI 再寫報告。原有自然語句仍可使用。</p><p><a href="https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/commands.md">啟用方法、例子及操作邊界 →</a></p></div></section>
-  <section id="howto">
-    <div class="wrap">
-      <span class="eyebrow">05 / 三步上手</span>
-      <h2>由零到第一次成功交接,<br/>大約五分鐘。</h2>
-      <p class="intro">你只需要一部已安裝 Node.js 的電腦,以及能讀寫本機專案資料夾的 AI agent,例如 Claude Code、OpenAI Codex、Gemini CLI、Google Antigravity。普通 web chat AI 若不能讀寫本機資料夾,並不適合使用本工具。</p>
-
-      <div class="steps">
-        <div class="step s1">
-          <div class="step-num">1</div>
-          <h3>安裝</h3>
-          <p>最簡單做法:在你的項目資料夾打開能讀寫本機資料夾的 AI agent,貼上:</p>
-          <pre><span class="hl">請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html ，並在這個資料夾安裝或升級 Agent Handoff Kit。</span></pre>
-          <p style="margin-top:12px;">AI 應先顯示目前資料夾並請你確認;未確認前不會安裝或升級。想手動處理時,才在終端機執行:</p>
-          <pre>npx --yes <span class="hl">@adamchanadam/agent-handoff-kit@latest</span> init</pre>
-          <p style="margin-top:12px;">工具會在項目內建立 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">CLAUDE.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">GEMINI.md</code>、<code style="font-family:var(--font-mono);font-size:13px;">dev/</code> 一系列固定文件。</p>
-        </div>
-
-        <div class="step s2">
-          <div class="step-num">2</div>
-          <h3>開工</h3>
-          <p>打開能讀寫本機專案資料夾的 AI agent。若 AI 已在正確專案內,新對話只需輸入:</p>
-          <pre><span class="hl">Start Agent Handoff</span>
-或
-<span class="hl">開工</span></pre>
-          <p style="margin-top:12px;">若 AI 還未指向你的專案資料夾,才使用帶路徑啟動句:</p>
-          <pre>Work in <span class="hl">&lt;你的資料夾&gt;</span>. Read AGENTS.md first, then Start Agent Handoff. Before changing anything, tell me the current state and your recommended next step.</pre>
-          <p style="margin-top:12px;">AI 會依 <code style="font-family:var(--font-mono);font-size:13px;">AGENTS.md</code> 讀取權威 <code style="font-family:var(--font-mono);font-size:13px;">dev/SESSION_HANDOFF.md</code>。單獨輸入「開工」會完整讀取交接包並恢復必要狀態、顯示目前目標／風險／建議下一步，然後等待你的下一句指令；例外是新手引導仍標記為 <code>eligible</code>、目前目標空白或 <code>TBD</code>，而且沒有同句明確任務時，才進入簡短新手歡迎引導。若平台能安全控制目前標題，AI 可用已載入事實把籠統或過時的標題改成「&lt;項目名稱&gt;｜&lt;主要動作&gt;」；能讀回時先保留已知清楚且相關的標題，但安全指向目前對話的標題工具不以讀回為必要條件。不支援時靜默略過，也不為命名額外讀檔或連網。標題只供顯示，不代表狀態、進度或授權。只有同一句同時交代明確任務或長程指令時才會直接開始第一個安全步驟。<code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code> 只供尚未指向資料夾的 AI 接入。</p>
-          <p style="margin-top:12px;">「開工，繼續 &lt;任務&gt;」、「&lt;項目&gt; 開工」及 <code>Start Agent Handoff and continue &lt;task&gt;</code> 都是接力指令；只加項目名稱仍只顯示狀態，有同句明確任務才開始工作。只有語句可能指現實世界的開業、輪班或無關事件時才確認。</p>
-          <ol style="margin-top:12px;padding-left:22px;font-size:14px;line-height:1.65;">
-            <li>完整讀取同一版本交接包，核對必要工作脈絡。</li>
-            <li>顯示目前目標、風險與建議下一步，然後等待你的下一句工作指令。</li>
-            <li>新手引導仍為 <code>eligible</code>、目標空白或 <code>TBD</code>、沒有同句任務時顯示首次歡迎；只有目標仍含糊或你要求逐步引導時，才顯示情境選單。</li>
-            <li>只追問真正缺少而且會影響結果的資料。</li>
-            <li>涉及刪除、外部寫入或其他高風險操作時,仍等你確認後才動手。</li>
-          </ol>
-        </div>
-
-        <div class="step s3">
-          <div class="step-num">3</div>
-          <h3>收工</h3>
-          <p>本輪工作完成、準備結束,只需打:</p>
-          <pre><span class="hl">收工</span>
-或
-<span class="hl">Wrap up Agent Handoff</span>
-或
-<span class="hl">wrap up</span>
-或
-<span class="hl">handoff</span></pre>
-          <p style="margin-top:12px;">若你說的是「某某收工」這類帶其他上下文的話,AI 應先確認是否要執行 Agent Handoff Kit 收工交接。</p>
-          <p style="margin-top:12px;">AI 會自動更新交接文件,並同步更新 <code style="font-family:var(--font-mono);font-size:13px;">START_NEXT_SESSION_PROMPT.txt</code>。下一輪在同一專案內說 <code style="font-family:var(--font-mono);font-size:13px;">Start Agent Handoff</code> 或「開工」即可接力;若 AI 尚未指向資料夾,才使用帶路徑啟動句。</p>
-        </div>
-      </div>
-
-      <div style="margin-top: 40px; padding: 28px; background: var(--paper); border: 3px solid var(--ink); border-left: 12px solid var(--blue);">
-        <h3 style="margin: 0 0 12px; font-size: 20px; text-transform: uppercase; letter-spacing: 0.04em;">🚀 第一次用?最簡單版本</h3>
-        <p style="margin: 0; font-size: 16px; max-width: none;">未安裝或不確定是否要升級時,先在目標資料夾打開 AI agent,請它讀 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">agent-handoff-kit-ai-install.html</code> 並在這個資料夾安裝或升級。安裝後在同一個 AI agent 輸入 <code style="background: var(--paper-2); padding: 2px 8px; font-family: var(--font-mono); font-size: 14px;">Start Agent Handoff</code> 或「開工」。AI 先讀權威交接、顯示目前狀態與建議下一步；只有新手引導仍為 <code>eligible</code>、目標空白或 <code>TBD</code>、沒有同句任務時，才加上簡短首次歡迎。既有項目升級不會重置引導；一般開工只顯示狀態，明示要求教學則按引導處理。你在同一句講清目標時才直接開始第一個安全步驟。本介紹頁不需要先讀完。</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ───── 安全護欄 ───── -->
-  <section id="safety">
-    <div class="wrap">
-      <span class="eyebrow">06 / 為新手而設的安全護欄</span>
-      <h2>高風險操作之前，<br/>先核對、說明並取得所需確認。</h2>
-      <p class="intro">這套工具內置「安全」工作模式。任何時候涉及刪檔、Git、雲端寫入、發佈,AI 都必須切換到安全做法,並遵守以下硬性禁區:</p>
-
-      <div class="safety-grid">
-        <div class="safety-text">
-          <ul class="safety-list">
-            <li><strong>安全操作分界</strong>:<code style="font-family:var(--font-mono);font-size:14px;background:var(--paper-2);padding:2px 6px;">rm -rf</code> / <code style="font-family:var(--font-mono);font-size:14px;background:var(--paper-2);padding:2px 6px;">git reset --hard</code> 等指定破壞性命令及系統根路徑操作一律拒絕;強制推送、分支或標籤刪除與歷史改寫須另取明確授權並核對受影響 ref。</li>
-            <li><strong>機密保護</strong>:`.env`、API key、token 一類敏感值,不會被印出、不會被提交,也不會被上傳。</li>
-            <li><strong>查證不猜</strong>:使用第三方服務或工具之前要先查官方文件;查不到就標「未核實」,不憑印象亂寫。</li>
-            <li><strong>外部工具安全收口</strong>:MCP、browser、自動化工具或 helper server 用完後,AI 只可自動關閉能證明屬於本任務的資源;不明或共享資源要先列證據,等你確認。</li>
-            <li><strong>權限不足就停手</strong>:檔案被鎖或沒有權限時,AI 會列出「手動操作清單」交給你,不會嘗試強行繞過。</li>
-          </ul>
-        </div>
-        <div class="safety-callout">
-          <div class="big">按改動風險，<br/>決定核對與確認。</div>
-          <p>重要改動先讀相關來源；高風險、外部或不可逆操作先列明範圍、影響、驗收與所需確認。已授權的簡單、低風險改動可直接完成並核對，不必每次另走完整計劃。</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ───── 分檔有層次 ───── -->
-  <section id="tiers">
-    <div class="wrap">
-      <span class="eyebrow">07 / 分檔有層次</span>
-      <h2>AI 內部的工作邏輯,<br/>你不需要記。</h2>
-      <p class="intro">這套工具把項目資料分成「每次必讀」、「按需要讀」、「追溯時才讀」三層,讓 AI 知道何時讀甚麼。你不需要記這個分層 —— 下面只是讓你了解 AI 如何安排你的項目資料,以便日後你問「我們之前為何這樣做」時,AI 知道從何處找答案。</p>
-
-      <div class="modes-grid" style="grid-template-columns: repeat(3, 1fr);">
-        <div class="mode-cell m1">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">每次開工必讀</span>
-          <h3>每次必讀</h3>
-          <p style="font-size:14px;"><strong>SESSION_HANDOFF</strong>:當前狀態、下一步、風險。</p>
-          <p style="font-size:14px;"><strong>AGENTS / CLAUDE / GEMINI.md</strong>:開工規則。</p>
-          <p style="font-size:13px;opacity:0.7;">單獨開工讀入口規則與權威交接；項目索引只讀唯一 <code>Stack</code> 段內的版本列供卡片顯示，不藉此載入其他索引內容。</p>
-        </div>
-        <div class="mode-cell m2">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">按需要讀</span>
-          <h3>按任務讀</h3>
-          <p style="font-size:14px;"><strong>PROJECT_INDEX</strong>:按任務需要讀檔案登記與真源路線。</p>
-          <p style="font-size:14px;"><strong>工作規則</strong>:按任務選用的做事守則。</p>
-          <p style="font-size:14px;"><strong>PROJECT_DECISIONS</strong>:項目長期演進、決策、學習。</p>
-          <p style="font-size:13px;opacity:0.7;">視乎你今日做的任務,AI 自己選擇要讀哪些規則,不需要你決定。長期項目的決策歷史亦放在這裡 —— 遇到「我們之前為何這樣做」的問題時,AI 會在這裡找答案。</p>
-        </div>
-        <div class="mode-cell m3">
-          <div class="mode-icon" aria-hidden="true"></div>
-          <span class="mode-tag">追溯時讀</span>
-          <h3>日後追溯</h3>
-          <p style="font-size:14px;"><strong>SESSION_LOG 舊條目</strong></p>
-          <p style="font-size:14px;"><strong>SESSION_LOG_archive</strong>:自動冷封存。</p>
-          <p style="font-size:13px;opacity:0.7;">平日不讀,做審計或追溯時才打開。AI 收工時自動將舊條目封存至此。</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ───── 一目了然總結 ───── -->
-  <section id="recap">
-    <div class="wrap">
-      <span class="eyebrow">08 / 一目了然</span>
-      <h2>記住三件事,就夠。</h2>
-
-      <div class="recap-row">
-        <div class="recap-cell">
-          <div class="big">01</div>
-          <h3>開新對話,說開工</h3>
-          <p>AI 已在正確專案內時,每次新對話說 Start Agent Handoff 或「開工」。若 AI 尚未指向資料夾,才使用: Work in &lt;資料夾&gt;. Read AGENTS.md first, then Start Agent Handoff.</p>
-        </div>
-        <div class="recap-cell">
-          <div class="big">02</div>
-          <h3>用日常話描述任務</h3>
-          <p>AI 會先讀你已提供的需求:資料足夠就自行判斷工作模式並開始;資料不足才用選單或短問題協助釐清。新手不用記任何規則包名稱。</p>
-        </div>
-        <div class="recap-cell">
-          <div class="big">03</div>
-          <h3>開工接力,收工保存</h3>
-          <p>下一輪說 Start Agent Handoff 或「開工」,由 AI 讀取權威 <code>dev/SESSION_HANDOFF.md</code> 恢復狀態。準備結束本輪工作時說「收工」或 Wrap up Agent Handoff,AI 會更新交接文件與 START_NEXT_SESSION_PROMPT.txt。</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ───── 配合使用 ───── -->
-  <section id="combo">
-    <div class="wrap">
-      <span class="eyebrow">09 / 配合使用</span>
-      <h2>單次對話質素 +<br/>跨對話接力。</h2>
-      <p class="intro">Agent Handoff Kit 主責對話之間的接力；Adam-AI-Instructions 主責單一對話內的做事規矩，包括語氣、優先序與回覆結構。兩者可選配合，在安全、機密、不可逆操作與發布底線保留最低限度的共同防線；互不構成父子真源，也不合併成同一套規則。</p>
-
-      <div class="what-grid">
-        <div class="what-cell before">
-          <div>
-            <h3>Adam-AI-Instructions</h3>
-            <p style="margin-bottom:20px;"><strong>單次對話</strong>內的 AI 做事規矩。語氣、回覆骨架、計算紀律、安全護欄、輸出層分工。</p>
-            <a class="btn secondary" href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">看提示詞索引 →</a>
-          </div>
-        </div>
-        <div class="what-cell after">
-          <div>
-            <h3>Agent Handoff Kit</h3>
-            <p style="margin-bottom:20px;"><strong>對話之間</strong>的接力。當前狀態、下一步、檔案登記、收工與下次開工。</p>
-            <a class="btn" href="#howto">睇三步上手 →</a>
-          </div>
-        </div>
-      </div>
-
-      <p style="margin-top:28px;">到 Adam-AI-Instructions 的「五、提示詞索引」選擇適用版本,複製對應 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">prompt.md</code> 全文貼入你 AI 工具設定。然後在項目資料夾打開能讀寫本機資料夾的 AI agent,請它讀 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">agent-handoff-kit-ai-install.html</code> 並在這個資料夾安裝或升級本工具;如要手動處理,才執行 <code style="font-family:var(--font-mono);font-size:13px;background:var(--paper-2);padding:1px 4px;">npx --yes @adamchanadam/agent-handoff-kit@latest init</code>。前者管單次對話的做事規矩,本工具管不同對話之間的項目接力。</p>
-    </div>
-  </section>
-
-  <!-- ───── Footer ───── -->
-  <footer>
-    <div class="wrap">
-      <div>
-        <h4>Agent Handoff Kit</h4>
-        <p style="max-width:42ch;font-size:15px;">給 AI 用的輕量交接工具。設計目標是薄、可裝入任何項目、跨工具穩定。</p>
-      </div>
-      <div>
-        <h4>取得</h4>
-        <p style="font-family:var(--font-mono);font-size:13px;line-height:1.8;">
-          <a href="https://github.com/Adamchanadam/agent-handoff-kit" target="_blank" rel="noopener">GitHub</a><br/>
-          <a href="https://www.npmjs.com/package/@adamchanadam/agent-handoff-kit" target="_blank" rel="noopener">npm</a><br/>
-          <a href="agent-handoff-kit-guide.html">實操指南</a><br/>
-          <a href="local-agentic-ai-workflow-case-study.html">本機 Agentic AI 工作系統案例</a><br/>
-
-          <a href="https://github.com/prompt-templates/Adam-AI-Instructions" target="_blank" rel="noopener">Adam-AI-Instructions</a>
-        </p>
-      </div>
-      <div>
-        <h4>安裝指令</h4>
-        <p style="font-family:var(--font-mono);font-size:13px;line-height:1.65;">
-          npx --yes @adamchanadam/<br/>agent-handoff-kit@latest init
-        </p>
-      </div>
-      <div>
-        <h4>作者</h4>
-        <p style="font-family:var(--font-mono);font-size:13px;line-height:1.8;">
-          Adam Chan<br/>
-          <a href="https://www.facebook.com/chan.adam" target="_blank" rel="noopener">Facebook</a>
-        </p>
-      </div>
-      <div class="meta">
-        v0.4.0 · MIT License · 本頁是新手入門介紹,實際細節以<a href="https://github.com/Adamchanadam/agent-handoff-kit#readme" style="color:inherit;text-decoration:underline;">官方 README</a>為準。
-      </div>
-    </div>
-  </footer>
-
-</body>
+<body class="kit-body"><div class="top-banner stripe" aria-hidden="true"><div></div><div></div><div></div></div><div class="kit-wrap"><nav class="kit-nav" aria-label="主要導覽"><a class="kit-brand" href="agent-handoff-kit-intro.html"><img src="images/agent-handoff-kit-logo2-256.png" alt="Agent Handoff Kit logo" width="42" height="42"/>Agent Handoff Kit</a><div class="kit-nav-links"><a href="#what">能幫你甚麼</a><a href="#dashboard">進度頁</a><a href="agent-handoff-kit-guide.html#commands">常用指令</a><a href="agent-handoff-kit-ai-install.html">安裝</a><a href="agent-handoff-kit-intro.en.html" lang="en">English</a></div></nav></div><main><header class="kit-hero"><div class="kit-wrap kit-hero-inner"><div><span class="kit-mini">Agent Handoff Kit · v0.4.1</span><h1><span class="brand-session">Session</span><br/><span class="brand-baton">接力棒</span></h1><p class="kit-lead">Agent Handoff Kit 把進度、重要決定、文件位置和未完事項留在你的專案裏，讓下一個 AI 找得到。</p><p class="kit-note">這份說明包含尚未發布的更新；正式下載可用的功能，以已發布版本為準。</p><div class="kit-actions"><a class="kit-link" href="#commands">看常用指令</a><a class="kit-link secondary" href="#setup">先安裝</a></div></div><img src="images/agent-handoff-kit-main-visual2.png?v=69b8a794ca" alt="紅黃藍幾何色塊與手繪線條的品牌主視覺"/></div></header><section class="kit-section" id="what"><div class="kit-wrap"><h2>替你留下甚麼？</h2><p class="kit-lead">沒有交接時，你往往要重講背景、重找文件，還要提醒 AI 哪些路已試過。用了這套工具，這些重要內容會留在專案裏；你仍然提出需求和決定，AI 負責整理與核對。</p><div class="kit-grid kit-features"><article class="kit-card"><h3>接上上次，不用重新交代一遍。</h3><p>長任務換了對話，最容易漏掉的是之前的決定、你的修正和未完事項。這套工具讓 AI 保存這些內容；下次先讀齊交接，再說明目前狀態。</p><a href="agent-handoff-kit-guide.html#start">開工接力 →</a></article><article class="kit-card"><h3>重要文件，下一個 AI 也找得到。</h3><p>新文章、參考 PDF、工作計劃，不應只留在當次對話。這套工具記下文件用途、何時要讀、哪些改動需要一起更新，減少拿錯版本或漏用資料。</p><a href="agent-handoff-kit-guide.html#align">檢查文件關係 →</a></article><article class="kit-card"><h3>做了幾個月，仍找得回原因。</h3><p>除了目前進度，也保留重要決定、選擇原因和工作紀錄。你問「之前為甚麼這樣做」，AI 可循紀錄查回；紀錄變長時會按需要整理和封存，不必每次全部重讀。</p><a href="agent-handoff-kit-guide.html#progress">查看歷程 →</a></article><article class="kit-card"><h3>換工具，沿用同一份專案。</h3><p>在支援的 AI 工具中打開同一資料夾，可沿用已保存的交接和工作要求。專案自己的內容與官方提供的內容分開處理，升級時保留自訂內容，遇到衝突先停下。</p><a href="agent-handoff-kit-guide.html#remember">保存日後要求 →</a></article></div></div></section><section class="kit-section" id="tasks"><div class="kit-wrap"><h2>你講目的，AI 按任務做事。</h2><p>你不需要選工作模式或背規則名稱。只要說想完成甚麼，AI 便按任務採用合適的做法；資料不足時，只問會影響結果的問題。</p><div class="kit-grid kit-features"><article class="kit-card"><h3>寫文章、改簡報</h3><p>先看讀者、用途和語氣，再寫成適合使用的內容。</p></article><article class="kit-card"><h3>查資料、比較選擇</h3><p>核對來源與日期，分清事實、推論和仍未確認的部分。</p></article><article class="kit-card"><h3>做網頁、寫程式、修問題</h3><p>先讀相關檔案，保留既有改動，完成後檢查實際結果。</p></article><article class="kit-card"><h3>整理文件、使用雲端工具</h3><p>分清原始資料、筆記和成品，核對連接與權限；寫入後再讀回確認。</p></article></div></div></section><section class="kit-section" id="commands"><div class="kit-wrap"><h2>要操作時，選一個指令。</h2><p>在專案的 AI 對話輸入指令，不是在終端機。Claude Code、Gemini CLI、Antigravity CLI 用 /；Codex 用 $，也可從 /skills 選取。</p><p>新安裝或升級會一併放好，只供目前專案使用，不需額外啟用。點選指令看例子和用法。</p><ul class="kit-command-menu"><li><a href="agent-handoff-kit-guide.html#start"><strong>開工</strong><code>/handoff-kit-start</code></a></li><li><a href="agent-handoff-kit-guide.html#progress"><strong>進度頁</strong><code>/handoff-kit-progress</code></a></li><li><a href="agent-handoff-kit-guide.html#close"><strong>收工</strong><code>/handoff-kit-close</code></a></li></ul><p><a href="agent-handoff-kit-guide.html#commands">查看全部指令：新手引導、整理文件、記住要求、檢查及更新 →</a></p></div></section><section class="kit-section" id="dashboard"><div class="kit-wrap"><h2>專案全貌，看得見。</h2><p class="kit-lead">用 handoff-kit-progress，看現在做到哪裏、還欠甚麼，以及之前怎樣走到這一步。總覽看目前工作；歷程可按日期找回變更；文件地圖看重要資料的用途和關係。</p><a class="kit-screen-link" href="images/agent-handoff-kit-dashboard-zh-Hant.webp"><img class="kit-screen" src="images/agent-handoff-kit-dashboard-zh-Hant.webp" alt="Dashboard：目前工作、未完事項、歷程及文件關係" loading="lazy"/></a><p class="kit-note">實際介面截圖；Atlas 是虛構範例。點圖放大，每個專案會顯示自己的紀錄。</p><details class="kit-faq"><summary>查看英文介面</summary><a href="images/agent-handoff-kit-dashboard-en.webp"><img class="kit-screen" src="images/agent-handoff-kit-dashboard-en.webp" alt="英文 Dashboard" loading="lazy"/></a></details><p>AI 保存紀錄後，畫面自動更新，不用刷新。叫 AI 開頁面和保存紀錄會用一些 token；之後查看、篩選和畫面更新不另叫 AI。未保存的工作不會出現。</p><a href="https://github.com/Adamchanadam/agent-handoff-kit/blob/main/docs/progress.md">進度頁用法及常見問題 →</a></div></section><section class="kit-section" id="setup"><div class="kit-wrap"><h2>第一次用，把這句交給 AI。</h2><p>在要工作的專案資料夾打開 AI，把下面一句貼進對話。AI 會先確認資料夾，再安裝或升級及檢查，你不用選指令。</p><pre class="kit-prompt" id="install-request">請讀取 https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-ai-install.html ，並在這個資料夾安裝或升級 Agent Handoff Kit。</pre><button type="button" data-copy="install-request">複製安裝句</button><p class="kit-status" data-copy-status role="status" aria-live="polite"></p><p class="kit-note">需要能讀寫專案資料夾的 AI 工具及 Node.js 18 以上。普通網頁聊天若不能存取資料夾便不適用；不確定時先請 AI 檢查。已有舊版或 AI 工作文件也用同一句。</p></div></section><section class="kit-section" id="safety"><div class="kit-wrap"><h2>接得上，也要知道界線。</h2><div class="kit-long"><p>AI 要先讀齊交接，才可說已接上。單獨開工只說明現況；你提出任務後才開始做事。收工可以保存未完成工作，不代表整個專案完成。</p><p>上傳、發布、刪除重要資料或更改權限前，AI 須說明影響並取得所需批准。密碼和金鑰不能寫入交接。這套工具用規則和檢查協助交接，不能保證 AI 永不出錯。</p></div></div></section><section class="kit-section" id="care"><div class="kit-wrap"><h2>保護你的資料和其他工作。</h2><p class="kit-long">用完外部工具後，AI 只應關閉確定屬於這次工作的臨時程式；不清楚歸屬時先問，避免中斷你其他工作。權限不足或檔案被鎖時，要說明限制，不強行繞過。</p></div></section><section class="kit-section" id="promo-video"><div class="kit-wrap"><h2>想先看一段介紹？</h2><iframe class="kit-video" src="https://www.youtube.com/embed/RopbfBiSw1I" title="Agent Handoff Kit 介紹影片" loading="lazy" allowfullscreen></iframe><p class="kit-note"><a href="https://youtu.be/RopbfBiSw1I">在 YouTube 觀看</a></p></div></section><section class="kit-section" id="optional"><div class="kit-wrap"><h2>可選配合使用</h2><p>這套工具保存專案在不同對話之間的交接。想另外設定 AI 每次回覆的語氣和做事習慣，可選用 <a href="https://github.com/prompt-templates/Adam-AI-Instructions">Adam-AI-Instructions</a>，並非必要安裝。</p></div></section></main><footer><div class="kit-wrap"><strong>Agent Handoff Kit</strong><p><a href="https://github.com/Adamchanadam/agent-handoff-kit">GitHub</a> · <a href="https://www.npmjs.com/package/@adamchanadam/agent-handoff-kit">npm</a> · <a href="agent-handoff-kit-intro.html">介紹</a> · <a href="agent-handoff-kit-guide.html">指南</a></p><p class="kit-note">v0.4.1 · MIT License · Adam Chan</p></div></footer><script>
+const picker=document.querySelector('[data-tool-picker]');
+const lang=document.documentElement.lang==='en'?'en':'zh';
+const status=document.querySelector('[data-copy-status]');
+function updateCommands(){const prefix=picker?.value==='codex'?'$':'/';document.querySelectorAll('[data-command]').forEach(el=>{el.textContent=prefix+'handoff-kit-'+el.dataset.command+(el.dataset.suffix?' '+el.dataset.suffix:'');});}
+picker?.addEventListener('change',updateCommands);updateCommands();
+document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{const el=document.getElementById(button.dataset.copy);try{await navigator.clipboard.writeText(el.textContent);button.textContent=lang==='en'?'Copied':'已複製';status.textContent=lang==='en'?'Copied. Paste it into your project’s AI conversation.':'已複製，貼到專案的 AI 對話即可。';}catch{const range=document.createRange();range.selectNodeContents(el);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);button.textContent=lang==='en'?'Select & copy':'請手動複製';status.textContent=lang==='en'?'Copy was unavailable. The text is selected; copy it manually.':'未能自動複製，已選取文字，請手動複製。';}}));
+</script></body>
 </html>
-
