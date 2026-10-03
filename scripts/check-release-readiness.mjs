@@ -2699,7 +2699,7 @@ function checkGovernanceBridgeContract() {
     "repo-wide 未接合文件掃描",
     "只有所有適用 governance link 都存在才可報 bridged",
     "略過層必須寫 not applicable 原因",
-    "不得自動刪除、重命名或合併真源",
+    "不得自動刪除、重命名、移動或合併真源",
     "Governance Bridge Scenario Matrix",
     "Governance Bridge Scenario Matrix Sweep",
     "如果只更新 `PROJECT_INDEX` 或 `SESSION_LOG`，必須報 `partially bridged`",
