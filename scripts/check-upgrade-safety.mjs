@@ -8,7 +8,7 @@ import { gunzipSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installedFileContracts, requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
-import { canonicalizeOfficialText, loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
+import { canonicalizeOfficialText, getOfficialBaseline, loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
 import { markdownVisibleLinesOutsideHiddenBlocks, materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 
@@ -35,6 +35,10 @@ try {
 }
 
 function main() {
+  if (process.argv.includes("--session-log-upgrade-only")) {
+    checkHistoricalSessionLogTemplateMigration();
+    return;
+  }
   if (process.argv.includes("--project-rules-only")) {
     checkProjectRuleWriteBoundary();
     return;
@@ -835,21 +839,34 @@ function checkProjectIndexHiddenGovernanceFalseClose() {
 function checkHistoricalSessionLogTemplateMigration() {
   const project = install("historical-session-log");
   const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
-  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, "| Agent Handoff Kit template version | 0.3.38 |"), "utf8");
+  const baselineVersion = "0.4.1";
+  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, `| Agent Handoff Kit template version | ${baselineVersion} |`), "utf8");
   const logPath = path.join(project, "dev", "SESSION_LOG.md");
+  const baseline = getOfficialBaseline({ version: baselineVersion, targetRel: "dev/SESSION_LOG.md", catalog: officialOriginCatalog });
+  assert(baseline?.state === "present", "official v0.4.1 SESSION_LOG baseline is unavailable");
   const historical = [
     "<!-- ack:log-entry:start -->\n## 2026-07-12 — Historical entry A\n\n- **QC:** passed\n\n```text\nWork in C:\\historical-project.\nRead AGENTS.md, then SESSION_HANDOFF.md and PROJECT_INDEX.md.\nThis is historical evidence, not the current opening message.\n```\n<!-- ack:log-entry:end -->",
     "<!-- ack:log-entry:start -->\n## 2026-07-11 — Historical entry B\n\n- **QC:** retained\n<!-- ack:log-entry:end -->"
   ].join("\n\n");
-  const before = read(logPath).replace("<!-- ack:section:session-log-entry-template -->", `${historical}\n\n<!-- ack:section:session-log-entry-template -->`);
+  const before = baseline.text.replace("<!-- ack:section:session-log-entry-template -->", `${historical}\n\n<!-- ack:section:session-log-entry-template -->`);
   writeFileSync(logPath, before, "utf8");
   const result = cli(["upgrade", "--yes", "--root", project], "historical SESSION_LOG template migration");
   const after = read(logPath);
   assert(result.stdout.includes("migration committed") && result.stdout.includes("status: passed"), "historical SESSION_LOG upgrade did not commit healthy");
   assert(after.includes(historical), "historical SESSION_LOG blocks were not preserved byte-for-byte");
   assert(count(after, "<!-- ack:log-entry:start -->") === 3 && count(after, "<!-- ack:log-entry:end -->") === 3, "historical SESSION_LOG marker pairs were removed or duplicated");
+  assert(after.includes("Each closeout applies `dev/rules/closeout.md` `## Maintenance Trigger Check`"), "verified official v0.4.1 SESSION_LOG preamble did not transition to the current owner");
+  assert(!after.includes("N=1–3 keep full"), "legacy official SESSION_LOG N-threshold preamble remained after upgrade");
   assert(cli(["doctor", "--root", project], "historical SESSION_LOG doctor").stdout.includes("status: passed"), "doctor rejected legal historical log marker pairs");
-  console.log("ok: historical SESSION_LOG marker blocks survive v0.3.38 upgrade byte-for-byte");
+  const customProject = install("custom-session-log-preamble");
+  const customIndex = path.join(customProject, "dev", "PROJECT_INDEX.md");
+  writeFileSync(customIndex, read(customIndex).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, `| Agent Handoff Kit template version | ${baselineVersion} |`), "utf8");
+  const customLog = path.join(customProject, "dev", "SESSION_LOG.md");
+  const customPreamble = baseline.text.replace("<!-- ack:section:session-log-entry-template -->", "Local preamble note: preserve this project-specific routing.\n\n<!-- ack:section:session-log-entry-template -->");
+  writeFileSync(customLog, customPreamble, "utf8");
+  const customResult = cli(["upgrade", "--yes", "--root", customProject], "custom SESSION_LOG preamble preservation");
+  assert(customResult.stdout.includes("migration committed") && read(customLog).includes("Local preamble note: preserve this project-specific routing."), "SESSION_LOG upgrade replaced an unknown custom preamble");
+  console.log("ok: verified official v0.4.1 SESSION_LOG preamble transitions while historical entries and custom preambles remain preserved");
 }
 
 function checkMalformedSessionLogBoundary() {

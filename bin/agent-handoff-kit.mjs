@@ -4708,7 +4708,7 @@ function classifyExistingFile(command, sourceRel, targetRel, sourceAbs, targetAb
     return { ...base, action: "skip", reason: "SESSION_HANDOFF.md lifecycle and startup contracts current" };
   }
   if (targetRel === "dev/SESSION_LOG.md" && command === "upgrade") {
-    const migratedLog = migrateSessionLog(targetText, sourceText);
+    const migratedLog = migrateSessionLog(targetText, sourceText, context);
     if (!migratedLog) {
       return { ...base, action: "conflict", reason: "SESSION_LOG.md lacks a unique trusted entry-template boundary; migration stopped without replacing trace history" };
     }
@@ -5866,8 +5866,10 @@ function restoreMissingCurrentOpeningLines(targetPrompt, sourcePrompt) {
   return targetLines.join("\n");
 }
 
-function migrateSessionLog(targetText, sourceText) {
+function migrateSessionLog(targetText, sourceText, context = {}) {
   let merged = mergeSessionLogTemplateContract(targetText, sourceText);
+  if (!merged) return null;
+  merged = replaceVerifiedOfficialSessionLogPreamble(merged, sourceText, context);
   if (!merged) return null;
   merged = mergeSessionLogEvidenceDispositionField(merged);
   if (!merged) return null;
@@ -5877,6 +5879,43 @@ function migrateSessionLog(targetText, sourceText) {
   if (!targetContract || !sourceContract) return null;
   merged = `${merged.slice(0, targetContract.entryStart)}${sourceText.slice(sourceContract.entryStart, sourceContract.entryEnd)}${merged.slice(targetContract.entryEnd)}`;
   return merged;
+}
+
+function sessionLogPreambleBounds(text) {
+  const startMarker = "<!-- ack:section:session-log-preamble -->";
+  const endMarker = "<!-- ack:section:session-log-entry-template -->";
+  const start = text.indexOf(startMarker);
+  if (start < 0 || text.indexOf(startMarker, start + startMarker.length) >= 0) return null;
+  const templateStart = text.indexOf(endMarker, start + startMarker.length);
+  if (templateStart < 0 || text.indexOf(endMarker, templateStart + endMarker.length) >= 0) return null;
+  // Historical entries are allowed immediately before the template marker.
+  // They are trace data, never part of the replaceable official preamble.
+  const firstEntry = text.indexOf("<!-- ack:log-entry:start -->", start + startMarker.length);
+  const end = firstEntry >= 0 && firstEntry < templateStart ? firstEntry : templateStart;
+  return { start, end };
+}
+
+function replaceVerifiedOfficialSessionLogPreamble(targetText, sourceText, context) {
+  const baselineVersion = context.trustedBaselineVersion;
+  if (!baselineVersion || !context.officialCatalog) return targetText;
+  const baseline = getOfficialBaseline({
+    version: baselineVersion,
+    targetRel: "dev/SESSION_LOG.md",
+    catalog: context.officialCatalog
+  });
+  if (baseline?.state !== "present") return targetText;
+
+  const targetBounds = sessionLogPreambleBounds(targetText);
+  const sourceBounds = sessionLogPreambleBounds(sourceText);
+  const baselineBounds = sessionLogPreambleBounds(baseline.text);
+  if (!targetBounds || !sourceBounds || !baselineBounds) return null;
+
+  const targetPreamble = targetText.slice(targetBounds.start, targetBounds.end).replace(/\r\n?/g, "\n").trimEnd();
+  const officialPreamble = baseline.text.slice(baselineBounds.start, baselineBounds.end).replace(/\r\n?/g, "\n").trimEnd();
+  // Only the catalog's complete, verified historical preamble may be replaced.
+  // A local line (even beside an otherwise old preamble) remains user content.
+  if (targetPreamble !== officialPreamble) return targetText;
+  return `${targetText.slice(0, targetBounds.start)}${sourceText.slice(sourceBounds.start, sourceBounds.end).trimEnd()}\n\n${targetText.slice(targetBounds.end)}`;
 }
 
 function mergeHandoffLifecycleField(targetText) {
