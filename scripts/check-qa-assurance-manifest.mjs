@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   aggregateReleaseReadinessTimeoutMs,
   assertPublicMirrorRequiredSources,
+  assertClaimExecutorContract,
+  assertQuickExecutorsCoveredByFull,
   CANDIDATE_EVIDENCE_CONTRACT,
   commandDocumentation,
   expectedPublicMirrorFileCount,
@@ -23,7 +25,8 @@ import {
 } from "./qa-assurance-manifest.mjs";
 import { assertRunFailed, invokeAsync, runSync, runSyncChecked, TIMEOUT_EXIT_CODE } from "./qa-runner-core.mjs";
 import { checkFeatureDeliveryEvidence } from "./feature-delivery-cases.mjs";
-import { readRemoteTagCommit } from "./qa.mjs";
+import { NATIVE_UPDATE_METADATA_KEYS, nativeUpdateReviewSubjectDigest } from "./feature-delivery.mjs";
+import { readRemoteTagCommit, runClaim, captureCandidateIdentity, verifyCandidateIdentity, finalizeCandidateAcceptance, assertPublishedCandidate, semanticEqual, resolveAcceptanceReceiptPath, validateReviewBundle } from "./qa.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "ack-qa-assurance-"));
@@ -33,11 +36,16 @@ if (process.argv.includes('--feature-delivery-only')) {
   const runner=readFileSync(path.join(root,'scripts/qa.mjs'),'utf8');
   assert(runner.includes('await validateCandidateFeatureDelivery(evidence, head)'), 'full gate must invoke feature delivery');
   assert(runner.includes('reviewSubject?.featureDelivery'), 'independent review must bind feature evidence');
+  assert(runner.includes('validatePostpublishNativeUpdate(evidence.readbacks?.nativeUpdate, receipt)'), 'postpublish must reuse the native update validator');
   rmSync(fixtureRoot,{recursive:true,force:true});
   process.exit(0);
 }
 
 try {
+  await validateAcceptanceBoundaries();
+  if (process.argv.includes("--runner-contracts-only")) {
+    console.log("ok: focused QA acceptance boundaries (local fixtures; not full/native assurance)");
+  } else {
   validateManifest();
   validateCandidateEvidenceContract();
   validatePublicMirrorContract();
@@ -53,8 +61,140 @@ try {
   await validateRemoteTagCommitReadback();
   validateEvidenceContracts();
   console.log("ok: QA assurance manifest and runner wiring");
+  }
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });
+}
+
+async function validateAcceptanceBoundaries() {
+  const rejects = async (fn, text) => {
+    let error;
+    try { await fn(); } catch (caught) { error = caught; }
+    assert(error && error.message.includes(text), `expected rejection ${text}, received ${error?.message ?? "success"}`);
+  };
+  assertQuickExecutorsCoveredByFull();
+  const quickOnly = structuredClone(QA_ASSURANCE_MANIFEST);
+  quickOnly.claims.push({ ...quickOnly.claims[0], id: "future-quick-only", executor: { ...quickOnly.claims[0].executor, script: "scripts/future-only.mjs" } });
+  await rejects(() => assertQuickExecutorsCoveredByFull(quickOnly), "absent from the full");
+  quickOnly.claims.at(-1).required = false;
+  await rejects(() => assertQuickExecutorsCoveredByFull(quickOnly), "absent from the full");
+  const noFullRunner = structuredClone(QA_ASSURANCE_MANIFEST);
+  noFullRunner.claims = noFullRunner.claims.filter((claim) => claim.id !== "release-readiness");
+  await rejects(() => assertQuickExecutorsCoveredByFull(noFullRunner), "does not execute");
+  const normalized = structuredClone(QA_ASSURANCE_MANIFEST);
+  normalized.claims[0].executor.script = "scripts/./check-install-lock-smoke.mjs";
+  assertQuickExecutorsCoveredByFull(normalized);
+  const wrong = { id: "wrong", layer: "full", required: true, executor: { kind: "node-scritp" } };
+  await rejects(() => assertClaimExecutorContract(wrong), "unknown executor kind");
+  await rejects(() => runClaim(wrong), "unknown executor kind");
+  await rejects(() => runClaim({ ...wrong, executor: { kind: "internal-validator" } }), "not allowed for layer");
+  for (const kind of ["node-script", "internal-validator", "evidence-validator"]) {
+    const claim = QA_ASSURANCE_MANIFEST.claims.find((item) => item.executor.kind === kind);
+    const seen = [];
+    await runClaim(claim, {}, { [kind]: async (item) => seen.push(item.id) });
+    assert(semanticEqual(seen, [claim.id]), `dispatch did not execute ${kind}`);
+    await rejects(() => runClaim(claim, {}, { [kind]: async () => { throw Error("executor body failed"); } }), "executor body failed");
+  }
+  // Default production handlers must reach their validators, not silently return.
+  await rejects(() => runClaim(QA_ASSURANCE_MANIFEST.claims.find((item) => item.layer === "candidate-preflight")), "requires --candidate");
+  await rejects(() => runClaim(QA_ASSURANCE_MANIFEST.claims.find((item) => item.layer === "postpublish")), "requires --version");
+  await runClaim({ id: "local-node-dispatch", layer: "quick", executor: { kind: "node-script", script: "scripts/check-prompt-mirror.mjs", timeoutMs: 30000 } });
+  const verdicts = Object.fromEntries(CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.map((key) => [key, "passed"]));
+  assert(semanticEqual(verdicts, Object.fromEntries(Object.entries(verdicts).reverse())), "object key order changed verdict equality");
+  assert(!semanticEqual(verdicts, { ...verdicts, extra: "passed" }), "extra verdict accepted");
+  assert(!semanticEqual(verdicts, { ...verdicts, userJourney: "failed" }), "wrong verdict accepted");
+  const missing = { ...verdicts }; delete missing.userJourney;
+  assert(!semanticEqual(verdicts, missing), "missing verdict accepted");
+  assert(!semanticEqual(["first", "second"], ["second", "first"]), "state history order was relaxed");
+
+  const stagePath = path.join(fixtureRoot, "accepted-stage.txt");
+  const subjectPath = path.join(fixtureRoot, "accepted-subject-only.txt");
+  const bundlePath = path.join(fixtureRoot, "accepted-bundle.json");
+  const evidencePath = path.join(fixtureRoot, "accepted-candidate.json");
+  const receiptPath = path.join(fixtureRoot, "accepted-receipt.json");
+  writeFileSync(stagePath, "stage A"); writeFileSync(subjectPath, "subject A");
+  writeEvidence(bundlePath, { reviewSubject: { evidence: [{ path: subjectPath, sha256: sha256(readFileSync(subjectPath)) }] } });
+  const data = { candidate: { version: "1.2.3", commit: "a".repeat(40), tarballSha256: "b".repeat(64) },
+    manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST, releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    roleIsolation: { reviewBundle: { path: bundlePath, sha256: sha256(readFileSync(bundlePath)) } },
+    featureDelivery: { evidence: [{ path: stagePath, sha256: sha256(readFileSync(stagePath)) }] } };
+  writeEvidence(evidencePath, data);
+  const accepted = captureCandidateIdentity(evidencePath, data);
+  const readers = { head: async () => data.candidate.commit, status: async () => ({ stdout: "" }), tarball: async () => data.candidate.tarballSha256 };
+  await verifyCandidateIdentity(accepted, readers);
+  const candidateRoot = path.join(fixtureRoot, "candidate-root"); mkdirSync(candidateRoot);
+  const sourceAlias = path.join(fixtureRoot, "candidate-alias");
+  symlinkSync(candidateRoot, sourceAlias, process.platform === "win32" ? "junction" : "dir");
+  const outside = path.join(fixtureRoot, "receipt-outside.json");
+  const scoped = captureCandidateIdentity(evidencePath, data, candidateRoot);
+  assert(resolveAcceptanceReceiptPath(outside, candidateRoot) === outside, "outside receipt path changed unexpectedly");
+  for (const output of [path.join(candidateRoot, "receipt.json"), path.join(sourceAlias, "receipt.json")]) {
+    await rejects(() => resolveAcceptanceReceiptPath(output, candidateRoot), "outside the candidate");
+    await rejects(() => finalizeCandidateAcceptance(scoped, output, readers), "outside the candidate");
+    assert(!existsSync(output), "rejected in-source receipt was written");
+  }
+  const outsideDir = path.join(fixtureRoot, "outside-dir"); mkdirSync(outsideDir);
+  const insideAlias = path.join(candidateRoot, "outside-alias");
+  symlinkSync(outsideDir, insideAlias, process.platform === "win32" ? "junction" : "dir");
+  await rejects(() => resolveAcceptanceReceiptPath(path.join(insideAlias, "receipt.json"), candidateRoot), "outside the candidate");
+  await rejects(() => finalizeCandidateAcceptance(scoped, path.join(fixtureRoot, "missing-parent", "receipt.json"), readers), "ENOENT");
+  assert(!existsSync(path.join(fixtureRoot, "missing-parent")), "failed receipt output created a directory");
+  const outsideAlias = path.join(fixtureRoot, "outside-alias");
+  symlinkSync(outsideDir, outsideAlias, process.platform === "win32" ? "junction" : "dir");
+  const linkedOutput = path.join(outsideAlias, "receipt.json");
+  assert(resolveAcceptanceReceiptPath(linkedOutput, candidateRoot) === path.join(outsideDir, "receipt.json"), "outside directory alias was not resolved");
+  await finalizeCandidateAcceptance(scoped, linkedOutput, readers);
+  assert(existsSync(path.join(outsideDir, "receipt.json")), "external canonical receipt was not written");
+
+  const caller = path.join(fixtureRoot, "bundle-caller"); mkdirSync(caller);
+  const subject = { candidateCommit: data.candidate.commit, tarballSha256: data.candidate.tarballSha256,
+    manifestDigest: data.manifestDigest, releaseReadinessInventoryDigest: data.releaseReadinessInventoryDigest,
+    manualVerdicts: verdicts, featureDelivery: {}, stateHistory: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath };
+  const bundle = { schemaVersion: 1, kind: "role-isolation-review-bundle", state: "WAITING_INDEPENDENT_REVIEW",
+    candidate: data.candidate, manifestDigest: data.manifestDigest, releaseReadinessInventoryDigest: data.releaseReadinessInventoryDigest,
+    stateHistory: subject.stateHistory, fiveConclusions: verdicts, reviewSubject: subject, reviewSubjectDigest: sha256(JSON.stringify(subject)) };
+  const consumed = path.join(caller, "review.json");
+  writeEvidence(consumed, bundle); writeEvidence(path.join(candidateRoot, "review.json"), bundle);
+  const relativeData = { ...data, manualVerdicts: verdicts, featureDelivery: {}, roleIsolation: {
+    reviewBundle: { path: "review.json", sha256: sha256(readFileSync(consumed)) },
+    reviewSubjectStateHistory: subject.stateHistory, reviewSubjectDigest: bundle.reviewSubjectDigest } };
+  const relativeEvidence = path.join(fixtureRoot, "relative-candidate.json"); writeEvidence(relativeEvidence, relativeData);
+  const originalCwd = process.cwd();
+  try {
+    process.chdir(caller);
+    const captured = captureCandidateIdentity(relativeEvidence, relativeData, candidateRoot);
+    const validated = validateReviewBundle(relativeData.roleIsolation.reviewBundle, relativeData, data.candidate.commit);
+    assert(validated.path === consumed && captured.references.some((ref) => ref.path === consumed), "capture and validator used different bundles");
+    await verifyCandidateIdentity(captured, readers);
+    const absoluteData = structuredClone(relativeData); absoluteData.roleIsolation.reviewBundle.path = consumed;
+    writeEvidence(relativeEvidence, absoluteData);
+    const absoluteCaptured = captureCandidateIdentity(relativeEvidence, absoluteData, candidateRoot);
+    validateReviewBundle(absoluteData.roleIsolation.reviewBundle, absoluteData, data.candidate.commit);
+    await verifyCandidateIdentity(absoluteCaptured, readers);
+    writeEvidence(relativeEvidence, relativeData);
+    writeFileSync(consumed, readFileSync(consumed, "utf8") + " ");
+    await rejects(() => verifyCandidateIdentity(captured, readers), "accepted evidence changed during claims");
+  } finally { process.chdir(originalCwd); }
+  console.log("ok: receipt source/link boundaries and no-write failures; same relative/absolute review bundle; optional quick coverage");
+
+  for (const [key, read, error] of [["head", async () => "c".repeat(40), "HEAD changed"], ["status", async () => ({ stdout: " M package.json" }), "worktree changed"], ["tarball", async () => "d".repeat(64), "tarball changed"]]) {
+    await rejects(() => finalizeCandidateAcceptance(accepted, receiptPath, { ...readers, [key]: read }), error);
+    assert(!existsSync(receiptPath), "failed final identity check wrote receipt");
+  }
+  for (const file of [stagePath, subjectPath, bundlePath, evidencePath]) {
+    const before = readFileSync(file); writeFileSync(file, Buffer.concat([before, Buffer.from(" ")]));
+    await rejects(() => finalizeCandidateAcceptance(accepted, receiptPath, readers), "changed during claims");
+    assert(!existsSync(receiptPath), "changed evidence wrote receipt"); writeFileSync(file, before);
+  }
+  await finalizeCandidateAcceptance(accepted, receiptPath, readers);
+  const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+  assert(receipt.kind === "accepted-candidate-receipt" && receipt.candidateEvidenceSha256 === sha256(readFileSync(evidencePath)), "accepted receipt did not bind source evidence");
+  const originalReceipt = readFileSync(receiptPath);
+  await rejects(() => finalizeCandidateAcceptance(accepted, receiptPath, readers), "EEXIST");
+  assert(originalReceipt.equals(readFileSync(receiptPath)), "old receipt was overwritten");
+  assertPublishedCandidate(receipt, data.candidate);
+  await rejects(() => assertPublishedCandidate(receipt, { ...data.candidate, commit: "c".repeat(40), tarballSha256: "d".repeat(64) }), "differs from the full accepted candidate");
+  console.log("ok: A5 final identity/evidence drift; A6 real dispatch; A9 exclusive accepted receipt and A/B binding; A10 exact object semantics; A11 required quick/full coverage");
 }
 
 async function validateRemoteTagCommitReadback() {
@@ -88,6 +228,7 @@ function validateManifest() {
     assert(QA_ASSURANCE_MANIFEST.layers[claim.layer], `claim uses unknown layer: ${claim.id}`);
     for (const field of ["provenance", "readback", "evidenceOutput", "failureMode", "outOfScope"]) assert(typeof claim[field] === "string" && claim[field], `claim ${claim.id} missing ${field}`);
     assert(Array.isArray(claim.stateAxes) && claim.stateAxes.length > 0, `claim ${claim.id} has no state axes`);
+    assertClaimExecutorContract(claim);
     if (claim.executor.kind === "node-script") {
       assert(claim.executor.script && path.resolve(root, claim.executor.script).startsWith(`${root}${path.sep}`), `claim ${claim.id} has an unsafe script path`);
       assert(Number.isInteger(claim.executor.timeoutMs) && claim.executor.timeoutMs >= 30_000, `claim ${claim.id} lacks a reasonable per-command timeout`);
@@ -96,12 +237,13 @@ function validateManifest() {
     }
   }
   assert(ids.has("install-lock-smoke"), "quick QA omits install-lock-smoke");
+  assertQuickExecutorsCoveredByFull();
   assert(/^[a-f0-9]{64}$/.test(QA_ASSURANCE_MANIFEST_DIGEST), "manifest digest is malformed");
   const candidateRunner = readFileSync(path.join(root, "scripts", "qa.mjs"), "utf8");
   const releaseReadiness = readFileSync(path.join(root, "scripts", "check-release-readiness.mjs"), "utf8").replace(/\r\n/g, "\n");
   assert(candidateRunner.includes("validateCandidatePreFreezeEvidence(options.candidate)"), "candidate-preflight does not run pre-freeze evidence validation");
   assert(releaseReadiness.includes("--pre-freeze-evidence"), "release readiness has no pre-freeze evidence entrypoint");
-  assert(releaseReadiness.includes("checkScenarioBranchingDocAlignment();\n    checkChangedBilingualCandidateEvidence(version, { allowDirty: true });"), "pre-freeze evidence does not validate current runtime-to-scenario-to-QA-doc alignment before freeze");
+  assert(releaseReadiness.includes("checkScenarioBranchingDocAlignment();\n    await checkChangedBilingualCandidateEvidence(version, { allowDirty: true });"), "pre-freeze evidence does not validate current runtime-to-scenario-to-QA-doc alignment before freeze");
   assert(releaseReadiness.includes("checkChangedBilingualCandidateEvidence(version, { allowDirty: true })"), "pre-freeze evidence does not validate changed bilingual pairs before freeze");
   assert(releaseReadiness.includes("assertLatestCrossMindTableComplete(version)"), "pre-freeze evidence does not validate the current cross-mind table before freeze");
 }
@@ -125,6 +267,10 @@ function validateReleaseStateContract() {
 
 function validateCandidateEvidenceContract() {
   assert(CANDIDATE_EVIDENCE_CONTRACT.schemaVersion === 1, "unexpected candidate evidence contract schema version");
+  const nativeUpdate = CANDIDATE_EVIDENCE_CONTRACT.featureDelivery.nativeUpdate;
+  assert(nativeUpdate?.entry === "handoff-kit-update", "native update evidence owner drifted");
+  assert(nativeUpdate.prepublishRegistryMode === "controlled" && nativeUpdate.postpublishRegistryMode === "official-live", "native update registry modes drifted");
+  assert(nativeUpdate.metadataKeys === NATIVE_UPDATE_METADATA_KEYS, "native update metadata contract must bind the feature-delivery owner");
   assert(JSON.stringify(CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys) === JSON.stringify([
     "governanceHealth",
     "productJourney",
@@ -553,6 +699,13 @@ function validateEvidenceContracts() {
     env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_STATUS: " M package.json\n" }
   });
   invoke(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "near-valid candidate evidence", { env: selfTestEnv });
+  const validationReceipt = path.join(fixtureRoot, "validation-must-not-accept.json");
+  invoke(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--receipt", validationReceipt, "--validate-only"], "validate-only cannot issue acceptance", { env: selfTestEnv });
+  assert(!existsSync(validationReceipt), "validate-only issued a formal acceptance receipt");
+  writeEvidence(candidate, { ...validCandidate, manualVerdicts: Object.fromEntries(Object.entries(manualVerdicts).reverse()), reviewReceipt: { ...validCandidate.reviewReceipt, fiveConclusions: Object.fromEntries(Object.entries(manualVerdicts).reverse()) } });
+  invoke(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "equivalent verdict key order is accepted without relaxing byte digests", { env: selfTestEnv });
+  writeEvidence(candidate, validCandidate);
+
 
   writeEvidence(candidate, { ...validCandidate, candidate: { ...validCandidate.candidate, tarballSha256: "f".repeat(64) } });
   invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "candidate tarball mismatch", { env: selfTestEnv });
@@ -696,44 +849,109 @@ function validateEvidenceContracts() {
       npmPack: { tarballSha256: publishedTarballSha256 },
       githubRelease,
       gitTag: { commit: gitCommit },
-      npxHelp: npxHelpEvidence
+      npxHelp: npxHelpEvidence,
+      nativeUpdate: {
+        status: "passed",
+        observation: "Actual official-live native update completed",
+        evidence: [{ path: releaseQaPath, sha256: releaseQaSha256 }],
+        scenario: "normal",
+        kind: "native-invocation",
+        outcome: "matched",
+        input: "$handoff-kit-update",
+        expected: "Upgrade the prior published install to the accepted live package",
+        actual: "The native update transaction committed the accepted live package",
+        readback: "Installed version, health and preserved custom content were read back",
+        tarballSha256: publishedTarballSha256,
+        execution: { mode: "fresh-session", prompt: { path: releaseQaPath, sha256: releaseQaSha256 }, context: { path: releaseQaPath, sha256: releaseQaSha256 }, trace: { path: releaseQaPath, sha256: releaseQaSha256 } },
+        update: { registryMode: "official-live", registryVersion: version, cliVersion: version, fromVersion: featureDelivery.baseVersion, toVersion: version },
+        writerProvenance: { role: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.writerRole, provenanceId: "postpublish-native-writer" }
+      }
     }
   };
+  validPostpublish.readbacks.nativeUpdate.nativeReview = {
+    verdict: "accepted",
+    provenanceBoundary: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.provenanceBoundary,
+    reviewer: { role: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewerRole, provenanceId: "postpublish-native-reviewer" },
+    evidence: [{ path: releaseQaPath, sha256: releaseQaSha256 }],
+    subjectDigest: nativeUpdateReviewSubjectDigest(validPostpublish.readbacks.nativeUpdate)
+  };
+  const fullReceipt = path.join(fixtureRoot, "synthetic-full-receipt.json");
+  writeEvidence(fullReceipt, {
+    ...CANDIDATE_EVIDENCE_CONTRACT.fullAcceptanceReceipt, version, commit: gitCommit,
+    tarballSha256: publishedTarballSha256, manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST, baseVersion: featureDelivery.baseVersion,
+    candidateEvidenceSha256: sha256(readFileSync(candidate))
+  });
   const postpublish = path.join(fixtureRoot, "postpublish.json");
   writeEvidence(postpublish, validPostpublish);
-  invoke(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "near-valid postpublish evidence", { env: selfTestEnv });
+  invoke(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "near-valid postpublish evidence", { env: selfTestEnv });
 
+  const nativeUpdateInput = path.join(fixtureRoot, "completed-native-update.json");
+  writeEvidence(nativeUpdateInput, { readbacks: { nativeUpdate: validPostpublish.readbacks.nativeUpdate } });
+  const nativeUpdateInputBytes = readFileSync(nativeUpdateInput);
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--collect", path.join(fixtureRoot, "missing-native-input.json"), "--validate-only"], "collector requires completed native update evidence", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", nativeUpdateInput, "--collect", nativeUpdateInput, "--validate-only"], "collector refuses to overwrite supplied native update evidence", { env: selfTestEnv });
+  assert(nativeUpdateInputBytes.equals(readFileSync(nativeUpdateInput)), "collector overwrote supplied native update evidence on rejection");
   const collectedPostpublish = path.join(fixtureRoot, "postpublish-collected.json");
-  invoke(["scripts/qa.mjs", "postpublish", "--version", version, "--collect", collectedPostpublish, "--validate-only"], "postpublish collector evidence", { env: selfTestEnv });
+  invoke(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", nativeUpdateInput, "--collect", collectedPostpublish, "--validate-only"], "postpublish collector evidence", { env: selfTestEnv });
   const collected = JSON.parse(readFileSync(collectedPostpublish, "utf8"));
   assert(collected.kind === "postpublish-assurance", "postpublish collector wrote the wrong evidence kind");
   assert(collected.published?.version === version, "postpublish collector wrote the wrong version");
   assert(collected.readbacks?.npm?.shasum === npmMetadata.shasum, "postpublish collector did not capture npm readback evidence");
   assert(collected.readbacks?.gitTag?.commit === gitCommit, "postpublish collector did not capture Git tag readback evidence");
+  assert(semanticEqual(collected.readbacks?.nativeUpdate, validPostpublish.readbacks.nativeUpdate), "postpublish collector changed supplied native update evidence");
+  assert(nativeUpdateInputBytes.equals(readFileSync(nativeUpdateInput)), "postpublish collector overwrote supplied native update evidence");
+
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: undefined } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish missing native update", { env: selfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, update: { ...validPostpublish.readbacks.nativeUpdate.update, registryMode: "controlled" } } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish controlled update cannot prove official-live success", { env: selfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, tarballSha256: "3".repeat(64) } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update accepted artifact mismatch", { env: selfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, outcome: "expected-stop" } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish refused native update", { env: selfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, update: { ...validPostpublish.readbacks.nativeUpdate.update, fromVersion: version } } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish no-op native update", { env: selfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, execution: { ...validPostpublish.readbacks.nativeUpdate.execution, trace: undefined } } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update missing raw trace", { env: selfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, nativeReview: undefined } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update requires independent review receipt", { env: selfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, nativeReview: { ...validPostpublish.readbacks.nativeUpdate.nativeReview, verdict: "rejected" } } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish rejected native review cannot pass", { env: selfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, nativeReview: { ...validPostpublish.readbacks.nativeUpdate.nativeReview, reviewer: { ...validPostpublish.readbacks.nativeUpdate.nativeReview.reviewer, provenanceId: validPostpublish.readbacks.nativeUpdate.writerProvenance.provenanceId } } } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update self-review cannot pass", { env: selfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, update: { ...validPostpublish.readbacks.nativeUpdate.update, registryMode: "controlled" } } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish relabeled native update invalidates its review binding", { env: selfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npm: { ...npmMetadata, shasum: "1".repeat(40) } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npm shasum mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npm shasum mismatch", { env: selfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npmPack: { tarballSha256: "2".repeat(64) } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npm pack mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npm pack mismatch", { env: selfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, githubRelease: { ...githubRelease, url: `${githubRelease.url}-wrong` } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish GitHub URL mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish GitHub URL mismatch", { env: selfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, githubRelease: { ...githubRelease, targetCommitish: "5".repeat(40) } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish GitHub targetCommitish mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish GitHub targetCommitish mismatch", { env: selfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, published: { ...validPostpublish.published, gitCommit: "6".repeat(40) } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish published git commit mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish published git commit mismatch", { env: selfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, gitTag: { commit: "7".repeat(40) } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish git tag mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish git tag mismatch", { env: selfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npxHelp: { ...npxHelpEvidence, packageSpec: "@adamchanadam/agent-handoff-kit@0.0.0", version: "0.0.0" } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help version/package mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help version/package mismatch", { env: selfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npxHelp: { ...npxHelpEvidence, requiredCommands: npxHelpEvidence.requiredCommands.filter((command) => command !== "doctor") } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help missing required command", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help missing required command", { env: selfTestEnv });
+  writeEvidence(postpublish, validPostpublish);
+  const receiptA = JSON.parse(readFileSync(fullReceipt, "utf8"));
+  writeEvidence(fullReceipt, { ...receiptA, commit: "a".repeat(40), tarballSha256: "a".repeat(64) });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "accepted candidate A rejects mutually consistent live B", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", nativeUpdateInput, "--collect", path.join(fixtureRoot, "rejected-collection.json"), "--validate-only"], "collector rejects live B against accepted A", { env: selfTestEnv });
+  assert(!existsSync(path.join(fixtureRoot, "rejected-collection.json")), "collector wrote mismatched evidence");
   console.log("ok: near-valid full/postpublish evidence mismatches are rejected");
 }
 

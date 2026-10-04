@@ -562,10 +562,14 @@ const schemaChecks = [
   }
 ];
 
-main().catch((error) => {
-  console.error(`agent-handoff-kit: ${error.message}`);
-  process.exitCode = 1;
-});
+// Importers can reuse the maintenance assessment without starting the CLI.
+// Resolve the entry path so npm's symlink remains supported.
+if (process.argv[1] && await realpath(process.argv[1]).catch(() => null) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(`agent-handoff-kit: ${error.message}`);
+    process.exitCode = 1;
+  });
+}
 
 async function main() {
   const { command, options } = parseArgs(process.argv.slice(2));
@@ -676,6 +680,11 @@ async function runCloseoutStatus(root, version) {
   const persistence = projectRequiredPersistence(fieldValueAfterMarker(handoffText, "project-required-persistence"));
   if (outcome !== "complete") findings.push("closeout outcome is not complete");
   if (!new Set(["complete", "not_required"]).has(persistence)) findings.push("project-required persistence is not complete or not required");
+  const declarations = assessCloseoutDeclarations(handoffText);
+  if (declarations.length > 0) {
+    findings.push("handoff reconciliation read-back is incomplete");
+    details.push(...declarations);
+  }
   const sufficiency = assessHandoffSufficiency(handoffText);
   if (sufficiency.length > 0) {
     findings.push("handoff sufficiency read-back is incomplete");
@@ -697,7 +706,7 @@ async function runCloseoutStatus(root, version) {
 
   // A closeout card needs a fresh local health readback, not a version-notice
   // network request.  The caller has already completed the closeout workflow.
-  const doctor = await assessUpgradeNoopHealth(root, version, { skipVersionRegistryLookup: true });
+  const doctor = await assessUpgradeNoopHealth(root, version, { skipVersionRegistryLookup: true, requireSessionLogMaintenance: true });
   if (!doctor.ok) {
     findings.push("fresh doctor read-back did not pass");
     details.push(...closeoutDoctorFailureDetails(doctor));
@@ -708,10 +717,10 @@ async function runCloseoutStatus(root, version) {
   if (!result.ok) process.exitCode = 1;
 }
 
-function assessHandoffSufficiency(text) {
+function visibleHandoffLines(text) {
   // Only visible prose is a declaration. Preserve text outside inline comments,
   // but exclude fenced/indented examples and markers inside comments. This is
-  // local to the sufficiency fields; no project source is opened by the check.
+  // shared by closeout field checks; no project source is opened by the parser.
   const original = text.replace(/\r\n/g, "\n").split("\n");
   const markerPattern = /^\s{0,3}<!-- (ack:(?:section|field):[\w-]+) -->\s*$/u;
   const visible = [];
@@ -748,6 +757,60 @@ function assessHandoffSufficiency(text) {
     if (opening && (opening[1][0] !== "`" || !opening[2].includes("`"))) { fence = opening[1]; continue; }
     visible.push({ text: prose.trim(), marker: null });
   }
+  return visible;
+}
+
+function assessCloseoutDeclarations(text) {
+  const visible = visibleHandoffLines(text);
+  const field = (id) => {
+    const indices = visible.map((line, index) => line.marker === `ack:field:${id}` ? index : -1).filter((index) => index >= 0);
+    if (indices.length !== 1) return "";
+    for (const line of visible.slice(indices[0] + 1)) {
+      if (line.marker || /^##\s/u.test(line.text)) break;
+      if (line.text) return line.text.match(/^[*-]\s+[^:]+:\s*(.*)$/u)?.[1] ?? "";
+    }
+    return "";
+  };
+  const findings = [];
+  if (!/^no(?:$|[\s,.;:—–-])/iu.test(field("stale-snapshots-left"))) {
+    findings.push("Handoff: stale snapshots must be reconciled; stale-snapshots-left must explicitly say no.");
+  }
+  for (const [id, label] of [["recommended-next-step-explicit", "recommended next step"], ["opening-message-matches-current-state", "opening message"]]) {
+    const value = field(id);
+    if (!isAffirmativeLifecycleFieldValue(value) || isUnresolvedLifecycleFieldValue(value)) {
+      findings.push(`Handoff: ${label} declaration is missing, negative or unverified; reconcile it before closeout.`);
+    }
+  }
+  const priorityContent = (line) => {
+    let value = (line || "").trim();
+    if (!value || /^#{1,6}(?:\s|$)/u.test(value) || /^(?:[-*_]\s*){3,}$/u.test(value)) return "";
+    value = value.replace(/^(?:(?:[-+*])|\d+[.)])\s+/u, "").replace(/^\[(?: |x|X)\]\s*/u, "");
+    let previous;
+    do {
+      previous = value;
+      value = value.replace(/^(\*{1,3}|_{1,3}|`{1,3})([\s\S]*?)\1$/u, "$2").trim();
+    } while (value && value !== previous);
+    return value;
+  };
+  const priorities = visibleHandoffLines(extractSectionText(text, "next-priorities", "Next Priorities"))
+    .map((line) => priorityContent(line.text))
+    .filter(Boolean);
+  const placeholder = (value) => /^<[^>]*>$/u.test(value)
+    || /^(?:TBD|todo|pending|unverified|unconfirmed|unknown|needs-review|no|blocked|uncertain|still unresolved|not resolved|not confirmed|待核對|待確認|待定|否|阻擋|不確定|(?:仍|尚)?未(?:解決|確認|核對|完成))[.!。]?$/iu.test(value);
+  // `Next Priorities` must be visible and usable, but its action/reason,
+  // decision, and blocker meaning are semantic closeout-pack review—not a
+  // machine-enforced English narrative grammar.
+  const knownUnfilledPriorityTemplate = /^Recommended next step:\s*TBD\s*—\s*reason:\s*TBD[.!。]?$/iu;
+  if (priorities.some((value) => knownUnfilledPriorityTemplate.test(value))) {
+    findings.push("Handoff: recommended next step is still an unfilled template; reconcile it before closeout.");
+  } else if (!priorities.some((value) => !placeholder(value))) {
+    findings.push("Handoff: Next Priorities must contain a visible, non-empty, non-placeholder statement; review its semantic adequacy under the closeout pack.");
+  }
+  return findings;
+}
+
+function assessHandoffSufficiency(text) {
+  const visible = visibleHandoffLines(text);
   const marked = (id) => visible.map((line, index) => line.marker === id ? index : -1).filter((index) => index >= 0);
   const indices = marked("ack:section:handoff-sufficiency-check");
   if (indices.length !== 1) return ["Handoff: require one active handoff-sufficiency-check section."];
@@ -808,6 +871,9 @@ function closeoutDoctorFailureDetails(doctor) {
   };
 
   add("Doctor: ", lines.find((line) => /^status:\s*failed\b/iu.test(line)));
+  for (const line of lines.filter((line) => /^\s*warn: (?:SESSION_LOG|dev\/SESSION_LOG\.md)/u.test(line))) {
+    add("Doctor maintenance: ", line.trim());
+  }
   const firstProblemIndex = lines.findIndex((line) => /^(missing|warn|failed)\s{2,}\S/iu.test(line.trim()));
   if (firstProblemIndex >= 0) {
     add("Doctor first problem: ", lines[firstProblemIndex].trim());
@@ -1176,7 +1242,13 @@ function workspaceValueMeansNoGit(value) {
 
 function workspaceRootMeansNoGit(value) {
   // Absence labels apply to the repository root, never to a branch/commit name.
-  return /^\s*(?:none|not_applicable|n\/a)(?:$|\s*[;(—–])/iu.test(value ?? "") || workspaceValueMeansNoGit(value);
+  return /^\s*(?:none|not[ _]applicable|n\/a)(?:$|\s*[;(—–])/iu.test(value ?? "") || workspaceValueMeansNoGit(value);
+}
+
+function workspaceValueIsNaturalNotApplicable(value) {
+  // Git branch names cannot contain spaces. This spelling is therefore an
+  // absence label in a known non-Git workspace, not Git identity.
+  return /^\s*not[ _]applicable(?:$|\s*[;(—–])/iu.test(value ?? "");
 }
 
 function workspaceSectionClaimsNoGit(section) {
@@ -1191,7 +1263,9 @@ function workspaceSectionClaimsGitRepository(section) {
     workspaceFieldValue(section, "Commit")
   ];
   return (hasSubstantiveWorkspaceValue(gitRoot) && !workspaceRootMeansNoGit(gitRoot))
-    || values.some((value) => hasSubstantiveWorkspaceValue(value) && !workspaceValueMeansNoGit(value));
+    || values.some((value) => hasSubstantiveWorkspaceValue(value)
+      && !workspaceValueMeansNoGit(value)
+      && !workspaceValueIsNaturalNotApplicable(value));
 }
 
 function workspaceSectionClaimsVerifiedState(section) {
@@ -3338,12 +3412,23 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
-  // R-010 SESSION_LOG handoff-role discipline check (warn-only; does not change mode or exit).
+  // R-010 SESSION_LOG handoff-role discipline is advisory during ordinary
+  // doctor use, but its existing maintenance triggers must be cleared at closeout.
   const disciplineResult = await assessSessionLogDiscipline(root);
   console.log(`\nSESSION_LOG 接力角色紀律: ${disciplineResult.ok ? "ok" : "warn"}`);
   if (!disciplineResult.ok) {
     for (const warning of disciplineResult.warnings) {
       console.log(`  warn: ${warning}`);
+    }
+    if (options.requireSessionLogMaintenance) {
+      printDoctorSummary(version, root, "needs-fix", {
+        checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length + userRulesResult.checked + researchTraceResult.checked + temperatureResult.checked + mirrorRows.length + 1,
+        failedKind: "SESSION_LOG maintenance checks",
+        failedCount: disciplineResult.warnings.length,
+        nextStep: "先依 closeout pack 完成 SESSION_LOG 維護及歸檔讀回，再重跑 closeout-status；未完成維護不能宣告收工完成。"
+      });
+      process.exitCode = 1;
+      return "failed";
     }
   }
 
@@ -3777,13 +3862,31 @@ function printDoctorSummary(version, root, mode, details) {
     }
   } else {
     console.log(`status: failed (${details.failedCount} ${details.failedKind} failed)`);
-    console.log(`⚠️  檢查未通過：${details.failedKind === "missing files" ? "有必要檔案不存在。" : details.failedKind === "formal user-rules checks" ? "AGENTS.md 與 dev/USER_RULES.md 的接受見證不一致。" : details.failedKind === "anchor checks" ? "有檔案存在，但內容缺少必要段落。" : details.failedKind === "schema checks" ? "交接或索引文件結構不完整。" : details.failedKind === "research decision trace checks" ? "研究導向決策缺少可追溯來源鏈。" : details.failedKind === "handoff temperature boundary checks" ? "當前交接內容混入一次性或歷史證據。" : "下次開工提示副本與 handoff 真源不同。"}`);
+    console.log(`⚠️  檢查未通過：${doctorFailureExplanation(details.failedKind)}`);
   }
   console.log("");
   console.log(`📦 版本：v${version}`);
   console.log(`🩺 模式：${mode}`);
   console.log(`🔎 剛完成：檢查 ${details.checked} 項；${mode === "healthy" ? (details.warningCount > 0 ? `0 項未通過；${details.warningCount} 項提醒（${details.warningKind}）` : "全部通過") : `${details.failedCount} 項未通過（${details.failedKind}）`}。`);
   console.log(`🚀 下一步：${details.nextStep}`);
+}
+
+export function doctorFailureExplanation(kind) {
+  const explanations = {
+    "missing files": "有必要檔案不存在。",
+    "project shortcuts": "專案快捷入口缺少或內容不一致。",
+    "SESSION_LOG archive casing checks": "SESSION_LOG 歸檔目錄的大小寫或位置不符合規定。",
+    "formal user-rules checks": "AGENTS.md 與 dev/USER_RULES.md 的接受見證不一致。",
+    "anchor checks": "有檔案存在，但內容缺少必要段落。",
+    "schema checks": "交接或索引文件結構不完整。",
+    "bridge checks": "CLAUDE.md / GEMINI.md 未正確連到 AGENTS.md。",
+    "research decision trace checks": "研究導向決策缺少可追溯來源鏈。",
+    "handoff temperature boundary checks": "當前交接內容混入一次性或歷史證據。",
+    "prompt mirror checks": "下次開工提示副本與 handoff 真源不同。",
+    "SESSION_LOG maintenance checks": "SESSION_LOG 維護尚未完成。",
+    "credential leak": "治理檔案出現疑似機密值；請依上列位置處理。"
+  };
+  return Object.hasOwn(explanations, kind) ? explanations[kind] : "檢查未通過；請依上列失敗種類、明細與下一步處理。";
 }
 
 function formalUserRulesRepairNextStep(finding) {
@@ -4036,19 +4139,19 @@ function compactLifecycleDiagnosticLine(line) {
 
 function isAffirmativeLifecycleFieldValue(value) {
   const trimmed = (value || "").trim();
-  return /^(yes|resolved|confirmed|complete|completed|ok|passed|all clear)\b|^(是|已|完成|已完成|已解決|已核對|已確認|通過)\b/i.test(trimmed);
+  return /^(yes|resolved|confirmed|complete|completed|ok|passed|all clear)\b|^(?:是|完成|已完成|已解決|已核對|已確認|通過)(?=$|[\s，。；：、,.!:;—–-])/iu.test(trimmed);
 }
 
 function isUnresolvedLifecycleFieldValue(value) {
   const trimmed = normalizeLifecycleFieldValue(value);
-  return /^(no|blocked|uncertain)\b|^(否|阻擋|不確定)\b/i.test(trimmed)
-    || /\b(still unresolved|not resolved)\b|仍未解決|尚未解決/i.test(trimmed);
+  return /^(no|blocked|uncertain)\b|^(?:否|阻擋|不確定|未確認|未核對|未完成)/iu.test(trimmed)
+    || /\b(still unresolved|not resolved|not confirmed|unverified)\b|(?:仍|尚)?未(?:解決|確認|核對|完成)/iu.test(trimmed);
 }
 
 function isPlaceholderLifecycleFieldValue(value) {
   const trimmed = normalizeLifecycleFieldValue(value);
   return !trimmed
-    || /^(TBD|todo|pending|unverified|unknown|needs-review)\b|^(待核對|待確認|未核對|未確認)\b/i.test(trimmed);
+    || /^(TBD|todo|pending|unverified|unknown|needs-review)\b|^(?:待核對|待確認|待定|未核對|未確認)/iu.test(trimmed);
 }
 
 function normalizeLifecycleFieldValue(value) {
@@ -6242,8 +6345,8 @@ function printProjectAge(result) {
 // Thresholds (all warn-only; doctor exit unaffected):
 // - H2 entry count ≥ 11 → warn (archive boundary; AI closeout flow should auto-advance)
 // - H2 entry count ≥ 25 → warn (severe drift; suggest AI re-do closeout)
-// - line count ≥ 1500 → warn (anomalous entry size; safety net)
-async function assessSessionLogDiscipline(root) {
+// - line count > 1500 → warn (anomalous entry size; safety net)
+export async function assessSessionLogDiscipline(root) {
   const logPath = path.join(root, "dev/SESSION_LOG.md");
   let text = "";
   try {
@@ -6263,7 +6366,7 @@ async function assessSessionLogDiscipline(root) {
     warnings.push(`SESSION_LOG entry count = ${entryCount}（達 N=11+ archive 邊界；下次 closeout 時 AI 應自動執行 N 規則推進，如未動請提醒）`);
   }
 
-  if (lineCount >= 1500) {
+  if (lineCount > 1500) {
     warnings.push(`SESSION_LOG line count = ${lineCount}（超過 1500 安全網閾值；可能 entry 異常長）`);
   }
 
@@ -6748,7 +6851,8 @@ async function assessUpgradeNoopHealth(root, version, options = {}) {
     const status = await runDoctor(root, version, {
       silentCard: true,
       context: "upgrade-noop-health-check",
-      skipVersionRegistryLookup: options.skipVersionRegistryLookup === true
+      skipVersionRegistryLookup: options.skipVersionRegistryLookup === true,
+      requireSessionLogMaintenance: options.requireSessionLogMaintenance === true
     });
     const doctorExitCode = process.exitCode;
     return {

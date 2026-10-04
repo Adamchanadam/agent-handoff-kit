@@ -1,8 +1,15 @@
 import { createHash } from "node:crypto";
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import { NATIVE_UPDATE_METADATA_KEYS } from "./feature-delivery.mjs";
 
 export const QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS = 120_000;
+
+export const QA_EXECUTOR_CONTRACT = Object.freeze({
+  "node-script": Object.freeze({ layers: Object.freeze(["quick", "full"]) }),
+  "internal-validator": Object.freeze({ layers: Object.freeze(["candidate-preflight"]) }),
+  "evidence-validator": Object.freeze({ layers: Object.freeze(["postpublish"]) })
+});
 
 export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
   releaseReadinessCheck("qa-assurance-manifest", "check-qa-assurance-manifest.mjs", "QA assurance manifest wiring", 180_000),
@@ -24,6 +31,7 @@ export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
 
 export const QA_ASSURANCE_MANIFEST = Object.freeze({
   schemaVersion: 1,
+  executorKinds: QA_EXECUTOR_CONTRACT,
   layers: Object.freeze({
     quick: Object.freeze({
       purpose: "local engineering signal only; never a release verdict",
@@ -35,11 +43,11 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
     }),
     full: Object.freeze({
       purpose: "candidate-bound pre-publish decision",
-      command: "node scripts/qa.mjs full --candidate <version> --evidence <candidate-evidence.json>"
+      command: "node scripts/qa.mjs full --candidate <version> --evidence <candidate-evidence.json> --receipt <full-receipt.json>"
     }),
     postpublish: Object.freeze({
       purpose: "published-artifact readback; never pre-publish evidence",
-      command: "node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evidence.json>"
+      command: "node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evidence.json> --receipt <full-receipt.json>"
     })
   }),
   claims: Object.freeze([
@@ -110,10 +118,10 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
       layer: "postpublish",
       required: true,
       executor: Object.freeze({ kind: "evidence-validator" }),
-      provenance: "published npm and GitHub artifacts captured after publication",
-      stateAxes: Object.freeze(["published version", "registry artifact", "external surfaces"]),
-      expected: Object.freeze({ positive: "version-bound external readback is complete", negative: "missing or mismatched evidence blocks the command" }),
-      readback: "version, package identity, release URL, and named external observations",
+      provenance: "published npm and GitHub artifacts plus a completed official-live native update captured after publication",
+      stateAxes: Object.freeze(["published version", "registry artifact", "external surfaces", "official-live native update"]),
+      expected: Object.freeze({ positive: "version-bound external readback and official-live native update are complete", negative: "missing, controlled, rejected, or mismatched evidence blocks the command" }),
+      readback: "version, package identity, release URL, named external observations, and raw native update execution/readback evidence",
       evidenceOutput: "postpublish evidence JSON",
       failureMode: "blocked; no pre-publish success may be inferred",
       outOfScope: "does not replace pre-publish candidate validation"
@@ -224,7 +232,8 @@ export const PUBLIC_MIRROR_CONTRACT = Object.freeze({
 
 export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  featureDelivery: Object.freeze({ schemaVersion: 1, owner: "scripts/feature-delivery.mjs", sourceOwner: "bin/installed-file-contract.mjs", requiredStages: ["package", "freshInstall", "upgrade", "entry"], nativeMenusAndInvocationRequired: true }),
+  featureDelivery: Object.freeze({ schemaVersion: 1, owner: "scripts/feature-delivery.mjs", sourceOwner: "bin/installed-file-contract.mjs", requiredStages: ["package", "freshInstall", "upgrade", "entry"], nativeMenusAndInvocationRequired: true, nativeUpdate: Object.freeze({ entry: "handoff-kit-update", prepublishRegistryMode: "controlled", postpublishRegistryMode: "official-live", metadataKeys: NATIVE_UPDATE_METADATA_KEYS }) }),
+  fullAcceptanceReceipt: Object.freeze({ schemaVersion: 1, kind: "accepted-candidate-receipt" }),
   manualVerdictKeys: Object.freeze([
     "governanceHealth",
     "productJourney",
@@ -359,6 +368,26 @@ function releaseReadinessCheck(id, script, label, timeoutMs) {
 
 export function aggregateReleaseReadinessTimeoutMs(inventory = QA_RELEASE_READINESS_INVENTORY, bufferMs = QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS) {
   return inventory.reduce((total, item) => total + item.timeoutMs, bufferMs);
+}
+
+export function assertClaimExecutorContract(claim, manifest = QA_ASSURANCE_MANIFEST) {
+  const contract = QA_EXECUTOR_CONTRACT[claim?.executor?.kind];
+  if (!contract) throw new Error(`claim ${claim?.id ?? "<unknown>"} uses unknown executor kind: ${claim?.executor?.kind ?? "<missing>"}`);
+  if (!contract.layers.includes(claim.layer)) throw new Error(`claim ${claim.id} executor ${claim.executor.kind} is not allowed for layer ${claim.layer}`);
+  return contract;
+}
+
+export function assertQuickExecutorsCoveredByFull(manifest = QA_ASSURANCE_MANIFEST, inventory = QA_RELEASE_READINESS_INVENTORY) {
+  const normalize = (script) => path.posix.normalize(script.replaceAll("\\", "/"));
+  const full = manifest.claims.filter((item) => item.layer === "full");
+  for (const claim of full) assertClaimExecutorContract(claim, manifest);
+  if (!full.some((item) => item.executor.kind === "node-script" && normalize(item.executor.script) === "scripts/check-release-readiness.mjs")) throw new Error("full does not execute the release-readiness inventory");
+  const fullScripts = new Set(inventory.map((item) => normalize(`scripts/${item.script}`)));
+  for (const claim of manifest.claims.filter((item) => item.layer === "quick")) {
+    assertClaimExecutorContract(claim, manifest);
+    if (claim.executor.kind !== "node-script") throw new Error(`executed quick claim has no full executor: ${claim.id} (${claim.executor.kind})`);
+    if (!fullScripts.has(normalize(claim.executor.script))) throw new Error(`executed quick claim is absent from the full release-readiness inventory: ${claim.id} (${claim.executor.script})`);
+  }
 }
 
 export function assertPublicMirrorRequiredSources(sourceRoot, contract = PUBLIC_MIRROR_CONTRACT) {

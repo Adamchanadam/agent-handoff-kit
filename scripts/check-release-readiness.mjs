@@ -20,6 +20,7 @@ import {
 } from "./qa-assurance-manifest.mjs";
 import { describeResult, runChecked, runNodeScriptChecked } from "./qa-runner-core.mjs";
 import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
+import { resolveFeatureDeliveryBase } from "./feature-delivery.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -44,6 +45,21 @@ try {
 }
 
 async function main() {
+  if (process.argv.includes('--evidence-guards-only')) {
+    checkCrossMindTableCounterexamples();
+    await checkBilingualBaselineCounterexamples();
+    const version = JSON.parse(read('package.json')).version;
+    assertLatestCrossMindTableComplete(version);
+    await checkChangedBilingualCandidateEvidence(version, { allowDirty: true });
+    console.log('Focused release evidence guards passed; this is not formal full acceptance.');
+    return;
+  }
+  if (process.argv.includes('--closeout-flow-only')) {
+    run(process.execPath, ['bin/agent-handoff-kit.mjs', 'init', '--yes', '--root', tempRoot], 'closeout flow install', { env: { ...process.env, AGENT_HANDOFF_KIT_SKIP_UPDATE_CHECK: '1' } });
+    simulateMultiSessionFlow(readAt(tempRoot, 'dev/SESSION_HANDOFF.md'), readAt(tempRoot, 'dev/SESSION_LOG.md'));
+    console.log('Focused real CLI closeout flow passed; this is not formal full acceptance.');
+    return;
+  }
   if (process.argv.includes('--public-docs-only')) {
     checkShortcutTeachingDocuments();
     checkShortcutTeachingCounterexamples();
@@ -77,7 +93,7 @@ async function main() {
     const version = packageJson.version;
     assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed for pre-freeze evidence");
     checkScenarioBranchingDocAlignment();
-    checkChangedBilingualCandidateEvidence(version, { allowDirty: true });
+    await checkChangedBilingualCandidateEvidence(version, { allowDirty: true });
     assertLatestCrossMindTableComplete(version);
     checkDecisionFirstOnboardingWording();
     console.log(`ok: pre-freeze candidate evidence is complete for v${version}`);
@@ -97,8 +113,10 @@ async function main() {
   checkEnglishPublicSurfaces(version);
   checkReleaseStateCoherence(version);
   checkCandidateWorktreeIsClean();
-  checkChangedBilingualCandidateEvidence(version);
+  await checkChangedBilingualCandidateEvidence(version);
   assertLatestCrossMindTableComplete(version);
+  checkCrossMindTableCounterexamples();
+  await checkBilingualBaselineCounterexamples();
   checkUpgradeSuccessOutputSourceContract(version);
   checkRecommendedNextStepContract();
   checkCliHelpHotPathContract();
@@ -1711,6 +1729,11 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
   const closedHandoff = installedHandoff
     .replace("Last Updated: TBD", "Last Updated: 2026-05-14 17:41:41 +01:00")
     .replaceAll("<absolute project root>", tempRoot)
+    .replace("Expected project root: TBD", `Expected project root: \`${tempRoot}\``)
+    .replace("- Closeout outcome: not_started — full closeout has not yet been assessed.", "- Closeout outcome: complete — simulated task and required local records are reconciled.")
+    .replace("- Project-required persistence: not_assessed — state whether this project's required Git or other persistence completed, is not required, or is blocked.", "- Project-required persistence: not_required — this isolated non-Git fixture has no external persistence requirement.")
+    .replace("Answer: TBD", "Answer: yes — the fixture task, next action and boundaries are recorded in this packet.")
+    .replace("Reconstruction evidence: TBD", "Reconstruction evidence: Task Understanding Summary, Completed This Session, Next Priorities and Workspace Identity contain the fixture outcome and bounded continuation")
     .replaceAll("TBD", "simulated user-flow value")
     .replace("1. simulated user-flow value", "1. Completed fixture installation and verified the installed templates.")
     .replace("1. simulated user-flow value", "1. follow-up scope — monitor unrelated packaging telemetry; trigger: only if a packaging error returns.")
@@ -1728,30 +1751,23 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
     .replace("Commit: simulated user-flow value", "Commit: not_applicable - no Git repository")
     .replace("Worktree / parallel workspace status: simulated user-flow value", "Worktree / parallel workspace status: not_applicable - no Git repository")
     .replace("Uncommitted changes summary: simulated user-flow value", "Uncommitted changes summary: not_applicable - no Git repository");
-  assertReconciledHandoff(closedHandoff);
   const staleHandoff = closedHandoff.replace("- Stale snapshots left in this handoff: no", "- Stale snapshots left in this handoff: yes");
-  assert(!isReconciledHandoff(staleHandoff), "stale handoff snapshot should fail reconciliation check");
   const lifecycleConflictHandoff = closedHandoff
     .replace("1. simulated user-flow value", "1. Verified `doctor` / `upgrade` reliability concern is closed.")
     .replace("1. simulated user-flow value", "1. Investigate product-layer reliability issue in `doctor` / `upgrade` before modifying public output.")
     .replace("- Checks run this session: simulated user-flow value", "- Checks run this session: verified `doctor` / `upgrade` reliability concern is closed.")
     .replace("- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes", "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: no — completed work still appears as unresolved next work.");
-  assert(!isReconciledHandoff(lifecycleConflictHandoff), "explicit unresolved lifecycle field should fail lifecycle consistency");
   const lifecycleAffirmativeWithPendingHandoff = closedHandoff.replace(
     "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes",
     "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes — completed work is resolved; remaining product work is pending and explicitly reclassified as next work."
-  );
-  assert(
-    isReconciledHandoff(lifecycleAffirmativeWithPendingHandoff),
-    "affirmative lifecycle field with pending follow-up wording should pass"
   );
   const lifecycleNarrativeWithPendingHandoff = closedHandoff.replace(
     "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes",
     "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: Reclassified after review: completed work moved from pending to recorded; remaining follow-up is not pending in this handoff."
   );
-  assert(
-    assessHandoffLifecycleConsistency(lifecycleNarrativeWithPendingHandoff).ok,
-    "lifecycle narrative with non-leading pending wording should not be treated as placeholder"
+  const affirmativeButUnresolvedHandoff = closedHandoff.replace(
+    "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes",
+    "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes — still unresolved"
   );
   const openingMessage = extractOpeningMessage(closedHandoff);
   assert(openingMessage.includes(tempRoot), "simulated opening message missing project root");
@@ -1782,7 +1798,36 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
   writeFileSync(path.join(tempRoot, "dev/SESSION_LOG.md"), logEntry, "utf8");
   writeFileSync(path.join(tempRoot, "START_NEXT_SESSION_PROMPT.txt"), `${openingMessage}\n`, "utf8");
 
-  const resumedDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow resumed doctor");
+  // Expected outcomes are fixed test inputs. Only the shipped CLI decides
+  // whether the written project can complete closeout; there is no QA copy of
+  // its lifecycle, reconciliation or sufficiency implementation.
+  const cases = [
+    ['reconciled handoff', closedHandoff, true],
+    ['stale handoff snapshot', staleHandoff, false, /stale snapshot/i],
+    ['negative next-step declaration', closedHandoff.replace('Recommended next step is explicit and reasoned: yes', 'Recommended next step is explicit and reasoned: no'), false, /recommended.next.step/i],
+    ['placeholder next step', closedHandoff.replace('Recommended next step: Continue from the opening message — reason: this verifies resumable startup continuity.', 'Recommended next step: TBD — reason: TBD'), false, /recommended.next.step/i],
+    ['negative opening declaration', closedHandoff.replace('Opening message matches current state: yes', 'Opening message matches current state: no'), false, /opening.message/i],
+    ['negative continuation declaration', closedHandoff.replace('and needed rule packs without searching old log history: yes', 'and needed rule packs without searching old log history: no'), false, /handoff sufficiency read-back is incomplete/],
+    ['explicit unresolved lifecycle', lifecycleConflictHandoff, false, /handoff lifecycle read-back is not healthy/],
+    ['affirmative but still unresolved lifecycle', affirmativeButUnresolvedHandoff, false, /handoff lifecycle read-back is not healthy/],
+    ['affirmative with reclassified follow-up', lifecycleAffirmativeWithPendingHandoff, true],
+    ['narrative with reclassified follow-up', lifecycleNarrativeWithPendingHandoff, true]
+  ];
+  for (const [label, handoff, expectedComplete, reason] of cases) {
+    writeFileSync(path.join(tempRoot, 'dev/SESSION_HANDOFF.md'), handoff, 'utf8');
+    writeFileSync(path.join(tempRoot, 'START_NEXT_SESSION_PROMPT.txt'), `${extractOpeningMessage(handoff)}\n`, 'utf8');
+    const result = spawnSync(cliNode, ['bin/agent-handoff-kit.mjs', 'closeout-status', '--root', tempRoot], { cwd: root, encoding: 'utf8', windowsHide: true, timeout: 120_000 });
+    const output = outputText(result);
+    assert(!result.error && Number.isInteger(result.status), `${label}: closeout CLI did not finish: ${result.error?.message ?? output}`);
+    assert(result.status === (expectedComplete ? 0 : 1), `${label}: unexpected closeout exit ${result.status}\n${output}`);
+    assert(new RegExp(`^status: ${expectedComplete ? 'complete' : 'blocked'}$`, 'm').test(output), `${label}: unexpected closeout card\n${output}`);
+    if (reason) assert(reason.test(output), `${label}: closeout did not identify the expected reason\n${output}`);
+    console.log(`ok: real closeout-status ${label}`);
+  }
+  writeFileSync(path.join(tempRoot, 'dev/SESSION_HANDOFF.md'), closedHandoff, 'utf8');
+  writeFileSync(path.join(tempRoot, 'START_NEXT_SESSION_PROMPT.txt'), `${openingMessage}\n`, 'utf8');
+
+  const resumedDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow resumed doctor", { env: { ...process.env, AGENT_HANDOFF_KIT_SKIP_UPDATE_CHECK: '1' } });
   assert(resumedDoctor.stdout.includes("status: passed"), "doctor did not pass after simulated closeout");
   assert(resumedDoctor.stdout.includes("schema checks:"), "resumed doctor did not run schema checks");
 }
@@ -1901,98 +1946,6 @@ function simulateLocalizedHandoffHeadings() {
   writeFileSync(handoffPath, localized, "utf8");
   const localizedDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "release user-flow localized handoff doctor");
   assert(localizedDoctor.stdout.includes("status: passed"), "doctor did not pass after localizing handoff headings");
-}
-
-function assertReconciledHandoff(text) {
-  assert(isReconciledHandoff(text), "simulated closeout handoff did not pass state reconciliation check");
-}
-
-function isReconciledHandoff(text) {
-  return text.includes("## State Reconciliation Check")
-    && /Stale snapshots left in this handoff:\s*no/i.test(text)
-    && /Completed \/ pending \/ risk \/ opening-message lifecycle conflicts resolved or explicitly reclassified:\s*yes/i.test(text)
-    && /Recommended next step is explicit and reasoned:\s*yes/i.test(text)
-    && /Recommended next step:\s*(?!TBD\b).+?\s+— reason:\s*(?!TBD\b).+/i.test(text)
-    && /Opening message matches current state:\s*yes/i.test(text)
-    && /Next AI can continue from `AGENTS\.md`, this handoff, `dev\/PROJECT_INDEX\.md`, and needed rule packs without searching old log history:\s*yes/i.test(text)
-    && assessHandoffLifecycleConsistency(text).ok;
-}
-
-function assessHandoffLifecycleConsistency(text) {
-  const fieldValue = fieldValueAfterMarker(text, "lifecycle-conflicts-resolved");
-  if (isAffirmativeLifecycleFieldValue(fieldValue)) return { ok: true };
-  if (isUnresolvedLifecycleFieldValue(fieldValue)) return { ok: false };
-  if (isPlaceholderLifecycleFieldValue(fieldValue) && hasSubstantiveHandoffState(text)) {
-    return { ok: false };
-  }
-  return { ok: true };
-}
-
-function isAffirmativeLifecycleFieldValue(value) {
-  const trimmed = (value || "").trim();
-  return /^(yes|resolved|confirmed|complete|completed|ok|passed|all clear)\b|^(是|已|完成|已完成|已解決|已核對|已確認|通過)\b/i.test(trimmed);
-}
-
-function isUnresolvedLifecycleFieldValue(value) {
-  const trimmed = normalizeLifecycleFieldValue(value);
-  return /^(no|blocked|uncertain)\b|^(否|阻擋|不確定)\b/i.test(trimmed)
-    || /\b(still unresolved|not resolved)\b|仍未解決|尚未解決/i.test(trimmed);
-}
-
-function isPlaceholderLifecycleFieldValue(value) {
-  const trimmed = normalizeLifecycleFieldValue(value);
-  return !trimmed
-    || /^(TBD|todo|pending|unverified|unknown|needs-review)\b|^(待核對|待確認|未核對|未確認)\b/i.test(trimmed);
-}
-
-function normalizeLifecycleFieldValue(value) {
-  return (value || "").trim().replace(/^[-*]\s*/, "");
-}
-
-function hasSubstantiveHandoffState(text) {
-  const sections = [
-    extractSectionText(text, "completed-this-session", "Completed This Session"),
-    extractSectionText(text, "validation-qc", "Validation / QC")
-  ].join("\n");
-  const body = sections.replace(/```[\s\S]*?```/g, "");
-  return body.split(/\r?\n/).some((line) => {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("##") || trimmed.startsWith("<!--")) return false;
-    if (/^Record only work actually completed/i.test(trimmed)) return false;
-    if (/\bTBD\b|待定|待核對|未適用/i.test(trimmed)) return false;
-    const normalized = trimmed.replace(/^[\d.*\-)\s]+/, "").replace(/[`\s#|:\-*/()[\].,;，。；、]/g, "");
-    return normalized.length > 20;
-  });
-}
-
-function fieldValueAfterMarker(text, fieldId) {
-  const markerText = `ack:field:${fieldId}`;
-  const markerIndex = text.indexOf(markerText);
-  if (markerIndex >= 0) {
-    const after = text.slice(markerIndex).split(/\r?\n/).slice(1);
-    const line = after.find((candidate) => candidate.trim().startsWith("- "));
-    if (!line) return "";
-    const colonIndex = line.indexOf(":");
-    return colonIndex >= 0 ? line.slice(colonIndex + 1).trim() : line.trim();
-  }
-  const fallback = text.match(/Completed \/ pending \/ risk \/ opening-message lifecycle conflicts resolved or explicitly reclassified:\s*([^\n]+)/i);
-  return fallback ? fallback[1].trim() : "";
-}
-
-function extractSectionText(text, markerId, headingTitle) {
-  const markerText = `ack:section:${markerId}`;
-  const markerIndex = text.indexOf(markerText);
-  if (markerIndex >= 0) {
-    const start = text.indexOf("\n", markerIndex);
-    if (start < 0) return "";
-    const nextMarker = text.indexOf("<!-- ack:section:", start + 1);
-    return text.slice(start + 1, nextMarker >= 0 ? nextMarker : text.length);
-  }
-  const headingMatch = new RegExp(`^## ${escapeRegExp(headingTitle)}\\s*$`, "m").exec(text);
-  if (!headingMatch) return "";
-  const start = headingMatch.index + headingMatch[0].length;
-  const nextHeading = /\n##\s+/.exec(text.slice(start));
-  return text.slice(start, nextHeading ? start + nextHeading.index : text.length);
 }
 
 async function runManifestQaScript(qaCheck, executedQaIds) {
@@ -2336,7 +2289,7 @@ function checkEnglishPublicSurfaces(version) {
   console.log("ok: English public pages and language navigation");
 }
 
-function checkChangedBilingualCandidateEvidence(version, { allowDirty = false } = {}) {
+async function checkChangedBilingualCandidateEvidence(version, { allowDirty = false, projectRoot = root } = {}) {
   // Translation semantics cannot be inferred from text shape. This is only a
   // candidate-scoped completeness guard: when a committed candidate actually
   // changes one language pair, require the Writing Pack's independent review
@@ -2354,28 +2307,27 @@ function checkChangedBilingualCandidateEvidence(version, { allowDirty = false } 
     }
   ];
   const relevantPaths = pairs.flatMap((pair) => [pair.chinese, pair.english, ...(pair.assets ?? [])]);
-  const dirty = outputText(run("git", ["status", "--porcelain", "--", ...relevantPaths], "candidate bilingual worktree status"));
+  const dirty = outputText(run("git", ["status", "--porcelain", "--", ...relevantPaths], "candidate bilingual worktree status", { cwd: projectRoot }));
   if (!allowDirty) {
     assert(!dirty.trim(), "candidate changes a bilingual public surface but is not commit-bound; create a clean local candidate commit before release readiness");
   } else if (dirty.trim()) {
     console.log("ok: candidate bilingual pre-freeze worktree scope");
   }
 
-  const base = outputText(run("git", ["merge-base", "HEAD", "origin/main"], "candidate bilingual baseline")).trim();
-  assert(/^[0-9a-f]{40}$/i.test(base), "candidate bilingual baseline is not a Git commit");
-  const changed = new Set(
-    outputText(run("git", allowDirty ? ["diff", "--name-only", base, "--", ...relevantPaths] : ["diff", "--name-only", `${base}..HEAD`, "--", ...relevantPaths], "candidate bilingual change scope"))
+  const baseline = await resolveFeatureDeliveryBase(projectRoot, version);
+  const changed = new Set(allowDirty
+    ? outputText(run("git", ["diff", "--name-only", baseline.baseCommit, "--", ...relevantPaths], "candidate bilingual change scope", { cwd: projectRoot }))
       .split(/\r?\n/u)
       .map((value) => value.trim())
       .filter(Boolean)
-  );
+    : baseline.changedFiles);
   const changedPairs = pairs.filter((pair) => [pair.chinese, pair.english, ...(pair.assets ?? [])].some((file) => changed.has(file)));
   if (changedPairs.length === 0) {
     console.log("ok: bilingual candidate evidence not applicable (no changed language counterpart)");
     return;
   }
 
-  const report = read("docs/qa/release-grade-qa.md");
+  const report = readAt(projectRoot, "docs/qa/release-grade-qa.md");
   for (const pair of changedPairs) {
     const heading = `${pair.heading}（v${version}`;
     const start = report.indexOf(heading);
@@ -2383,7 +2335,7 @@ function checkChangedBilingualCandidateEvidence(version, { allowDirty = false } 
     const end = report.indexOf("\n### ", start + 4);
     const section = report.slice(start, end >= 0 ? end : undefined);
     for (const file of [pair.chinese, pair.english, ...(pair.assets ?? [])]) {
-      const contents = pair.assets?.includes(file) ? readFileSync(path.join(root, file)) : read(file);
+      const contents = pair.assets?.includes(file) ? readFileSync(path.join(projectRoot, file)) : readAt(projectRoot, file);
       const hash = createHash("sha256").update(contents).digest("hex").toUpperCase();
       assert(section.includes(`\`${file}\` SHA-256 \`${hash}\``), `candidate translation evidence is stale for changed ${file}`);
     }
@@ -2458,7 +2410,7 @@ function runNpm(args, label) {
 
 function run(command, args, label, options = {}) {
   const spawnOptions = {
-    cwd: root,
+    cwd: options.cwd ?? root,
     encoding: "utf8",
     shell: options.shell ?? false
   };
@@ -2910,28 +2862,107 @@ function checkTaskPersistenceGateContract() {
   console.log("ok: task persistence gate contract");
 }
 
-function assertLatestCrossMindTableComplete(version) {
-  const text = read("docs/qa/release-grade-qa.md");
+function assertLatestCrossMindTableComplete(version, text = read("docs/qa/release-grade-qa.md")) {
   const heading = `### Cross-mind evidence 9-trigger table（v${version}）`;
   const start = text.indexOf(heading);
   assert(start >= 0, `docs/qa/release-grade-qa.md missing latest Cross-mind evidence table for v${version}`);
+  assert(text.indexOf(heading, start + heading.length) < 0, `duplicate Cross-mind evidence table for v${version}`);
 
   const rest = text.slice(start + heading.length);
-  const nextHeading = rest.search(/\n## /);
+  const nextHeading = rest.search(/\n#{1,3} /);
   const section = nextHeading >= 0 ? rest.slice(0, nextHeading) : rest;
   const rows = section
     .split(/\r?\n/)
-    .filter((line) => /^\| \d+\. /.test(line));
+    .filter((line) => /^\|\s*\d+\.\s+/.test(line));
 
   assert(rows.length === 9, `latest Cross-mind evidence table for v${version} must contain exactly 9 trigger rows, found ${rows.length}`);
+  const identities = new Set();
+  const triggers = new Set();
   for (const row of rows) {
     const cells = row.split("|").slice(1, -1).map((cell) => cell.trim());
     assert(cells.length === 4, `latest Cross-mind evidence row has wrong cell count: ${row}`);
     assert(cells.every(Boolean), `latest Cross-mind evidence row has an empty cell: ${row}`);
-    assert(/^(yes|no\b)/i.test(cells[1]), `latest Cross-mind evidence Required cell must start with yes/no: ${row}`);
+    const trigger = /^(\d+)\.\s+(.+)$/.exec(cells[0]);
+    const identity = Number(trigger?.[1]);
+    const name = trigger?.[2].toLowerCase().replace(/\s+/g, ' ').trim();
+    assert(identity >= 1 && identity <= 9 && !identities.has(identity), `Cross-mind trigger identity must occur exactly once in 1–9: ${row}`);
+    assert(name && !triggers.has(name), `Cross-mind trigger text is duplicated: ${row}`);
+    identities.add(identity);
+    triggers.add(name);
+    assert(/^(yes|no)\b/i.test(cells[1]), `latest Cross-mind evidence Required cell must start with yes/no: ${row}`);
     assert(/^(passed|iterated|blocked)$/i.test(cells[2]), `latest Cross-mind evidence Result cell must be passed / iterated / blocked: ${row}`);
+    assert(cells[2].toLowerCase() !== 'blocked', `Cross-mind trigger is blocked; release cannot proceed: ${row}`);
+    if (/^no\b/i.test(cells[1])) {
+      const reason = cells[1].replace(/^no\b[\s:;—–-]*/i, '') || cells[3];
+      assert(!/^(?:n\/?a|none|not[_ ](?:required|applicable)|skip(?:ped)?|passed|iterated)[.!。]?$/i.test(reason), `Cross-mind not-required trigger needs a specific reason: ${row}`);
+    }
   }
   console.log(`ok: latest Cross-mind evidence 9-trigger table complete for v${version}`);
+}
+
+function checkCrossMindTableCounterexamples() {
+  const heading = '### Cross-mind evidence 9-trigger table（v9.8.7）';
+  const rows = Array.from({ length: 9 }, (_, index) => `| ${index + 1}. trigger ${index + 1} | yes | passed | Independent review recorded for this trigger. |`);
+  const table = (values) => [heading, ...values].join('\n');
+  assertLatestCrossMindTableComplete('9.8.7', table(rows));
+  const notRequired = [...rows];
+  notRequired[0] = '| 1. trigger 1 | no | passed | No external write is included in this candidate. |';
+  assertLatestCrossMindTableComplete('9.8.7', table(notRequired));
+  const mutations = [
+    ['required blocked', values => { values[0] = values[0].replace('passed', 'blocked'); }],
+    ['non-required blocked', values => { values[0] = values[0].replace('yes | passed', 'no | blocked'); }],
+    ['same row nine times', values => values.fill(values[0])],
+    ['missing trigger', values => values.pop()],
+    ['unknown trigger', values => { values[8] = values[8].replace('9. trigger', '10. trigger'); }],
+    ['renumbered duplicate trigger', values => { values[8] = values[8].replace('trigger 9', 'trigger 1'); }],
+    ['false yes prefix', values => { values[0] = values[0].replace('yes', 'yesterday'); }],
+    ['skip without reason', values => { values[0] = '| 1. trigger 1 | no | passed | N/A |'; }]
+  ];
+  for (const [label, mutate] of mutations) {
+    const changed = [...rows]; mutate(changed);
+    assertThrows(() => assertLatestCrossMindTableComplete('9.8.7', table(changed)), `Cross-mind accepted ${label}`);
+  }
+  assertThrows(() => assertLatestCrossMindTableComplete('9.8.7', `${table(rows)}\n${table(rows)}`), 'Cross-mind accepted duplicate candidate tables');
+  console.log('ok: Cross-mind terminal-state and unique-trigger counterexamples');
+}
+
+async function checkBilingualBaselineCounterexamples() {
+  const project = qaTemp.track(path.join(tmpdir(), `ack-bilingual-baseline-${Date.now()}`));
+  mkdirSync(path.join(project, 'docs/qa'), { recursive: true });
+  const git = (args) => run('git', ['-C', project, ...args], 'bilingual baseline fixture');
+  const commit = (message) => { git(['add', '.']); git(['-c', 'user.name=Agent Handoff Kit QA', '-c', 'user.email=qa@example.invalid', 'commit', '-m', message]); };
+  git(['init']);
+  writeFileSync(path.join(project, 'README.md'), 'Chinese baseline\n');
+  writeFileSync(path.join(project, 'README.en.md'), 'English baseline\n');
+  writeFileSync(path.join(project, 'docs/qa/release-grade-qa.md'), 'No candidate evidence yet.\n');
+  commit('previous stable release');
+  git(['tag', 'v1.0.0']);
+  const initial = await resolveFeatureDeliveryBase(project, '1.0.1');
+  assert(initial.baseVersion === '1.0.0' && initial.changedFiles.length === 0, 'unchanged release baseline must have no changes');
+  await checkChangedBilingualCandidateEvidence('1.0.1', { projectRoot: project });
+  git(['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+  writeFileSync(path.join(project, 'README.en.md'), 'Changed English candidate\n');
+  commit('candidate language change');
+  const assertChanged = async (label) => {
+    const baseline = await resolveFeatureDeliveryBase(project, '1.0.1');
+    assert(baseline.baseCommit === initial.baseCommit && baseline.changedFiles.includes('README.en.md'), `${label}: preceding stable release change was lost`);
+    let rejected = false;
+    try { await checkChangedBilingualCandidateEvidence('1.0.1', { projectRoot: project }); }
+    catch (error) { assert(error.message.includes('no v1.0.1 independent-review section'), `${label}: unexpected failure: ${error.message}`); rejected = true; }
+    assert(rejected, `${label}: missing bilingual evidence incorrectly passed`);
+  };
+  await assertChanged('unpublished branch');
+  git(['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+  await assertChanged('candidate already pushed to main');
+  writeFileSync(path.join(project, 'unrelated.txt'), 'remote movement\n');
+  commit('remote main advances');
+  git(['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+  git(['checkout', '--detach', 'HEAD~1']);
+  await assertChanged('remote advanced beyond candidate');
+  git(['tag', 'v1.0.1']);
+  git(['tag', 'v1.0.2-rc.1']);
+  await assertChanged('same-version and prerelease tags ignored');
+  console.log('ok: shared preceding-release baseline survives branch, pushed main, remote movement and unchanged candidates');
 }
 
 function assertIncludes(relativePath, snippets) {

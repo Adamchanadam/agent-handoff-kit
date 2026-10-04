@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractOpeningMessage } from "../bin/prompt-mirror-core.mjs";
+import { doctorFailureExplanation, assessSessionLogDiscipline } from "../bin/agent-handoff-kit.mjs";
+import { requiredShortcutTargets } from "../bin/installed-file-contract.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "ack-closeout-card-"));
@@ -29,7 +31,109 @@ try {
   assert(passed.stdout.includes("status: complete"), "complete closeout card omitted machine-readable complete state");
   assert(!passed.stdout.includes("handoff blocked"), "complete closeout card showed a blocked state");
 
+  const logPath = path.join(fixtureRoot, "dev", "SESSION_LOG.md");
+  const originalLog = readFileSync(logPath, "utf8");
+  const withEntries = count => originalLog + Array.from({ length: count }, (_, i) => `\n## 2026-10-03 Session ${i + 1}\n\nFixture trace.\n`).join("");
+  const withLines = count => originalLog + "\n".repeat(count - originalLog.split("\n").length);
+  for (const [label, text, shouldBlock, warning] of [
+    ["ten entries remain below the archive trigger", withEntries(10), false, ""],
+    ["eleven entries require maintenance", withEntries(11), true, "entry count = 11"],
+    ["twenty-five entries cannot complete closeout", withEntries(25), true, "entry count = 25"],
+    ["1499 lines remain below the safety trigger", withLines(1499), false, ""],
+    ["1500 lines remain below the safety trigger", withLines(1500), false, ""],
+    ["1501 lines require maintenance", withLines(1501), true, "line count = 1501"]
+  ]) {
+    writeFileSync(logPath, text, "utf8");
+    const assessment = await assessSessionLogDiscipline(fixtureRoot);
+    assert(assessment.ok === !shouldBlock, `${label}: shared maintenance assessment differs`);
+    const dailyDoctor = invoke(["bin/agent-handoff-kit.mjs", "doctor", "--root", fixtureRoot], label + " daily doctor");
+    assert(dailyDoctor.stdout.includes(`SESSION_LOG 接力角色紀律: ${shouldBlock ? "warn" : "ok"}`), `${label}: ordinary doctor lost its advisory result`);
+    const result = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+    assert(!result.error && result.status === (shouldBlock ? 1 : 0), `${label}: unexpected closeout exit\n${result.stdout}`);
+    assert(result.stdout.includes(`status: ${shouldBlock ? "blocked" : "complete"}`), `${label}: closeout state is wrong`);
+    if (shouldBlock) {
+      assert(result.stdout.includes("SESSION_LOG maintenance checks") && result.stdout.includes(warning), `${label}: maintenance cause or measured trigger was hidden`);
+      assert(!result.stdout.includes("handoff saved"), `${label}: maintenance falsely claimed saved`);
+    }
+    assert(readFileSync(logPath, "utf8") === text, `${label}: read-only check changed the log`);
+  }
+  // An interrupted archive may leave a copy, while the active log is still due.
+  const archivePath = path.join(fixtureRoot, "dev", "SESSION_LOG_archive");
+  mkdirSync(archivePath);
+  writeFileSync(path.join(archivePath, "archive_partial.md"), withEntries(11), "utf8");
+  writeFileSync(logPath, withEntries(11), "utf8");
+  const interrupted = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!interrupted.error && interrupted.status === 1 && interrupted.stdout.includes("SESSION_LOG maintenance checks"), "partial archive copy hid the still-overdue active log");
+  writeFileSync(logPath, originalLog, "utf8");
+  assertCloseoutComplete(complete, "maintenance recovery after active log readback");
+  console.log("ok: ordinary doctor remains advisory; closeout enforces the shared entry/line maintenance triggers and interrupted maintenance stays blocked");
+
+  const shortcutPath = path.join(fixtureRoot, requiredShortcutTargets[0]);
+  const shortcutBytes = readFileSync(shortcutPath);
+  rmSync(shortcutPath);
+  const missingShortcut = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!missingShortcut.error && missingShortcut.status === 1, "missing shortcut passed doctor");
+  assert(missingShortcut.stdout.includes("project shortcuts failed") && missingShortcut.stdout.includes("專案快捷入口缺少或內容不一致。") && missingShortcut.stdout.includes("upgrade --dry-run"), "shortcut diagnosis omitted its real cause or repair route");
+  assert(!missingShortcut.stdout.includes("下次開工提示副本與 handoff 真源不同。") && !missingShortcut.stdout.includes("prompt mirror checks:"), "shortcut failure was misreported as an unrun mirror check");
+  writeFileSync(shortcutPath, shortcutBytes);
+  assert(!doctorFailureExplanation("unknown future check").includes("提示副本"), "unknown failure kind guessed a mirror defect");
+  assert(doctorFailureExplanation("prompt mirror checks").includes("提示副本"), "actual mirror failure lost its specific explanation");
+  console.log("ok: missing shortcuts and unknown failure kinds cannot be mislabeled as mirror failures");
+
+  for (const [label, text, reason] of [
+    ["stale snapshot declaration", complete.replace("Stale snapshots left in this handoff: no", "Stale snapshots left in this handoff: yes"), "stale snapshots"],
+    ["next-step declaration is negative", complete.replace("Recommended next step is explicit and reasoned: yes", "Recommended next step is explicit and reasoned: no"), "recommended next step"],
+    ["opening declaration is negative", complete.replace("Opening message matches current state: yes", "Opening message matches current state: no"), "opening message"],
+    ["fenced declaration is not a confirmation", complete.replace("- Opening message matches current state: yes", "~~~~\n- Opening message matches current state: yes\n~~~~"), "opening message"],
+    ["duplicate declaration is not a confirmation", complete.replace("<!-- ack:field:stale-snapshots-left -->", "<!-- ack:field:stale-snapshots-left -->\n- Stale snapshots left in this handoff: no\n<!-- ack:field:stale-snapshots-left -->"), "stale snapshots"]
+  ]) {
+    writeFixtureHandoff(text);
+    const result = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+    assert(!result.error && result.status === 1 && result.stdout.includes("status: blocked") && result.stdout.includes(reason), `${label} did not block closeout with its real cause\n${result.stdout}`);
+    assert(!result.stdout.includes("handoff saved") && readAt(fixtureRoot, "dev/SESSION_HANDOFF.md") === text, `${label} changed state or falsely claimed saved`);
+  }
+  const nextStep = "Recommended next step: Resume from the opening message — reason: this fixture verifies resumable continuity.";
+  const nextPriorities = `${nextStep}\n\n1. follow-up scope — monitor only if a new reproducible failure occurs.`;
+  const replacePriorities = (value) => complete.replace(nextPriorities, value);
+  assertCloseoutComplete(complete.replace("Opening message matches current state: yes", "Opening message matches current state: 已確認"), "Chinese affirmative declaration");
+  for (const [label, narrative] of [
+    ["original native invitation repro", "Recommended next step: read `docs/source-note.md` and verify the event date before drafting — reason: the invitation must not state an unverified date."],
+    ["ordinary English prose", "Read the supplier record first. Its date determines the next delivery notice."],
+    ["ordinary Traditional Chinese prose", "先讀取採購紀錄；當中的日期會決定下一步通知。"],
+    ["yes/no user decision", "The user must decide yes or no: publish the record now, or wait for the scheduled review."],
+    ["honest blocker", "The required attachment is unavailable. Request it before performing the dependent review."],
+    ["English action begins with unconfirmed dependency", "Recommended next step: unconfirmed supplier contact must be verified in the procurement register — reason: release the purchase order only after the contact is verified."],
+    ["Traditional Chinese reason contains unverified data", "Recommended next step: 讀取採購紀錄並核對供應商資料 — reason: 訂單不可引用未核實的聯絡資料。"]
+  ]) {
+    assertCloseoutComplete(complete.replace(nextStep, narrative), label);
+  }
+  assertCloseoutComplete(replacePriorities("- Read the supplier record before drafting the next delivery notice."), "ordinary Markdown bullet priority");
+  for (const [label, text] of [
+    ...["否", "未確認", "待確認", "已", "已確認，仍未解決", "已確認，但尚未確認來源", "", "TBD"].map((value) => ["unconfirmed Chinese opening: " + value, complete.replace("Opening message matches current state: yes", "Opening message matches current state: " + value)]),
+    ["missing Next Priorities section", complete.replace(`<!-- ack:section:next-priorities -->\n## Next Priorities\n\n${nextPriorities}\n`, "")],
+    ["empty Next Priorities", replacePriorities("")],
+    ["single placeholder priority", replacePriorities("TBD")],
+    ["only placeholder priorities", replacePriorities("TBD\n<next priority>\n待確認")],
+    ...["1. TBD", "+ TBD", "**TBD**", "---", "### TBD", "Recommended next step: TBD — reason: TBD"].map((value) => ["Markdown or template placeholder priority: " + value, replacePriorities(value)]),
+    ["fenced priority example only", replacePriorities("~~~~markdown\nExample: review the source record.\n~~~~")],
+    ["comment priority example only", replacePriorities("<!-- Example: review the source record. -->")],
+    ["indented priority example only", replacePriorities("    Example: review the source record.")]
+  ]) {
+    writeFixtureHandoff(text);
+    const result = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+    assert(!result.error && result.status === 1 && result.stdout.includes("status: blocked"), `${label} falsely completed closeout`);
+    assert(readAt(fixtureRoot, "dev/SESSION_HANDOFF.md") === text, `${label} changed its source packet`);
+  }
+  console.log("ok: localized lifecycle declarations and visible non-placeholder priorities pass without narrative-grammar proof; empty, placeholder-only and hidden examples reject");
+  assertCloseoutComplete(complete, "reconciled declarations recover");
+  console.log("ok: stale snapshots, missing/placeholder priorities and unconfirmed opening state cannot complete closeout");
+
   assertCloseoutComplete(complete.replace("Git root: no Git repository (fixture root)", "Git root: not_applicable — workspace-health reports git: no, no .git metadata found."), "literal workspace-health no-Git evidence with explanation");
+  const naturalNoGit = complete
+    .replace("Git root: no Git repository (fixture root)", "Git root: not applicable — no `.git` metadata found")
+    .replace("Branch: not_applicable - no Git repository", "Branch: not applicable")
+    .replace("Commit: not_applicable - no Git repository", "Commit: not applicable");
+  assertCloseoutComplete(naturalNoGit, "natural-language non-Git workspace identity");
   for (const noGit of ["none (workspace-health: no .git metadata found)", "not_applicable; checked at closeout", "n/a — fixture has no repository"]) {
     assertCloseoutComplete(complete.replace("Git root: no Git repository (fixture root)", `Git root: ${noGit}`), "absent Git identity with explanation");
   }

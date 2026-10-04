@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  assertClaimExecutorContract,
+  assertQuickExecutorsCoveredByFull,
   CANDIDATE_EVIDENCE_CONTRACT,
   expectedPublicMirrorFileCount,
   PUBLIC_MIRROR_CONTRACT,
@@ -15,7 +17,7 @@ import {
   QA_RELEASE_READINESS_INVENTORY_DIGEST,
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
-import { validateFeatureDelivery } from "./feature-delivery.mjs";
+import { resolveFeatureDeliveryBase, validateFeatureDelivery, validateNativeUpdateNormal, validateNativeUpdateReview } from "./feature-delivery.mjs";
 import { loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
 import { LONG_QA_TIMEOUT_MS, QaRunError, runChecked, runNodeScriptChecked } from "./qa-runner-core.mjs";
 
@@ -86,28 +88,46 @@ async function main() {
   if (options.testFailClaim) {
     assert(process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1", "--test-fail-claim is test-only");
     assert(claims.some((claim) => claim.id === options.testFailClaim), `test failure claim is not required by ${layer}: ${options.testFailClaim}`);
-    throw new Error(`controlled executor failure: ${options.testFailClaim}`);
+    const fail = async () => { throw new Error(`controlled executor failure: ${options.testFailClaim}`); };
+    await runClaim(claims.find((claim) => claim.id === options.testFailClaim), options, {
+      "node-script": fail, "internal-validator": fail, "evidence-validator": fail
+    });
+    return;
   }
 
+  for (const claim of QA_ASSURANCE_MANIFEST.claims) assertClaimExecutorContract(claim);
+  assertQuickExecutorsCoveredByFull();
+  if (layer === "full" && !options.validateOnly) {
+    assert(options.receipt, "full requires --receipt <full-receipt.json>");
+    options.receipt = resolveAcceptanceReceiptPath(options.receipt);
+    assert(!existsSync(options.receipt), "full receipt already exists; preserve it as historical evidence and choose a new --receipt path for this run");
+  }
   if (layer === "postpublish" && options.collect) {
     await collectPostpublishEvidence(options);
-    if (!options.evidence) options.evidence = options.collect;
+    options.evidence = options.collect;
   }
-  if (layer === "candidate-preflight") await validateCandidatePreflight(options);
-  if (layer === "full") await validateCandidatePreflight(options, { requireFrozenIdentity: true });
-  if (layer === "full") await validateCandidateEvidence(options);
-  if (layer === "postpublish") await validatePostpublishEvidence(options);
+  let accepted;
+  if (layer === "full") {
+    await validateCandidatePreflight(options, { requireFrozenIdentity: true });
+    accepted = await validateCandidateEvidence(options);
+  }
+  if (layer === "candidate-preflight" || layer === "postpublish") {
+    for (const claim of claims) await runClaim(claim, options);
+  }
   if (options.validateOnly) {
     console.log(`ok: ${layer} evidence contract (${QA_ASSURANCE_MANIFEST_DIGEST})`);
     return;
   }
 
-  for (const claim of claims) await runClaim(claim);
+  if (layer === "quick" || layer === "full") {
+    for (const claim of claims) await runClaim(claim, options);
+  }
+  if (layer === "full") await finalizeCandidateAcceptance(accepted, options.receipt);
   console.log(`Agent Handoff Kit ${layer} QA passed (${QA_ASSURANCE_MANIFEST_DIGEST})`);
 }
 
 function parseArgs(args) {
-  const options = { layer: null, list: false, validateOnly: false, candidate: null, version: null, evidence: null, collect: null, testFailClaim: null, testRunnerFixture: null, testRunnerTimeoutMs: null, testCommandShellFixture: null, testCommandSpawnError: false };
+  const options = { layer: null, list: false, validateOnly: false, candidate: null, version: null, evidence: null, receipt: null, collect: null, testFailClaim: null, testRunnerFixture: null, testRunnerTimeoutMs: null, testCommandShellFixture: null, testCommandSpawnError: false };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--list") options.list = true;
@@ -115,6 +135,7 @@ function parseArgs(args) {
     else if (value === "--candidate") options.candidate = requireValue(args, ++index, value);
     else if (value === "--version") options.version = requireValue(args, ++index, value);
     else if (value === "--evidence") options.evidence = requireValue(args, ++index, value);
+    else if (value === "--receipt") options.receipt = requireValue(args, ++index, value);
     else if (value === "--collect") options.collect = requireValue(args, ++index, value);
     else if (value === "--test-fail-claim") options.testFailClaim = requireValue(args, ++index, value);
     else if (value === "--test-runner-fixture") options.testRunnerFixture = requireValue(args, ++index, value);
@@ -130,6 +151,7 @@ function parseArgs(args) {
 async function validateCandidateEvidence(options) {
   assert(options.candidate, "full requires --candidate <version>");
   const evidence = readEvidence(options.evidence, "full requires --evidence <candidate-evidence.json>");
+  const accepted = captureCandidateIdentity(options.evidence, evidence);
   const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
   assert(packageJson.version === options.candidate, "full candidate version does not match package.json");
   const status = await candidateGitStatus();
@@ -149,6 +171,7 @@ async function validateCandidateEvidence(options) {
   validateCandidateReportSection(options.candidate);
   validateEvidenceRecords(evidence.evidence);
   await validateCandidateFeatureDelivery(evidence, head);
+  return accepted;
 }
 
 async function validateCandidateFeatureDelivery(evidence, head) {
@@ -157,18 +180,17 @@ async function validateCandidateFeatureDelivery(evidence, head) {
   let baseCommit, changedFiles;
   if (evidenceContractSelfTest) { baseCommit = delivery.baseCommit; changedFiles = ['bin/commands.mjs']; }
   else {
-    const tags = await runChecked('git', ['tag', '--merged', head], 'delivery baseline tags', {cwd:root});
-    const previous = tags.stdout.trim().split(/\r?\n/).filter(t => /^v\d+\.\d+\.\d+$/.test(t) && compareSemver(t.slice(1), evidence.candidate.version) < 0).sort((a,b)=>compareSemver(b.slice(1),a.slice(1)))[0];
-    assert(previous === 'v' + delivery.baseVersion, 'featureDelivery baseline must be the latest preceding release tag');
-    baseCommit = (await runChecked('git', ['rev-parse', previous + '^{commit}'], 'delivery baseline identity', {cwd:root})).stdout.trim();
-    changedFiles = (await runChecked('git', ['diff','--name-only',baseCommit,head], 'affected delivery sources', {cwd:root})).stdout.trim().split(/\r?\n/).filter(Boolean);
+    const baseline = await resolveFeatureDeliveryBase(root, evidence.candidate.version, { head });
+    assert(baseline.baseVersion === delivery.baseVersion, 'featureDelivery baseline must be the latest preceding release tag');
+    ({ baseCommit, changedFiles } = baseline);
   }
   const baselineNpm = evidenceContractSelfTest ? null : await readNpmPublishedMetadata(delivery.baseVersion);
-  validateFeatureDelivery(delivery,{root,baseCommit,changedFiles,baselineNpm,tarballSha256:evidence.candidate.tarballSha256});
+  validateFeatureDelivery(delivery,{root,baseCommit,changedFiles,baselineNpm,tarballSha256:evidence.candidate.tarballSha256,candidateVersion:evidence.candidate.version});
 }
 
 async function validatePostpublishEvidence(options) {
   assert(options.version, "postpublish requires --version <version>");
+  const receipt = readAcceptanceReceipt(options);
   const evidence = readEvidence(options.evidence, "postpublish requires --evidence <postpublish-evidence.json>");
   assert(evidence.kind === "postpublish-assurance" && evidence.schemaVersion === 1, "postpublish evidence has the wrong schema");
   assert(evidence.manifestDigest === QA_ASSURANCE_MANIFEST_DIGEST, "postpublish evidence manifest digest does not match this source");
@@ -201,6 +223,8 @@ async function validatePostpublishEvidence(options) {
   assert(evidence.published.gitCommit.toLowerCase() === tagCommit, "postpublish published git commit does not match remote tag readback");
   assert(evidence.readbacks?.gitTag?.commit === tagCommit, "postpublish git tag evidence does not match remote tag readback");
 
+  assertPublishedCandidate(receipt, { version: options.version, commit: tagCommit, tarballSha256: packedSha256 });
+  validatePostpublishNativeUpdate(evidence.readbacks?.nativeUpdate, receipt);
   const helpEvidence = await npxHelpEvidence(options.version);
   assertPostpublishNpxHelpEvidence(evidence.readbacks?.npxHelp, helpEvidence);
 }
@@ -208,8 +232,14 @@ async function validatePostpublishEvidence(options) {
 async function collectPostpublishEvidence(options) {
   assert(options.version, "postpublish --collect requires --version <version>");
   assert(options.collect, "postpublish --collect requires an output file");
-  const output = path.resolve(options.collect);
+  const receipt = readAcceptanceReceipt(options);
+  const supplied = readSuppliedNativeUpdateEvidence(options);
+  validatePostpublishNativeUpdate(supplied.nativeUpdate, receipt);
+  const requestedOutput = path.resolve(options.collect);
+  const output = path.join(realpathSync(path.dirname(requestedOutput)), path.basename(requestedOutput));
   assert(isInside(root, output) || isInside(tmpdir(), output), `postpublish --collect output must be inside the repo or OS temp directory: ${output}`);
+  assert(realpathSync(path.resolve(options.evidence)) !== output, "postpublish collector must not overwrite the supplied native update evidence");
+  assert(!existsSync(output), "postpublish collector output already exists; preserve prior evidence and choose a new path");
   const [npm, tarballSha256, githubRelease, gitCommit, npxHelp] = await Promise.all([
     readNpmPublishedMetadata(options.version),
     packPublishedTarballSha256(options.version),
@@ -217,6 +247,7 @@ async function collectPostpublishEvidence(options) {
     readRemoteTagCommit(options.version),
     npxHelpEvidence(options.version)
   ]);
+  assertPublishedCandidate(receipt, { version: options.version, commit: gitCommit, tarballSha256 });
   const evidence = {
     schemaVersion: 1,
     kind: "postpublish-assurance",
@@ -234,18 +265,141 @@ async function collectPostpublishEvidence(options) {
       npmPack: { tarballSha256 },
       githubRelease,
       gitTag: { commit: gitCommit },
-      npxHelp
+      npxHelp,
+      nativeUpdate: supplied.nativeUpdate
     }
   };
-  writeFileSync(output, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+  writeFileSync(output, `${JSON.stringify(evidence, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
   console.log(`ok: postpublish evidence collected ${output}`);
 }
 
-async function runClaim(claim) {
-  if (claim.executor.kind !== "node-script") return;
-  const script = claim.executor.script;
-  assert(existsSync(path.join(root, script)), `manifest executor is missing: ${script}`);
-  await runNodeScriptChecked(script, claim.id, { cwd: root, env: process.env, timeoutMs: claim.executor.timeoutMs });
+function readSuppliedNativeUpdateEvidence(options) {
+  const evidence = readEvidence(options.evidence, "postpublish --collect requires --evidence <completed-native-update-evidence.json>");
+  const nativeUpdate = evidence.readbacks?.nativeUpdate;
+  assert(nativeUpdate && typeof nativeUpdate === "object" && !Array.isArray(nativeUpdate), "postpublish --collect --evidence must contain readbacks.nativeUpdate from the completed official-live native update");
+  return { evidence, nativeUpdate };
+}
+
+function validatePostpublishNativeUpdate(nativeUpdate, receipt) {
+  validateNativeUpdateNormal(nativeUpdate, {
+    root,
+    label: "postpublish/readbacks.nativeUpdate",
+    candidateVersion: receipt.version,
+    baseVersion: receipt.baseVersion,
+    tarballSha256: receipt.tarballSha256,
+    registryMode: "official-live",
+    requireOwnTarball: true
+  });
+  validateNativeUpdateReview(nativeUpdate, {
+    root,
+    label: "postpublish/readbacks.nativeUpdate",
+    roleIsolation: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation
+  });
+}
+
+export async function runClaim(claim, options = {}, executors = {
+  "node-script": async (item) => {
+    const script = item.executor.script;
+    assert(isInside(root, path.resolve(root, script)) && existsSync(path.resolve(root, script)), `manifest executor is missing or unsafe: ${script}`);
+    await runNodeScriptChecked(script, item.id, { cwd: root, env: process.env, timeoutMs: item.executor.timeoutMs });
+  },
+  "internal-validator": () => validateCandidatePreflight(options),
+  "evidence-validator": () => validatePostpublishEvidence(options)
+}) {
+  assertClaimExecutorContract(claim);
+  const execute = executors[claim.executor.kind];
+  assert(typeof execute === "function", `unhandled executor kind: ${claim.executor.kind}`);
+  await execute(claim);
+}
+
+// Capture before any asynchronous validation; finalization compares to this
+// accepted input, never a new baseline sampled after the long-running claims.
+export function captureCandidateIdentity(evidencePath, evidence, sourceRoot = root) {
+  const references = new Map();
+  const bundle = evidence.roleIsolation?.reviewBundle;
+  const record = (file, expected) => {
+    const absolute = path.resolve(sourceRoot, file);
+    const actual = sha256(readFileSync(absolute));
+    assert(actual === expected.toLowerCase(), `accepted evidence hash mismatch: ${absolute}`);
+    if (references.has(absolute)) assert(references.get(absolute) === actual, `conflicting accepted reference: ${absolute}`);
+    references.set(absolute, actual);
+  };
+  const visit = (value) => {
+    if (!value || typeof value !== "object") return;
+    if (typeof value.path === "string" && isSha256(value.sha256, 64)) record(value === bundle ? resolveReviewBundlePath(bundle) : value.path, value.sha256);
+    for (const child of Object.values(value)) visit(child);
+  };
+  visit(evidence);
+  if (bundle) visit(JSON.parse(readFileSync(resolveReviewBundlePath(bundle), "utf8")));
+  const absolute = path.resolve(evidencePath);
+  const bytes = readFileSync(absolute);
+  assert(semanticEqual(JSON.parse(bytes), evidence), "candidate evidence changed while being received");
+  return {
+    version: evidence.candidate.version, commit: evidence.candidate.commit,
+    tarballSha256: evidence.candidate.tarballSha256.toLowerCase(),
+    baseVersion: evidence.featureDelivery?.baseVersion,
+    manifestDigest: evidence.manifestDigest,
+    releaseReadinessInventoryDigest: evidence.releaseReadinessInventoryDigest,
+    candidateEvidenceSha256: sha256(bytes), evidencePath: absolute, sourceRoot: realpathSync(sourceRoot),
+    references: [...references].map(([file, digest]) => ({ path: file, sha256: digest }))
+  };
+}
+
+export async function verifyCandidateIdentity(accepted, readers = {
+  head: candidateGitHead, status: candidateGitStatus, tarball: freshCandidateTarballSha256
+}) {
+  assert(await readers.head() === accepted.commit, "full candidate HEAD changed during claims");
+  assert((await readers.status()).stdout.trim() === "", "full candidate worktree changed during claims");
+  assert(await readers.tarball() === accepted.tarballSha256, "full candidate tarball changed during claims");
+  assert(sha256(readFileSync(accepted.evidencePath)) === accepted.candidateEvidenceSha256, "full candidate evidence JSON changed during claims");
+  for (const ref of accepted.references) assert(sha256(readFileSync(ref.path)) === ref.sha256, `full accepted evidence changed during claims: ${ref.path}`);
+  assert(await readers.head() === accepted.commit && (await readers.status()).stdout.trim() === "", "full candidate source changed during final identity readback");
+}
+
+export async function finalizeCandidateAcceptance(accepted, receiptPath, readers) {
+  await verifyCandidateIdentity(accepted, readers);
+  const output = resolveAcceptanceReceiptPath(receiptPath, accepted.sourceRoot);
+  const { evidencePath, references, sourceRoot, ...identity } = accepted;
+  const receipt = { ...CANDIDATE_EVIDENCE_CONTRACT.fullAcceptanceReceipt, ...identity };
+  // Exclusive creation keeps an earlier receipt from masquerading as this run.
+  writeFileSync(output, `${JSON.stringify(receipt, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+}
+
+export function resolveAcceptanceReceiptPath(receiptPath, sourceRoot = root) {
+  assert(typeof receiptPath === "string" && receiptPath, "full requires --receipt <full-receipt.json>");
+  const absolute = path.resolve(receiptPath);
+  // The parent must already exist. Resolve directory links before checking the
+  // boundary and write through that resolved path, never the unchecked alias.
+  const output = path.join(realpathSync(path.dirname(absolute)), path.basename(absolute));
+  assert(!isInside(path.resolve(sourceRoot), absolute) && !isInside(realpathSync(sourceRoot), output), "full receipt must be outside the candidate source root");
+  return output;
+}
+
+export function resolveReviewBundlePath(bundle) {
+  return path.resolve(bundle.path);
+}
+
+function readAcceptanceReceipt(options) {
+  const receipt = readEvidence(options.receipt, "postpublish requires --receipt <full-receipt.json> from the accepted full run");
+  const contract = CANDIDATE_EVIDENCE_CONTRACT.fullAcceptanceReceipt;
+  assert(receipt.kind === contract.kind && receipt.schemaVersion === contract.schemaVersion, "full acceptance receipt has the wrong schema");
+  assert(receipt.version === options.version, "full acceptance receipt version mismatch");
+  assert(isStableSemver(receipt.baseVersion), "full acceptance receipt update baseline is incomplete");
+  assert(receipt.manifestDigest === QA_ASSURANCE_MANIFEST_DIGEST && receipt.releaseReadinessInventoryDigest === QA_RELEASE_READINESS_INVENTORY_DIGEST, "full acceptance receipt source contract mismatch");
+  assert(isSha256(receipt.commit, 40) && isSha256(receipt.tarballSha256, 64) && isSha256(receipt.candidateEvidenceSha256, 64), "full acceptance receipt identity is incomplete");
+  return receipt;
+}
+
+export function assertPublishedCandidate(receipt, published) {
+  assert(receipt.version === published.version && receipt.commit.toLowerCase() === published.commit.toLowerCase() && receipt.tarballSha256.toLowerCase() === published.tarballSha256.toLowerCase(), "published artifact differs from the full accepted candidate");
+}
+
+export function semanticEqual(left, right) {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left) || Array.isArray(right)) return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((item, index) => semanticEqual(item, right[index]));
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => Object.hasOwn(right, key) && semanticEqual(left[key], right[key]));
 }
 
 async function validateCandidatePreflight(options, config = {}) {
@@ -348,7 +502,7 @@ function readEvidence(file, requiredMessage) {
 }
 
 function validManualVerdicts(value) {
-  return CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.every((key) => value?.[key] === "passed");
+  return semanticEqual(value, Object.fromEntries(CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.map((key) => [key, "passed"])));
 }
 
 function validateRoleIsolationEvidence(evidence, head) {
@@ -376,7 +530,7 @@ function validateRoleIsolationEvidence(evidence, head) {
   assert(receipt.reviewBundleSha256 === bundle.sha256, "review receipt reviewBundleSha256 does not match current review bundle");
   assert(receipt.reviewSubjectDigest === evidence.roleIsolation.reviewSubjectDigest, "review receipt reviewSubjectDigest does not match evidence");
   assert(validManualVerdicts(receipt.fiveConclusions), "review receipt must carry the same five passed full-check conclusions");
-  assert(JSON.stringify(receipt.fiveConclusions) === JSON.stringify(evidence.manualVerdicts), "review receipt five conclusions do not match candidate evidence");
+  assert(semanticEqual(receipt.fiveConclusions, evidence.manualVerdicts), "review receipt five conclusions do not match candidate evidence");
   assert(typeof receipt.receivedAt === "string" && receipt.receivedAt, "review receipt receivedAt is required");
 }
 
@@ -387,11 +541,11 @@ function assertValidStateHistory(history, requiredPath) {
   assert(JSON.stringify(actual) === JSON.stringify(requiredPath), `full gate requires exact accepted state path: ${requiredPath.join(" -> ")}`);
 }
 
-function validateReviewBundle(bundle, evidence, head) {
+export function validateReviewBundle(bundle, evidence, head) {
   assert(bundle && typeof bundle === "object" && !Array.isArray(bundle), "candidate evidence requires reviewBundle binding");
   assert(typeof bundle.path === "string" && bundle.path, "reviewBundle.path is required");
   assert(isSha256(bundle.sha256, 64), "reviewBundle.sha256 is required");
-  const absolute = path.resolve(bundle.path);
+  const absolute = resolveReviewBundlePath(bundle);
   assert(existsSync(absolute), `review bundle does not exist: ${absolute}`);
   const bytes = readFileSync(absolute);
   const actualSha256 = sha256(bytes);
@@ -411,12 +565,12 @@ function validateReviewBundle(bundle, evidence, head) {
   const computedSubjectDigest = sha256(Buffer.from(JSON.stringify(parsed.reviewSubject), "utf8"));
   assert(parsed.reviewSubjectDigest === computedSubjectDigest, "review bundle reviewSubjectDigest does not match reviewSubject bytes");
   assert(parsed.reviewSubjectDigest === evidence.roleIsolation.reviewSubjectDigest, "review bundle reviewSubjectDigest does not match evidence");
-  assert(JSON.stringify(parsed.reviewSubject?.featureDelivery) === JSON.stringify(evidence.featureDelivery), "reviewSubject featureDelivery does not match evidence");
+  assert(semanticEqual(parsed.reviewSubject?.featureDelivery, evidence.featureDelivery), "reviewSubject featureDelivery does not match evidence");
   assert(parsed.reviewSubject?.candidateCommit === evidence.candidate.commit, "reviewSubject candidateCommit does not match evidence");
   assert(parsed.reviewSubject?.tarballSha256 === evidence.candidate.tarballSha256, "reviewSubject tarballSha256 does not match evidence");
   assert(parsed.reviewSubject?.manifestDigest === evidence.manifestDigest, "reviewSubject manifestDigest does not match evidence");
   assert(parsed.reviewSubject?.releaseReadinessInventoryDigest === evidence.releaseReadinessInventoryDigest, "reviewSubject release-readiness inventory digest does not match evidence");
-  assert(JSON.stringify(parsed.reviewSubject?.manualVerdicts) === JSON.stringify(evidence.manualVerdicts), "reviewSubject manualVerdicts do not match evidence");
+  assert(semanticEqual(parsed.reviewSubject?.manualVerdicts, evidence.manualVerdicts), "reviewSubject manualVerdicts do not match evidence");
   assert(JSON.stringify(parsed.reviewSubject?.stateHistory) === JSON.stringify(evidence.roleIsolation.reviewSubjectStateHistory), "reviewSubject stateHistory does not match evidence review subject state");
   return { path: absolute, sha256: actualSha256, value: parsed };
 }
@@ -430,9 +584,9 @@ function parseReviewBundle(bytes, absolute) {
 }
 
 function validBundleConclusions(bundle, manualVerdicts) {
-  if (JSON.stringify(bundle.fiveConclusions) === JSON.stringify(manualVerdicts)) return true;
+  if (Object.hasOwn(bundle, "fiveConclusions")) return semanticEqual(bundle.fiveConclusions, manualVerdicts);
   const assessment = bundle.writerAssessment;
-  return CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.every((key) => assessment?.[key]?.verdict === manualVerdicts?.[key]);
+  return assessment && semanticEqual(Object.fromEntries(Object.entries(assessment).map(([key, value]) => [key, value?.verdict])), manualVerdicts);
 }
 
 function validateCandidateReportSection(version) {

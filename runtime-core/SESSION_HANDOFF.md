@@ -19,7 +19,7 @@ Stable facts that should survive across sessions. Update only when they change, 
 
 This is the current-state area. At every full closeout, update only sections whose current truth changed; leave already-current sections byte-stable where practical and record checked/no-op only when useful. Do not append a new state snapshot under an old one.
 
-Pre-closeout checkpoint edits, when explicitly authorized or required by the core Persistence Gate, update only the named hot current-state field(s) or one concise log entry. Apply the core Persistence Gate's bounded opening-consistency rule when the changed current facts are repeated in the opening. Historical evidence, old validation records, completed-work narratives, and unchanged durable anchors are cold zones: preserve them byte-for-byte where practical instead of rewording, reordering, or refreshing them because another AI might otherwise read stale context.
+Pre-closeout checkpoint edits, when explicitly authorized or required by the core Persistence Gate, update only the named hot current-state field(s) or one concise log entry. Apply the core Persistence Gate's bounded opening-consistency rule when the changed current facts are repeated in the opening. Cold-zone retention and trace/archive handling are owned by `dev/rules/closeout.md`; keep stable anchors plus the current outcome, remaining obligations, decision-changing corrections/rejected reasons, evidence limits and pointers in this packet. Full reception of the current packet remains mandatory.
 
 <!-- ack:section:current-baseline -->
 ## Current Baseline

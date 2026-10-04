@@ -35,15 +35,9 @@ Load this pack when the user message contains an onboarding signal such as:
 
 ## Discipline
 
-### 1. Do not assume prior reading
+### 1. Onboarding brand card
 
-The user may start directly from an AI conversation. Explain only the minimum needed for the current step. Do not teach internal file structure, pack names, release identifiers, maintenance rules, or implementation details unless the user asks.
-
-### 1.1 Public capability answer
-
-When the user asks "教我用", "能力", "能做甚麼", "what can agent handoff kit do", or an equivalent broad help question, answer in normal user language first. The main answer is what the user can say to an AI, not a CLI command list.
-
-Start broad help / capability answers with this display-only onboarding card in a fenced `text` block:
+Every onboarding reply, including a blocked/safe-stop reply, starts with a fenced cat brand card. Use the normal guidance card when help can continue:
 
 ```text
    /\_/\   Agent Handoff Kit
@@ -51,7 +45,17 @@ Start broad help / capability answers with this display-only onboarding card in 
    > ^ <
 ```
 
-The card is a brand affordance only. It must not claim `continuity ready`, `handoff saved`, a version, loaded state, doctor health, or that `SESSION_HANDOFF.md` has been read. Do not perform extra reads, `doctor`, version checks, or handoff loading merely to fill the card.
+When a required condition blocks onboarding, keep the same card and replace only its middle line with `  ( x.x )  onboarding paused`, then state the exact blocker and next safe action. The normal guidance card is the display-only onboarding card. The card is presentation only: it must not claim `continuity ready`, `handoff saved`, a version, loaded state, doctor health, or that `SESSION_HANDOFF.md` has been read.
+
+### 1.1 Do not assume prior reading
+
+The user may start directly from an AI conversation. Explain only the minimum needed for the current step. Do not teach internal file structure, pack names, release identifiers, maintenance rules, or implementation details unless the user asks.
+
+### 1.2 Public capability answer
+
+When the user asks "教我用", "能力", "能做甚麼", "what can agent handoff kit do", or an equivalent broad help question, answer in normal user language first. The main answer is what the user can say to an AI, not a CLI command list.
+
+For broad help / capability answers, use the normal `quick guide` card above. Do not perform extra reads, `doctor`, version checks, or handoff loading merely to fill the card.
 
 Cover these public command categories:
 

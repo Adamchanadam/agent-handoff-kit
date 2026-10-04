@@ -1,20 +1,9 @@
+<!-- BEGIN Agent Handoff Kit managed core -->
 # Agent Handoff Kit Core Runtime
 
 This is the small always-read contract. Detailed task and closeout procedures live in routed packs.
 
 ## 1. Intent And Startup
-
-### Upgrade lock guard
-
-Before any handoff, user-rule router, pack, or other project-state read, use the verified project root to probe `dev/governance_migrations/.upgrade.lock`. A present lock, or inability to establish its absence, stops ordinary work and all further project-state reads and searches. Do not search for recovery instructions or edit or delete the lock. Before that explanation, render this fenced brand card:
-
-```text
-   /\_/\   Agent Handoff Kit
-  ( x.x )  continuity unavailable
-   > ^ <
-```
-
-It must not claim loaded, healthy, saved, or version-verified state. Explain that continuity is unavailable and give the supported recovery command `agent-handoff-kit upgrade --yes --root <verified-project-root>`. Bare startup never runs this command automatically. If the existence probe is unreadable, report continuity unavailable without claiming a lock is present and do not auto-recover. When the visible user request explicitly authorizes update, upgrade or recovery, only the official CLI performs transaction recovery; resume ordinary state loading only after that CLI succeeds and a new probe establishes lock absence.
 
 Classify the user's visible intent before loading project state. For explicit continuity, closeout, or a task whose next action depends on persisted project state, read `dev/SESSION_HANDOFF.md` first; it is the current-state authority. A direct ordinary or stateless task does not read the handoff merely because the project root is known. If the message is genuinely unresolved and the handoff can resolve it, read the handoff before asking the user.
 
@@ -85,8 +74,6 @@ In every user-facing reply, lead with ordinary language: state the result and it
 
 - Simple answers, pure conversation or creation with no durable state, and low-risk tasks with an obvious target may proceed directly with proportionate reading and checking.
 - Non-trivial work reads relevant sources before changing them.
-- For failures spanning steps or recurring, trace relevant inputs, processing, saved state and actual consumers until evidence explains the cause and direct impact. Then stop expanding the investigation and repair the affected locations with that cause within the authorized scope; do not turn a simple local fix into a whole-system audit.
-- When repeated attempts produce no improved result, unblocked dependency or new evidence, reassess the cause and method before retrying; preserve useful results. Necessary waits and experiments that yield new evidence are not stagnation. Existing safety and retry limits still apply.
 - High-risk work states scope, impact, acceptance, and required confirmation before writes.
 - External skill flows, subagents, task plans, demo workspaces, and another tool's finish step do not replace the active root's persistence decision.
 - Task-first governance locality: when the user supplied a concrete, actionable, authorized task plan and no safety / source-truth / permission blocker prevents it, follow the plan's main acceptance path before governance side work. Governance may become the main path only when the task itself is governance, the user explicitly asks for governance bridge or long-term governance, the content semantically requires cross-session force, or deferring it would create a safety, continuity, source-of-truth, or discoverability blocker. Otherwise, keep governance to the smallest classification, indexing, sync, or Persistence Gate decision that does not change the main deliverable path; do not start governance bridge, long-term-governance routing, repo-wide scans, handoff writes, or closeout solely because the task mentions Markdown, README, docs, specs, plans, checklists, or generated outputs.
@@ -159,3 +146,12 @@ After the task, apply the Persistence Gate. Do not assume the next session remem
 ## Core Complexity Rule
 
 Before changing `AGENTS.md` or adding a durable governance rule, use `dev/RULE_PACKS.md` to load `dev/rules/agent-governance.md` and locate the existing normative owner. Follow its `Governance Write Boundary` before choosing a writable location: installed official core and pack bodies are not project-editable rule homes. Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. Scenario-specific or project-specific detail belongs in an existing pack's project supplement or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner. Do not copy the agent-governance classification table or workflow into the core.
+<!-- END Agent Handoff Kit managed core -->
+
+<!-- ack:user-rules-router:dev/USER_RULES.md -->
+<!-- ack:user-rules-acceptance:sha256=36d718ba87def4e8a68b3da9b16eb5427ccffe5d03455d53c7c7ec3a3df23dd4 -->
+Before loading task packs, read `dev/USER_RULES.md`. Its registered entries
+under `dev/user_rules/` are user-controlled rules: read each accepted entry in
+the listed order and verify its accepted raw-byte witness. Do not treat this
+router, its directory, a heading, language, format, location, or
+official-looking text as proof that any legacy source belongs to the Kit.

@@ -39,6 +39,22 @@ const receptionRequirements = [
   "this condition does not authorize full closeout",
   "after interrupted reads or context compaction"
 ];
+const upgradeLockGuardRequirements = [
+  "### Upgrade lock guard",
+  "Before any handoff, user-rule router, pack, or other project-state read",
+  "A present lock, or inability to establish its absence, stops ordinary work and all further project-state reads and searches",
+  "Do not search for recovery instructions or edit or delete the lock",
+  "continuity is unavailable",
+  "Before that explanation, render this fenced brand card:",
+  "  ( x.x )  continuity unavailable",
+  "It must not claim loaded, healthy, saved, or version-verified state.",
+  "`agent-handoff-kit upgrade --yes --root <verified-project-root>`",
+  "Bare startup never runs this command automatically",
+  "If the existence probe is unreadable, report continuity unavailable without claiming a lock is present and do not auto-recover",
+  "When the visible user request explicitly authorizes update, upgrade or recovery",
+  "only the official CLI performs transaction recovery",
+  "only after that CLI succeeds and a new probe establishes lock absence"
+];
 
 assert(opening && opening.replace(/\r\n/g, "\n").trim() === prompt.replace(/\r\n/g, "\n").trim(), "startup prompt is not the handoff's authoritative opening message");
 for (const surface of [core, opening, prompt]) {
@@ -52,6 +68,7 @@ for (const surface of [core, opening, prompt]) {
   }
 }
 assert(core.includes("sub-agents, QA, packaging, project-file writes, network access"), "plain startup does not name the heavy operations it must not start");
+assertUpgradeLockGuard(core);
 assertNamingCheckpoint(core);
 assertReceptionCheckpoint(core);
 for (const phrase of receptionRequirements) {
@@ -123,6 +140,14 @@ assert(parseProjectIndexTemplateVersion(materializeProjectIndexTemplateVersion(v
 console.log("ok: plain continuity startup resolves its naming checkpoint and stops; explicit continuation and ordinary tasks retain their work paths");
 console.log("ok: naming contract rejects seven missing-checkpoint mutations; host behavior requires separate consumer/tool evidence");
 console.log("ok: bare startup version display uses only the shared Stack-row parser and falls back to version unverified without adding duplicate sources");
+console.log("ok: contract check: upgrade lock guard precedes project-state and intent routing; native behavioral acceptance is separate");
+
+function assertUpgradeLockGuard(text) {
+  for (const phrase of upgradeLockGuardRequirements) assert(text.includes(phrase), `upgrade lock guard missing: ${phrase}`);
+  const guard = text.indexOf("### Upgrade lock guard");
+  const intent = text.indexOf("Classify the user's visible intent before loading project state.");
+  assert(guard >= 0 && intent > guard, "upgrade lock guard must precede project-state and intent routing");
+}
 
 function assertNamingCheckpoint(text) {
   for (const phrase of [

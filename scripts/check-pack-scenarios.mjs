@@ -316,7 +316,7 @@ function assertPackStructure() {
     if (packName === "onboarding") {
       assertIncludes(packs[packName], ["## Scope", "## Load When", "## Discipline", "## Application Scenario Library", "## Closeout", "## Anti-pattern"], `${packName} pack structure`);
     } else if (packName === "closeout") {
-      assertIncludes(packs[packName], ["## Scope", "## Required Reads", "## Write Contract", "## Full Closeout", "write-minimal", "Update only fields whose current truth changed", "Regenerate it only when normalized content differs", "Reconcile lifecycle state", "## Opening Message And Card", "## Stop Conditions"], `${packName} pack structure`);
+      assertIncludes(packs[packName], ["## Scope", "## Required Reads", "## Write Contract", "## Full Closeout", "write-minimal", "Update only fields whose current truth changed", "Regenerate it only when normalized content differs", "Reconcile lifecycle state", "Copy the full card verbatim in a fenced `text` block", "## Opening Message And Card", "## Stop Conditions"], `${packName} pack structure`);
     } else {
       assertIncludes(packs[packName], ["## Scope", "## Load When", "## Rules", "## Checks", "## Closeout"], `${packName} pack structure`);
     }
@@ -371,6 +371,7 @@ function assertOnboardingDecisionCases() {
     "Public capability answer",
     "what the user can say to an AI, not a CLI command list",
     "display-only onboarding card",
+    "Every onboarding reply, including a blocked/safe-stop reply, starts with a fenced cat brand card",
     "   /\\_/\\   Agent Handoff Kit",
     "  ( o.o )  quick guide",
     "must not claim `continuity ready`, `handoff saved`, a version",

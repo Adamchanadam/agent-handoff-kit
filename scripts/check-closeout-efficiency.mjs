@@ -7,6 +7,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { installedFileContract } from "../bin/installed-file-contract.mjs";
 import { extractOpeningMessage } from "../bin/prompt-mirror-core.mjs";
 import { assertRunFailed, assertRunPassed, describeResult, invokeAsync, TIMEOUT_EXIT_CODE } from "./qa-runner-core.mjs";
 
@@ -36,6 +37,13 @@ try {
 
   const handoffPath = path.join(fixtureRoot, "dev", "SESSION_HANDOFF.md");
   const initialHandoff = readFileSync(handoffPath, "utf8");
+  const declaredColdZoneRoute = extractColdZoneRoute(initialHandoff);
+  const closeoutContract = installedFileContract(declaredColdZoneRoute);
+  assert(closeoutContract, `installed handoff declares a cold-zone route outside the installed-file contract: ${declaredColdZoneRoute}`);
+  assert(closeoutContract.sourceRel === "packs/closeout.md", `installed handoff cold-zone route resolves to ${closeoutContract.sourceRel}, not packs/closeout.md`);
+  const installedCloseoutTarget = readFileSync(path.join(fixtureRoot, closeoutContract.targetRel));
+  const closeoutSource = readFileSync(path.join(sourceRoot, closeoutContract.sourceRel));
+  assert(installedCloseoutTarget.equals(closeoutSource), `installed cold-zone target ${closeoutContract.targetRel} does not match ${closeoutContract.sourceRel}`);
   const completeHandoff = closeoutReadyHandoff(initialHandoff);
   writeFixtureHandoff(completeHandoff);
 
@@ -68,11 +76,15 @@ try {
   assert(closeoutPack.includes("Update only fields whose current truth changed"), "full closeout still implies every section must be rewritten");
   assert(closeoutPack.includes("Handoff cold zones are historical / evidence sections"), "full closeout no longer protects cold-zone historical evidence");
   assert(closeoutPack.includes("Do not rewrite, reword, reorder, or refresh cold zones"), "full closeout still permits cold-zone refresh");
-  assert(closeoutPack.includes("preserve cold-zone bytes where practical"), "full closeout no longer requires cold-zone byte preservation");
+  assert(closeoutPack.includes("Stable anchors and decision-changing current facts stay in the packet"), "full closeout no longer preserves current continuity facts while compacting cold history");
+  assert(closeoutPack.includes("verify that copy before removing it from the current packet"), "full closeout can remove cold detail before an archive copy is verified");
+  assert(closeoutPack.includes("Do not rewrite or archive unchanged material at every closeout"), "full closeout now implies repeated archival work");
+  assert(closeoutPack.includes("full reception of the current packet"), "full closeout no longer requires full reception after compaction");
   assert(closeoutPack.includes("Regenerate it only when normalized content differs"), "full closeout still regenerates the startup mirror before checking for drift");
   assert(handoffTemplate.includes("update only sections whose current truth changed"), "handoff template still instructs whole-section rewrite/confirmation at every closeout");
-  assert(handoffTemplate.includes("Historical evidence, old validation records, completed-work narratives, and unchanged durable anchors are cold zones"), "handoff template no longer names cold-zone evidence");
-  assert(handoffTemplate.includes("preserve them byte-for-byte where practical"), "handoff template no longer protects cold-zone bytes");
+  assert(handoffTemplate.includes("Cold-zone retention and trace/archive handling are owned by `dev/rules/closeout.md`"), "handoff template does not route cold-zone procedure to the installed closeout pack");
+  assert(handoffTemplate.includes("current outcome, remaining obligations, decision-changing corrections/rejected reasons, evidence limits and pointers"), "handoff template no longer identifies continuity facts that must survive compaction");
+  assert(handoffTemplate.includes("Full reception of the current packet remains mandatory"), "handoff template no longer preserves the reception requirement");
   assert(handoffTemplate.includes("Regenerate only if normalized content differs"), "handoff template still treats prompt mirror regeneration as unconditional");
   assert(closeoutPack.includes("Do not run a separate bundled `doctor`"), "full closeout still instructs a redundant bundled doctor");
   assert(closeoutPack.includes("one required fresh doctor read-back"), "closeout-status is not the declared single fresh doctor authority");
@@ -214,6 +226,12 @@ function closeoutReadyHandoff(text) {
 function writeFixtureHandoff(text) {
   writeFileSync(path.join(fixtureRoot, "dev", "SESSION_HANDOFF.md"), text, "utf8");
   writeFileSync(path.join(fixtureRoot, "START_NEXT_SESSION_PROMPT.txt"), `${extractOpeningMessage(text)}\n`, "utf8");
+}
+
+function extractColdZoneRoute(handoffText) {
+  const match = handoffText.match(/Cold-zone retention and trace\/archive handling are owned by `([^`]+)`/);
+  if (!match) throw new Error("handoff does not declare a cold-zone owner route");
+  return match[1];
 }
 
 function readAt(base, relative) {

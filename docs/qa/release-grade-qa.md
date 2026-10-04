@@ -8,16 +8,87 @@
 ```text
 node scripts/qa.mjs quick
 node scripts/qa.mjs candidate-preflight --candidate <version>
-node scripts/qa.mjs full --candidate <version> --evidence <candidate-evidence.json>
-node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evidence.json>
+node scripts/qa.mjs full --candidate <version> --evidence <candidate-evidence.json> --receipt <full-receipt.json>
+node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evidence.json> --receipt <full-receipt.json>
 ```
 <!-- qa-assurance-command:block:end -->
 
-`quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full. It rejects a candidate before freeze when the current runtime, scenario and QA matrix disagree, when changed bilingual public pages lack the required version-scoped hash-bound PASS sections, or when its current Cross-mind evidence table is absent or incomplete. It is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, and ordinary npx help semantic command evidence for the claimed version. Historical release records below are evidence, not the current QA command contract.
+`quick` is an engineering signal only. `candidate-preflight` checks candidate synchronization before freeze / independent review / full. It rejects a candidate before freeze when the current runtime, scenario and QA matrix disagree, when changed bilingual public pages lack the required version-scoped hash-bound PASS sections, or when its current Cross-mind evidence table is absent or incomplete. It is not a full or release PASS. `full` reuses the same candidate preflight before requiring clean HEAD, package.json version binding, fresh candidate tarball SHA-256, five required manual verdicts all passed, role-isolated independent review receipt, review-bundle digest binding, and manifest-allowed hash-bound release QA evidence before it runs release readiness. Its `handoff-kit-update` normal native evidence is controlled-registry prepublication evidence, not official npm activation. `postpublish` reads back npm, GitHub Release URL / targetCommitish, remote Git tag commit, packed published tarball, ordinary npx help semantic command evidence, and `readbacks.nativeUpdate`: an official-live normal native update with the accepted version/tarball plus raw fresh-session execution, evidence and readback references. That native record must also carry a separate accepted native-review receipt: the existing writer/reviewer provenance roles must differ, a review-evidence file/hash must read back, and its subject digest must match the exact update observation excluding the receipt itself. This prevents a post-review metadata relabel from retaining acceptance, but the structural checker does not interpret raw traces or prove a declared reviewer authentic; independent review of the raw transaction remains obligatory. After all full claims finish, the gate rechecks the originally accepted HEAD, clean worktree, fresh tarball, candidate JSON and every explicit path/SHA-256 evidence reference, including the review bundle and its subject references. Only then does it create the `accepted-candidate-receipt` at `--receipt`, binding version, update baseline, commit, tarball, manifest/inventory digests and candidate-evidence hash. `--validate-only` never creates this success receipt. Use a new receipt path outside the candidate source root, with an existing parent directory, for each full attempt; the runner resolves directory links and checks this boundary before full and immediately before receipt creation. An existing receipt is preserved and blocks a new formal run at that path; a failed rerun does not update or endorse it. Postpublish and its collector require that same accepted receipt and reject missing, controlled, rejected, no-op or artifact-mismatched native updates as well as otherwise self-consistent live artifacts from a different candidate. Receipts record local QA provenance, not cryptographic reviewer identity. Historical release records below are evidence, not the current QA command contract.
 
-Convenience collector: after the external publish actions complete, maintainers may run `node scripts/qa.mjs postpublish --version <version> --collect <postpublish-evidence.json>` to write the evidence JSON and validate it through the same `postpublish` gate. The output path must be inside the Public source repo or Node OS temp directory. The PASS owner remains the command contract above; the collector is only a way to reduce manual readback drift.
+Convenience collector: after the external publish actions and the actual official-live native update complete, maintainers may run `node scripts/qa.mjs postpublish --version <version> --evidence <completed-native-update-evidence.json> --collect <postpublish-evidence.json> --receipt <full-receipt.json>`. The input JSON must contain `readbacks.nativeUpdate` in the native-case shape: passed normal native invocation, matched outcome, official-live registry metadata, accepted tarball, and raw fresh-session prompt/context/trace plus evidence/readback references. The collector copies that record unchanged, gathers the remaining live observations, never treats collection as native execution, and refuses to overwrite the supplied input or an existing output. The output path must be inside the Public source repo or Node OS temp directory. The PASS owner remains the command contract above; the collector is only a way to reduce manual readback drift.
 
 Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
+
+## v0.4.2 candidate status
+
+- 狀態：本機來源與套件準備中；獨立非作者已完成四組變更雙語頁的 v0.4.2 差異覆核，全部 PASS 並綁定目前檔案雜湊。既有 candidate-preflight 停止記錄只反映當時的雙語覆核缺口，未重新執行；候選仍未凍結、未執行 formal full 或任何發布操作。
+- 範圍：交接遇到跨步或反覆無進展時的重新核對；收工的工作紀錄／快捷入口缺口診斷；以及把受控預發佈更新、正式發布後更新和原始驗收證據分開的驗收契約修補。
+- 已知基線：npm 最新正式版為 v0.4.1，官方來源目錄保留其 52 檔成品與歷史資料；v0.4.2 不加入官方來源目錄。
+- DOC-042-01 readback：`docs/whatsnew/v0.4.2.md` 已把「更新前後的查核」改為「發布前後的驗收」；其餘段落不變，最終 SHA-256 `5b6ed7a6a407933b8ff4e340b46421d6d875b14c3cd1edf4438e4788061aac60`。
+- 已接受範圍：獨立審閱已接受 14 項 r2/r3 原始案例的 r4 有界沿用，及 5 項 current r4 native 案例：start-boundary、onboard-boundary、close-boundary、close-normal 和 method-assisted update-boundary-future-official-registry。update 保留彼此分開的 candidate 0.4.2 official-live refusal 與官方 v0.4.1 no-op，不改標任何 CLI 身分；close-normal 的原 context、四條實際 follow-up、actual final 和 tool records 均保留，較後的 corrected context 只標作 later-current 檔案雜湊。
+- Writer conclusions：既有五項結論已按 19 項有界證據寫入 draft，均附適用範圍、來源和「非 frozen-candidate、receipt 或 formal-full」限制。候選提交與 fresh identity、clean worktree、獨立 receipt、candidate-preflight、formal full，以及發布後官方讀回均未完成。上述接受範圍與雙語 PASS 均不是 formal full 或發布可用性聲明。
+
+### Candidate source-preparation matrix（v0.4.2，未凍結）
+
+- 實際候選套件：`@adamchanadam/agent-handoff-kit@0.4.2`，52 檔，SHA-256 `024f2d11c5adadf8f7f5dc278d0e7d44f654313f4342d9675c5f244d7dd7220f`；這是離線 `npm pack --ignore-scripts` 產物，尚非凍結提交的 fresh identity。
+- r4 原生準備 manifest 已逐檔比對候選 archive、解壓內容與離線安裝內容；目前 evidence draft 把原始 dictionary inventories 另行派生為兩份 52 檔 array-shaped comparison schemas，供既有 validator 的 reusable-case selector 使用。原 dictionary evidence 保持原樣。
+- 五個 r4 fixture 的 native skills/list 選單已由獨立非作者讀回：每個均有九項 project-local skills、零項外來 skill。menu-only 證據仍不等於 actor invocation。current native 案例不聲稱自動 shortcut-body loading；該 host-dispatch 細節仍為 UNVERIFIED，沒有因此虛構補測。
+- 候選 evidence draft 現有 9 個 commands、19 個正常／邊界案例及四個交付 feature 的四 stage 形狀；全部 19 項案例有接受的現行或有界沿用證據。close-normal binder 保留原 context、四條實際 follow-up、actual final 和 tool records；corrected context 內的 changed source hashes 只屬較後檔案值，不能倒推為原生執行當時 received 值。draft 仍是 `notForFull`。
+
+| required delivery feature | package | fresh install | upgrade | entry / native route | current source-preparation state |
+| --- | --- | --- | --- | --- | --- |
+| installer | r4 payload bound | r4 fixtures and current cases bound | current 0.4.1→r4 stage independently accepted within its evidence limit | native cases are bound by entry; menu retained separately | 19/19 case evidence accepted; not formal full |
+| shortcuts | r4 payload bound | r4 fixtures and current cases bound | current 0.4.1→r4 stage independently accepted within its evidence limit | nine command ledger; host dispatch remains UNVERIFIED | 19/19 case evidence accepted; not formal full |
+| continuity | r4 payload comparison bound | r4 fixtures and current cases bound | current 0.4.1→r4 stage independently accepted within its evidence limit | start/update records preserve raw inputs and actual finals | 19/19 case evidence accepted; not formal full |
+| task-packs | r4 payload comparison bound | closeout/onboarding fixtures and current cases bound | current 0.4.1→r4 stage independently accepted within its evidence limit | onboarding/closeout raw inputs and actual finals retained | 19/19 case evidence accepted; not formal full |
+
+### Cross-mind evidence 9-trigger table（v0.4.2）
+
+| Trigger | Required | Result | Evidence / boundary |
+| --- | --- | --- | --- |
+| 1. failure / blocker | yes | passed | Original denials, failures, follow-ups and self-corrections remain bound to all current cases, including close-normal; 19 are accepted only within stated evidence limits. |
+| 2. external side effects | yes | passed | Accepted evidence contains no release or registry write; update reads official metadata and preserves the separate v0.4.1 no-op. |
+| 3. user-visible output | yes | passed | All 19 accepted cases retain raw ordinary inputs/finals or original raw/review selectors. |
+| 4. complexity / boundary | yes | passed | Derived binders and comparison schemas make existing raw evidence machine-addressable only; they add no acceptance owner, gate or governance rule. |
+| 5. documentation drift | yes | passed | Current bilingual version-delta sections above remain hash-bound PASS. |
+| 6. semantic runtime effect | yes | passed | Full 52-file comparisons, 11 r2 reuse cases, 3 r3 reuse cases and 5 current r4 cases are separately labelled; no historical tarball is relabelled as r4 execution. |
+| 7. recurrence regression | yes | passed | Current r4 start/onboard/close/update records retain failures, follow-ups and actual outputs; host shortcut-body dispatch remains UNVERIFIED. |
+| 8. QA authority | yes | passed | WORK `docs/QA_STRATEGY.md` and `scripts/qa-assurance-manifest.mjs` remain the owners; this ledger is source preparation only. |
+| 9. release statement | yes | passed | Candidate remains local, unfrozen and `notForFull`; no commit, receipt, formal full or postpublish readback is claimed. |
+
+`candidate-preflight` semantic source preparation is ready for the existing dirty pre-freeze candidate route. It has not been run in this ledger. A later formal full requires the separately authorized frozen commit and fresh identity; this ledger is neither a preflight nor a full result.
+
+### Bilingual README semantic gate（v0.4.2，PASS）
+
+- Reviewer：independent non-author /root/delivery_review，2026-10-03T19:31:57.919Z；同模型隔離，非跨模型。
+- Scope：覆核 1 個僅版本號變更及其直接發布邊界／標題／頁尾語境。只在記憶體把 v0.4.2 改回 v0.4.1 後，檔案逐 byte 對應先前已接受的雜湊；未變語意沿用既有完整接受範圍，未重審為新 PASS。
+- `README.md` SHA-256 `70DB72754CC1103C7CE6DB29FB7537084972F87251AC5CF03AA3398E1F34E040`
+- `README.en.md` SHA-256 `AD6B8083BE979124A1C1FA4B1D295A8624902F0A08F84A5C71E0CD12EFE25776`
+- Verdict: **PASS** — independent semantic version-delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual practical-guide semantic gate（v0.4.2，PASS）
+
+- Reviewer：independent non-author /root/delivery_review，2026-10-03T19:31:57.919Z；同模型隔離，非跨模型。
+- Scope：覆核 2 個僅版本號變更及其直接發布邊界／標題／頁尾語境。只在記憶體把 v0.4.2 改回 v0.4.1 後，檔案逐 byte 對應先前已接受的雜湊；未變語意沿用既有完整接受範圍，未重審為新 PASS。
+- `agent-handoff-kit-guide.html` SHA-256 `EBE47D213EB492C646957653A6BDDDF1F59154BD0B2DE1EFC99AC9FBF082C4A3`
+- `agent-handoff-kit-guide.en.html` SHA-256 `0A79FED88ED1ECA1481B6C8FA4457D065D44A38D042DE0D1B7BD12D057150BF0`
+- Verdict: **PASS** — independent semantic version-delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual AI-install semantic gate（v0.4.2，PASS）
+
+- Reviewer：independent non-author /root/delivery_review，2026-10-03T19:31:57.919Z；同模型隔離，非跨模型。
+- Scope：覆核 2 個僅版本號變更及其直接發布邊界／標題／頁尾語境。只在記憶體把 v0.4.2 改回 v0.4.1 後，檔案逐 byte 對應先前已接受的雜湊；未變語意沿用既有完整接受範圍，未重審為新 PASS。
+- `agent-handoff-kit-ai-install.html` SHA-256 `A3D6EEAE2C65BC7BA5EC34080B7297237A17CF2FCCD86F869F0DA6481E5173A2`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `3DB2CBF55B68D782B3656F01B9AB6417FCE0DC409F2CF8573F1200EEC512DDDC`
+- Verdict: **PASS** — independent semantic version-delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual introduction semantic gate（v0.4.2，PASS）
+
+- Reviewer：independent non-author /root/delivery_review，2026-10-03T19:31:57.919Z；同模型隔離，非跨模型。
+- Scope：覆核 2 個僅版本號變更及其直接發布邊界／標題／頁尾語境。只在記憶體把 v0.4.2 改回 v0.4.1 後，檔案逐 byte 對應先前已接受的雜湊；未變語意沿用既有完整接受範圍，未重審為新 PASS。
+- `agent-handoff-kit-intro.html` SHA-256 `A9286454291E992582A250E6DAF9CF0F85110AC2538DE4B82EC5AA06E81459F3`
+- `agent-handoff-kit-intro.en.html` SHA-256 `34C6A57953E0E4BEC60C22C8E1036D8E43A57EAAE1741EB3AA24BC9588E550B4`
+- Verdict: **PASS** — independent semantic version-delta review; no functional, full-check, or release-readiness claim.
 
 ## v0.4.1 candidate status
 
