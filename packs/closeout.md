@@ -70,7 +70,7 @@ If no trigger applies, record one no-op reason. Handoff carries continuity; log 
 
 The handoff opening-message block is authoritative. It must name the absolute root, route the agent through `AGENTS.md` and the handoff, state the current objective and boundary, and avoid instructing the next agent to redo completed work. It must not require SESSION_LOG as an ordinary startup read.
 
-Use `agent-handoff-kit closeout-status --root <project root>` after the required read-backs. It renders the verified version when available and otherwise `version unverified`; never print the literal placeholder `v<version>`, hand-compose a substitute card, or use `handoff saved` unless the command reports `status: complete`. Copy the full card verbatim in a fenced `text` block before any explanation for both `status: complete` and `status: blocked`; never reduce it to selected status or blocker lines.
+Use `agent-handoff-kit closeout-status --root <project root>` after the required read-backs. When it returns a card, copy the full card verbatim in a fenced `text` block before any explanation for both `status: complete` and `status: blocked`; never reduce it to selected status or blocker lines, print the literal placeholder `v<version>`, hand-compose a substitute success/blocked card, or use `handoff saved` unless the command reports `status: complete`. Only when no CLI card exists because the CLI could not be launched or returned no card may the final response show a fenced `closeout unavailable` card with no version and no `saved`/`complete` claim, followed by the actual missing condition. That presentation does not complete closeout and never replaces a returned complete or blocked CLI card.
 
 ```text
    /\_/\   Agent Handoff Kit v<version>
@@ -84,7 +84,7 @@ status: complete
 ⚠️ Boundary: <important boundary or none>
 ```
 
-For `status: blocked`, the command instead says `handoff blocked`; retain that status, blocker reason, and human explanation: `這不是失敗；只是還有事未保存、未提交、未驗證或需要處理。先照 Blocker 行處理，不要把本輪當作已完成交接。` Then give the short local-root entry `Start Agent Handoff` / `開工` and the path-bearing fallback for an agent not yet pointed at the root. Do not hand-compose a third stateful prompt in the final response.
+For `status: blocked`, the command instead says `handoff blocked`; retain that status, blocker reason, and human explanation: `這不是失敗；只是還有事未保存、未提交、未驗證或需要處理。先照 Blocker 行處理，不要把本輪當作已完成交接。` Then give the short local-root entry `Start Agent Handoff` / `開工` and the path-bearing fallback for an agent not yet pointed at the root. The narrow `closeout unavailable` presentation above is allowed only when there is no CLI card; do not use it to replace a returned blocked card or hand-compose a third stateful prompt.
 
 ## Stop Conditions
 

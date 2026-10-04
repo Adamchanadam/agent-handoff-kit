@@ -188,7 +188,7 @@ Step E.5: after confirmation, load the appropriate regular pack combination.
 
 Use this scenario when the user already has external tools installed or asks how to use them safely across sessions. This scenario does not teach installation. It records declarations, boundaries, verification, and safe use.
 
-Step F.1: collect installed external tools by category: Connectors, MCPs, Plugins, Skills, browser automation, crawlers, notebooks, or local helper services. If the user does not know the category, ask for names only and classify them.
+Step F.1: inspect runtime-exposed external tools by category first: Connectors, MCPs, Plugins, Skills, browser automation, crawlers, notebooks, or local helper services. Ask the user only for names, access, or source details the runtime cannot reveal, then classify them.
 
 Step F.2: explain credential separation: Kit files record tool names, project usage, access scope, and credential reference location only. They must never store API keys, OAuth tokens, secrets, or credential values.
 
@@ -196,7 +196,7 @@ Step F.3: map source-of-truth architecture: source of truth, index, persistent m
 
 Step F.4: when authorized, write the declaration into `PROJECT_INDEX` `## Installed Integrations` and cross-reference relevant External Sources `via` values.
 
-Step F.5: verify current availability using runtime-exposed tool schemas, official docs, or versioned local runbooks. Mark unavailable tools as blocked / unverified instead of guessing.
+Step F.5: verify current availability using runtime-exposed tool schemas, official docs, or versioned local runbooks. For an unavailable tool, follow `dev/rules/integrations.md` classified fallback for the affected surface; mark blocked / unverified only when no authorized capable route can establish the needed contract.
 
 ## Cross-reference to guide.html
 

@@ -8,7 +8,7 @@ Use: `confirmed`, `unverified`, `pending`, `blocked`, `not_applicable`.
 
 | Change type | Also check/update | Verification |
 |---|---|---|
-| New file or directory | `dev/PROJECT_INDEX.md` Directory Map | path listed |
+| New durable or discoverable project file or directory | `dev/PROJECT_INDEX.md` Directory Map | path listed; temporary or one-time evidence follows the next row's classification instead |
 | Generated Markdown or durable artifact | `dev/PROJECT_INDEX.md` Directory Map / Fact Base / Entry Points, and this registry when future updates need sync | artifact classified as indexed / synced / temporary / one-time evidence; duplicate source-of-truth risk checked |
 | Stack or command change | `dev/PROJECT_INDEX.md` Stack / Entry Points | command verified or marked unverified |
 | Public behavior change | README, public docs, changelog | docs mention current behavior |

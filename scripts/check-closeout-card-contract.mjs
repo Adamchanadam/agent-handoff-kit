@@ -14,6 +14,8 @@ const fixtureRoot = mkdtempSync(path.join(tmpdir(), "ack-closeout-card-"));
 const env = { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" };
 
 try {
+  const closeoutPack = readAt(root, "packs/closeout.md");
+  assert(closeoutPack.includes("`closeout unavailable` card") && closeoutPack.includes("no CLI card") && closeoutPack.includes("never replaces a returned complete or blocked CLI card"), "closeout unavailable presentation contract is missing or can replace a returned CLI card");
   const packageJson = JSON.parse(readAt(root, "package.json"));
   const version = packageJson.version;
   invoke(["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", fixtureRoot], "closeout-card fixture init");

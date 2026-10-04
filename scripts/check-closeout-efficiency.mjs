@@ -44,6 +44,14 @@ try {
   const installedCloseoutTarget = readFileSync(path.join(fixtureRoot, closeoutContract.targetRel));
   const closeoutSource = readFileSync(path.join(sourceRoot, closeoutContract.sourceRel));
   assert(installedCloseoutTarget.equals(closeoutSource), `installed cold-zone target ${closeoutContract.targetRel} does not match ${closeoutContract.sourceRel}`);
+  const installedGovernance = readFileSync(path.join(fixtureRoot, "dev", "rules", "agent-governance.md"), "utf8");
+  const installedKnowledge = readFileSync(path.join(fixtureRoot, "dev", "rules", "knowledge.md"), "utf8");
+  const installedIntegrations = readFileSync(path.join(fixtureRoot, "dev", "rules", "integrations.md"), "utf8");
+  const installedLog = readFileSync(path.join(fixtureRoot, "dev", "SESSION_LOG.md"), "utf8");
+  assert(installedGovernance.includes("installed `AGENTS.md` Persistence Gate") && !installedGovernance.includes("runtime-core/AGENTS.core.md` persistence gate"), "installed governance pack retained source-only persistence owner");
+  assert(installedKnowledge.includes("installed `AGENTS.md`") && !installedKnowledge.includes("runtime-core/AGENTS.core.md` Section 1"), "installed knowledge pack retained source-only probe owner");
+  assert(installedIntegrations.includes("`dev/rules/safety.md` Rule 10") && installedIntegrations.includes("`dev/PROJECT_INDEX.md` `## Installed Integrations`") && !installedIntegrations.includes("`packs/safety.md` Rule 10"), "installed integrations pack retained source-only cross-reference");
+  assert(installedLog.includes("`dev/rules/closeout.md` `## Maintenance Trigger Check`") && !installedLog.includes("N=1–3 keep full"), "installed session-log preamble retained duplicate maintenance thresholds");
   const completeHandoff = closeoutReadyHandoff(initialHandoff);
   writeFixtureHandoff(completeHandoff);
 

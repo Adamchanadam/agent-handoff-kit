@@ -277,7 +277,7 @@ main();
 
 function main() {
   assertIncludes(core, ["Governance Write Boundary", "including their project supplements and required references", "do not invent a replacement goal"], "write/read boundary routing");
-  assertIncludes(packs["agent-governance"], ["## Governance Write Boundary", "A matching topic does not make official prose writable", "after the entire verified official body", "## Project Rules", "every protected byte must remain unchanged", "upgrade --dry-run", "same-pack appendix uses that pack's existing route", "Formal upgrade or an explicitly scoped repair", "An indexed file that no applicable route reads is not connected"], "project rule write and consumer contract");
+  assertIncludes(packs["agent-governance"], ["## Governance Write Boundary", "A matching topic does not make official prose writable", "after the entire verified official body", "## Project Rules", "Before and after an ordinary project-rule edit", "every protected byte must remain unchanged", "For a formal upgrade or explicitly scoped repair, verify the approved official diff", "upgrade --dry-run", "same-pack appendix uses that pack's existing route", "An indexed file that no applicable route reads is not connected"], "project rule write and consumer contract");
   assertIncludes(router, ["minimum set", "If a task clearly involves safety risk plus another domain", "cannot weaken core safety"], "router minimum loading rule");
   assertPackStructure();
 
@@ -316,7 +316,7 @@ function assertPackStructure() {
     if (packName === "onboarding") {
       assertIncludes(packs[packName], ["## Scope", "## Load When", "## Discipline", "## Application Scenario Library", "## Closeout", "## Anti-pattern"], `${packName} pack structure`);
     } else if (packName === "closeout") {
-      assertIncludes(packs[packName], ["## Scope", "## Required Reads", "## Write Contract", "## Full Closeout", "write-minimal", "Update only fields whose current truth changed", "Regenerate it only when normalized content differs", "Reconcile lifecycle state", "Copy the full card verbatim in a fenced `text` block", "## Opening Message And Card", "## Stop Conditions"], `${packName} pack structure`);
+      assertIncludes(packs[packName], ["## Scope", "## Required Reads", "## Write Contract", "## Full Closeout", "write-minimal", "Update only fields whose current truth changed", "Regenerate it only when normalized content differs", "Reconcile lifecycle state", "copy the full card verbatim in a fenced `text` block", "## Opening Message And Card", "## Stop Conditions"], `${packName} pack structure`);
     } else {
       assertIncludes(packs[packName], ["## Scope", "## Load When", "## Rules", "## Checks", "## Closeout"], `${packName} pack structure`);
     }

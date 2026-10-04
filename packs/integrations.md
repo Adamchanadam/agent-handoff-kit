@@ -48,7 +48,7 @@ Agents must not use model memory, old session experience, copied examples, Conne
 | Local app plugin API | Official API documentation, official type definitions, official sample project, or local installed package types matching the project version. |
 | Project-local runbook | Accept as a task source only when it records the upstream source, version/date, scope, and known limits. |
 
-If the required source cannot be inspected, mark the tool use `blocked` or `unverified`, ask the user for the current docs/schema/runbook, or fall back to a manual packet. Do not continue by trial and error. Connector-first means schema-first for the active runtime, not memory-first.
+If the required source cannot be inspected, first classify the actual failure and check an already-authorized capable source/channel plus any normal platform approval. Mark only the affected use `blocked` or `unverified` when none can establish the needed contract; ask the user only for docs, schema, access, or a decision the AI cannot obtain, and use a manual packet only when it preserves the needed evidence. Do not continue by trial and error or bypass a real refusal. Connector-first means schema-first for the active runtime, not memory-first.
 
 #### Runtime-Controlled Tool Operation Variants
 
@@ -110,7 +110,7 @@ MCP servers may be official, community, custom, or project-local. Custom MCPs of
 Discipline:
 
 - Use only the active runtime's exposed tool name, description, and input schema.
-- Treat non-vetted or custom MCP write operations with extra caution. Destructive writes require dry-run and user confirmation under `packs/safety.md`.
+  - Treat non-vetted or custom MCP write operations with extra caution. Destructive writes require dry-run and user confirmation under `dev/rules/safety.md`.
 - If the server fails because of process crash, config error, or unavailable runtime state, surface the failure, recommend checking MCP config and restarting the host tool, and do not blindly retry.
 
 #### 3.3 Plugins
@@ -164,12 +164,12 @@ Record declared integrations in `PROJECT_INDEX` `## Installed Integrations`, usi
 
 Immediately before the current task uses a declared integration, run the smallest relevant availability probe when the runtime exposes the needed tool schema. Do not probe unrelated integrations at startup. `TBD`, examples, blank rows, and placeholder-only tables are not declarations.
 
-- Probe success: update `Last Verified` and proceed.
-- Probe fail: warn that the integration is declared but unavailable in the current runtime, then use fallback flow only for the affected surface.
+- Probe success: update `Last Verified` only through the normal Persistence Gate, then proceed.
+- Probe fail: record the actual unavailable/failed result where the Persistence Gate applies, then use this pack's fallback flow only for the affected surface.
 
 #### Phase 4 — Task execution
 
-Apply the knowledge pack's Connector-first discipline: check declaration, use the verified direct tool when available, fall back to manual packet only when unavailable, and ask the user when the referenced integration is undeclared.
+Apply the knowledge pack's Connector-first discipline: check declaration, use the verified direct tool when available, then follow this pack's classified fallback. A manual packet or user question is a last resort only when an authorized capable channel cannot supply the needed evidence.
 
 #### Phase 5 — Mid-session drift handling
 
@@ -177,18 +177,18 @@ If an integration fails mid-task because of expired auth, rate limit, network ti
 
 - Surface the failure and impact.
 - Do not auto-fix credentials or auth.
-- Update `PROJECT_INDEX` `Last Verified` / note fields where appropriate.
+- Update `PROJECT_INDEX` `Last Verified` only after a real successful probe and the normal Persistence Gate; record an actual failed probe as failure/drift without relabeling it available.
 - Record the drift in `SESSION_LOG` and unresolved risk in `SESSION_HANDOFF` when it affects future work.
 
 #### Phase 6 — Cross-tool consistency
 
-Integration declarations are project-level; they do not guarantee every AI runtime has the same tools installed. A new runtime must verify availability, warn on capability differences, and use fallback flow unless the user chooses to install or switch tools.
+Integration declarations are project-level; they do not guarantee every AI runtime has the same tools installed. A new runtime must verify availability, warn on capability differences, and use this pack's fallback flow for the affected surface; do not require the user to install or switch tools before checking an already-authorized capable channel.
 
 ## Rules
 
 1. **Credential separation**: never ask for, log, or persist credential values. Redact credential-like values and warn about rotation when appropriate.
 2. **External Tool Usage Verification Gate**: verify current runtime schema, official docs, official types/samples, or registered tool operation references before invoking or retrying external tools.
-3. **Declaration before use**: read `dev/PROJECT_INDEX.md` `## Installed Integrations` and `## Tool Operation References` before external-tool or runtime-controlled tool-operation work. If absent, ask about integration status rather than assuming none exists.
+3. **Declaration before use**: read `dev/PROJECT_INDEX.md` `## Installed Integrations` and `## Tool Operation References` before external-tool or runtime-controlled tool-operation work. If absent, inspect the active runtime for an authorized capable tool/schema before asking the user about access or source information.
 4. **Connector-first default**: when a declared integration is functional, prefer the verified direct tool call. Manual paste is fallback, not default.
 5. **Write operations require read-back verification**: read back every external write before claiming success.
 6. **No auto-fix credential / auth issues**: surface auth failures to the user and point to the runtime settings or tool owner.
@@ -208,7 +208,7 @@ Integration declarations are project-level; they do not guarantee every AI runti
 - Before external-tool first use, write, destructive operation, raw API / SDK / CLI / URI / plugin API call, or retry after tool error, confirm the current usage source.
 - Surface and record mid-session integration drift.
 - After external-tool use, perform ownership-based resource closeout. For long-running, multi-tool, MCP, browser automation, repeated-error, or slowdown scenarios, report grouped residual processes or services when observable.
-- Before closeout, update `Last Verified` for integrations touched this session.
+- Before closeout, update `Last Verified` only for integrations with a real successful probe and when the normal Persistence Gate selects the write; retain actual failed-probe drift separately.
 - Self-check credential leakage before writing `PROJECT_INDEX`, `SESSION_HANDOFF`, or `SESSION_LOG`.
 - Verify that `PROJECT_INDEX` External Sources `via` references match declared Installed Integrations entries.
 - For local HTML / app validation, verify that a rejected `file://` attempt is followed by a registered operation reference or short-lived localhost fallback before declaring `blocked`.
@@ -216,7 +216,7 @@ Integration declarations are project-level; they do not guarantee every AI runti
 
 ## Closeout
 
-1. Update `PROJECT_INDEX` `## Installed Integrations` `Last Verified` cells for integrations touched this session.
+1. Update `PROJECT_INDEX` `## Installed Integrations` `Last Verified` cells only after real successful probes and when the normal Persistence Gate selects the write; record actual failed drift without claiming availability.
 2. If drift happened, record the drift narrative, impact, and suggested next handling in `SESSION_LOG`.
 3. Add unresolved integration failures to `SESSION_HANDOFF` `## Risks / Blockers`.
 4. If unresolved drift affects startup, mention the next-session verification need in the opening message.
@@ -227,9 +227,9 @@ Integration declarations are project-level; they do not guarantee every AI runti
 
 | Anti-pattern | Why it is wrong | Correct approach |
 |---|---|---|
-| Assuming no Connector or MCP exists whenever the user mentions Notion, Google Drive, or another external source | Mature connector ecosystems make paste-only fallback an unreliable default. | Read `PROJECT_INDEX` Installed Integrations first; ask about integration status if undeclared. |
+| Assuming no Connector or MCP exists whenever the user mentions Notion, Google Drive, or another external source | Mature connector ecosystems make paste-only fallback an unreliable default. | Read `PROJECT_INDEX` Installed Integrations, then inspect the active runtime for an authorized capable tool/schema; ask only for missing user-held access or source information. |
 | Guessing tool names, endpoints, CLI flags, URI parameters, or plugin APIs from memory | Stale examples cause unknown tool, invalid args, 400 / 404, permission, or auth loops. | Verify active runtime schema, official docs, official types/samples, or versioned local runbooks. |
-| Treating browser validation as ordinary coding and guessing Chrome, Playwright, or DevTools commands | Browser and tool-control surfaces differ across runtimes, profiles, plugins, and installed packages. | Verify the active runtime schema, official docs, or a registered tool operation reference; mark blocked or use a manual packet when unavailable. |
+| Treating browser validation as ordinary coding and guessing Chrome, Playwright, or DevTools commands | Browser and tool-control surfaces differ across runtimes, profiles, plugins, and installed packages. | Verify the active runtime schema, official docs, or a registered tool operation reference; use the classified fallback only for the affected surface when unavailable. |
 | Treating a Connector marketing page or old example as executable schema | Marketing pages do not prove the active runtime's current tool name or input schema. | Use active runtime tool list/schema as the invocation source. |
 | Retrying unknown tool / invalid args by changing names or parameters repeatedly | Trial-and-error hides the real schema or docs gap. | Stop same-pattern retries and return to the External Tool Usage Verification Gate. |
 | Writing credential values into `PROJECT_INDEX`, `SESSION_HANDOFF`, or `SESSION_LOG` | Project files and git history are persistent; leaked credentials remain exposed. | Record credential references only, never values. |
@@ -245,10 +245,10 @@ Integration declarations are project-level; they do not guarantee every AI runti
 
 ## Cross-reference
 
-- `packs/knowledge.md` Rule 5: Connector-first source access discipline.
-- `packs/safety.md` Rule 10: external API / SDK / CLI / tool verification boundary.
-- `packs/safety.md` Rule 12: credential leak prevention.
-- `packs/safety.md` Rule 14: process termination and cache cleanup boundary for external-tool resources.
-- `packs/onboarding.md` Scenario F: first-contact declaration entry point.
-- `runtime-core/AGENTS.core.md` Section 1: task-triggered availability probe discipline.
-- `runtime-core/PROJECT_INDEX.md` `## Installed Integrations` and `## External Sources` `via` column: declaration registry.
+- `dev/rules/knowledge.md` Rule 5: Connector-first source access discipline.
+- `dev/rules/safety.md` Rule 10: external API / SDK / CLI / tool verification boundary.
+- `dev/rules/safety.md` Rule 12: credential leak prevention.
+- `dev/rules/safety.md` Rule 14: process termination and cache cleanup boundary for external-tool resources.
+- `dev/rules/onboarding.md` Scenario F: first-contact declaration entry point.
+- installed `AGENTS.md`: task-triggered availability probe discipline.
+- `dev/PROJECT_INDEX.md` `## Installed Integrations` and `## External Sources` `via` column: declaration registry.

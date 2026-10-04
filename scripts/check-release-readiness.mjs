@@ -113,6 +113,10 @@ async function main() {
   checkEnglishPublicSurfaces(version);
   checkReleaseStateCoherence(version);
   checkCandidateWorktreeIsClean();
+  checkQaCommandDocumentation();
+  checkRulePackRoutingDurableHomeAudit();
+  checkGovernanceBridgeContract();
+  checkTaskPersistenceGateContract();
   await checkChangedBilingualCandidateEvidence(version);
   assertLatestCrossMindTableComplete(version);
   checkCrossMindTableCounterexamples();
@@ -173,11 +177,6 @@ async function main() {
     "原始碼倉庫專用 `npm run qa:release`",
     "Installer hardening 仍未完成"
   ]);
-
-  checkQaCommandDocumentation();
-  checkRulePackRoutingDurableHomeAudit();
-  checkGovernanceBridgeContract();
-  checkTaskPersistenceGateContract();
 
   assertIncludes("runtime-core/AGENTS.core.md", [
     "A direct ordinary or stateless task does not read the handoff merely because the project root is known",
@@ -2810,7 +2809,7 @@ function checkTaskPersistenceGateContract() {
   assertIncludes("packs/closeout.md", [
     "Handoff cold zones are historical / evidence sections",
     "Do not rewrite, reword, reorder, or refresh cold zones",
-    "preserve cold-zone bytes where practical"
+    "When older detailed narrative no longer changes the next action, preserve it byte-for-byte in existing trace/archive storage and verify that copy before removing it from the current packet."
   ]);
 
   assertIncludes("runtime-core/SESSION_HANDOFF.md", [
