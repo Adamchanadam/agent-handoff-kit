@@ -54,6 +54,11 @@ async function main() {
     console.log('Focused release evidence guards passed; this is not formal full acceptance.');
     return;
   }
+  if (process.argv.includes('--task-persistence-only')) {
+    checkTaskPersistenceGateContract();
+    console.log('Focused task-persistence contract check passed; this is not formal full acceptance.');
+    return;
+  }
   if (process.argv.includes('--closeout-flow-only')) {
     run(process.execPath, ['bin/agent-handoff-kit.mjs', 'init', '--yes', '--root', tempRoot], 'closeout flow install', { env: { ...process.env, AGENT_HANDOFF_KIT_SKIP_UPDATE_CHECK: '1' } });
     simulateMultiSessionFlow(readAt(tempRoot, 'dev/SESSION_HANDOFF.md'), readAt(tempRoot, 'dev/SESSION_LOG.md'));
@@ -2813,9 +2818,13 @@ function checkTaskPersistenceGateContract() {
   ]);
 
   assertIncludes("runtime-core/SESSION_HANDOFF.md", [
-    "Historical evidence, old validation records, completed-work narratives, and unchanged durable anchors are cold zones",
-    "preserve them byte-for-byte where practical"
+    "Cold-zone retention and trace/archive handling are owned by `dev/rules/closeout.md`",
+    "keep stable anchors plus the current outcome, remaining obligations, decision-changing corrections/rejected reasons, evidence limits and pointers in this packet",
+    "Full reception of the current packet remains mandatory"
   ]);
+  const handoffTemplate = read("runtime-core/SESSION_HANDOFF.md");
+  assert(!handoffTemplate.includes("Historical evidence, old validation records, completed-work narratives, and unchanged durable anchors are cold zones"), "handoff template still duplicates the retired cold-zone definition instead of routing to the closeout pack");
+  assert(!handoffTemplate.includes("preserve them byte-for-byte where practical"), "handoff template still carries the retired cold-zone byte-preservation instruction");
 
   assertIncludes("scripts/check-pack-scenarios.mjs", [
     "pre-closeout checkpoint boundary",
@@ -2826,7 +2835,7 @@ function checkTaskPersistenceGateContract() {
 
   assertIncludes("scripts/check-closeout-efficiency.mjs", [
     "full closeout no longer protects cold-zone historical evidence",
-    "handoff template no longer protects cold-zone bytes"
+    "handoff template does not route cold-zone procedure to the installed closeout pack"
   ]);
 
   assertIncludes("scripts/check-upgrade-safety.mjs", [
