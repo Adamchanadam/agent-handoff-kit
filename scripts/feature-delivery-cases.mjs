@@ -21,7 +21,8 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
   if(entry==='handoff-kit-update')cases[0].update={registryMode:'controlled',registryVersion:candidateVersion,cliVersion:candidateVersion,fromVersion:baseVersion,toVersion:candidateVersion};
   return {entry,kind:'native-invocation',tarballSha256:sha,installRoute:entry==='handoff-kit-update'?'upgrade':'freshInstall',cases};
  });
- const data={schemaVersion:1,tarballSha256:sha,baseCommit:base,baseVersion,baselineArtifact:ref,features:[{id:'shortcuts',package:stage,freshInstall:{...stage,command:'init'},upgrade:{...stage,command:'upgrade',baselineVersion:baseVersion,baselineTarballSha256:evidenceSha256},entry:{...stage,entry:'each command in native tools',hosts:Object.fromEntries(['claude','gemini','codex','antigravity'].map(h=>[h,{menu:{...observed,kind:'native-menu',entries},invocation:{...observed,kind:'native-invocation',entries,results}}]))}}]};
+ const installerStages={package:stage,freshInstall:{...stage,command:'init'},upgrade:{...stage,command:'upgrade',baselineVersion:baseVersion,baselineTarballSha256:evidenceSha256},entry:{...stage,entry:'current package install and upgrade routes'}};
+ const data={schemaVersion:1,tarballSha256:sha,baseCommit:base,baseVersion,baselineArtifact:ref,features:[{id:'shortcuts',package:stage,freshInstall:{...stage,command:'init'},upgrade:{...stage,command:'upgrade',baselineVersion:baseVersion,baselineTarballSha256:evidenceSha256},entry:{...stage,entry:'each command in native tools',hosts:Object.fromEntries(['claude','gemini','codex','antigravity'].map(h=>[h,{menu:{...observed,kind:'native-menu',entries},invocation:{...observed,kind:'native-invocation',entries,results}}]))}},{id:'installer',...installerStages}]};
  const options={root,changedFiles:['bin/commands.mjs'],tarballSha256:sha,baseCommit:base,candidateVersion};
  const validate=d=>validateFeatureDelivery(d,options);
  validate(data);
@@ -36,13 +37,20 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
  }
  assert.throws(()=>affectedDeliveryFeatures(['bin/new-unmapped-feature.mjs']));
  assert.deepEqual(affectedDeliveryFeatures(['README.md']),['shortcuts']);
- assert.deepEqual(affectedDeliveryFeatures(['packs/closeout.md']),['shortcuts','task-packs']);
- assert.deepEqual(affectedDeliveryFeatures(['runtime-core/AGENTS.core.md']),['continuity','shortcuts']);
+ assert.deepEqual(affectedDeliveryFeatures(['packs/closeout.md']),['installer','shortcuts','task-packs']);
+ assert.deepEqual(affectedDeliveryFeatures(['runtime-core/AGENTS.core.md']),['continuity','installer','shortcuts']);
  assert.deepEqual(affectedDeliveryFeatures(['bin/agent-handoff-kit.mjs']),['installer','shortcuts']);
+ assert.deepEqual(affectedDeliveryFeatures(['package.json']),['installer','shortcuts']);
+ assert.deepEqual(affectedDeliveryFeatures(['bin/commands.mjs']),['installer','shortcuts']);
+ assert.deepEqual(affectedDeliveryFeatures(['bin/progress/launch.mjs']),['dashboard','installer','shortcuts']);
+ const shortcutsOnly=structuredClone(data);shortcutsOnly.features=shortcutsOnly.features.filter(feature=>feature.id==='shortcuts');
+ assert.throws(()=>validateFeatureDelivery(shortcutsOnly,{...options,changedFiles:['package.json']}));
+ assert.throws(()=>validateFeatureDelivery(shortcutsOnly,{...options,changedFiles:['bin/commands.mjs']}));
  assert.throws(()=>validateFeatureDelivery({...data,features:[]},{...options,changedFiles:['README.md']}));
  for(const entry of entries){
   const missing=structuredClone(representative);missing.features[0].entry.hosts.codex.invocation.results=results.filter(r=>r.entry!==entry);assert.throws(()=>validate(missing));
  }
+  // Native menu, command-generator inventory, and both normal/boundary cases are all required.
   for(const mutate of [h=>h.menu.entries=[],h=>h.menu.entries.push(entries[0]),h=>h.invocation.entries=['handoff-kit-progress','handoff-kit-progress'],h=>h.invocation.entries.push('unknown-command'),h=>delete h.invocation.results,h=>h.invocation.results.push(h.invocation.results[0]),h=>h.invocation.results[0].tarballSha256='0'.repeat(64),h=>h.invocation.results[0].installRoute='source',h=>h.invocation.results[0].cases.pop(),h=>delete h.invocation.results[0].cases[0].id,h=>h.invocation.results[0].cases[1].id=h.invocation.results[0].cases[0].id,h=>h.invocation.results[0].cases[0].scenario='unsupported',h=>h.invocation.results[0].cases[0].scenario='boundary',h=>h.invocation.results[0].cases[0].status='blocked',h=>h.invocation.results[0].cases[0].outcome='expected-stop',h=>h.invocation.results[0].cases[0].kind='file-exists',h=>delete h.invocation.results[0].cases[0].readback,h=>delete h.invocation.results[0].cases[0].input,h=>h.invocation.results[0].cases[0].evidence=[],h=>h.invocation.results[0].cases[0].evidence=[{...ref,sha256:'0'.repeat(64)}]]){
   const bad=structuredClone(representative);mutate(bad.features[0].entry.hosts.codex);assert.throws(()=>validate(bad));
   }
@@ -56,10 +64,30 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
   const bad=structuredClone(representative);mutate(bad.features[0].entry.hosts.codex.invocation.results[0].cases[0]);assert.throws(()=>validate(bad));
  }
  const oldArtifact=writeReuse('historical.tgz','historical package bytes');
- const sourceFiles=[{path:'bin/commands.mjs',sha256:'c'.repeat(64)},{path:'runtime-core/AGENTS.core.md',sha256:'d'.repeat(64)}];
- const reusable=(entry,id,scenario='normal')=>({
+ // A reusable shortcut case structurally compares every declared behavior
+ // dependency. Artifact-wide inventory completeness remains independent review.
+ const sourceFiles=[
+  {path:'bin/commands.mjs',sha256:'c'.repeat(64)},
+  {path:'package.json',sha256:'d'.repeat(64)},
+  {path:'runtime-core/AGENTS.core.md',sha256:'e'.repeat(64)},
+  {path:'packs/closeout.md',sha256:'f'.repeat(64)},
+  {path:'packs/agent-governance.md',sha256:'1'.repeat(64)},
+  {path:'packs/onboarding.md',sha256:'2'.repeat(64)},
+  {path:'bin/progress/launch.mjs',sha256:'3'.repeat(64)},
+  {path:'bin/progress/open.mjs',sha256:'d'.repeat(64)},
+  {path:'bin/agent-handoff-kit.mjs',sha256:'4'.repeat(64)},
+  {path:'bin/installed-file-contract.mjs',sha256:'5'.repeat(64)},
+  {path:'bin/official-origin-catalog.mjs',sha256:'6'.repeat(64)},
+  {path:'bin/migration-baselines/official-origin-catalog.json',sha256:'7'.repeat(64)},
+  {path:'bin/upgrade-inventory.mjs',sha256:'8'.repeat(64)},
+  {path:'bin/user-rules-router.mjs',sha256:'9'.repeat(64)},
+  {path:'bin/handoff-read.mjs',sha256:'a'.repeat(64)},
+  {path:'bin/prompt-mirror-core.mjs',sha256:'b'.repeat(64)},
+  {path:'packs/safety.md',sha256:'c'.repeat(64)}
+ ];
+ const reusable=(entry,id,scenario='normal',candidateFiles=sourceFiles)=>({
   source:{tarballSha256:oldArtifact.sha256,files:sourceFiles},
-  candidate:{tarballSha256:sha,files:sourceFiles},
+  candidate:{tarballSha256:sha,files:candidateFiles},
   reusableCases:[{host:'codex',entry,id,scenario}]
  });
  const sourceReviewValue=raw=>({candidateTarball:oldArtifact,cases:[{id:'historical-check-normal',scenario:'normal',status:'passed',outcome:'matched',raw}]});
@@ -71,10 +99,40 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
  checkNormal.execution.artifact=oldArtifact;
  checkNormal.reuse={sourceReview,sourceCase:{id:'historical-check-normal',scenario:'normal'},comparison};
  validate(mixed);
+ // Documentation itself does not invalidate byte-identical behavior dependencies.
+ const docsOnly=structuredClone(mixed);docsOnly.features=docsOnly.features.filter(feature=>feature.id==='shortcuts');
+ validateFeatureDelivery(docsOnly,{...options,changedFiles:['README.md']});
  const staleSource=structuredClone(mixed);writeFileSync(sourceReview.path,'changed source review bytes');assert.throws(()=>validate(staleSource));
  writeFileSync(sourceReview.path,JSON.stringify(sourceReviewValue(sourceRaw)));
- const changedEntryComparison=writeReuse('changed-entry-comparison.json',{...reusable('handoff-kit-check','handoff-kit-check-normal'),candidate:{tarballSha256:sha,files:[{...sourceFiles[0],sha256:'e'.repeat(64)},sourceFiles[1]]}});
+ const changedEntryComparison=writeReuse('changed-entry-comparison.json',{...reusable('handoff-kit-check','handoff-kit-check-normal'),candidate:{tarballSha256:sha,files:sourceFiles.map(file=>file.path==='bin/commands.mjs'?{...file,sha256:'0'.repeat(64)}:file)}});
  const changedEntry=structuredClone(mixed);changedEntry.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-check').cases.find(test=>test.scenario==='normal').reuse.comparison=changedEntryComparison;assert.throws(()=>validate(changedEntry));
+ const withShortcutReuse=(entry,name,candidateFiles=sourceFiles)=>{
+  const stale=structuredClone(mixed);
+  const test=stale.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry===entry).cases.find(item=>item.scenario==='normal');
+  test.execution.artifact=oldArtifact;
+  test.reuse={sourceReview,sourceCase:{id:'historical-check-normal',scenario:'normal'},comparison:writeReuse(name,reusable(entry,test.id,'normal',candidateFiles))};
+  return stale;
+ };
+ const staleShortcut=(entry,path,name)=>withShortcutReuse(entry,name,sourceFiles.map(file=>file.path===path?{...file,sha256:'0'.repeat(64)}:file));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-close','packs/closeout.md','changed-closeout-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-close','bin/agent-handoff-kit.mjs','changed-closeout-cli-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-close','bin/prompt-mirror-core.mjs','changed-closeout-mirror-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-close','packs/safety.md','changed-closeout-safety-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-start','runtime-core/AGENTS.core.md','changed-core-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-start','packs/onboarding.md','changed-start-onboarding-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-start','bin/handoff-read.mjs','changed-start-handoff-read-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-start','bin/agent-handoff-kit.mjs','changed-start-cli-dispatch-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-progress','bin/progress/launch.mjs','changed-progress-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-progress','package.json','changed-progress-version-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-check','bin/agent-handoff-kit.mjs','changed-installer-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-check','bin/prompt-mirror-core.mjs','changed-check-mirror-comparison.json')));
+ // Package/version data cannot relabel check or update execution as current.
+ assert.throws(()=>validate(staleShortcut('handoff-kit-check','package.json','version-metadata-check-comparison.json')));
+ assert.throws(()=>validate(staleShortcut('handoff-kit-update','package.json','version-metadata-update-comparison.json')));
+ // A version-only candidate may retain unrelated help raw evidence.
+ validateFeatureDelivery(withShortcutReuse('handoff-kit-help','version-only-help-comparison.json',sourceFiles.map(file=>file.path==='package.json'?{...file,sha256:'0'.repeat(64)}:file)),{...options,changedFiles:['package.json']});
+ assert.throws(()=>validate(withShortcutReuse('handoff-kit-check','omitted-check-mirror-comparison.json',sourceFiles.filter(file=>file.path!=='bin/prompt-mirror-core.mjs'))));
+ assert.throws(()=>validate(withShortcutReuse('handoff-kit-progress','omitted-progress-inventory-member-comparison.json',sourceFiles.filter(file=>file.path!=='bin/progress/open.mjs'))));
  const failedReview=writeReuse('failed-review.json',{candidateTarball:oldArtifact,cases:[{id:'historical-check-normal',scenario:'normal',status:'failed',outcome:'mismatched',raw:sourceRaw}]});
  const failedReuse=structuredClone(mixed);failedReuse.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-check').cases.find(test=>test.scenario==='normal').reuse.sourceReview=failedReview;assert.throws(()=>validate(failedReuse));
  const unrunReview=writeReuse('unrun-review.json',{candidateTarball:oldArtifact,cases:[{id:'historical-check-normal',scenario:'normal',status:'unrun',raw:sourceRaw}]});

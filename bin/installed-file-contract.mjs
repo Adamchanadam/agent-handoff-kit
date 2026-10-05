@@ -15,6 +15,31 @@ export const deliveredFeatureContracts = Object.freeze([
  {id:'task-packs',sources:['packs/']}
 ].map(x=>Object.freeze(x)));
 
+// These are delivery dependencies, not runtime ownership. They decide whether
+// a historical shortcut raw case can still describe the current package.
+export const packageInstallDependencyRoots=Object.freeze([
+ 'package.json','bin/agent-handoff-kit.mjs','bin/commands.mjs','bin/installed-file-contract.mjs',
+ 'bin/official-origin-catalog.mjs','bin/migration-baselines/','bin/upgrade-inventory.mjs','bin/user-rules-router.mjs',
+ 'bin/handoff-read.mjs','bin/prompt-mirror-core.mjs','bin/progress/','runtime-core/','packs/'
+]);
+const sharedShortcutDependencyRoots=Object.freeze(['bin/commands.mjs','runtime-core/']);
+const shortcutEntrySpecificDependencyRoots=Object.freeze({
+ 'handoff-kit-start':Object.freeze(['bin/agent-handoff-kit.mjs','bin/handoff-read.mjs','packs/onboarding.md']),
+ 'handoff-kit-close':Object.freeze([...packageInstallDependencyRoots,'packs/closeout.md','packs/safety.md']),
+ 'handoff-kit-progress':Object.freeze(['package.json','bin/progress/']),
+ 'handoff-kit-align':Object.freeze(['packs/agent-governance.md']),
+ 'handoff-kit-onboard':Object.freeze(['packs/onboarding.md']),
+ 'handoff-kit-remember':Object.freeze(['packs/agent-governance.md']),
+ 'handoff-kit-check':packageInstallDependencyRoots,
+ 'handoff-kit-update':packageInstallDependencyRoots,
+ 'handoff-kit-help':Object.freeze([])
+});
+export function dependencyRootMatches(file,root){return root.endsWith('/')?file.startsWith(root):file===root;}
+export function shortcutEntryDependencyRoots(entry){
+ if(!Object.hasOwn(shortcutEntrySpecificDependencyRoots,entry))throw Error(`Unknown shortcut delivery dependency entry: ${entry}`);
+ return Object.freeze([...new Set([...sharedShortcutDependencyRoots,...shortcutEntrySpecificDependencyRoots[entry]])]);
+}
+
 export const INSTALLED_FILE_CONTRACT_SCHEMA = 1;
 // Generated project entries share one content owner. Only these exact paths
 // enter installer recovery; platform directories are never blanket-owned.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {deliveredFeatureContracts} from '../bin/installed-file-contract.mjs';
+import {deliveredFeatureContracts,dependencyRootMatches,packageInstallDependencyRoots,shortcutEntryDependencyRoots} from '../bin/installed-file-contract.mjs';
 import {runChecked} from './qa-runner-core.mjs';
 export const DELIVERY_STAGES=Object.freeze(['package','freshInstall','upgrade','entry']);
 const hash=x=>createHash('sha256').update(x).digest('hex');
@@ -30,7 +30,7 @@ function exactReference(ref,label,{root}){
  return ref;
 }
 function comparisonFiles(value,label){
- assert(Array.isArray(value)&&value.length,`${label}: complete shipped-file inventory required`);
+ assert(Array.isArray(value)&&value.length,`${label}: structural dependency inventory required`);
  const files=new Map();
  for(const file of value){
   assert(typeof file?.path==='string'&&file.path&&/^[a-f0-9]{64}$/.test(file.sha256),`${label}: invalid shipped-file identity`);
@@ -68,7 +68,7 @@ function sourceReviewRawReference(source,role,label){
  assert(typeof ref?.path==='string'&&ref.path&&/^[a-f0-9]{64}$/.test(ref.sha256),`${label}: invalid source ${role} evidence`);
  return {path:ref.path,sha256:ref.sha256};
 }
-function validateCaseReuse(test,{root,label,host,entry,sourcePaths,tarballSha256}){
+function validateCaseReuse(test,{root,label,host,entry,dependencyRoots,tarballSha256}){
  if(!Object.hasOwn(test,'reuse'))return;
  assert(test.reuse&&typeof test.reuse==='object'&&!Array.isArray(test.reuse),`${label}: reuse must be an object`);
  assert.deepEqual(Object.keys(test.reuse).sort(),['comparison','sourceCase','sourceReview'],`${label}: unsupported reuse fields`);
@@ -86,9 +86,12 @@ function validateCaseReuse(test,{root,label,host,entry,sourcePaths,tarballSha256
  assert.equal(comparison.candidate?.tarballSha256,tarballSha256,`${label}: comparison candidate artifact mismatch`);
  const sourceFiles=comparisonFiles(comparison.source?.files,`${label}/comparison source`);
  const candidateFiles=comparisonFiles(comparison.candidate?.files,`${label}/comparison candidate`);
- for(const source of sourcePaths){
-  assert(sourceFiles.has(source)&&candidateFiles.has(source),`${label}: comparison omits shipped entry source: ${source}`);
-  assert.equal(sourceFiles.get(source),candidateFiles.get(source),`${label}: changed shipped entry source requires fresh execution: ${source}`);
+ for(const dependency of dependencyRoots){
+  const sourcePaths=[...sourceFiles.keys()].filter(file=>dependencyRootMatches(file,dependency));
+  const candidatePaths=[...candidateFiles.keys()].filter(file=>dependencyRootMatches(file,dependency));
+  assert(sourcePaths.length&&candidatePaths.length,`${label}: comparison omits behavior dependency: ${dependency}`);
+  assert.deepEqual(candidatePaths.sort(),sourcePaths.sort(),`${label}: behavior dependency membership changed and requires fresh execution: ${dependency}`);
+  for(const source of sourcePaths)assert.equal(sourceFiles.get(source),candidateFiles.get(source),`${label}: changed behavior dependency requires fresh execution: ${source}`);
  }
  assert(Array.isArray(comparison.reusableCases),`${label}: comparison reusable case list required`);
  const matches=comparison.reusableCases.filter(item=>item?.host===host&&item.entry===entry&&item.id===test.id&&item.scenario===test.scenario);
@@ -162,6 +165,7 @@ export function affectedDeliveryFeatures(changedFiles){
   const owners=deliveredFeatureContracts.filter(c=>c.sources.some(s=>s.endsWith('/')?file.startsWith(s):file===s));
   assert(owners.length,`Unmapped shipped feature source: ${file}`);
   for(const owner of owners)ids.add(owner.id);
+  if(packageInstallDependencyRoots.some(root=>dependencyRootMatches(file,root)))ids.add('installer');
  }
  return [...ids].sort();
 }
@@ -257,7 +261,8 @@ export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,bas
         }
         assert(['matched','expected-stop'].includes(test.outcome),`${caseLabel}: execution outcome required`);
         if(test.scenario==='normal')assert.equal(test.outcome,'matched',`${caseLabel}: blocked execution is not normal acceptance`);
-        validateCaseReuse(test,{root,label:caseLabel,host,entry:record.entry,sourcePaths:contract.sources,tarballSha256});
+        const dependencyRoots=feature.id==='shortcuts'?shortcutEntryDependencyRoots(record.entry):contract.sources;
+        validateCaseReuse(test,{root,label:caseLabel,host,entry:record.entry,dependencyRoots,tarballSha256});
          if(record.entry==='handoff-kit-update'&&test.scenario==='normal'){
          assert.equal(record.installRoute,'upgrade',`${caseLabel}: update normal must be an old-to-candidate upgrade transaction`);
          validateNativeUpdateNormal(test,{root,label:caseLabel,candidateVersion,baseVersion:delivery.baseVersion,tarballSha256,registryMode:'controlled'});

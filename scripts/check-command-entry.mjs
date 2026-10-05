@@ -30,6 +30,8 @@ try{
  for(const agent of ['claude','gemini','codex','antigravity']){const p=project(agent);assert.equal(installCommands({root:p,agent,yes:true}).written.length,(["codex","antigravity"].includes(agent)?commands.length*2:commands.length)+progressFiles().length);}
  assert.deepEqual(commandFiles('codex'),commandFiles('antigravity'));
  for(const command of commands){const body=bodyFor(command),gemini=files.find(f=>f.file===`.gemini/commands/${command.name}.toml`);assert.equal(JSON.parse(gemini.text.split('\n')[1].slice(9)),body);assert.ok(files.filter(f=>f.file.endsWith(`/${command.name}/SKILL.md`)).every(f=>f.text.endsWith(body)));assert.match(body,/Loading or discovering this skill is not authorization/);assert.match(body,/Read applicable AGENTS\.md instructions if not already loaded, then follow its `Upgrade lock guard` before loading Kit state/);assert.equal(body.includes("project recovery guidance"),false);assert.equal(body.includes("Before loading Kit state, check dev\/governance_migrations\/\.upgrade\.lock"),false);}
+ const progressBody=bodyFor(commands.find(command=>command.name==='handoff-kit-progress'));
+ assert.match(progressBody,/Verify the returned page is reachable before reporting success\. Give one short result that includes the exact returned loopback URL\./);
  ok('contract check: shared shortcut defers lock handling to the named AGENTS.md guard; native behavioral acceptance is separate');
  assert.throws(()=>installCommands({root,agent:'../../bad'}),/Unknown agent/);ok('CLI preview, all adapters and concise bilingual Codex menu files, shared content, special-character roots and repeat no-op');
  // Real filesystem/CLI exercises use a disposable home, never the user's configuration.
