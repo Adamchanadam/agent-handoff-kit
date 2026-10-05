@@ -140,6 +140,8 @@ async function main() {
     const packageJson = JSON.parse(read("package.json"));
     const version = packageJson.version;
     assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed for pre-freeze evidence");
+    checkReleaseSourceContracts(version);
+    checkReleaseSourceContractCounterexamples(version);
     checkScenarioBranchingDocAlignment();
     await checkChangedBilingualCandidateEvidence(version, { allowDirty: true });
     assertLatestCrossMindTableComplete(version);
@@ -151,6 +153,8 @@ async function main() {
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
   const version = packageJson.version;
   assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed (expected semver e.g. 0.1.8)");
+  checkReleaseSourceContracts(version);
+  checkReleaseSourceContractCounterexamples(version);
   let acceptedMachineEvidence = null;
   if (machineOptions.mode === "diff") {
     acceptedMachineEvidence = await validateCandidateEvidence({ candidate: version, evidence: machineOptions.evidencePath, mode: "diff" });
@@ -204,6 +208,7 @@ async function main() {
   checkShortcutTeachingDocuments();
   checkShortcutTeachingCounterexamples();
 
+  function checkReleaseSourceContracts(version, { onboardingText = read("packs/onboarding.md") } = {}) {
   assertIncludes("CHANGELOG.md", [
     `## v${version} — `,
     "RULE_PACKS.md",
@@ -398,7 +403,7 @@ async function main() {
     "Recognize common credential prefixes"
   ]);
 
-  assertIncludes("packs/onboarding.md", [
+  for (const snippet of [
     "Continuity startup boundary",
     "starts continuity and reads the minimum current handoff state; it is not an onboarding signal",
     "Public capability answer",
@@ -430,18 +435,21 @@ async function main() {
     "Only show the scenario chooser when the user's intent remains genuinely unresolved",
     "High-risk, external, permission, cost, publishing, and irreversible actions still require",
     "Scenario F. External-tool governance",
-    "Step F.1: collect installed external tools",
+    "Step F.1: inspect runtime-exposed external tools by category first: Connectors, MCPs, Plugins, Skills, browser automation, crawlers, notebooks, or local helper services.",
+    "Ask the user only for names, access, or source details the runtime cannot reveal, then classify them.",
     "Step F.2: explain credential separation",
     "Step F.3: map source-of-truth architecture",
     "Step F.4: when authorized",
     "Step F.5: verify current availability",
+    "For an unavailable tool, follow `dev/rules/integrations.md` classified fallback for the affected surface; mark blocked / unverified only when no authorized capable route can establish the needed contract.",
     "Chinese only as quoted user phrases"
-  ]);
+  ]) assert(onboardingText.includes(snippet), `packs/onboarding.md missing snippet: ${snippet}`);
+  assert(!onboardingText.includes("Step F.1: collect installed external tools"), "packs/onboarding.md retains the stale collect-installed-tools F.1 rule");
 
   assertIncludes("runtime-core/SESSION_LOG.md", [
     "Handoff role",
     "trace-back / audit trail layer",
-    "R-010 SESSION_LOG handoff-role discipline",
+    "Each closeout applies `dev/rules/closeout.md` `## Maintenance Trigger Check`",
     "maintenance trigger check",
     "Log maintenance",
     "Evidence disposition"
@@ -468,6 +476,37 @@ async function main() {
     "packs/integrations.md",
     "dev/rules/integrations.md"
   ]);
+  }
+
+  function checkReleaseSourceContractCounterexamples(version) {
+    const onboardingText = read("packs/onboarding.md");
+    const mutations = [
+      {
+        label: "stale F.1 collect-installed-tools wording",
+        before: "Step F.1: inspect runtime-exposed external tools by category first: Connectors, MCPs, Plugins, Skills, browser automation, crawlers, notebooks, or local helper services.",
+        after: "Step F.1: collect installed external tools before classifying them."
+      },
+      {
+        label: "F.1 ask-only runtime boundary",
+        before: "Ask the user only for names, access, or source details the runtime cannot reveal, then classify them.",
+        after: "Ask the user for external-tool details, then classify them."
+      },
+      {
+        label: "F.5 classified fallback and only-blocked condition",
+        before: "For an unavailable tool, follow `dev/rules/integrations.md` classified fallback for the affected surface; mark blocked / unverified only when no authorized capable route can establish the needed contract.",
+        after: "For an unavailable tool, mark it blocked."
+      }
+    ];
+    for (const mutation of mutations) {
+      const mutated = onboardingText.replace(mutation.before, mutation.after);
+      assert(mutated !== onboardingText, `source-contract counterexample did not mutate ${mutation.label}`);
+      assertThrows(
+        () => checkReleaseSourceContracts(version, { onboardingText: mutated }),
+        `release source contract accepted missing ${mutation.label}`
+      );
+    }
+    console.log("ok: release source contract rejects stale F.1, missing ask-only, and missing fallback conditions");
+  }
 
   const install = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");
   assert(install.stdout.includes("安裝完成：下一步請在 AI 對話中操作"), "install output missing AI-chat next-step heading");
