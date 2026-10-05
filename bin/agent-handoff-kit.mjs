@@ -706,13 +706,22 @@ async function runCloseoutStatus(root, version) {
 
   // A closeout card needs a fresh local health readback, not a version-notice
   // network request.  The caller has already completed the closeout workflow.
-  const doctor = await assessUpgradeNoopHealth(root, version, { skipVersionRegistryLookup: true, requireSessionLogMaintenance: true });
+  const discipline = await assessSessionLogDiscipline(root);
+  const doctor = await assessUpgradeNoopHealth(root, version, {
+    skipVersionRegistryLookup: true,
+    sessionLogDiscipline: discipline
+  });
   if (!doctor.ok) {
     findings.push("fresh doctor read-back did not pass");
     details.push(...closeoutDoctorFailureDetails(doctor));
   }
 
-  const result = { ok: findings.length === 0, findings, details };
+  const result = {
+    ok: findings.length === 0,
+    findings,
+    details,
+    maintenanceWarnings: discipline.ok ? [] : discipline.warnings
+  };
   printCloseoutStatusCard(version, result);
   if (!result.ok) process.exitCode = 1;
 }
@@ -1315,6 +1324,7 @@ function printCloseoutStatusCard(version, result) {
     console.log("🔎 QC: fresh doctor and opening-message mirror passed");
     console.log("📌 Handoff: opening message ready; next-session reception and recovery still required");
     console.log("⚠️ Boundary: none");
+    for (const warning of result.maintenanceWarnings ?? []) console.log(`⚠️ Maintenance reminder: ${warning}`);
     return;
   }
   console.log("  ( x.x )  handoff blocked");
@@ -1323,6 +1333,7 @@ function printCloseoutStatusCard(version, result) {
   console.log("status: blocked");
   console.log(`⚠️ Blocker: ${result.findings.join("; ")}`);
   for (const detail of result.details ?? []) console.log(`   ${detail}`);
+  for (const warning of result.maintenanceWarnings ?? []) console.log(`⚠️ Maintenance reminder: ${warning}`);
   console.log("💬 說明：這不是失敗；只是還有事未保存、未提交、未驗證或需要處理。先照 Blocker 行處理，不要把本輪當作已完成交接。");
   console.log("📌 Handoff: keep the current state resumable; do not call this closeout complete");
 }
@@ -3412,20 +3423,21 @@ async function runDoctor(root, version, options = {}) {
     return "failed";
   }
 
-  // R-010 SESSION_LOG handoff-role discipline is advisory during ordinary
-  // doctor use, but its existing maintenance triggers must be cleared at closeout.
-  const disciplineResult = await assessSessionLogDiscipline(root);
+  // R-010 SESSION_LOG size discipline is advisory. An unreadable required log
+  // remains a real persistence failure, while size-only reminders appear in
+  // the final closeout card.
+  const disciplineResult = options.sessionLogDiscipline ?? await assessSessionLogDiscipline(root);
   console.log(`\nSESSION_LOG 接力角色紀律: ${disciplineResult.ok ? "ok" : "warn"}`);
   if (!disciplineResult.ok) {
     for (const warning of disciplineResult.warnings) {
       console.log(`  warn: ${warning}`);
     }
-    if (options.requireSessionLogMaintenance) {
+    if (disciplineResult.blocking) {
       printDoctorSummary(version, root, "needs-fix", {
         checked: rows.length + historicalReceiptChecks + anchorRows.length + schemaRows.length + userRulesResult.checked + researchTraceResult.checked + temperatureResult.checked + mirrorRows.length + 1,
         failedKind: "SESSION_LOG maintenance checks",
         failedCount: disciplineResult.warnings.length,
-        nextStep: "先依 closeout pack 完成 SESSION_LOG 維護及歸檔讀回，再重跑 closeout-status；未完成維護不能宣告收工完成。"
+        nextStep: "先恢復可讀的 dev/SESSION_LOG.md 並完成必要保存讀回，再重跑 closeout-status；未確認保存不能宣告收工完成。"
       });
       process.exitCode = 1;
       return "failed";
@@ -3480,7 +3492,7 @@ async function runDoctor(root, version, options = {}) {
       ? "立即從相關檔案 redact credential value + rotate 已泄露 token；credential 應該由 AI 工具自身 secure storage 管理，永不寫入 dev/* 任何檔。"
       : disciplineResult.ok
       ? healthyNextStep
-      : "繼續使用；下次 closeout 時 AI 應自動執行 SESSION_LOG N 規則推進（見上面 warn 行）。如未動請要求 AI 重做 closeout。"
+      : "繼續使用；SESSION_LOG 的數量／行數提示只供下次 closeout 評估實際維護需要，不要僅因提示作歷史 sweep 或新增 no-op log。"
   });
   return overallHealthy ? "passed" : "failed";
 }
@@ -6395,20 +6407,20 @@ function printProjectAge(result) {
 }
 
 // R-010 SESSION_LOG handoff-role discipline (warn-only doctor check).
-// Returns { ok, warnings } where:
+// Returns { ok, blocking, warnings } where:
 // - ok: true if no warnings triggered
+// - blocking: true only when the required log is unreadable
 // - warnings: array of Chinese, actionable warning strings
-// Thresholds (all warn-only; doctor exit unaffected):
-// - H2 entry count ≥ 11 → warn (archive boundary; AI closeout flow should auto-advance)
-// - H2 entry count ≥ 25 → warn (severe drift; suggest AI re-do closeout)
-// - line count > 1500 → warn (anomalous entry size; safety net)
+// Thresholds are advisory measurements. At the next closeout, assess actual
+// maintenance, preservation, continuation, or project-specific requirements;
+// count alone never requires a historical sweep or a no-op log entry.
 export async function assessSessionLogDiscipline(root) {
   const logPath = path.join(root, "dev/SESSION_LOG.md");
   let text = "";
   try {
     text = await readFile(logPath, "utf8");
   } catch {
-    return { ok: false, warnings: ["dev/SESSION_LOG.md unreadable; discipline check skipped"] };
+    return { ok: false, blocking: true, warnings: ["dev/SESSION_LOG.md unreadable; discipline check skipped"] };
   }
 
   const warnings = [];
@@ -6417,16 +6429,16 @@ export async function assessSessionLogDiscipline(root) {
   const lineCount = text.split("\n").length;
 
   if (entryCount >= 25) {
-    warnings.push(`SESSION_LOG entry count = ${entryCount}（嚴重超過 N=11+ archive 邊界；接力角色紀律下，AI closeout flow 應該已自動推進 N 規則，如未動請要求 AI 重做 closeout）`);
+    warnings.push(`SESSION_LOG entry count = ${entryCount}（數量提示：下次 closeout 評估是否有實際維護、保存、接續或專案要求；不要只因數量作歷史 sweep 或新增 no-op log）`);
   } else if (entryCount >= 11) {
-    warnings.push(`SESSION_LOG entry count = ${entryCount}（達 N=11+ archive 邊界；下次 closeout 時 AI 應自動執行 N 規則推進，如未動請提醒）`);
+    warnings.push(`SESSION_LOG entry count = ${entryCount}（數量提示：下次 closeout 評估是否有實際維護、保存、接續或專案要求；不要只因數量作歷史 sweep 或新增 no-op log）`);
   }
 
   if (lineCount > 1500) {
     warnings.push(`SESSION_LOG line count = ${lineCount}（超過 1500 安全網閾值；可能 entry 異常長）`);
   }
 
-  return { ok: warnings.length === 0, warnings };
+  return { ok: warnings.length === 0, blocking: false, warnings };
 }
 
 // R-024 唯一真源：AGENTS.md 健康判斷合三為一函數。
@@ -6908,7 +6920,7 @@ async function assessUpgradeNoopHealth(root, version, options = {}) {
       silentCard: true,
       context: "upgrade-noop-health-check",
       skipVersionRegistryLookup: options.skipVersionRegistryLookup === true,
-      requireSessionLogMaintenance: options.requireSessionLogMaintenance === true
+      sessionLogDiscipline: options.sessionLogDiscipline
     });
     const doctorExitCode = process.exitCode;
     return {

@@ -48,10 +48,16 @@ try {
   const installedKnowledge = readFileSync(path.join(fixtureRoot, "dev", "rules", "knowledge.md"), "utf8");
   const installedIntegrations = readFileSync(path.join(fixtureRoot, "dev", "rules", "integrations.md"), "utf8");
   const installedLog = readFileSync(path.join(fixtureRoot, "dev", "SESSION_LOG.md"), "utf8");
+  const installedCloseout = readFileSync(path.join(fixtureRoot, "dev", "rules", "closeout.md"), "utf8");
+  const installedDecisions = readFileSync(path.join(fixtureRoot, "dev", "PROJECT_DECISIONS.md"), "utf8");
   assert(installedGovernance.includes("installed `AGENTS.md` Persistence Gate") && !installedGovernance.includes("runtime-core/AGENTS.core.md` persistence gate"), "installed governance pack retained source-only persistence owner");
   assert(installedKnowledge.includes("installed `AGENTS.md`") && !installedKnowledge.includes("runtime-core/AGENTS.core.md` Section 1"), "installed knowledge pack retained source-only probe owner");
   assert(installedIntegrations.includes("`dev/rules/safety.md` Rule 10") && installedIntegrations.includes("`dev/PROJECT_INDEX.md` `## Installed Integrations`") && !installedIntegrations.includes("`packs/safety.md` Rule 10"), "installed integrations pack retained source-only cross-reference");
   assert(installedLog.includes("`dev/rules/closeout.md` `## Maintenance Trigger Check`") && !installedLog.includes("N=1–3 keep full"), "installed session-log preamble retained duplicate maintenance thresholds");
+  assert(installedCloseout.includes("same session, reuse only evidence already fully received") && installedCloseout.includes("pure `SESSION_LOG` size advisory is not a `closeout-status` blocker") && installedCloseout.includes("Unknown count alone does not force a historical sweep"), "installed closeout pack lost bounded read reuse or advisory-only maintenance contract");
+  assert(installedLog.includes("Do not create an entry solely for a size advisory") && installedDecisions.includes("not a reason to invent a decision entry or sweep unknown historical material"), "installed maintenance consumers retained forced no-op historical work");
+  assert(installedGovernance.includes("Record only actual maintenance or a current risk") && installedGovernance.includes("A count alone does not force a historical sweep or no-op record") && !installedGovernance.includes("closeout maintenance trigger check was recorded") && !installedGovernance.includes("full maintenance applied where its trigger conditions were met"), "installed governance consumer retained the prior forced maintenance record contract");
+  assert(installedDecisions.includes("threshold advisory alone does not force splitting or sweeping unknown material") && !installedDecisions.includes("grows past the maintenance threshold"), "installed decisions consumer retained the prior threshold-forced split contract");
   const completeHandoff = closeoutReadyHandoff(initialHandoff);
   writeFixtureHandoff(completeHandoff);
 
@@ -96,6 +102,9 @@ try {
   assert(handoffTemplate.includes("Regenerate only if normalized content differs"), "handoff template still treats prompt mirror regeneration as unconditional");
   assert(closeoutPack.includes("Do not run a separate bundled `doctor`"), "full closeout still instructs a redundant bundled doctor");
   assert(closeoutPack.includes("one required fresh doctor read-back"), "closeout-status is not the declared single fresh doctor authority");
+  assert(closeoutPack.includes("same session, reuse only evidence already fully received"), "closeout required reads do not limit reuse to fully received unchanged evidence");
+  assert(closeoutPack.includes("A no-op closeout must not create a false work record"), "closeout still requires false durable log work for a no-op");
+  assert(closeoutPack.includes("Before shortening an active source, verify the preserved copy"), "closeout does not retain preservation verification before shortening source material");
 
   // Breaking AGENTS proves closeout-status still performs its one fresh doctor
   // readback rather than trusting only the handoff and mirror fields.

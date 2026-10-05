@@ -37,38 +37,61 @@ try {
   const originalLog = readFileSync(logPath, "utf8");
   const withEntries = count => originalLog + Array.from({ length: count }, (_, i) => `\n## 2026-10-03 Session ${i + 1}\n\nFixture trace.\n`).join("");
   const withLines = count => originalLog + "\n".repeat(count - originalLog.split("\n").length);
-  for (const [label, text, shouldBlock, warning] of [
-    ["ten entries remain below the archive trigger", withEntries(10), false, ""],
-    ["eleven entries require maintenance", withEntries(11), true, "entry count = 11"],
-    ["twenty-five entries cannot complete closeout", withEntries(25), true, "entry count = 25"],
-    ["1499 lines remain below the safety trigger", withLines(1499), false, ""],
-    ["1500 lines remain below the safety trigger", withLines(1500), false, ""],
-    ["1501 lines require maintenance", withLines(1501), true, "line count = 1501"]
+  for (const [label, text, warning] of [
+    ["ten entries remain below the advisory boundary", withEntries(10), ""],
+    ["eleven entries remain closeout-safe with an advisory", withEntries(11), "entry count = 11"],
+    ["twenty-five entries remain closeout-safe with an advisory", withEntries(25), "entry count = 25"],
+    ["1499 lines remain below the advisory boundary", withLines(1499), ""],
+    ["1500 lines remain below the advisory boundary", withLines(1500), ""],
+    ["1501 lines remain closeout-safe with an advisory", withLines(1501), "line count = 1501"]
   ]) {
     writeFileSync(logPath, text, "utf8");
     const assessment = await assessSessionLogDiscipline(fixtureRoot);
-    assert(assessment.ok === !shouldBlock, `${label}: shared maintenance assessment differs`);
+    assert(assessment.ok === !Boolean(warning) && assessment.blocking === false, `${label}: shared maintenance assessment differs`);
     const dailyDoctor = invoke(["bin/agent-handoff-kit.mjs", "doctor", "--root", fixtureRoot], label + " daily doctor");
-    assert(dailyDoctor.stdout.includes(`SESSION_LOG 接力角色紀律: ${shouldBlock ? "warn" : "ok"}`), `${label}: ordinary doctor lost its advisory result`);
+    assert(dailyDoctor.stdout.includes(`SESSION_LOG 接力角色紀律: ${warning ? "warn" : "ok"}`), `${label}: ordinary doctor lost its advisory result`);
     const result = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
-    assert(!result.error && result.status === (shouldBlock ? 1 : 0), `${label}: unexpected closeout exit\n${result.stdout}`);
-    assert(result.stdout.includes(`status: ${shouldBlock ? "blocked" : "complete"}`), `${label}: closeout state is wrong`);
-    if (shouldBlock) {
-      assert(result.stdout.includes("SESSION_LOG maintenance checks") && result.stdout.includes(warning), `${label}: maintenance cause or measured trigger was hidden`);
-      assert(!result.stdout.includes("handoff saved"), `${label}: maintenance falsely claimed saved`);
+    assert(!result.error && result.status === 0, `${label}: size-only advisory blocked closeout\n${result.stdout}`);
+    assert(result.stdout.includes("status: complete") && !result.stdout.includes("handoff blocked"), `${label}: closeout state is wrong`);
+    if (warning) {
+      assert(result.stdout.includes("Maintenance reminder") && result.stdout.includes(warning), `${label}: final card hid the advisory`);
+      if (warning.includes("entry count")) assertDeferredMaintenanceReminder(result.stdout, `${label}: complete card`);
+    } else {
+      assert(result.stdout === passed.stdout, `${label}: no-advisory final card changed`);
     }
-    assert(readFileSync(logPath, "utf8") === text, `${label}: read-only check changed the log`);
+    assert(readFileSync(logPath).equals(Buffer.from(text, "utf8")), `${label}: read-only check changed log bytes`);
   }
-  // An interrupted archive may leave a copy, while the active log is still due.
+  // An interrupted archive may leave a full copy while the active log is still
+  // complete. That is a deferred-maintenance positive, not proof of data loss.
   const archivePath = path.join(fixtureRoot, "dev", "SESSION_LOG_archive");
   mkdirSync(archivePath);
-  writeFileSync(path.join(archivePath, "archive_partial.md"), withEntries(11), "utf8");
-  writeFileSync(logPath, withEntries(11), "utf8");
+  const deferredLog = withEntries(11);
+  writeFileSync(path.join(archivePath, "archive_partial.md"), deferredLog, "utf8");
+  writeFileSync(logPath, deferredLog, "utf8");
   const interrupted = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
-  assert(!interrupted.error && interrupted.status === 1 && interrupted.stdout.includes("SESSION_LOG maintenance checks"), "partial archive copy hid the still-overdue active log");
+  assert(!interrupted.error && interrupted.status === 0 && interrupted.stdout.includes("Maintenance reminder") && interrupted.stdout.includes("entry count = 11"), "complete active log with a full copy was not retained as deferred maintenance");
+  assertDeferredMaintenanceReminder(interrupted.stdout, "deferred-maintenance complete card");
+  assert(readFileSync(logPath).equals(Buffer.from(deferredLog, "utf8")) && readFileSync(path.join(archivePath, "archive_partial.md")).equals(Buffer.from(deferredLog, "utf8")), "deferred-maintenance read-only check changed preserved bytes");
+
+  // The CLI does not infer arbitrary historical loss. A source shortened before
+  // preservation is verified stays honestly blocked in the handoff state.
+  const sourceBeforeShortening = withEntries(25);
+  const shortenedLog = deferredLog;
+  assert(Buffer.byteLength(shortenedLog, "utf8") < Buffer.byteLength(sourceBeforeShortening, "utf8"), "preservation fixture did not shorten its source");
+  writeFileSync(logPath, sourceBeforeShortening, "utf8");
+  const preservationUnverified = complete
+    .replace(/- Closeout outcome:[^\r\n]*/, "- Closeout outcome: blocked — SESSION_LOG source was shortened before preservation was verified.")
+    .replace(/- Project-required persistence:[^\r\n]*/, "- Project-required persistence: blocked — SESSION_LOG preservation is unverified.");
+  writeFixtureHandoff(preservationUnverified);
+  writeFileSync(logPath, shortenedLog, "utf8");
+  const preservationBlocked = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!preservationBlocked.error && preservationBlocked.status === 1 && preservationBlocked.stdout.includes("status: blocked") && preservationBlocked.stdout.includes("closeout outcome is not complete") && preservationBlocked.stdout.includes("project-required persistence is not complete or not required") && preservationBlocked.stdout.includes("Maintenance reminder") && preservationBlocked.stdout.includes("entry count = 11"), "preservation-unverified handoff was not refused or hid its advisory");
+  assertDeferredMaintenanceReminder(preservationBlocked.stdout, "preservation-unverified blocked card");
+  assert(!preservationBlocked.stdout.includes("handoff saved") && readFileSync(logPath).equals(Buffer.from(shortenedLog, "utf8")), "preservation-unverified refusal changed source bytes or falsely claimed success");
   writeFileSync(logPath, originalLog, "utf8");
+  writeFixtureHandoff(complete);
   assertCloseoutComplete(complete, "maintenance recovery after active log readback");
-  console.log("ok: ordinary doctor remains advisory; closeout enforces the shared entry/line maintenance triggers and interrupted maintenance stays blocked");
+  console.log("ok: 11/25 entries and 1501 lines are visible final-card advisories, no-advisory cards and log bytes stay unchanged, and unverified preservation remains blocked");
 
   const shortcutPath = path.join(fixtureRoot, requiredShortcutTargets[0]);
   const shortcutBytes = readFileSync(shortcutPath);
@@ -402,6 +425,12 @@ function invoke(args, label) {
 
 function readAt(base, relative) {
   return readFileSync(path.join(base, relative), "utf8");
+}
+
+function assertDeferredMaintenanceReminder(stdout, label) {
+  assert(stdout.includes("下次 closeout 評估是否有實際維護、保存、接續或專案要求"), `${label}: reminder omitted the actual-maintenance assessment`);
+  assert(stdout.includes("不要只因數量作歷史 sweep 或新增 no-op log"), `${label}: reminder omitted the no-forced-sweep boundary`);
+  assert(!stdout.includes("應該已自動推進 N 規則") && !stdout.includes("應自動執行 N 規則") && !stdout.includes("要求 AI 重做 closeout") && !stdout.includes("AI closeout flow"), `${label}: reminder retained the prior auto-maintenance or redo wording`);
 }
 
 function assert(condition, message) {

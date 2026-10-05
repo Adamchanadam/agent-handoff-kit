@@ -8,9 +8,9 @@ Add new session entries at the top. Record what actually happened in the session
 
 This log carries recent evidence, not current state. Put the current objective, next action, risks, and workspace identity in `dev/SESSION_HANDOFF.md`.
 
-Keep recent entries concise. If older entries no longer affect the next action and the maintenance trigger check says cleanup is due, reduce them to short dated indexes that point to the durable source of truth. Archive long error output, validation detail, or research trails only when triggered; do not create an archive directory by default.
+Keep recent entries concise. If older entries no longer affect the next action and the current maintenance assessment establishes cleanup is required, reduce them to short dated indexes that point to the durable source of truth. Archive long error output, validation detail, or research trails only when actual maintenance requires it; do not create an archive directory by default.
 
-Before closeout, record whether older log detail was kept, summarized, or archived, and whether the maintenance trigger check was no-op, triggered, or backstop-driven. Do not remove validation evidence or unresolved risks. The full opening message never belongs in this log.
+When current work requires a log entry, record whether relevant older detail was kept, summarized, or archived, and any actual maintenance or unresolved preservation risk. Do not create an entry solely for a size advisory. Do not remove validation evidence or unresolved risks. The full opening message never belongs in this log.
 
 <!-- ack:section:session-log-entry-template -->
 
@@ -31,7 +31,7 @@ Optional concise fields at normal authorized saves: `Work` identifies a related 
 - **Sync:** <doc/external sync status>
 - **Pending:** <next work>
 - **Risks:** <known risks or none>
-- **Log maintenance:** <trigger check result; full maintenance action if triggered, otherwise no-op reason>
+- **Log maintenance:** <actual maintenance action, preservation risk, or not_applicable>
 - **Opening-message mirror:** <regenerated and verified / blocked; full text omitted by design>
 <!-- ack:log-entry:end -->
 ````

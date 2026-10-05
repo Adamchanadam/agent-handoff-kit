@@ -2,7 +2,7 @@
 
 This file stores long-term project evolution, decisions, architecture trade-offs, and accumulated learning observations. It is a warm narrative layer. AI agents do not need to read this file at startup unless the current task asks for historical rationale or the closeout maintenance trigger says to update it.
 
-Short single-task projects can leave this file nearly empty. Long-running projects use it when a closeout trigger, semantic trigger, or periodic backstop applies. When the user asks why earlier choices were made, this file is the first long-term narrative reference.
+Short single-task projects can leave this file nearly empty. Long-running projects use it for substantive task evolution, a multi-option architectural choice with rationale, or cross-session learning. Closeout count thresholds are maintenance advisories, not a reason to invent a decision entry or sweep unknown historical material. When the user asks why earlier choices were made, this file is the first long-term narrative reference.
 
 The user is not expected to maintain this file manually. The AI updates it during closeout when required, and may record major decisions when they happen.
 
@@ -26,7 +26,7 @@ Long-term narrative of task or product evolution. Newest first. Append when the 
 
 ## Decisions Archive
 
-Older decision entries split from `SESSION_HANDOFF.md` when its confirmed-decisions style section grows past the maintenance threshold. Newest first.
+Older decision entries may move from `SESSION_HANDOFF.md` only when `dev/rules/closeout.md` identifies an actual preservation, continuation, semantic, or project-specific need. A threshold advisory alone does not force splitting or sweeping unknown material. Newest first.
 
 (empty)
 

@@ -19,6 +19,12 @@ Convenience collector: after the external publish actions and the actual officia
 
 Candidate sections below are snapshot evidence from the source-preparation phase. They are not edited in place to become postpublish truth. After a release is published, current external truth is owned by Git remote / tag readback, GitHub Release readback, npm registry readback, and the validated postpublish evidence JSON.
 
+## v0.4.3 candidate status
+
+- 狀態：本地原始碼候選，尚未凍結、未完成 candidate-preflight、formal full、receipt 或任何發布操作。
+- 範圍：修正收工的 `SESSION_LOG` 純大小判斷。記錄長度保留為維護提示；必要工作紀錄、交接保存、快捷入口及其他既有安全／保存 gate 仍會阻擋收工。
+- 邊界：v0.4.2 的歷史候選記錄及其任何失敗或有界證據不可作為 v0.4.3 的 preflight、full 或發布 PASS。正式驗收必須以凍結後的 v0.4.3 candidate identity、獨立審閱、所需 evidence 與 current command contract 重新核對。
+
 ## v0.4.2 candidate status
 
 - 狀態：五次歷史 formal full attempt 均以失敗結束，沒有產生或接受 receipt；它們只保留失敗根因，不可作為本候選 PASS。最新 r5 在 release-readiness 的 handoff continuity lifecycle 停止：一般 30 版升級窗口按時間首項選到 v0.3.40，但本案例需要已驗 `closeout-status` 的 v0.3.64 語義基線；保留原始失敗並以同一案例的明示相容基線修補，未把它改成一般 selector 或 current CLI。獨立非作者已完成四組變更雙語頁的 v0.4.2 差異覆核，全部 PASS 並綁定當時檔案雜湊。既有 candidate-preflight 停止記錄只反映當時的雙語覆核缺口，未重新執行；本候選仍未凍結、未完成 fresh candidate-preflight、formal full 或任何發布操作。

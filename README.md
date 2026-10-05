@@ -4,7 +4,7 @@
 
 **Session 接力棒**。讓下一次 AI 對話接得上：保留進度、重要決定、文件位置和未完事項。
 
-文件對應程式版本：`v0.4.2`。這份說明包含尚未發布的更新；正式下載可用的功能，以已發布版本為準。
+文件對應程式版本：`v0.4.3`。這份說明包含尚未發布的更新；正式下載可用的功能，以已發布版本為準。
 
 [![Agent Handoff Kit 宣傳動畫](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif)](https://youtu.be/RopbfBiSw1I)
 

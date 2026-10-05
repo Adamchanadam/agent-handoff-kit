@@ -4,7 +4,7 @@
 
 **Your session relay baton.** Help the next AI conversation pick up your work: keep progress, key decisions, file locations and unfinished tasks.
 
-Code version covered: `v0.4.2`. This guide includes updates that have not been released yet. Features available to download depend on the published version.
+Code version covered: `v0.4.3`. This guide includes updates that have not been released yet. Features available to download depend on the published version.
 
 [![Agent Handoff Kit introduction video](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif)](https://youtu.be/RopbfBiSw1I)
 
