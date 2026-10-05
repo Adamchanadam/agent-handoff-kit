@@ -18,7 +18,7 @@
 | 交接功能出了問題 | [`/handoff-kit-check`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#check) |
 | 想用最新正式版 | [`/handoff-kit-update`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html#update) |
 
-日常用開工、進度頁、收工；其他按需要用。每個指令的例子與注意事項都在[使用指南](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)，不用另外讀一套教學。
+日常用開工、進度頁、收工；其他按需要用。每個指令的例子與注意事項都在[使用指南](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.html)，不用另外讀一套教學。候選版 `handoff-kit-update` 實測要在執行 `npx` 的工作目錄選擇受控的一般 `registry=`；npm 會把這個選擇傳給 npx 和更新檢查，直接以 Node 執行而只放 `.npmrc` 不算這條受控路徑。
 
 ### 安裝與選單
 
@@ -48,7 +48,7 @@ Enter shortcuts in your project’s AI conversation, not in the terminal. Claude
 | Check whether the tool is installed correctly | [`/handoff-kit-check`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#check) |
 | Get the latest released version | [`/handoff-kit-update`](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html#update) |
 
-Start, Progress and Wrap up are the everyday shortcuts; use the others as needed. Examples and limits for each are in the [guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html), so you do not need a second set of instructions.
+Start, Progress and Wrap up are the everyday shortcuts; use the others as needed. Examples and limits for each are in the [guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html), so you do not need a second set of instructions. Candidate `handoff-kit-update` testing selects the controlled general `registry=` in the working directory that invokes `npx`; npm passes that selection to npx and its update check. A direct Node run with only a project `.npmrc` is not that controlled route.
 
 ### Installation and menus
 

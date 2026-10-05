@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
+import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
@@ -32,7 +33,66 @@ try{
  for(const command of commands){const body=bodyFor(command),gemini=files.find(f=>f.file===`.gemini/commands/${command.name}.toml`);assert.equal(JSON.parse(gemini.text.split('\n')[1].slice(9)),body);assert.ok(files.filter(f=>f.file.endsWith(`/${command.name}/SKILL.md`)).every(f=>f.text.endsWith(body)));assert.match(body,/Loading or discovering this skill is not authorization/);assert.match(body,/Read applicable AGENTS\.md instructions if not already loaded, then follow its `Upgrade lock guard` before loading Kit state/);assert.equal(body.includes("project recovery guidance"),false);assert.equal(body.includes("Before loading Kit state, check dev\/governance_migrations\/\.upgrade\.lock"),false);}
  const progressBody=bodyFor(commands.find(command=>command.name==='handoff-kit-progress'));
  assert.match(progressBody,/Verify the returned page is reachable before reporting success\. Give one short result that includes the exact returned loopback URL\./);
+ const updateBody=bodyFor(commands.find(command=>command.name==='handoff-kit-update'));
+ assert.match(updateBody,/controlled general `registry=` for the npx invocation working directory/);
+ assert.match(updateBody,/direct Node run with only a project `\.npmrc` does not select/);
+ assert.equal(updateBody.includes('selected local executable'),false);
  ok('contract check: shared shortcut defers lock handling to the named AGENTS.md guard; native behavioral acceptance is separate');
+ // A controlled npx invocation must pass its general registry to update and to
+ // the doctor invoked by the current no-op path. No direct .npmrc parsing or
+ // endpoint test hook is involved here.
+ const npmCli=path.join(path.dirname(process.execPath),'node_modules','npm','bin','npm-cli.js'),npxCli=path.join(path.dirname(process.execPath),'node_modules','npm','bin','npx-cli.js');
+ const npm=(args,runOptions={})=>run(process.execPath,[npmCli,...args],{...options,...runOptions});
+ const npx=(args,runOptions={})=>run(process.execPath,[npxCli,...args],{...options,...runOptions});
+ const packed=JSON.parse((await npm(['pack','--ignore-scripts','--json','--pack-destination',temp],{cwd:source})).stdout)[0];
+ const tarball=path.join(temp,packed.filename),tarballBytes=fs.readFileSync(tarball),registryHits=[];
+ let registryVersion=version;
+ const registry=http.createServer((request,response)=>{
+  const requestPath=decodeURIComponent(new URL(request.url,'http://127.0.0.1').pathname);registryHits.push(requestPath);
+  const base=`http://127.0.0.1:${registry.address().port}/registry`;
+  if(requestPath==='/registry/@adamchanadam/agent-handoff-kit/latest'||requestPath==='/override'){
+   response.writeHead(200,{'content-type':'application/json'});response.end(JSON.stringify({version:registryVersion}));return;
+  }
+  if(requestPath==='/registry/@adamchanadam/agent-handoff-kit'){
+   response.writeHead(200,{'content-type':'application/json'});response.end(JSON.stringify({name:'@adamchanadam/agent-handoff-kit','dist-tags':{latest:version},versions:{[version]:{name:'@adamchanadam/agent-handoff-kit',version,bin:{'agent-handoff-kit':'bin/agent-handoff-kit.mjs'},dist:{tarball:`${base}/candidate.tgz`,shasum:createHash('sha1').update(tarballBytes).digest('hex'),integrity:'sha512-'+createHash('sha512').update(tarballBytes).digest('base64')}}}}));return;
+  }
+  if(requestPath==='/registry/candidate.tgz'){response.writeHead(200,{'content-type':'application/octet-stream'});response.end(tarballBytes);return;}
+  response.writeHead(404);response.end('not found');
+ });
+ await new Promise(resolve=>registry.listen(0,'127.0.0.1',resolve));servers.push({close:()=>new Promise(resolve=>registry.close(resolve))});
+ const registryBase=`http://127.0.0.1:${registry.address().port}/registry`;
+ const cleanUpdateEnv=(extra={})=>{const env={...options.env};delete env.AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST;delete env.AGENT_HANDOFF_KIT_UPDATE_REGISTRY_URL;delete env.AGENT_HANDOFF_KIT_NO_UPDATE_CHECK;return {...env,...extra};};
+ const officialDir=path.join(temp,'official-v042');fs.mkdirSync(officialDir);
+ const officialFixture=JSON.parse(fs.readFileSync(path.join(source,'test-fixtures','v0.4.2','fixture-manifest.json'))).source.npm;
+ const officialCatalog=JSON.parse(fs.readFileSync(path.join(source,'bin','migration-baselines','official-origin-catalog.json'))).generatedShortcuts['0.4.2'].npm;
+ const officialPack=JSON.parse((await npm(['pack',officialFixture.spec,'--ignore-scripts','--json','--pack-destination',officialDir])).stdout)[0];
+ const officialTarball=path.join(officialDir,officialPack.filename);
+ assert.equal(createHash('sha256').update(fs.readFileSync(officialTarball)).digest('hex'),officialCatalog.tarballSha256,'controlled-update baseline must be the actual v0.4.2 package');
+ const baselinePrefix=path.join(temp,'controlled-v042-cli');await npm(['install','--prefix',baselinePrefix,'--ignore-scripts',officialTarball]);
+ const oldCli=path.join(baselinePrefix,'node_modules','@adamchanadam','agent-handoff-kit','bin','agent-handoff-kit.mjs');
+ const controlled=path.join(temp,'controlled-npx-update');fs.mkdirSync(controlled);
+ await run(process.execPath,[oldCli,'init','--yes','--root',controlled],{...options,env:cleanUpdateEnv({AGENT_HANDOFF_KIT_NO_UPDATE_CHECK:'1'})});
+ const customPath=path.join(controlled,'private-note.txt');fs.writeFileSync(customPath,'preserve this user byte\n');
+ const beforeControlled=snapshot(controlled);
+ const controlledResult=await npx(['--yes','--cache',path.join(temp,'controlled-npx-cache'),'--registry',registryBase,'@adamchanadam/agent-handoff-kit@latest','update','--root',controlled],{cwd:controlled,env:cleanUpdateEnv({AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE:'1'})});
+ assert.match(controlledResult.stdout,/Installed \/ 已安裝: 0\.4\.2; npm latest \/ 最新版: 0\.4\.3/);assert.equal(fs.readFileSync(customPath,'utf8'),'preserve this user byte\n');assert.notDeepEqual(snapshot(controlled),beforeControlled);
+ const controlledDoctor=await npx(['--yes','--cache',path.join(temp,'controlled-npx-cache'),'--registry',registryBase,'@adamchanadam/agent-handoff-kit@latest','doctor','--root',controlled],{cwd:controlled,env:cleanUpdateEnv({AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE:'1'})});
+ assert.match(controlledDoctor.stdout,/三向對齊 v0\.4\.3/);
+ assert(registryHits.filter(item=>item==='/registry/@adamchanadam/agent-handoff-kit/latest').length>=2,'npx update and doctor must use the controlled registry endpoint');
+ assert(!registryHits.some(item=>item.includes('/@adamchanadam/agent-handoff-kit/latest/@adamchanadam/agent-handoff-kit/latest')),'registry package path must be appended exactly once');
+ const overrideBefore=snapshot(controlled);
+ const overrideResult=await run(process.execPath,[cli,'update','--root',controlled],{...options,cwd:controlled,env:cleanUpdateEnv({npm_config_registry:'ftp://invalid.example',AGENT_HANDOFF_KIT_UPDATE_REGISTRY_URL:`http://127.0.0.1:${registry.address().port}/override`,AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE:'1'})});
+ assert.match(overrideResult.stdout,/Already current/);assert.deepEqual(snapshot(controlled),overrideBefore);assert(registryHits.includes('/override'),'explicit endpoint override must take priority over inherited registry');
+ const malformed=path.join(temp,'malformed-registry');fs.mkdirSync(malformed);await run(process.execPath,[cli,'init','--yes','--root',malformed],{...options,env:cleanUpdateEnv({AGENT_HANDOFF_KIT_NO_UPDATE_CHECK:'1'})});const malformedBefore=snapshot(malformed);
+ for(const [configured,secret] of [['ftp://registry.invalid','ftp://registry.invalid'],['http://user:very-secret@registry.invalid','very-secret']]){
+  await assert.rejects(run(process.execPath,[cli,'update','--root',malformed],{...options,cwd:malformed,env:cleanUpdateEnv({npm_config_registry:configured})}),error=>error.code===1&&error.stderr.includes('Configured npm registry is invalid')&&!error.stderr.includes(secret));
+  assert.deepEqual(snapshot(malformed),malformedBefore);
+ }
+ registryVersion='0.4.4';const noticeRoot=path.join(temp,'registry-notice');fs.mkdirSync(noticeRoot);
+ const notice=await run(process.execPath,[cli,'init','--yes','--root',noticeRoot],{...options,cwd:noticeRoot,env:cleanUpdateEnv({npm_config_registry:registryBase,AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE:'1'})});
+ assert.match(notice.stdout,new RegExp(`${version} -> 0\\.4\\.4`));
+ assert.match(fs.readFileSync(cli,'utf8'),/process\.env\.npm_config_registry \?\? officialNpmRegistry/);
+ ok('actual v0.4.2-to-candidate controlled npx update preserves custom bytes; fresh doctor, override priority, official default, invalid URL zero-write and shared notice are covered');
  assert.throws(()=>installCommands({root,agent:'../../bad'}),/Unknown agent/);ok('CLI preview, all adapters and concise bilingual Codex menu files, shared content, special-character roots and repeat no-op');
  // Real filesystem/CLI exercises use a disposable home, never the user's configuration.
  const fakeHome=project('scope-home'),customClaude=project('scope-claude'),customCodex=project('scope-codex'),customGemini=project('scope-gemini');

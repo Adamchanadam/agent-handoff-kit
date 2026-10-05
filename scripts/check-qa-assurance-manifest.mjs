@@ -271,6 +271,7 @@ function validateCandidateEvidenceContract() {
   const nativeUpdate = CANDIDATE_EVIDENCE_CONTRACT.featureDelivery.nativeUpdate;
   assert(nativeUpdate?.entry === "handoff-kit-update", "native update evidence owner drifted");
   assert(nativeUpdate.prepublishRegistryMode === "controlled" && nativeUpdate.postpublishRegistryMode === "official-live", "native update registry modes drifted");
+  assert(nativeUpdate.prepublishRegistryConfig === "inherited-npm-config-registry-from-npx-invocation", "native update controlled registry configuration owner drifted");
   assert(nativeUpdate.metadataKeys === NATIVE_UPDATE_METADATA_KEYS, "native update metadata contract must bind the feature-delivery owner");
   assert(JSON.stringify(CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys) === JSON.stringify([
     "governanceHealth",

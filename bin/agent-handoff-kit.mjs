@@ -6781,8 +6781,12 @@ async function fetchLatestVersion() {
   if (process.env.AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST) {
     return process.env.AGENT_HANDOFF_KIT_UPDATE_MOCK_LATEST;
   }
+  // This explicit endpoint is a deterministic test hook. Normal npm/npx
+  // invocations already pass their selected general registry through this
+  // environment; a direct Node invocation without it remains official npm.
   const url = process.env.AGENT_HANDOFF_KIT_UPDATE_REGISTRY_URL
-    ?? "https://registry.npmjs.org/@adamchanadam%2Fagent-handoff-kit/latest";
+    ? validateRegistryEndpoint(process.env.AGENT_HANDOFF_KIT_UPDATE_REGISTRY_URL)
+    : registryLatestEndpoint(process.env.npm_config_registry ?? officialNpmRegistry);
   const timeoutMs = Number.parseInt(process.env.AGENT_HANDOFF_KIT_UPDATE_TIMEOUT_MS ?? "1200", 10);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Number.isFinite(timeoutMs) ? timeoutMs : 1200);
@@ -6799,6 +6803,36 @@ async function fetchLatestVersion() {
   } finally {
     clearTimeout(timer);
   }
+}
+
+const officialNpmRegistry = "https://registry.npmjs.org/";
+const packageLatestPath = "@adamchanadam%2Fagent-handoff-kit/latest";
+
+function registryLatestEndpoint(registry) {
+  let parsed;
+  try {
+    parsed = new URL(registry);
+  } catch {
+    throw new Error("Configured npm registry is invalid; no upgrade performed. / npm registry 設定無效，未升級。");
+  }
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error("Configured npm registry is invalid; no upgrade performed. / npm registry 設定無效，未升級。");
+  }
+  const basePath = parsed.pathname.endsWith("/") ? parsed.pathname : `${parsed.pathname}/`;
+  return `${parsed.origin}${basePath}${packageLatestPath}`;
+}
+
+function validateRegistryEndpoint(endpoint) {
+  let parsed;
+  try {
+    parsed = new URL(endpoint);
+  } catch {
+    throw new Error("Configured npm registry endpoint is invalid; no upgrade performed. / npm registry endpoint 設定無效，未升級。");
+  }
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) {
+    throw new Error("Configured npm registry endpoint is invalid; no upgrade performed. / npm registry endpoint 設定無效，未升級。");
+  }
+  return parsed.toString();
 }
 
 function isStableSemver(version) {

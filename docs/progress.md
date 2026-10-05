@@ -26,7 +26,7 @@ AI 正常保存工作紀錄後，頁面自行更新，不用刷新，也不用�
 | 紀錄只顯示一部分 | 首頁先顯示摘要，其餘可看完整工作或原文。歷史資料太多、缺檔或格式有問題時，頁面會提示未讀齊；縮窄日期或請 AI 查明原因。 |
 | 斷線／更新失敗 | 畫面保留上次資料並提示，會自動重試。可按「立即重連」；仍失敗就再用進度頁指令。 |
 | 升級中 | 暫停讀取，等升級完成後再看，避免把更新到一半的內容當作最新。 |
-| 版本未核實／版本不同 | 頁面從專案讀取這套工具的版本；讀不到不會猜。「資料依據」另列開啟頁面的工具版本。有疑問用 `handoff-kit-check`；查最新正式版用 `handoff-kit-update`。 |
+| 版本未核實／版本不同 | 頁面從專案讀取這套工具的版本；讀不到不會猜。「資料依據」另列開啟頁面的工具版本。有疑問用 `handoff-kit-check`；查最新正式版用 `handoff-kit-update`。候選版實測須在執行 `npx` 的工作目錄選擇受控的一般 `registry=`，不是只以 Node 讀取專案 `.npmrc`。 |
 
 「交接保存」是交接文件的保存時間，不是所有專案檔案最後修改的時間。未保存的聊天內容不會出現。頁面只整理已保存的內容，不能證明 AI 已讀齊交接或成果已經驗收。
 
@@ -62,7 +62,7 @@ The interface switches between Traditional Chinese and English. Records without 
 | Only part of the history | Home shows summaries with links to full work or sources. Large histories, missing files or formatting problems produce an incomplete-coverage notice. Narrow the dates or ask the AI to investigate. |
 | Disconnected / update failed | The page keeps the last data with a warning and retries. Select “Reconnect now”, or use the Progress shortcut again if it still fails. |
 | Upgrade in progress | Reading pauses until the upgrade finishes, so partly updated files are not treated as current. |
-| Version unverified / versions differ | The page reads the version recorded in this project and does not guess if it is unavailable. Sources also lists the tool version that opened the page. Use `handoff-kit-check` for concerns or `handoff-kit-update` to check the latest release. |
+| Version unverified / versions differ | The page reads the version recorded in this project and does not guess if it is unavailable. Sources also lists the tool version that opened the page. Use `handoff-kit-check` for concerns or `handoff-kit-update` to check the latest release. Candidate testing selects the controlled general `registry=` in the working directory that invokes `npx`; a direct Node read of a project `.npmrc` alone is not that route. |
 
 “Handoff saved” is the handoff file’s save time, not the last change to every project file. Unsaved chat content does not appear. The page organizes saved records; it does not prove that the AI has read the full handoff or that the work has passed its checks.
 

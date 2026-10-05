@@ -233,7 +233,7 @@ export const PUBLIC_MIRROR_CONTRACT = Object.freeze({
 
 export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  featureDelivery: Object.freeze({ schemaVersion: 1, owner: "scripts/feature-delivery.mjs", sourceOwner: "bin/installed-file-contract.mjs", requiredStages: ["package", "freshInstall", "upgrade", "entry"], nativeMenusAndInvocationRequired: true, nativeUpdate: Object.freeze({ entry: "handoff-kit-update", prepublishRegistryMode: "controlled", postpublishRegistryMode: "official-live", metadataKeys: NATIVE_UPDATE_METADATA_KEYS }) }),
+  featureDelivery: Object.freeze({ schemaVersion: 1, owner: "scripts/feature-delivery.mjs", sourceOwner: "bin/installed-file-contract.mjs", requiredStages: ["package", "freshInstall", "upgrade", "entry"], nativeMenusAndInvocationRequired: true, nativeUpdate: Object.freeze({ entry: "handoff-kit-update", prepublishRegistryMode: "controlled", prepublishRegistryConfig: "inherited-npm-config-registry-from-npx-invocation", postpublishRegistryMode: "official-live", metadataKeys: NATIVE_UPDATE_METADATA_KEYS }) }),
   fullAcceptanceReceipt: Object.freeze({ schemaVersion: 1, kind: "accepted-candidate-receipt" }),
   manualVerdictKeys: Object.freeze([
     "governanceHealth",
