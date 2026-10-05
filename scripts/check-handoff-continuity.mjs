@@ -19,19 +19,20 @@ const env = { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" };
 const qaTemp = createQaTempTracker("handoff continuity QA");
 const qaBase = process.env.AGENT_HANDOFF_KIT_QA_TMP || tmpdir();
 const catalog = await loadOfficialOriginCatalog();
-const historicalVersion = selectRecentPublishedStableVersions(catalog)[0];
-if (!historicalVersion) throw new Error("official catalog has no published stable continuity baseline");
+const generalUpgradeWindow = selectRecentPublishedStableVersions(catalog);
+const closeoutStatusBaseline = "0.3.64";
+assert(generalUpgradeWindow.includes(closeoutStatusBaseline), "closeout-status lifecycle baseline must remain inside the published recent-version window");
 const currentVersion = JSON.parse(readAt(root, "package.json")).version;
 let passed = false;
 try {
   validateSemanticFixtureShape();
-  assert(currentVersion !== historicalVersion, "continuity lifecycle needs a candidate newer than the historical fixture");
+  assert(currentVersion !== closeoutStatusBaseline, "continuity lifecycle needs a candidate newer than the closeout-status baseline");
   checkCurrentOpeningSafetyRepair();
   const project = fresh("project");
   const gitProbe = spawnSync("git", ["-C", project, "rev-parse", "--show-toplevel"], { encoding: "utf8", env });
   assert(!gitProbe.error, `cannot verify isolated fixture Git boundary: ${gitProbe.error?.message}`);
   assert(gitProbe.status !== 0, "QA temporary root is inside a Git repository; set AGENT_HANDOFF_KIT_QA_TMP to a non-Git directory");
-  const historicalCli = installHistorical(project);
+  const historicalCli = installHistorical(project, closeoutStatusBaseline);
   let handoff = readyHistoricalHandoff(readAt(project, "dev/SESSION_HANDOFF.md"), project);
   saveHandoff(project, handoff);
   writeAt(project, "docs/source.txt", "Revision 2\nSection 1: sample columns.\nSection 2: full-cohort retry exclusions; not yet reviewed.\n");
@@ -146,7 +147,8 @@ function checkCurrentOpeningSafetyRepair() {
   console.log("ok: missing current opening safety line is restored between verified source anchors without removing user content");
 }
 
-function installHistorical(project, version = historicalVersion) {
+function installHistorical(project, version) {
+  assert(version, "historical installation requires an explicit semantic baseline");
   const manifest = JSON.parse(readAt(root, `test-fixtures/v${version}/fixture-manifest.json`));
   const identity = manifest.source.npm;
   const catalogIdentity = catalog.releases[version]?.source?.npm;

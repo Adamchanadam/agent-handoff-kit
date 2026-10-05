@@ -21,7 +21,7 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 
 ## v0.4.2 candidate status
 
-- 狀態：四次歷史 formal full attempt 均以失敗結束，沒有產生或接受 receipt；它們只保留失敗根因，不可作為本候選 PASS。獨立非作者已完成四組變更雙語頁的 v0.4.2 差異覆核，全部 PASS 並綁定當時檔案雜湊。既有 candidate-preflight 停止記錄只反映當時的雙語覆核缺口，未重新執行；本候選仍未凍結、未完成 fresh candidate-preflight、formal full 或任何發布操作。
+- 狀態：五次歷史 formal full attempt 均以失敗結束，沒有產生或接受 receipt；它們只保留失敗根因，不可作為本候選 PASS。最新 r5 在 release-readiness 的 handoff continuity lifecycle 停止：一般 30 版升級窗口按時間首項選到 v0.3.40，但本案例需要已驗 `closeout-status` 的 v0.3.64 語義基線；保留原始失敗並以同一案例的明示相容基線修補，未把它改成一般 selector 或 current CLI。獨立非作者已完成四組變更雙語頁的 v0.4.2 差異覆核，全部 PASS 並綁定當時檔案雜湊。既有 candidate-preflight 停止記錄只反映當時的雙語覆核缺口，未重新執行；本候選仍未凍結、未完成 fresh candidate-preflight、formal full 或任何發布操作。
 - 本輪已接受的準備：legacy `SESSION_LOG` 根因修補、30-release-window／官方來源選擇器修補、G04 integrations 路由修補，以及 fail-closed machine-result consumer 的獨立 D4 source review。這些是本機候選／證據準備，不是 full receipt、發布或可重用正式結論。
 - 範圍：交接遇到跨步或反覆無進展時的重新核對；收工的工作紀錄／快捷入口缺口診斷；把受控預發佈更新、正式發布後更新和原始驗收證據分開的驗收契約修補；以及只讓有完整原始輸入證據的兩個 content member 進入 diff proof validation，其餘 13 個仍實際執行。
 - 已知基線：npm 最新正式版為 v0.4.1，官方來源目錄保留其 52 檔成品與歷史資料；v0.4.2 不加入官方來源目錄。
