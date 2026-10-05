@@ -34,9 +34,19 @@ try{
  const progressBody=bodyFor(commands.find(command=>command.name==='handoff-kit-progress'));
  assert.match(progressBody,/Verify the returned page is reachable before reporting success\. Give one short result that includes the exact returned loopback URL\./);
  const updateBody=bodyFor(commands.find(command=>command.name==='handoff-kit-update'));
- assert.match(updateBody,/controlled general `registry=` for the npx invocation working directory/);
- assert.match(updateBody,/direct Node run with only a project `\.npmrc` does not select/);
+ assert.match(updateBody,/same `npx --registry <loopback> \.\.\.` invocation/);
+ assert.match(updateBody,/project `\.npmrc` config readback is setup metadata, not inheritance evidence/);
  assert.equal(updateBody.includes('selected local executable'),false);
+ const commandGuide=fs.readFileSync(path.join(source,'docs','commands.md'),'utf8');
+ assert.ok(commandGuide.includes('同一條 `npx --registry <loopback> ...` 呼叫'));
+ assert.ok(commandGuide.includes('專案 `.npmrc` 的讀回只是準備紀錄，不能證明已繼承'));
+ assert.ok(commandGuide.includes('same `npx --registry <loopback> ...` invocation'));
+ assert.ok(commandGuide.includes('A project `.npmrc` readback is setup metadata only, not proof of inheritance'));
+ const zhGuide=fs.readFileSync(path.join(source,'agent-handoff-kit-guide.html'),'utf8'),enGuide=fs.readFileSync(path.join(source,'agent-handoff-kit-guide.en.html'),'utf8');
+ assert.ok(zhGuide.includes('同一條 <code>npx --registry &lt;loopback&gt; …</code> 呼叫'));
+ assert.ok(zhGuide.includes('<code>.npmrc</code> 讀回只是準備紀錄，不能證明已繼承'));
+ assert.ok(enGuide.includes('same <code>npx --registry &lt;loopback&gt; …</code> invocation'));
+ assert.ok(enGuide.includes('<code>.npmrc</code> readback is setup metadata, not proof of inheritance'));
  ok('contract check: shared shortcut defers lock handling to the named AGENTS.md guard; native behavioral acceptance is separate');
  // A controlled npx invocation must pass its general registry to update and to
  // the doctor invoked by the current no-op path. No direct .npmrc parsing or
