@@ -35,10 +35,10 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 
 ### Bilingual practical-guide semantic gate（v0.4.3，PASS）
 
-- Reviewer：independent non-author `/root/v043_independent_review`，2026-10-05；Astra High。候選尚未凍結；此獨立語意覆核不構成 full 或發布批准。
-- Scope：完整讀回目前 working-tree 中英文實操指南及其直接行為依據。所有九個指令、案例、dashboard 聲稱、setup 條件、troubleshooting 邊界與 closeout 不會追加 upload／publish 授權；候選 controlled-registry 更新只在 `npx` invocation CWD 的一般 registry 選擇內成立，版本展示仍保留未發布限制。
-- `agent-handoff-kit-guide.html` SHA-256 `FF2856BB51F65FC84186EAE5D4CF0693E9F14DC48CC883D4A170F1719D09E3E7`
-- `agent-handoff-kit-guide.en.html` SHA-256 `17036CCCBEBF4E11A73C820B2D9AE4D96AF609D13F01D2E7EA66ED448404F20A`
+- Reviewer：independent non-author `/root/v043_independent_review`，2026-10-05；Astra High；及 fresh independent `/root/registry_protocol_review`，2026-10-05，限本次 registry-protocol 根修。候選尚未凍結；此獨立語意覆核不構成 full 或發布批准。
+- Scope：完整讀回目前 working-tree 中英文實操指南及其直接行為依據。所有九個指令、案例、dashboard 聲稱、setup 條件、troubleshooting 邊界與 closeout 不會追加 upload／publish 授權；候選 controlled-registry 更新只在同一條 `npx --registry <loopback> ...` 呼叫成立，`.npmrc` 讀回只是準備紀錄而非 CLI 繼承證據，版本展示仍保留未發布限制。
+- `agent-handoff-kit-guide.html` SHA-256 `4DBF3B44EFB9B3B531560DD48E0ED7333B44F599913E8AE247C86190FB8EF064`
+- `agent-handoff-kit-guide.en.html` SHA-256 `46D897B22FCE585E281FE628DCECF7605549431CB422923A6CC1C8E985123F31`
 - Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
 
 ### Bilingual AI-install semantic gate（v0.4.3，PASS）
