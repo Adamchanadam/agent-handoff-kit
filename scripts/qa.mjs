@@ -24,6 +24,7 @@ import { LONG_QA_TIMEOUT_MS, QaRunError, runChecked, runNodeScriptChecked } from
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const evidenceContractSelfTest = process.env.AGENT_HANDOFF_KIT_QA_TEST_MODE === "1"
   && process.env.AGENT_HANDOFF_KIT_QA_EVIDENCE_CONTRACT_SELF_TEST === "1";
+const POSTPUBLISH_CATALOG_SYNC_ACTION = "official-origin catalog is missing or does not match the just-published official observations; run `node scripts/generate-upgrade-fixtures.mjs`, commit/push only its generated catalog/fixture sync, then rerun postpublish";
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
@@ -232,6 +233,7 @@ async function validatePostpublishEvidence(options) {
   const tagCommit = await readRemoteTagCommit(options.version);
   assert(evidence.published.gitCommit.toLowerCase() === tagCommit, "postpublish published git commit does not match remote tag readback");
   assert(evidence.readbacks?.gitTag?.commit === tagCommit, "postpublish git tag evidence does not match remote tag readback");
+  await validatePostpublishOfficialOriginCatalog(options.version, npmView, tagCommit);
 
   assertPublishedCandidate(receipt, { version: options.version, commit: tagCommit, tarballSha256: packedSha256 });
   validatePostpublishNativeUpdate(evidence.readbacks?.nativeUpdate, receipt);
@@ -484,14 +486,29 @@ async function validateCandidatePublishedLineage(candidateVersion) {
   const latestPublishedVersion = await readLatestPublishedVersion();
   assert(isStableSemver(latestPublishedVersion), "published npm latest readback did not return a stable semver");
   assert(compareSemver(candidateVersion, latestPublishedVersion) > 0, `candidate ${candidateVersion} must be newer than latest published ${latestPublishedVersion}`);
-  const catalogPath = process.env.AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH
-    ? path.resolve(process.env.AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH)
-    : undefined;
-  const catalog = await loadOfficialOriginCatalog(catalogPath);
+  const catalog = await readOfficialOriginCatalog();
   const versions = Object.keys(catalog.releases ?? {});
   assert(versions.includes(latestPublishedVersion), `official-origin catalog does not include latest published v${latestPublishedVersion}`);
   assert(!versions.includes(candidateVersion), `official-origin catalog must not include unpublished candidate v${candidateVersion}`);
   assert(versions.at(-1) === latestPublishedVersion, `official-origin catalog range must end at latest published v${latestPublishedVersion}`);
+}
+
+async function validatePostpublishOfficialOriginCatalog(version, npmView, tagCommit) {
+  const catalog = await readOfficialOriginCatalog();
+  const source = catalog.releases?.[version]?.source;
+  assert(
+    source?.npm?.shasum === npmView.shasum
+      && source?.npm?.integrity === npmView.integrity
+      && source?.git?.commit?.toLowerCase() === tagCommit,
+    POSTPUBLISH_CATALOG_SYNC_ACTION
+  );
+}
+
+async function readOfficialOriginCatalog() {
+  const catalogPath = process.env.AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH
+    ? path.resolve(process.env.AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH)
+    : undefined;
+  return loadOfficialOriginCatalog(catalogPath);
 }
 
 async function readLatestPublishedVersion() {

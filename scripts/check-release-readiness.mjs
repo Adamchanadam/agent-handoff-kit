@@ -208,7 +208,10 @@ async function main() {
   checkShortcutTeachingDocuments();
   checkShortcutTeachingCounterexamples();
 
-  function checkReleaseSourceContracts(version, { onboardingText = read("packs/onboarding.md") } = {}) {
+  function checkReleaseSourceContracts(version, {
+    onboardingText = read("packs/onboarding.md"),
+    sessionLogText = read("runtime-core/SESSION_LOG.md")
+  } = {}) {
   assertIncludes("CHANGELOG.md", [
     `## v${version} — `,
     "RULE_PACKS.md",
@@ -446,14 +449,16 @@ async function main() {
   ]) assert(onboardingText.includes(snippet), `packs/onboarding.md missing snippet: ${snippet}`);
   assert(!onboardingText.includes("Step F.1: collect installed external tools"), "packs/onboarding.md retains the stale collect-installed-tools F.1 rule");
 
-  assertIncludes("runtime-core/SESSION_LOG.md", [
+  for (const snippet of [
     "Handoff role",
     "trace-back / audit trail layer",
     "Each closeout applies `dev/rules/closeout.md` `## Maintenance Trigger Check`",
-    "maintenance trigger check",
+    "Do not create an entry solely for a size advisory",
+    "Do not remove validation evidence or unresolved risks",
     "Log maintenance",
     "Evidence disposition"
-  ]);
+  ]) assert(sessionLogText.includes(snippet), `runtime-core/SESSION_LOG.md missing snippet: ${snippet}`);
+  assert(!sessionLogText.includes("maintenance trigger check"), "runtime-core/SESSION_LOG.md retains the retired forced maintenance-trigger wording");
 
   assertIncludes("bin/agent-handoff-kit.mjs", [
     "assessSessionLogDiscipline",
@@ -480,6 +485,7 @@ async function main() {
 
   function checkReleaseSourceContractCounterexamples(version) {
     const onboardingText = read("packs/onboarding.md");
+    const sessionLogText = read("runtime-core/SESSION_LOG.md");
     const mutations = [
       {
         label: "stale F.1 collect-installed-tools wording",
@@ -505,7 +511,16 @@ async function main() {
         `release source contract accepted missing ${mutation.label}`
       );
     }
-    console.log("ok: release source contract rejects stale F.1, missing ask-only, and missing fallback conditions");
+    const forcedMaintenanceTrigger = sessionLogText.replace(
+      "Do not create an entry solely for a size advisory",
+      "maintenance trigger check"
+    );
+    assert(forcedMaintenanceTrigger !== sessionLogText, "source-contract counterexample did not mutate the SESSION_LOG advisory rule");
+    assertThrows(
+      () => checkReleaseSourceContracts(version, { sessionLogText: forcedMaintenanceTrigger }),
+      "release source contract accepted retired forced SESSION_LOG maintenance wording"
+    );
+    console.log("ok: release source contract rejects stale F.1, missing ask-only, missing fallback, and forced SESSION_LOG maintenance wording");
   }
 
   const install = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "release user-flow install");

@@ -37,6 +37,7 @@ if (process.argv.includes('--feature-delivery-only')) {
   assert(runner.includes('await validateCandidateFeatureDelivery(evidence, head)'), 'full gate must invoke feature delivery');
   assert(runner.includes('reviewSubject?.featureDelivery'), 'independent review must bind feature evidence');
   assert(runner.includes('validatePostpublishNativeUpdate(evidence.readbacks?.nativeUpdate, receipt)'), 'postpublish must reuse the native update validator');
+  assert(runner.includes('await validatePostpublishOfficialOriginCatalog(options.version, npmView, tagCommit)'), 'postpublish must bind official-origin catalog observations');
   rmSync(fixtureRoot,{recursive:true,force:true});
   process.exit(0);
 }
@@ -619,6 +620,14 @@ function validateEvidenceContracts() {
     isDraft: false,
     isPrerelease: false
   };
+  const postpublishCatalog = writeCatalogFixture("postpublish-catalog.json", (catalog, latest) => {
+    const release = structuredClone(catalog.releases[latest]);
+    release.source.npm = { ...release.source.npm, spec: `@adamchanadam/agent-handoff-kit@${version}`, shasum: npmMetadata.shasum, integrity: npmMetadata.integrity };
+    release.source.git = { ...release.source.git, tag: `v${version}`, directObject: gitCommit, peeledCommit: gitCommit, commit: gitCommit };
+    release.source.githubRelease = { ...release.source.githubRelease, tag: `v${version}` };
+    release.source.sourceDivergence = { ...release.source.sourceDivergence, remoteTagCommit: gitCommit };
+    catalog.releases[version] = release;
+  });
   const selfTestEnv = {
     ...process.env,
     AGENT_HANDOFF_KIT_QA_TEST_MODE: "1",
@@ -631,6 +640,7 @@ function validateEvidenceContracts() {
     AGENT_HANDOFF_KIT_QA_SELF_TEST_NPM_METADATA: JSON.stringify(npmMetadata),
     AGENT_HANDOFF_KIT_QA_SELF_TEST_GITHUB_RELEASE: JSON.stringify(githubRelease)
   };
+  const postpublishSelfTestEnv = { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH: postpublishCatalog };
   invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", "9.9.9", "--validate-only"], "candidate-preflight package version mismatch", { env: selfTestEnv });
   invokeFailure(["scripts/qa.mjs", "candidate-preflight", "--candidate", version, "--validate-only"], "candidate-preflight surface version mismatch", {
     env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_SURFACE_VERSION_OVERRIDE: "9.9.9" }
@@ -954,16 +964,33 @@ function validateEvidenceContracts() {
   });
   const postpublish = path.join(fixtureRoot, "postpublish.json");
   writeEvidence(postpublish, validPostpublish);
-  invoke(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "near-valid postpublish evidence", { env: selfTestEnv });
+  invoke(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "near-valid postpublish evidence", { env: postpublishSelfTestEnv });
+
+  const missingPostpublishCatalog = writeCatalogFixture("missing-postpublish-catalog.json", (catalog) => {
+    delete catalog.releases[version];
+  });
+  const missingCatalogResult = invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish missing official-origin catalog entry", {
+    env: { ...postpublishSelfTestEnv, AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH: missingPostpublishCatalog }
+  });
+  assert(`${missingCatalogResult.stdout}\n${missingCatalogResult.stderr}`.includes("run `node scripts/generate-upgrade-fixtures.mjs`"), "postpublish catalog absence did not return the catalog-sync action");
+  const mismatchedPostpublishCatalog = writeCatalogFixture("mismatched-postpublish-catalog.json", (catalog) => {
+    catalog.releases[version] = structuredClone(catalog.releases[latestCatalogVersionBeforeCandidate(version)]);
+    catalog.releases[version].source.npm = { ...catalog.releases[version].source.npm, spec: `@adamchanadam/agent-handoff-kit@${version}`, shasum: "0".repeat(40), integrity: npmMetadata.integrity };
+    catalog.releases[version].source.git = { ...catalog.releases[version].source.git, tag: `v${version}`, commit: gitCommit };
+  });
+  const mismatchedCatalogResult = invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish mismatched official-origin catalog entry", {
+    env: { ...postpublishSelfTestEnv, AGENT_HANDOFF_KIT_QA_OFFICIAL_CATALOG_PATH: mismatchedPostpublishCatalog }
+  });
+  assert(`${mismatchedCatalogResult.stdout}\n${mismatchedCatalogResult.stderr}`.includes("run `node scripts/generate-upgrade-fixtures.mjs`"), "postpublish catalog mismatch did not return the catalog-sync action");
 
   const nativeUpdateInput = path.join(fixtureRoot, "completed-native-update.json");
   writeEvidence(nativeUpdateInput, { readbacks: { nativeUpdate: validPostpublish.readbacks.nativeUpdate } });
   const nativeUpdateInputBytes = readFileSync(nativeUpdateInput);
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--collect", path.join(fixtureRoot, "missing-native-input.json"), "--validate-only"], "collector requires completed native update evidence", { env: selfTestEnv });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", nativeUpdateInput, "--collect", nativeUpdateInput, "--validate-only"], "collector refuses to overwrite supplied native update evidence", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--collect", path.join(fixtureRoot, "missing-native-input.json"), "--validate-only"], "collector requires completed native update evidence", { env: postpublishSelfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", nativeUpdateInput, "--collect", nativeUpdateInput, "--validate-only"], "collector refuses to overwrite supplied native update evidence", { env: postpublishSelfTestEnv });
   assert(nativeUpdateInputBytes.equals(readFileSync(nativeUpdateInput)), "collector overwrote supplied native update evidence on rejection");
   const collectedPostpublish = path.join(fixtureRoot, "postpublish-collected.json");
-  invoke(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", nativeUpdateInput, "--collect", collectedPostpublish, "--validate-only"], "postpublish collector evidence", { env: selfTestEnv });
+  invoke(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", nativeUpdateInput, "--collect", collectedPostpublish, "--validate-only"], "postpublish collector evidence", { env: postpublishSelfTestEnv });
   const collected = JSON.parse(readFileSync(collectedPostpublish, "utf8"));
   assert(collected.kind === "postpublish-assurance", "postpublish collector wrote the wrong evidence kind");
   assert(collected.published?.version === version, "postpublish collector wrote the wrong version");
@@ -973,54 +1000,54 @@ function validateEvidenceContracts() {
   assert(nativeUpdateInputBytes.equals(readFileSync(nativeUpdateInput)), "postpublish collector overwrote supplied native update evidence");
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: undefined } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish missing native update", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish missing native update", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, update: { ...validPostpublish.readbacks.nativeUpdate.update, registryMode: "controlled" } } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish controlled update cannot prove official-live success", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish controlled update cannot prove official-live success", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, tarballSha256: "3".repeat(64) } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update accepted artifact mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update accepted artifact mismatch", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, outcome: "expected-stop" } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish refused native update", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish refused native update", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, update: { ...validPostpublish.readbacks.nativeUpdate.update, fromVersion: version } } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish no-op native update", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish no-op native update", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, execution: { ...validPostpublish.readbacks.nativeUpdate.execution, trace: undefined } } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update missing raw trace", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update missing raw trace", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, nativeReview: undefined } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update requires independent review receipt", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update requires independent review receipt", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, nativeReview: { ...validPostpublish.readbacks.nativeUpdate.nativeReview, verdict: "rejected" } } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish rejected native review cannot pass", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish rejected native review cannot pass", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, nativeReview: { ...validPostpublish.readbacks.nativeUpdate.nativeReview, reviewer: { ...validPostpublish.readbacks.nativeUpdate.nativeReview.reviewer, provenanceId: validPostpublish.readbacks.nativeUpdate.writerProvenance.provenanceId } } } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update self-review cannot pass", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update self-review cannot pass", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, update: { ...validPostpublish.readbacks.nativeUpdate.update, registryMode: "controlled" } } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish relabeled native update invalidates its review binding", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish relabeled native update invalidates its review binding", { env: postpublishSelfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npm: { ...npmMetadata, shasum: "1".repeat(40) } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npm shasum mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npm shasum mismatch", { env: postpublishSelfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npmPack: { tarballSha256: "2".repeat(64) } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npm pack mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npm pack mismatch", { env: postpublishSelfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, githubRelease: { ...githubRelease, url: `${githubRelease.url}-wrong` } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish GitHub URL mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish GitHub URL mismatch", { env: postpublishSelfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, githubRelease: { ...githubRelease, targetCommitish: "5".repeat(40) } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish GitHub targetCommitish mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish GitHub targetCommitish mismatch", { env: postpublishSelfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, published: { ...validPostpublish.published, gitCommit: "6".repeat(40) } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish published git commit mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish published git commit mismatch", { env: postpublishSelfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, gitTag: { commit: "7".repeat(40) } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish git tag mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish git tag mismatch", { env: postpublishSelfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npxHelp: { ...npxHelpEvidence, packageSpec: "@adamchanadam/agent-handoff-kit@0.0.0", version: "0.0.0" } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help version/package mismatch", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help version/package mismatch", { env: postpublishSelfTestEnv });
 
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, npxHelp: { ...npxHelpEvidence, requiredCommands: npxHelpEvidence.requiredCommands.filter((command) => command !== "doctor") } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help missing required command", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish npx help missing required command", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, validPostpublish);
   const receiptA = JSON.parse(readFileSync(fullReceipt, "utf8"));
   writeEvidence(fullReceipt, { ...receiptA, commit: "a".repeat(40), tarballSha256: "a".repeat(64) });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "accepted candidate A rejects mutually consistent live B", { env: selfTestEnv });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", nativeUpdateInput, "--collect", path.join(fixtureRoot, "rejected-collection.json"), "--validate-only"], "collector rejects live B against accepted A", { env: selfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "accepted candidate A rejects mutually consistent live B", { env: postpublishSelfTestEnv });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", nativeUpdateInput, "--collect", path.join(fixtureRoot, "rejected-collection.json"), "--validate-only"], "collector rejects live B against accepted A", { env: postpublishSelfTestEnv });
   assert(!existsSync(path.join(fixtureRoot, "rejected-collection.json")), "collector wrote mismatched evidence");
   console.log("ok: near-valid full/postpublish evidence mismatches are rejected");
 }
