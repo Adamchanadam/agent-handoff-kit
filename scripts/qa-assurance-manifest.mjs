@@ -43,7 +43,8 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
     }),
     full: Object.freeze({
       purpose: "candidate-bound pre-publish decision",
-      command: "node scripts/qa.mjs full --candidate <version> --evidence <candidate-evidence.json> --receipt <full-receipt.json>"
+      command: "node scripts/qa.mjs full --mode <complete|diff> --candidate <version> --evidence <candidate-evidence.json> --receipt <full-receipt.json>",
+      executionModes: Object.freeze(["complete", "diff"])
     }),
     postpublish: Object.freeze({
       purpose: "published-artifact readback; never pre-publish evidence",
@@ -288,7 +289,8 @@ export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
       "releaseReadinessInventoryDigest",
       "reviewBundle.sha256",
       "reviewSubjectDigest",
-      "manualVerdicts"
+      "manualVerdicts",
+      "machineResultsDigest"
     ])
   }),
   records: Object.freeze({

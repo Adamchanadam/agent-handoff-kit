@@ -65,7 +65,7 @@ export async function runChecked(command, args, label, options = {}) {
 }
 
 export async function runNodeScriptChecked(script, label, options = {}) {
-  return runChecked(process.execPath, [script], label, options);
+  return runChecked(process.execPath, [script, ...(options.args ?? [])], label, options);
 }
 
 export function invokeAsync(command, args, label, options = {}) {

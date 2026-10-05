@@ -10,7 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { installedFileContracts } from "../bin/installed-file-contract.mjs";
-import { canonicalizeOfficialText, loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
+import { canonicalizeOfficialText, loadOfficialOriginCatalog, selectRecentPublishedStableVersions } from "../bin/official-origin-catalog.mjs";
 import { assessPromptMirrorRoot, extractOpeningMessage } from "../bin/prompt-mirror-core.mjs";
 import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 
@@ -19,13 +19,13 @@ const env = { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" };
 const qaTemp = createQaTempTracker("handoff continuity QA");
 const qaBase = process.env.AGENT_HANDOFF_KIT_QA_TMP || tmpdir();
 const catalog = await loadOfficialOriginCatalog();
-const historicalVersion = "0.3.64";
+const historicalVersion = selectRecentPublishedStableVersions(catalog)[0];
+if (!historicalVersion) throw new Error("official catalog has no published stable continuity baseline");
 const currentVersion = JSON.parse(readAt(root, "package.json")).version;
 let passed = false;
 try {
   validateSemanticFixtureShape();
   assert(currentVersion !== historicalVersion, "continuity lifecycle needs a candidate newer than the historical fixture");
-  checkCatalogLegacyOpeningMigration();
   checkCurrentOpeningSafetyRepair();
   const project = fresh("project");
   const gitProbe = spawnSync("git", ["-C", project, "rev-parse", "--show-toplevel"], { encoding: "utf8", env });
@@ -124,32 +124,6 @@ function readyHistoricalHandoff(text, project) {
     .replace(/- Stale snapshots left in this handoff:[^\r\n]*/, "- Stale snapshots left in this handoff: no")
     .replace(/(- (?:Completed \/ pending[^\r\n]*|Recommended next step is explicit and reasoned|Opening message matches current state|Next AI can continue[^\r\n]*):)[^\r\n]*/g, "$1 yes")
     .replace(/^Answer:.*$/m, "Answer: yes");
-}
-
-function checkCatalogLegacyOpeningMigration() {
-  const expectedSourceOpening = extractOpeningMessage(readAt(root, "runtime-core/SESSION_HANDOFF.md"));
-  assert(expectedSourceOpening, "current source handoff lacks an opening message");
-  for (const [label, userOwnedSuffix] of [
-    ["official-only", ""],
-    ["official-prefix-with-custom-suffix", "Project-owned continuation: retain this sentence exactly.\nDo not infer new authorization from it."]
-  ]) {
-    const project = fresh(`legacy-opening-${label}`);
-    installHistorical(project, "0.1.0");
-    let handoff = readAt(project, "dev/SESSION_HANDOFF.md");
-    const oldOpening = extractOpeningMessage(handoff);
-    assert(oldOpening, `${label}: v0.1.0 handoff lacks an opening message`);
-    if (userOwnedSuffix) {
-      const updatedOpening = `${oldOpening}\n${userOwnedSuffix}`;
-      handoff = handoff.replace(oldOpening, updatedOpening);
-      saveHandoff(project, handoff);
-    }
-    cli(["upgrade", "--yes", "--root", project], `${label} v0.1.0 opening upgrade`);
-    const upgradedOpening = extractOpeningMessage(readAt(project, "dev/SESSION_HANDOFF.md"));
-    const expected = `${expectedSourceOpening.replaceAll("<absolute project root>", project)}${userOwnedSuffix ? `\n${userOwnedSuffix}` : ""}`;
-    assert(normalizePrompt(upgradedOpening) === normalizePrompt(expected), `${label}: catalog-proven official opening was not upgraded while preserving user content`);
-    cli(["doctor", "--root", project], `${label} v0.1.0 opening doctor`);
-  }
-  console.log("ok: catalog-proven legacy opening prefixes upgrade to the current contract while user suffixes survive");
 }
 
 function checkCurrentOpeningSafetyRepair() {

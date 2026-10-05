@@ -5869,7 +5869,7 @@ function restoreMissingCurrentOpeningLines(targetPrompt, sourcePrompt) {
 function migrateSessionLog(targetText, sourceText, context = {}) {
   let merged = mergeSessionLogTemplateContract(targetText, sourceText);
   if (!merged) return null;
-  merged = replaceVerifiedOfficialSessionLogPreamble(merged, sourceText, context);
+  merged = replaceVerifiedOfficialSessionLogPreamble(merged, sourceText, context, targetText);
   if (!merged) return null;
   merged = mergeSessionLogEvidenceDispositionField(merged);
   if (!merged) return null;
@@ -5895,7 +5895,21 @@ function sessionLogPreambleBounds(text) {
   return { start, end };
 }
 
-function replaceVerifiedOfficialSessionLogPreamble(targetText, sourceText, context) {
+function officialSessionLogPreambleBounds(text) {
+  const currentBounds = sessionLogPreambleBounds(text);
+  if (currentBounds) return { ...currentBounds, format: "marked" };
+
+  // The verified v0.1.0 catalog predates both SESSION_LOG boundary markers.
+  // Its single legacy title/template boundary is only a candidate boundary;
+  // callers still require exact equality with the trusted catalog baseline
+  // before replacing project-owned content.
+  const titles = [...text.matchAll(/^# Session Log\s*$/gm)];
+  const templates = [...text.matchAll(/^## Entry Template\s*$/gm)];
+  if (titles.length !== 1 || templates.length !== 1 || titles[0].index !== 0 || templates[0].index <= titles[0].index) return null;
+  return { start: titles[0].index + titles[0][0].length, end: templates[0].index, format: "legacy" };
+}
+
+function replaceVerifiedOfficialSessionLogPreamble(targetText, sourceText, context, originalTargetText = targetText) {
   const baselineVersion = context.trustedBaselineVersion;
   if (!baselineVersion || !context.officialCatalog) return targetText;
   const baseline = getOfficialBaseline({
@@ -5907,10 +5921,13 @@ function replaceVerifiedOfficialSessionLogPreamble(targetText, sourceText, conte
 
   const targetBounds = sessionLogPreambleBounds(targetText);
   const sourceBounds = sessionLogPreambleBounds(sourceText);
-  const baselineBounds = sessionLogPreambleBounds(baseline.text);
+  const baselineBounds = officialSessionLogPreambleBounds(baseline.text);
   if (!targetBounds || !sourceBounds || !baselineBounds) return null;
 
-  const targetPreamble = targetText.slice(targetBounds.start, targetBounds.end).replace(/\r\n?/g, "\n").trimEnd();
+  const originalBounds = officialSessionLogPreambleBounds(originalTargetText);
+  if (!originalBounds || originalBounds.format !== baselineBounds.format) return targetText;
+
+  const targetPreamble = originalTargetText.slice(originalBounds.start, originalBounds.end).replace(/\r\n?/g, "\n").trimEnd();
   const officialPreamble = baseline.text.slice(baselineBounds.start, baselineBounds.end).replace(/\r\n?/g, "\n").trimEnd();
   // Only the catalog's complete, verified historical preamble may be replaced.
   // A local line (even beside an otherwise old preamble) remains user content.

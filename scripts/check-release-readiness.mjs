@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,8 +19,10 @@ import {
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
 import { describeResult, runChecked, runNodeScriptChecked } from "./qa-runner-core.mjs";
+import { validateCandidateEvidence } from "./qa.mjs";
 import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 import { resolveFeatureDeliveryBase } from "./feature-delivery.mjs";
+import { loadOfficialOriginCatalog, selectRecentPublishedStableVersions } from "../bin/official-origin-catalog.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -33,7 +35,39 @@ const GITHUB_RELEASE_BODY_HEADINGS = [
   "## 對你已有檔案的影響",
   "## 建議下一步"
 ];
+const MACHINE_RESULT_SHARED_PRODUCT_ROOTS = Object.freeze(["package.json", "bin", "runtime-core", "packs"]);
+// These are the only narrow content-scope candidates. Diff reuse still needs
+// a current, independently bound execution record; all other members execute.
+const MACHINE_RESULT_SCOPE_CANDIDATES = Object.freeze({
+  "official-origin-catalog": Object.freeze({ commandArgs: [] }),
+  "prompt-mirror": Object.freeze({ commandArgs: [] })
+});
+const MACHINE_RESULT_NON_REUSABLE = Object.freeze({
+  "qa-assurance-manifest": "runtime-selected subprocess and candidate inputs",
+  "install-lock-smoke": "subprocess and execution-environment inputs",
+  "public-prototype": "repository-wide scan and package inputs",
+  "command-entry": "CLI, service, and execution-environment inputs",
+  "progress-view": "watcher, service, and execution-environment inputs",
+  "closeout-card": "Git and execution-environment inputs",
+  "handoff-continuity": "artifact availability and execution-environment inputs",
+  "closeout-efficiency": "subprocess and execution-environment inputs",
+  "public-mirror": "mirror-copy, package, and execution-environment inputs",
+  "pack-scenarios": "subprocess and execution-environment inputs",
+  "upgrade-inventory": "CLI and execution-environment inputs",
+  "upgrade-transaction-window": "active-lock and execution-environment inputs",
+  "upgrade-safety": "artifact availability and execution-environment inputs"
+});
+const MACHINE_RESULT_PRODUCER_ROOTS = Object.freeze([
+  "scripts/check-release-readiness.mjs",
+  "scripts/qa.mjs",
+  "scripts/qa-assurance-manifest.mjs",
+  "scripts/qa-runner-core.mjs",
+  "scripts/qa-temp-cleanup.mjs"
+]);
 const rootMismatchGuard = currentRootMismatchGuard();
+const officialOriginCatalog = await loadOfficialOriginCatalog();
+const oldestRecentPublishedUpgradeVersion = selectRecentPublishedStableVersions(officialOriginCatalog)[0];
+if (!oldestRecentPublishedUpgradeVersion) throw new Error("official catalog has no published stable packed-upgrade baseline");
 
 let passed = false;
 try {
@@ -45,6 +79,11 @@ try {
 }
 
 async function main() {
+  const machineOptions = parseMachineResultOptions(process.argv.slice(2));
+  if (machineOptions.capturePath) {
+    await captureMachineResults(machineOptions.capturePath);
+    return;
+  }
   if (process.argv.includes('--evidence-guards-only')) {
     checkCrossMindTableCounterexamples();
     await checkBilingualBaselineCounterexamples();
@@ -85,6 +124,10 @@ async function main() {
     checkReleaseReadinessInventorySelfTest();
     return;
   }
+  if (process.argv.includes("--machine-results-contract-self-test")) {
+    await checkMachineResultsContract();
+    return;
+  }
   if (process.argv.includes("--release-notes-contract-self-test")) {
     checkGithubReleaseNotesContractSelfTest();
     return;
@@ -108,6 +151,11 @@ async function main() {
   assert(packageJson.name === "@adamchanadam/agent-handoff-kit", "package name drifted");
   const version = packageJson.version;
   assert(version && /^\d+\.\d+\.\d+$/.test(version), "package version missing or malformed (expected semver e.g. 0.1.8)");
+  let acceptedMachineEvidence = null;
+  if (machineOptions.mode === "diff") {
+    acceptedMachineEvidence = await validateCandidateEvidence({ candidate: version, evidence: machineOptions.evidencePath, mode: "diff" });
+    assertAcceptedMachineEvidenceSha256(acceptedMachineEvidence, machineOptions.evidenceSha256);
+  }
   assert(JSON.stringify(packageJson.files) === JSON.stringify(RELEASE_PACKAGE_CONTRACT.packageFiles), "npm package files boundary changed");
   // This isolated checker executes every required QA script directly below.
   // The public npm package deliberately excludes source QA helpers, so a
@@ -132,9 +180,12 @@ async function main() {
   checkQaTempCleanupContract();
   checkWorkspaceHealthContract();
 
+  const reusableRecords = machineOptions.mode === "diff"
+    ? readReusableMachineResults(machineOptions.evidencePath, acceptedMachineEvidence.candidateEvidenceSha256)
+    : new Map();
   const executedQaIds = [];
   for (const qaCheck of QA_RELEASE_READINESS_INVENTORY) {
-    await runManifestQaScript(qaCheck, executedQaIds);
+    await runManifestQaScript(qaCheck, executedQaIds, reusableRecords, machineOptions.mode);
   }
   assertReleaseReadinessInventoryComplete(executedQaIds);
 
@@ -1341,7 +1392,7 @@ function simulateScenarioBranching() {
   // SESSION_HANDOFF may receive the bounded lifecycle/startup migration while
   // preserving user state; PROJECT_INDEX updates only its shared Stack version row.
   const s3cRoot = path.join(tempBase, "scenario-upgrade-stale-lifecycle-placeholder");
-  materializePinnedV041ArtifactInit(s3cRoot);
+  materializeRecentPublishedArtifactInit(s3cRoot);
   const s3cIndexPath = path.join(s3cRoot, "dev/PROJECT_INDEX.md");
   const s3cHandoffPath = path.join(s3cRoot, "dev/SESSION_HANDOFF.md");
   let s3cHandoff = readFileSync(s3cHandoffPath, "utf8");
@@ -1952,9 +2003,44 @@ function simulateLocalizedHandoffHeadings() {
   assert(localizedDoctor.stdout.includes("status: passed"), "doctor did not pass after localizing handoff headings");
 }
 
-async function runManifestQaScript(qaCheck, executedQaIds) {
+function parseMachineResultOptions(args) {
+  const relevant = args.some((value) => value === "--capture-machine-results" || value === "--execution-mode" || value === "--candidate-evidence" || value === "--accepted-evidence-sha256");
+  if (!relevant) return { mode: "complete", evidencePath: null, evidenceSha256: null, capturePath: null };
+  let mode = null, evidencePath = null, evidenceSha256 = null, capturePath = null;
+  for (let index = 0; index < args.length; index += 1) {
+    const value = args[index];
+    if (value === "--execution-mode") mode = args[++index];
+    else if (value === "--candidate-evidence") evidencePath = args[++index];
+    else if (value === "--accepted-evidence-sha256") evidenceSha256 = args[++index];
+    else if (value === "--capture-machine-results") capturePath = args[++index];
+    else throw new Error("machine-results invocation has an unrelated argument: " + value);
+  }
+  if (capturePath) {
+    assert(!mode && !evidencePath, "machine-results capture cannot also run a release-readiness mode");
+    assert(typeof capturePath === "string" && capturePath, "--capture-machine-results requires an output path");
+    return { mode: null, evidencePath: null, evidenceSha256: null, capturePath };
+  }
+  assert(mode === "complete" || mode === "diff", "--execution-mode must be complete or diff");
+  if (mode === "complete") assert(!evidencePath && !evidenceSha256, "complete execution cannot receive reusable machine-result evidence");
+  else {
+    assert(typeof evidencePath === "string" && evidencePath, "diff execution requires --candidate-evidence <accepted-evidence.json>");
+    assert(typeof evidenceSha256 === "string" && /^[a-f0-9]{64}$/i.test(evidenceSha256), "diff execution requires the accepted candidate-evidence SHA-256");
+  }
+  return { mode, evidencePath, evidenceSha256: evidenceSha256?.toLowerCase() ?? null, capturePath: null };
+}
+
+function assertAcceptedMachineEvidenceSha256(acceptedEvidence, parentBoundSha256) {
+  assert(acceptedEvidence?.candidateEvidenceSha256 === parentBoundSha256,
+    "diff execution accepted candidate evidence differs from the parent-bound SHA-256");
+}
+
+async function runManifestQaScript(qaCheck, executedQaIds, reusableRecords = new Map(), mode = "complete", execute = executeQaScript) {
   executedQaIds.push(qaCheck.id);
-  await executeQaScript(qaCheck.script, qaCheck.label);
+  if (mode === "diff" && reusableRecords.has(qaCheck.id)) {
+    console.log("reuse: " + qaCheck.id);
+    return;
+  }
+  await execute(qaCheck.script, qaCheck.label);
 }
 
 function executeQaScript(scriptName, label) {
@@ -1965,6 +2051,406 @@ function executeQaScript(scriptName, label) {
 function assertReleaseReadinessInventoryComplete(executedQaIds) {
   const expected = QA_RELEASE_READINESS_INVENTORY.map((qaCheck) => qaCheck.id);
   assert(JSON.stringify(executedQaIds) === JSON.stringify(expected), `release-readiness QA inventory drifted from manifest (${QA_RELEASE_READINESS_INVENTORY_DIGEST})`);
+}
+
+function machineResultProducerScope() {
+  // Producer identity covers its static local source closure. Dynamic package
+  // actions remain execution inputs and cannot make a record reusable by fiat.
+  return deriveMachineResultScope(root, MACHINE_RESULT_PRODUCER_ROOTS, undefined, { rejectUnresolvedDynamicImports: false });
+}
+
+function machineResultExternalPath(candidate, label, { mustNotExist = false } = {}) {
+  assert(typeof candidate === "string" && candidate, label + " path is required");
+  const absolute = path.resolve(candidate);
+  const parent = path.dirname(absolute);
+  assert(existsSync(parent), label + " parent does not exist: " + parent);
+  assertMachineResultExternalPathHasNoLinks(absolute, label);
+  const realParent = realpathSync(parent);
+  const output = path.join(realParent, path.basename(absolute));
+  assert(output === absolute, label + " path changed while resolving its parent");
+  assert(!isInsideOrSameMachineScopeRoot(realpathSync(root), output), label + " must be outside the Public source root");
+  if (existsSync(output)) {
+    const stat = lstatSync(output);
+    assert(!stat.isSymbolicLink() && stat.isFile(), label + " must be a regular non-link file");
+    assert(!mustNotExist, label + " already exists: " + output);
+  }
+  return output;
+}
+
+function assertMachineResultExternalPathHasNoLinks(candidate, label) {
+  const absolute = path.resolve(candidate);
+  let cursor = existsSync(absolute) ? absolute : path.dirname(absolute);
+  const volumeRoot = path.parse(cursor).root;
+  for (;;) {
+    const stat = lstatSync(cursor);
+    assert(!stat.isSymbolicLink(), label + " must not cross a link: " + cursor);
+    if (cursor === volumeRoot) return;
+    const parent = path.dirname(cursor);
+    assert(parent !== cursor, label + " path has no filesystem root: " + absolute);
+    cursor = parent;
+  }
+}
+
+function machineResultRuntime() {
+  assert(process.execArgv.length === 0, "machine-results capture requires Node with no exec arguments");
+  assert(!process.env.NODE_OPTIONS, "machine-results capture rejects NODE_OPTIONS");
+  return Object.freeze({ node: process.version, platform: process.platform, arch: process.arch });
+}
+
+function machineResultChildEnvironment() {
+  const environment = { ...process.env };
+  delete environment.NODE_OPTIONS;
+  return environment;
+}
+
+async function captureMachineResults(outputPath) {
+  const output = machineResultExternalPath(outputPath, "machine-results capture", { mustNotExist: true });
+  const runtime = machineResultRuntime();
+  const records = [];
+  let capturedError = null;
+  for (const qaCheck of QA_RELEASE_READINESS_INVENTORY.filter((entry) => Object.hasOwn(MACHINE_RESULT_SCOPE_CANDIDATES, entry.id))) {
+    const sourceScope = currentMachineResultScope(qaCheck, []);
+    const producerScope = machineResultProducerScope();
+    let result;
+    let captureError = null;
+    try {
+      result = await runNodeScriptChecked(path.join("scripts", qaCheck.script), qaCheck.label, { cwd: root, env: machineResultChildEnvironment(), timeoutMs: qaCheck.timeoutMs });
+    } catch (error) {
+      result = error?.result;
+      captureError = error;
+    }
+    let sourceScopeAfter = null, producerScopeAfter = null;
+    try {
+      sourceScopeAfter = currentMachineResultScope(qaCheck, []);
+      producerScopeAfter = machineResultProducerScope();
+      assert(JSON.stringify(sourceScopeAfter) === JSON.stringify(sourceScope), "machine-results source scope changed during execution");
+      assert(JSON.stringify(producerScopeAfter) === JSON.stringify(producerScope), "machine-results producer scope changed during execution");
+    } catch (error) {
+      captureError ??= error;
+    }
+    const execution = {
+      sourceRoot: realpathSync(root),
+      command: process.execPath,
+      args: [path.join("scripts", qaCheck.script)],
+      timeoutMs: qaCheck.timeoutMs,
+      nodeExecutableSha256: machineSha256(readFileSync(process.execPath)),
+      invocationProfile: "default-no-preload",
+      producerScope,
+      producerScopeAfter
+    };
+    const raw = { id: qaCheck.id, runtime, execution, sourceScope, sourceScopeAfter, result, captureError: captureError ? captureError.message : null };
+    const rawPath = machineResultExternalPath(path.join(path.dirname(output), path.basename(output) + "." + qaCheck.id + ".raw.json"), "machine-results raw output", { mustNotExist: true });
+    writeFileSync(rawPath, JSON.stringify(raw, null, 2) + "\n", { encoding: "utf8", flag: "wx" });
+    records.push({ schemaVersion: 1, kind: "release-readiness-machine-result", ...raw, rawOutput: { path: rawPath, sha256: machineSha256(readFileSync(rawPath)) } });
+    if (captureError) { capturedError ??= captureError; break; }
+  }
+  const capture = { schemaVersion: 1, kind: "release-readiness-machine-results", outcome: capturedError ? "failed" : "completed", inventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST, records };
+  writeFileSync(output, JSON.stringify(capture, null, 2) + "\n", { encoding: "utf8", flag: "wx" });
+  if (capturedError) throw capturedError;
+  console.log("ok: captured " + records.length + " limited machine-result records at " + output);
+}
+
+function readReusableMachineResults(evidencePath, acceptedEvidenceSha256) {
+  const evidenceBytes = readFileSync(machineResultExternalPath(evidencePath, "candidate evidence"));
+  assert(machineSha256(evidenceBytes) === acceptedEvidenceSha256, "candidate evidence changed after full validation");
+  const evidence = JSON.parse(evidenceBytes);
+  const value = evidence.machineResults;
+  assert(value && value.schemaVersion === 1 && value.kind === "release-readiness-machine-results", "diff evidence requires machineResults");
+  assert(value.outcome === "completed", "diff machine-results capture did not complete");
+  assert(value.inventoryDigest === QA_RELEASE_READINESS_INVENTORY_DIGEST && Array.isArray(value.records), "diff machine-results inventory binding is invalid");
+  const records = new Map();
+  for (const record of value.records) {
+    assert(!records.has(record?.id), "diff machine-results duplicate id: " + record?.id);
+    const qaCheck = QA_RELEASE_READINESS_INVENTORY.find((entry) => entry.id === record?.id);
+    assert(qaCheck, "diff machine-results unknown id: " + record?.id);
+    if (validateReusableMachineResult(record, qaCheck)) records.set(record.id, record);
+  }
+  return records;
+}
+
+function validateReusableMachineResult(record, qaCheck) {
+  validateMachineResultRawIntegrity(record, qaCheck);
+  if (!Object.hasOwn(MACHINE_RESULT_SCOPE_CANDIDATES, qaCheck.id)) return false;
+  const expectedArgs = [path.join("scripts", qaCheck.script)];
+  let scope, producerScope;
+  try {
+    scope = currentMachineResultScope(qaCheck, []);
+    producerScope = machineResultProducerScope();
+  } catch {
+    return false;
+  }
+  if (JSON.stringify(record.runtime) !== JSON.stringify(machineResultRuntime())) return false;
+  if (record.execution?.sourceRoot !== realpathSync(root)) return false;
+  if (record.execution?.command !== process.execPath || JSON.stringify(record.execution?.args) !== JSON.stringify(expectedArgs)) return false;
+  if (record.execution?.timeoutMs !== qaCheck.timeoutMs || record.execution?.nodeExecutableSha256 !== machineSha256(readFileSync(process.execPath))) return false;
+  if (record.execution?.invocationProfile !== "default-no-preload") return false;
+  if (JSON.stringify(record.execution?.producerScope) !== JSON.stringify(producerScope) || JSON.stringify(record.execution?.producerScopeAfter) !== JSON.stringify(producerScope)) return false;
+  if (JSON.stringify(record.sourceScope) !== JSON.stringify(scope) || JSON.stringify(record.sourceScopeAfter) !== JSON.stringify(scope)) return false;
+  if (record.captureError || record.result?.status !== 0 || record.result?.timedOut !== false || record.result?.errorType !== null || record.result?.stopped !== true || record.result?.signal !== null) return false;
+  if (typeof record.result?.stdout !== "string" || typeof record.result?.stderr !== "string") return false;
+  return true;
+}
+
+function validateMachineResultRawIntegrity(record, qaCheck) {
+  assert(record?.schemaVersion === 1 && record.kind === "release-readiness-machine-result", "machine result has the wrong schema");
+  assert(record.id === qaCheck.id, "machine result id does not match the inventory member");
+  const rawPath = machineResultExternalPath(record.rawOutput?.path, "machine result raw output");
+  assert(machineSha256(readFileSync(rawPath)) === record.rawOutput?.sha256?.toLowerCase(), "machine result raw output hash mismatch");
+  const raw = JSON.parse(readFileSync(rawPath, "utf8"));
+  assert(JSON.stringify(raw) === JSON.stringify({ id: record.id, runtime: record.runtime, execution: record.execution, sourceScope: record.sourceScope, sourceScopeAfter: record.sourceScopeAfter, result: record.result, captureError: record.captureError ?? null }), "machine result raw output does not match its bound fields");
+  assert(record.execution && typeof record.execution === "object" && Array.isArray(record.execution.args), "machine result execution is incomplete");
+  assert(record.result && typeof record.result === "object" && Array.isArray(record.result.args), "machine result raw result is incomplete");
+  assert(record.result.command === record.execution.command && JSON.stringify(record.result.args) === JSON.stringify(record.execution.args) && record.result.timeoutMs === record.execution.timeoutMs, "machine result raw executor differs from its declared execution");
+}
+
+// These declared roots are source inputs, not general reuse proof. Only the
+// two allowlisted members can reach a validated diff reuse decision.
+function machineResultInputRoots() { return Object.freeze({
+  "qa-assurance-manifest": ["docs", "test-fixtures", "scripts/check-qa-assurance-manifest.mjs"],
+  "install-lock-smoke": ["test-fixtures", "scripts/check-install-lock-smoke.mjs"],
+  "public-prototype": ["scripts/check-public-prototype.mjs"],
+  "command-entry": ["scripts/check-command-entry.mjs"],
+  "progress-view": ["scripts/check-progress-view.mjs"],
+  "closeout-card": ["scripts/check-closeout-card-contract.mjs"],
+  "handoff-continuity": ["test-fixtures", "scripts/check-handoff-continuity.mjs"],
+  "closeout-efficiency": ["scripts/check-closeout-efficiency.mjs"],
+  "public-mirror": ["README.md", "README.en.md", "docs", "agent-handoff-kit-ai-install.en.html", "agent-handoff-kit-ai-install.html", "agent-handoff-kit-guide.en.html", "agent-handoff-kit-guide.html", "agent-handoff-kit-intro.en.html", "agent-handoff-kit-intro.html", "local-agentic-ai-workflow-case-study.en.html", "local-agentic-ai-workflow-case-study.html", "sitemap.xml", "robots.txt", "scripts/build-public-mirror.mjs"],
+  "pack-scenarios": ["test-fixtures", "README.md", "agent-handoff-kit-intro.html", "agent-handoff-kit-guide.html", "scripts/check-pack-scenarios.mjs"],
+  "upgrade-inventory": ["scripts/check-upgrade-inventory.mjs"],
+  "upgrade-transaction-window": ["scripts/check-upgrade-transaction-window.mjs"],
+  "official-origin-catalog": ["bin/migration-baselines", "test-fixtures", "scripts/check-official-origin-catalog.mjs"],
+  "upgrade-safety": ["test-fixtures", "scripts/check-upgrade-safety.mjs"],
+  "prompt-mirror": ["scripts/check-prompt-mirror.mjs"]
+}); }
+
+function currentMachineResultScope(qaCheck, commandArgs) {
+  const id = qaCheck?.id;
+  assert(QA_RELEASE_READINESS_INVENTORY.some((entry) => entry.id === id), `machine-results scope is missing for ${id ?? "unknown"}`);
+  const memberRoots = machineResultInputRoots()[id];
+  assert(Array.isArray(memberRoots), `machine-results scope is missing for ${id}`);
+  assert(Array.isArray(commandArgs), `machine-results scope requires actual command args for ${id}`);
+  const candidate = MACHINE_RESULT_SCOPE_CANDIDATES[id];
+  assert(candidate, `machine-results scope is non-reusable for ${id}: ${MACHINE_RESULT_NON_REUSABLE[id] ?? "no limited content-scope eligibility"}`);
+  assert(JSON.stringify(commandArgs) === JSON.stringify(candidate.commandArgs), `machine-results scope command args are not eligible for ${id}`);
+  return deriveMachineResultScope(root, [...MACHINE_RESULT_SHARED_PRODUCT_ROOTS, ...memberRoots]);
+}
+
+function deriveMachineResultScope(scopeRoot, roots, beforeReadback, { rejectUnresolvedDynamicImports = true } = {}) {
+  const absoluteRoot = machineScopePhysicalRoot(scopeRoot);
+  assert(beforeReadback === undefined || typeof beforeReadback === "function", "machine-results scope readback hook is invalid");
+  const initial = captureMachineResultScopeSnapshot(absoluteRoot, roots, rejectUnresolvedDynamicImports);
+  beforeReadback?.();
+  const readback = captureMachineResultScopeSnapshot(absoluteRoot, roots, rejectUnresolvedDynamicImports);
+  assert(JSON.stringify(initial) === JSON.stringify(readback), "machine-results scope changed during readback");
+  return initial;
+}
+
+function captureMachineResultScopeSnapshot(absoluteRoot, roots, rejectUnresolvedDynamicImports) {
+  const files = new Set();
+  for (const rel of roots) {
+    assert(typeof rel === "string" && !path.isAbsolute(rel), `machine-results declared source is invalid: ${rel}`);
+    const target = path.resolve(absoluteRoot, rel);
+    assert(isInsideOrSameMachineScopeRoot(absoluteRoot, target), `machine-results declared source escapes root: ${rel}`);
+    collectMachineScopeFiles(target, files, absoluteRoot);
+  }
+  const visited = new Set();
+  for (const file of [...files]) if (file.endsWith(".mjs")) collectStaticRelativeModuleClosure(file, files, visited, absoluteRoot, rejectUnresolvedDynamicImports);
+  return [...files].sort().map((file) => machineScopeSnapshotEntry(absoluteRoot, file));
+}
+
+function machineScopePhysicalRoot(scopeRoot) {
+  const absoluteRoot = path.resolve(scopeRoot);
+  assert(existsSync(absoluteRoot), `machine-results scope root is missing: ${absoluteRoot}`);
+  const stat = lstatSync(absoluteRoot);
+  assert(stat.isDirectory() && !stat.isSymbolicLink(), `machine-results scope root must be a non-link directory: ${absoluteRoot}`);
+  return realpathSync(absoluteRoot);
+}
+
+function machineScopePathStat(scopeRoot, candidate) {
+  const absolute = path.resolve(candidate);
+  assert(isInsideOrSameMachineScopeRoot(scopeRoot, absolute), `machine-results scope path escapes root: ${absolute}`);
+  assert(existsSync(absolute), `machine-results scope path is missing: ${absolute}`);
+  const stat = assertMachineScopePathHasNoLinks(scopeRoot, absolute);
+  assert(stat.isDirectory() || stat.isFile(), `machine-results scope path must be a regular file or non-link directory: ${path.relative(scopeRoot, absolute)}`);
+  const physical = realpathSync(absolute);
+  assert(isInsideOrSameMachineScopeRoot(scopeRoot, physical), `machine-results scope path resolves outside root: ${path.relative(scopeRoot, absolute)}`);
+  return { absolute, stat };
+}
+
+function assertMachineScopePathHasNoLinks(scopeRoot, candidate) {
+  let cursor = path.resolve(candidate);
+  for (;;) {
+    const stat = lstatSync(cursor);
+    assert(!stat.isSymbolicLink(), `machine-results scope path must not cross a link: ${path.relative(scopeRoot, cursor)}`);
+    if (cursor === scopeRoot) return lstatSync(candidate);
+    const parent = path.dirname(cursor);
+    assert(parent !== cursor && isInsideOrSameMachineScopeRoot(scopeRoot, parent), `machine-results scope path escapes root: ${candidate}`);
+    cursor = parent;
+  }
+}
+
+function collectMachineScopeFiles(target, files, scopeRoot) {
+  const { absolute, stat } = machineScopePathStat(scopeRoot, target);
+  if (stat.isDirectory()) {
+    for (const name of readdirSync(absolute)) collectMachineScopeFiles(path.join(absolute, name), files, scopeRoot);
+  } else files.add(absolute);
+}
+
+function machineScopeSnapshotEntry(scopeRoot, file) {
+  const { absolute, stat } = machineScopePathStat(scopeRoot, file);
+  assert(stat.isFile(), `machine-results scope entry is not a regular file: ${path.relative(scopeRoot, absolute)}`);
+  const bytes = readFileSync(absolute);
+  machineScopePathStat(scopeRoot, absolute);
+  return { relativePath: path.relative(scopeRoot, absolute).replaceAll("\\", "/"), sha256: machineSha256(bytes) };
+}
+
+function collectStaticRelativeModuleClosure(entry, files, visited, scopeRoot, rejectUnresolvedDynamicImports = true) {
+  const { absolute, stat } = machineScopePathStat(scopeRoot, entry);
+  assert(stat.isFile(), `machine-results module is not a regular file: ${path.relative(scopeRoot, absolute)}`);
+  if (visited.has(absolute)) return;
+  visited.add(absolute);
+  const source = readFileSync(absolute, "utf8");
+  if (rejectUnresolvedDynamicImports) assert(!/\bimport\s*\(\s*(?!["'])/.test(source), `machine-results scope has an unresolved dynamic import: ${path.relative(scopeRoot, absolute)}`);
+  const specifiers = new Set([
+    ...[...source.matchAll(/^\s*import\s+(?:[^"']*?\s+from\s+)?["'](\.{1,2}\/[^"']+)["']/gm)].map((match) => match[1]),
+    ...[...source.matchAll(/^\s*export\s+(?:[^"']*?\s+from\s+)["'](\.{1,2}\/[^"']+)["']/gm)].map((match) => match[1]),
+    ...[...source.matchAll(/^\s*(?:await\s+)?import\s*\(\s*["'](\.{1,2}\/[^"']+)["']\s*\)/gm)].map((match) => match[1])
+  ]);
+  for (const specifier of specifiers) {
+    const dependency = path.resolve(path.dirname(absolute), specifier);
+    const dependencyState = machineScopePathStat(scopeRoot, dependency);
+    assert(dependencyState.stat.isFile(), `machine-results scope has an unresolved local import: ${path.relative(scopeRoot, absolute)} -> ${specifier}`);
+    files.add(dependencyState.absolute);
+    collectStaticRelativeModuleClosure(dependency, files, visited, scopeRoot, rejectUnresolvedDynamicImports);
+  }
+}
+
+function isInsideOrSameMachineScopeRoot(scopeRoot, candidate) {
+  const relative = path.relative(scopeRoot, candidate);
+  return !relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative);
+}
+
+async function checkMachineResultsContract() {
+  assert(JSON.stringify(Object.keys(machineResultInputRoots()).sort()) === JSON.stringify(QA_RELEASE_READINESS_INVENTORY.map((item) => item.id).sort()), "machine-results scope coverage differs from release-readiness inventory");
+  assert(JSON.stringify(Object.keys(MACHINE_RESULT_SCOPE_CANDIDATES).sort()) === JSON.stringify(["official-origin-catalog", "prompt-mirror"]), "machine-results content-scope candidate set drifted");
+  assert(JSON.stringify(Object.keys(MACHINE_RESULT_NON_REUSABLE).sort()) === JSON.stringify(QA_RELEASE_READINESS_INVENTORY.map((item) => item.id).filter((id) => !Object.hasOwn(MACHINE_RESULT_SCOPE_CANDIDATES, id)).sort()), "machine-results non-reusable coverage drifted");
+  const qaCheck = QA_RELEASE_READINESS_INVENTORY.find((item) => item.id === "official-origin-catalog");
+  const scope = currentMachineResultScope(qaCheck, []);
+  assert(scope.length > 0, "machine-results source scope is empty");
+  const includes = (entries, relative) => entries.some((entry) => entry.relativePath === relative);
+  assert(includes(scope, "scripts/check-official-origin-catalog.mjs"), "machine-results scope omitted the official-origin content entry");
+  const promptMirrorCheck = QA_RELEASE_READINESS_INVENTORY.find((item) => item.id === "prompt-mirror");
+  assert(currentMachineResultScope(promptMirrorCheck, []).length > 0, "machine-results scope omitted the prompt-mirror content entry");
+  assertThrows(() => currentMachineResultScope(promptMirrorCheck), "machine-results scope accepted missing command args");
+  assertThrows(() => currentMachineResultScope(promptMirrorCheck, ["--root", root]), "machine-results scope accepted prompt-mirror root mode");
+  assertThrows(() => currentMachineResultScope({ id: "unknown-machine-result" }, []), "machine-results scope accepted an unknown member");
+  for (const nonReusableId of Object.keys(MACHINE_RESULT_NON_REUSABLE)) {
+    const nonReusableCheck = QA_RELEASE_READINESS_INVENTORY.find((item) => item.id === nonReusableId);
+    assertThrows(() => currentMachineResultScope(nonReusableCheck, []), `machine-results scope accepted non-reusable member: ${nonReusableId}`);
+  }
+  const closureRoot = path.join(tempRoot, "machine-results-static-closure");
+  mkdirSync(closureRoot, { recursive: true });
+  writeFileSync(path.join(closureRoot, "entry.mjs"), 'import "./helper.mjs";\n', "utf8");
+  writeFileSync(path.join(closureRoot, "helper.mjs"), 'export const value = "first";\n', "utf8");
+  const beforeHelperChange = deriveMachineResultScope(closureRoot, ["entry.mjs"]);
+  writeFileSync(path.join(closureRoot, "helper.mjs"), 'export const value = "second";\n', "utf8");
+  const afterHelperChange = deriveMachineResultScope(closureRoot, ["entry.mjs"]);
+  assert(JSON.stringify(beforeHelperChange) !== JSON.stringify(afterHelperChange), "machine-results scope did not change after an imported helper changed");
+  writeFileSync(path.join(closureRoot, "literal.mjs"), "import('./helper.mjs');\n", "utf8");
+  assert(includes(deriveMachineResultScope(closureRoot, ["literal.mjs"]), "helper.mjs"), "machine-results scope omitted a literal dynamic import");
+  writeFileSync(path.join(closureRoot, "unknown.mjs"), "const target = './helper.mjs'; im" + "port(target);\n", "utf8");
+  assertThrows(() => deriveMachineResultScope(closureRoot, ["unknown.mjs"]), "machine-results scope accepted an unknown dynamic import");
+  const snapshotRoot = path.join(tempRoot, "machine-results-snapshot");
+  mkdirSync(snapshotRoot, { recursive: true });
+  writeFileSync(path.join(snapshotRoot, "entry.mjs"), 'import "./helper.mjs";\n', "utf8");
+  writeFileSync(path.join(snapshotRoot, "helper.mjs"), 'export const value = "before";\n', "utf8");
+  assertThrows(() => deriveMachineResultScope(snapshotRoot, ["entry.mjs"], () => writeFileSync(path.join(snapshotRoot, "helper.mjs"), 'export const value = "after";\n', "utf8")), "machine-results scope accepted a changed readback snapshot");
+  const linkRoot = path.join(tempRoot, "machine-results-link");
+  const externalLinkTarget = path.join(tempRoot, "machine-results-link-target");
+  mkdirSync(linkRoot, { recursive: true });
+  mkdirSync(externalLinkTarget, { recursive: true });
+  writeFileSync(path.join(externalLinkTarget, "outside.mjs"), 'export const outside = true;\n', "utf8");
+  symlinkSync(externalLinkTarget, path.join(linkRoot, "outside"), "junction");
+  assertThrows(() => deriveMachineResultScope(linkRoot, ["outside"]), "machine-results scope accepted a linked declared source");
+  const aliasRoot = path.join(tempRoot, "machine-results-link-alias");
+  const aliasTarget = path.join(aliasRoot, "inside");
+  mkdirSync(aliasTarget, { recursive: true });
+  writeFileSync(path.join(aliasTarget, "helper.mjs"), 'export const inside = true;\n', "utf8");
+  symlinkSync(aliasTarget, path.join(aliasRoot, "alias"), "junction");
+  assertThrows(() => deriveMachineResultScope(aliasRoot, ["alias/helper.mjs"]), "machine-results scope accepted an intermediate linked declared source");
+  writeFileSync(path.join(aliasRoot, "entry.mjs"), 'import "./alias/helper.mjs";\n', "utf8");
+  assertThrows(() => deriveMachineResultScope(aliasRoot, ["entry.mjs"]), "machine-results scope accepted an intermediate linked import");
+  const externalRoot = path.join(tempRoot, "machine-results-external-link");
+  const externalTarget = path.join(externalRoot, "target");
+  mkdirSync(externalTarget, { recursive: true });
+  symlinkSync(externalTarget, path.join(externalRoot, "alias"), "junction");
+  assertThrows(() => machineResultExternalPath(path.join(externalRoot, "alias", "capture.json"), "machine-results external link"), "machine-results external path accepted an intermediate link");
+  const originalExecArgv = [...process.execArgv];
+  const originalNodeOptions = process.env.NODE_OPTIONS;
+  try {
+    process.execArgv.push("--jitless");
+    assertThrows(() => machineResultRuntime(), "machine-results runtime accepted an extra Node option");
+    process.execArgv.splice(0, process.execArgv.length, ...originalExecArgv);
+    process.env.NODE_OPTIONS = "--require ./benign.cjs";
+    assertThrows(() => machineResultRuntime(), "machine-results runtime accepted NODE_OPTIONS");
+  } finally {
+    process.execArgv.splice(0, process.execArgv.length, ...originalExecArgv);
+    if (originalNodeOptions === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = originalNodeOptions;
+  }
+  const producerScope = machineResultProducerScope();
+  assert(includes(producerScope, "scripts/feature-delivery.mjs") && includes(producerScope, "scripts/generate-upgrade-fixtures.mjs"), "machine-results producer scope omitted a static import closure member");
+  const result = await runChecked(process.execPath, ["-e", "process.stdout.write('machine-results raw proof\\n')"], "machine-results raw proof", { cwd: root });
+  mkdirSync(tempRoot, { recursive: true });
+  const rawPath = path.join(tempRoot, "machine-results-contract-raw.json");
+  const runtime = machineResultRuntime();
+  const execution = {
+    sourceRoot: realpathSync(root), command: process.execPath, args: [path.join("scripts", qaCheck.script)], timeoutMs: qaCheck.timeoutMs,
+    nodeExecutableSha256: machineSha256(readFileSync(process.execPath)), invocationProfile: "default-no-preload", producerScope, producerScopeAfter: producerScope
+  };
+  const normalizedResult = { ...result, command: process.execPath, args: [path.join("scripts", qaCheck.script)], timeoutMs: qaCheck.timeoutMs, signal: null };
+  const raw = { id: qaCheck.id, runtime, execution, sourceScope: scope, sourceScopeAfter: scope, result: normalizedResult, captureError: null };
+  writeFileSync(rawPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
+  const record = { schemaVersion: 1, kind: "release-readiness-machine-result", ...raw, rawOutput: { path: rawPath, sha256: machineSha256(readFileSync(rawPath)) } };
+  assert(validateReusableMachineResult(record, qaCheck), "valid machine result was not reusable");
+  const tampered = { ...record, rawOutput: { ...record.rawOutput, sha256: "0".repeat(64) } };
+  assertThrows(() => validateReusableMachineResult(tampered, qaCheck), "tampered raw output was accepted");
+  const rewriteRaw = (candidate) => {
+    const body = { id: candidate.id, runtime: candidate.runtime, execution: candidate.execution, sourceScope: candidate.sourceScope, sourceScopeAfter: candidate.sourceScopeAfter, result: candidate.result, captureError: candidate.captureError ?? null };
+    writeFileSync(rawPath, `${JSON.stringify(body, null, 2)}\n`, "utf8");
+    candidate.rawOutput.sha256 = machineSha256(readFileSync(rawPath));
+  };
+  const failed = structuredClone(record); failed.result.status = 1; rewriteRaw(failed);
+  assert(!validateReusableMachineResult(failed, qaCheck), "failed result was reusable");
+  const stale = structuredClone(record); stale.runtime.node = "stale"; rewriteRaw(stale);
+  assert(!validateReusableMachineResult(stale, qaCheck), "stale runtime was reusable");
+  writeFileSync(rawPath, `${JSON.stringify({ tampered: true }, null, 2)}\n`, "utf8");
+  assertThrows(() => validateReusableMachineResult(stale, qaCheck), "stale record with tampered raw output was accepted");
+  const wrongRaw = structuredClone(record); wrongRaw.result.command = "wrong-node"; wrongRaw.result.args = ["wrong-script"]; wrongRaw.result.signal = "SIGTERM"; delete wrongRaw.result.stdout; rewriteRaw(wrongRaw);
+  assertThrows(() => validateReusableMachineResult(wrongRaw, qaCheck), "invalid terminal raw result was accepted");
+  rewriteRaw(record);
+  const supplied = new Map([[qaCheck.id, record]]);
+  const completeCalls = [];
+  await runManifestQaScript(qaCheck, [], supplied, "complete", async (script) => completeCalls.push(script));
+  assert(completeCalls.length === 1, "complete dispatcher reused a supplied machine result");
+  const diffCalls = [];
+  await runManifestQaScript(qaCheck, [], supplied, "diff", async (script) => diffCalls.push(script));
+  assert(diffCalls.length === 0, "diff dispatcher did not reuse a validated machine result");
+  const reusableEvidencePath = path.join(tempRoot, "machine-results-reusable-evidence.json");
+  const reusableEvidence = { machineResults: { schemaVersion: 1, kind: "release-readiness-machine-results", outcome: "completed", inventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST, records: [record] } };
+  writeFileSync(reusableEvidencePath, `${JSON.stringify(reusableEvidence, null, 2)}\n`, "utf8");
+  const reusableEvidenceSha256 = machineSha256(readFileSync(reusableEvidencePath));
+  assertAcceptedMachineEvidenceSha256({ candidateEvidenceSha256: reusableEvidenceSha256 }, reusableEvidenceSha256);
+  assertThrows(() => assertAcceptedMachineEvidenceSha256({ candidateEvidenceSha256: reusableEvidenceSha256 }, "0".repeat(64)), "diff execution accepted a parent-bound candidate-evidence SHA-256 that was not actually validated");
+  assert(readReusableMachineResults(reusableEvidencePath, reusableEvidenceSha256).has(qaCheck.id), "completed machine-results evidence was not reusable");
+  const incompleteEvidence = structuredClone(reusableEvidence); incompleteEvidence.machineResults.outcome = "failed";
+  writeFileSync(reusableEvidencePath, `${JSON.stringify(incompleteEvidence, null, 2)}\n`, "utf8");
+  assertThrows(() => readReusableMachineResults(reusableEvidencePath, machineSha256(readFileSync(reusableEvidencePath))), "incomplete machine-results capture was reusable");
+  console.log("ok: machine-results scope eligibility is fail-closed; content candidates require declared scope and record integrity only");
+}
+
+function machineSha256(bytes) {
+  return createHash("sha256").update(bytes).digest("hex");
 }
 
 function checkReleaseReadinessInventorySelfTest() {
@@ -2182,7 +2668,7 @@ function checkPackedPackageUpgradeSmoke(version, {featuresOnly=false} = {}) {
 
   checkPackedShortcutDelivery({smokeBase,packedBin,tgzPath,version});
   if(featuresOnly)return;
-  materializePinnedV041ArtifactInit(upgradeRoot);
+  materializeRecentPublishedArtifactInit(upgradeRoot);
   const agentsPath = path.join(upgradeRoot, "AGENTS.md");
   const userSuffix = Buffer.from("\n\nKeep this unheaded local rule effective after the packed upgrade.\n", "utf8");
   const preUpgradeAgents = readFileSync(agentsPath);
@@ -2359,47 +2845,46 @@ function nextPatch(v) {
   return `${major}.${minor}.${patch + 1}`;
 }
 
-function materializePinnedV041ArtifactInit(project) {
-  const fixtureManifest = JSON.parse(read("test-fixtures/v0.3.41/fixture-manifest.json"));
-  const npmIdentity = fixtureManifest?.source?.npm;
-  assert(npmIdentity?.spec === "@adamchanadam/agent-handoff-kit@0.3.41", "v0.3.41 fixture npm spec is missing or drifted");
+function materializeRecentPublishedArtifactInit(project) {
+  const npmIdentity = officialOriginCatalog.releases[oldestRecentPublishedUpgradeVersion]?.source?.npm;
+  assert(npmIdentity?.spec === `@adamchanadam/agent-handoff-kit@${oldestRecentPublishedUpgradeVersion}`, "recent published baseline npm spec is missing or drifted");
   assert(npmIdentity.shasum && npmIdentity.integrity && Number.isInteger(npmIdentity.entryCount), "v0.3.41 fixture npm identity is incomplete");
 
-  const artifactRoot = path.join(tempRoot, "published-v0.3.41-artifact");
+  const artifactRoot = path.join(tempRoot, `published-v${oldestRecentPublishedUpgradeVersion}-artifact`);
   mkdirSync(artifactRoot, { recursive: true });
-  const pack = runNpm(["pack", npmIdentity.spec, "--json", "--pack-destination", artifactRoot], "published v0.3.41 artifact retrieval");
+  const pack = runNpm(["pack", npmIdentity.spec, "--json", "--pack-destination", artifactRoot], `published v${oldestRecentPublishedUpgradeVersion} artifact retrieval`);
   let records;
   try {
     records = JSON.parse(pack.stdout);
   } catch {
-    throw new Error(`published v0.3.41 artifact retrieval returned invalid JSON\n${outputText(pack)}`);
+    throw new Error(`published v${oldestRecentPublishedUpgradeVersion} artifact retrieval returned invalid JSON\n${outputText(pack)}`);
   }
   const record = records?.[0];
-  assert(record?.filename === "adamchanadam-agent-handoff-kit-0.3.41.tgz", "published v0.3.41 artifact filename mismatch");
-  assert(record.shasum === npmIdentity.shasum, "published v0.3.41 artifact npm shasum mismatch");
-  assert(record.integrity === npmIdentity.integrity, "published v0.3.41 artifact npm integrity mismatch");
-  assert(record.entryCount === npmIdentity.entryCount, "published v0.3.41 artifact npm entry count mismatch");
+  assert(record?.filename === `adamchanadam-agent-handoff-kit-${oldestRecentPublishedUpgradeVersion}.tgz`, "recent published baseline artifact filename mismatch");
+  assert(record.shasum === npmIdentity.shasum, "recent published baseline artifact npm shasum mismatch");
+  assert(record.integrity === npmIdentity.integrity, "recent published baseline artifact npm integrity mismatch");
+  assert(record.entryCount === npmIdentity.entryCount, "recent published baseline artifact npm entry count mismatch");
   const tarballPath = path.join(artifactRoot, record.filename);
-  assert(existsSync(tarballPath), "published v0.3.41 artifact retrieval did not create its tarball");
+  assert(existsSync(tarballPath), "recent published baseline artifact retrieval did not create its tarball");
   const artifactBytes = readFileSync(tarballPath);
-  assert(createHash("sha1").update(artifactBytes).digest("hex") === npmIdentity.shasum, "published v0.3.41 artifact SHA-1 drifted for packed upgrade smoke");
-  assert(`sha512-${createHash("sha512").update(artifactBytes).digest("base64")}` === npmIdentity.integrity, "published v0.3.41 artifact SHA-512 drifted for packed upgrade smoke");
+  assert(createHash("sha1").update(artifactBytes).digest("hex") === npmIdentity.shasum, "recent published baseline artifact SHA-1 drifted for packed upgrade smoke");
+  assert(`sha512-${createHash("sha512").update(artifactBytes).digest("base64")}` === npmIdentity.integrity, "recent published baseline artifact SHA-512 drifted for packed upgrade smoke");
 
   const installRoot = path.join(artifactRoot, "install");
   mkdirSync(installRoot, { recursive: true });
-  runNpm(["install", "--prefix", installRoot, "--ignore-scripts", tarballPath], "published v0.3.41 artifact extract");
+  runNpm(["install", "--prefix", installRoot, "--ignore-scripts", tarballPath], "recent published baseline artifact extract");
   const packageRoot = path.join(installRoot, "node_modules", "@adamchanadam", "agent-handoff-kit");
   const metadata = JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8"));
-  assert(metadata.name === "@adamchanadam/agent-handoff-kit" && metadata.version === "0.3.41", "published v0.3.41 extracted package identity mismatch");
+  assert(metadata.name === "@adamchanadam/agent-handoff-kit" && metadata.version === oldestRecentPublishedUpgradeVersion, "recent published baseline extracted package identity mismatch");
   const artifactCli = path.join(packageRoot, "bin", "agent-handoff-kit.mjs");
-  assert(existsSync(artifactCli), "published v0.3.41 artifact extraction is missing its formal CLI");
+  assert(existsSync(artifactCli), "recent published baseline artifact extraction is missing its formal CLI");
   const init = spawnSync(cliNode, [artifactCli, "init", "--yes", "--root", project], {
     cwd: packageRoot,
     encoding: "utf8",
     env: { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" }
   });
-  assert(!init.error && init.status === 0, `published v0.3.41 artifact fresh init failed for packed upgrade smoke\n${outputText(init)}`);
-  console.log("ok: published v0.3.41 artifact retrieved and verified for packed upgrade smoke");
+  assert(!init.error && init.status === 0, `published v${oldestRecentPublishedUpgradeVersion} artifact fresh init failed for packed upgrade smoke\n${outputText(init)}`);
+  console.log(`ok: published v${oldestRecentPublishedUpgradeVersion} artifact retrieved and verified for packed upgrade smoke`);
 }
 
 function runNpm(args, label) {

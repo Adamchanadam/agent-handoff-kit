@@ -11,11 +11,31 @@ const requiredArtifactBoundManagedSegments = Object.freeze([
 ]);
 
 export const OFFICIAL_ORIGIN_CATALOG_SCHEMA = 1;
+export const RECENT_PUBLISHED_UPGRADE_VERSION_LIMIT = 30;
 
 export async function loadOfficialOriginCatalog(catalogPath = defaultCatalogPath) {
   const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
   validateOfficialOriginCatalog(catalog);
   return catalog;
+}
+
+// This selection limits WORK upgrade acceptance exercises. It does not alter
+// catalog validation or runtime recognition of any older official release.
+export function selectRecentPublishedStableVersions(catalog, limit = RECENT_PUBLISHED_UPGRADE_VERSION_LIMIT) {
+  if (!Number.isInteger(limit) || limit < 1) throw new Error("recent published upgrade limit must be a positive integer");
+  return Object.entries(catalog?.releases ?? {})
+    .filter(([version, release]) => (
+      /^\d+\.\d+\.\d+$/.test(version)
+      && typeof release?.source?.npm?.spec === "string"
+      && typeof release?.source?.githubRelease?.publishedAt === "string"
+      && Number.isFinite(Date.parse(release.source.githubRelease.publishedAt))
+    ))
+    .sort(([leftVersion, left], [rightVersion, right]) => (
+      Date.parse(left.source.githubRelease.publishedAt) - Date.parse(right.source.githubRelease.publishedAt)
+      || compareStableVersions(leftVersion, rightVersion)
+    ))
+    .slice(-limit)
+    .map(([version]) => version);
 }
 
 export function validateOfficialOriginCatalog(catalog) {
@@ -249,6 +269,13 @@ function materializeHandoffOpeningRoot(text, root) {
 
 function stripVersionPrefix(version) {
   return String(version ?? "").replace(/^v/, "");
+}
+
+function compareStableVersions(left, right) {
+  const a = left.split(".").map(Number);
+  const b = right.split(".").map(Number);
+  for (let index = 0; index < 3; index += 1) if (a[index] !== b[index]) return a[index] - b[index];
+  return 0;
 }
 
 function validSegmentByteIdentity(value) {

@@ -306,7 +306,7 @@ function validateCandidateEvidenceContract() {
     "REVIEW_BUNDLE_READY",
     "WAITING_INDEPENDENT_REVIEW"
   ]), "review subject path drifted");
-  for (const binding of ["candidate.commit", "candidate.tarballSha256", "manifestDigest", "releaseReadinessInventoryDigest", "reviewBundle.sha256", "reviewSubjectDigest", "manualVerdicts"]) {
+  for (const binding of ["candidate.commit", "candidate.tarballSha256", "manifestDigest", "releaseReadinessInventoryDigest", "reviewBundle.sha256", "reviewSubjectDigest", "manualVerdicts", "machineResultsDigest"]) {
     assert(roleIsolation.reviewReceiptBindings.includes(binding), `review receipt binding missing: ${binding}`);
   }
   const releaseReadiness = CANDIDATE_EVIDENCE_CONTRACT.records["release-readiness"];
@@ -702,6 +702,76 @@ function validateEvidenceContracts() {
   const validationReceipt = path.join(fixtureRoot, "validation-must-not-accept.json");
   invoke(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--receipt", validationReceipt, "--validate-only"], "validate-only cannot issue acceptance", { env: selfTestEnv });
   assert(!existsSync(validationReceipt), "validate-only issued a formal acceptance receipt");
+  const diffMachineResults = {
+    schemaVersion: 1,
+    kind: "release-readiness-machine-results",
+    outcome: "completed",
+    inventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    records: [{ id: "prompt-mirror" }]
+  };
+  const diffMachineResultsDigest = sha256(JSON.stringify(diffMachineResults));
+  const diffReviewSubject = { ...reviewSubject, machineResults: diffMachineResults, machineResultsDigest: diffMachineResultsDigest };
+  const diffReviewSubjectDigest = sha256(JSON.stringify(diffReviewSubject));
+  writeEvidence(reviewBundle, {
+    schemaVersion: 1,
+    kind: "role-isolation-review-bundle",
+    state: "WAITING_INDEPENDENT_REVIEW",
+    stateHistory: reviewSubjectStateHistory,
+    candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
+    manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    fiveConclusions: manualVerdicts,
+    reviewSubjectDigest: diffReviewSubjectDigest,
+    reviewSubject: diffReviewSubject
+  });
+  const diffReviewBundleSha256 = sha256(readFileSync(reviewBundle));
+  const validDiffCandidate = {
+    ...validCandidate,
+    executionMode: "diff",
+    machineResults: diffMachineResults,
+    machineResultsDigest: diffMachineResultsDigest,
+    roleIsolation: { ...validCandidate.roleIsolation, reviewSubjectDigest: diffReviewSubjectDigest, reviewBundle: { path: reviewBundle, sha256: diffReviewBundleSha256 } },
+    reviewReceipt: { ...validCandidate.reviewReceipt, reviewBundleSha256: diffReviewBundleSha256, reviewSubjectDigest: diffReviewSubjectDigest, machineResultsDigest: diffMachineResultsDigest }
+  };
+  writeEvidence(candidate, validDiffCandidate);
+  invoke(["scripts/qa.mjs", "full", "--mode", "diff", "--candidate", version, "--evidence", candidate, "--validate-only"], "diff child validates the review subject machine-results binding", { env: selfTestEnv });
+  console.log("ok: diff qa validator accepts machine-results bound at the review-subject level");
+  writeEvidence(candidate, { ...validDiffCandidate, reviewReceipt: { ...validDiffCandidate.reviewReceipt, machineResultsDigest: "0".repeat(64) } });
+  invokeFailure(["scripts/qa.mjs", "full", "--mode", "diff", "--candidate", version, "--evidence", candidate, "--validate-only"], "diff child rejects a tampered receipt machine-results digest", { env: selfTestEnv });
+  console.log("ok: diff qa validator rejects a tampered review receipt binding");
+  const failedMachineResults = { ...diffMachineResults, outcome: "failed" };
+  const failedMachineResultsDigest = sha256(JSON.stringify(failedMachineResults));
+  const failedReviewSubject = { ...reviewSubject, machineResults: failedMachineResults, machineResultsDigest: failedMachineResultsDigest };
+  const failedReviewSubjectDigest = sha256(JSON.stringify(failedReviewSubject));
+  writeEvidence(reviewBundle, {
+    schemaVersion: 1, kind: "role-isolation-review-bundle", state: "WAITING_INDEPENDENT_REVIEW", stateHistory: reviewSubjectStateHistory,
+    candidate: { version, commit: head, tarballSha256: candidateTarballSha256 }, manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST, fiveConclusions: manualVerdicts,
+    reviewSubjectDigest: failedReviewSubjectDigest, reviewSubject: failedReviewSubject
+  });
+  const failedReviewBundleSha256 = sha256(readFileSync(reviewBundle));
+  writeEvidence(candidate, {
+    ...validDiffCandidate,
+    machineResults: failedMachineResults,
+    machineResultsDigest: failedMachineResultsDigest,
+    roleIsolation: { ...validDiffCandidate.roleIsolation, reviewSubjectDigest: failedReviewSubjectDigest, reviewBundle: { path: reviewBundle, sha256: failedReviewBundleSha256 } },
+    reviewReceipt: { ...validDiffCandidate.reviewReceipt, reviewBundleSha256: failedReviewBundleSha256, reviewSubjectDigest: failedReviewSubjectDigest, machineResultsDigest: failedMachineResultsDigest }
+  });
+  invokeFailure(["scripts/qa.mjs", "full", "--mode", "diff", "--candidate", version, "--evidence", candidate, "--validate-only"], "diff child rejects an incomplete machine-results capture", { env: selfTestEnv });
+  console.log("ok: diff qa validator rejects an incomplete machine-results capture");
+  writeEvidence(reviewBundle, {
+    schemaVersion: 1,
+    kind: "role-isolation-review-bundle",
+    state: "WAITING_INDEPENDENT_REVIEW",
+    stateHistory: reviewSubjectStateHistory,
+    candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
+    manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    fiveConclusions: manualVerdicts,
+    reviewSubjectDigest,
+    reviewSubject
+  });
+  writeEvidence(candidate, validCandidate);
   writeEvidence(candidate, { ...validCandidate, manualVerdicts: Object.fromEntries(Object.entries(manualVerdicts).reverse()), reviewReceipt: { ...validCandidate.reviewReceipt, fiveConclusions: Object.fromEntries(Object.entries(manualVerdicts).reverse()) } });
   invoke(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "equivalent verdict key order is accepted without relaxing byte digests", { env: selfTestEnv });
   writeEvidence(candidate, validCandidate);

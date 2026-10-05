@@ -8,7 +8,7 @@
 ```text
 node scripts/qa.mjs quick
 node scripts/qa.mjs candidate-preflight --candidate <version>
-node scripts/qa.mjs full --candidate <version> --evidence <candidate-evidence.json> --receipt <full-receipt.json>
+node scripts/qa.mjs full --mode <complete|diff> --candidate <version> --evidence <candidate-evidence.json> --receipt <full-receipt.json>
 node scripts/qa.mjs postpublish --version <version> --evidence <postpublish-evidence.json> --receipt <full-receipt.json>
 ```
 <!-- qa-assurance-command:block:end -->
@@ -21,19 +21,20 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 
 ## v0.4.2 candidate status
 
-- 狀態：本機來源與套件準備中；獨立非作者已完成四組變更雙語頁的 v0.4.2 差異覆核，全部 PASS 並綁定目前檔案雜湊。既有 candidate-preflight 停止記錄只反映當時的雙語覆核缺口，未重新執行；候選仍未凍結、未執行 formal full 或任何發布操作。
-- 範圍：交接遇到跨步或反覆無進展時的重新核對；收工的工作紀錄／快捷入口缺口診斷；以及把受控預發佈更新、正式發布後更新和原始驗收證據分開的驗收契約修補。
+- 狀態：四次歷史 formal full attempt 均以失敗結束，沒有產生或接受 receipt；它們只保留失敗根因，不可作為本候選 PASS。獨立非作者已完成四組變更雙語頁的 v0.4.2 差異覆核，全部 PASS 並綁定當時檔案雜湊。既有 candidate-preflight 停止記錄只反映當時的雙語覆核缺口，未重新執行；本候選仍未凍結、未完成 fresh candidate-preflight、formal full 或任何發布操作。
+- 本輪已接受的準備：legacy `SESSION_LOG` 根因修補、30-release-window／官方來源選擇器修補、G04 integrations 路由修補，以及 fail-closed machine-result consumer 的獨立 D4 source review。這些是本機候選／證據準備，不是 full receipt、發布或可重用正式結論。
+- 範圍：交接遇到跨步或反覆無進展時的重新核對；收工的工作紀錄／快捷入口缺口診斷；把受控預發佈更新、正式發布後更新和原始驗收證據分開的驗收契約修補；以及只讓有完整原始輸入證據的兩個 content member 進入 diff proof validation，其餘 13 個仍實際執行。
 - 已知基線：npm 最新正式版為 v0.4.1，官方來源目錄保留其 52 檔成品與歷史資料；v0.4.2 不加入官方來源目錄。
 - DOC-042-01 readback：`docs/whatsnew/v0.4.2.md` 已把「更新前後的查核」改為「發布前後的驗收」；其餘段落不變，最終 SHA-256 `5b6ed7a6a407933b8ff4e340b46421d6d875b14c3cd1edf4438e4788061aac60`。
-- 已接受範圍：獨立審閱已接受 14 項 r2/r3 原始案例的 r4 有界沿用，及 5 項 current r4 native 案例：start-boundary、onboard-boundary、close-boundary、close-normal 和 method-assisted update-boundary-future-official-registry。update 保留彼此分開的 candidate 0.4.2 official-live refusal 與官方 v0.4.1 no-op，不改標任何 CLI 身分；close-normal 的原 context、四條實際 follow-up、actual final 和 tool records 均保留，較後的 corrected context 只標作 later-current 檔案雜湊。
-- Writer conclusions：既有五項結論已按 19 項有界證據寫入 draft，均附適用範圍、來源和「非 frozen-candidate、receipt 或 formal-full」限制。候選提交與 fresh identity、clean worktree、獨立 receipt、candidate-preflight、formal full，以及發布後官方讀回均未完成。上述接受範圍與雙語 PASS 均不是 formal full 或發布可用性聲明。
+- 歷史 r4 接受範圍：獨立審閱曾接受 14 項 r2/r3 原始案例的 r4 有界沿用，及 5 項 current r4 native 案例：start-boundary、onboard-boundary、close-boundary、close-normal 和 method-assisted update-boundary-future-official-registry。它們只在原 payload／artifact／raw／review selector 的適用範圍內成立，不能藉新 tarball 或新 metadata 改標為本候選的新執行。update 保留彼此分開的 candidate 0.4.2 official-live refusal 與官方 v0.4.1 no-op，不改標任何 CLI 身分；close-normal 的原 context、四條實際 follow-up、actual final 和 tool records 均保留，較後的 corrected context 只標作 later-current 檔案雜湊。
+- Writer conclusions：既有五項草擬結論只對 19 項歷史有界證據有效，均附適用範圍、來源和「非 frozen-candidate、receipt 或 formal-full」限制；凍結後須逐項以新 commit、tarball、52 檔比較及本輪接受準備重核。候選提交與 fresh identity、clean worktree、獨立 receipt、candidate-preflight、formal full，以及發布後官方讀回均未完成。上述歷史接受範圍與雙語 PASS 均不是 formal full 或發布可用性聲明。
 
-### Candidate source-preparation matrix（v0.4.2，未凍結）
+### Candidate source-preparation matrix（v0.4.2，歷史 r4 準備，未凍結）
 
-- 實際候選套件：`@adamchanadam/agent-handoff-kit@0.4.2`，52 檔，SHA-256 `024f2d11c5adadf8f7f5dc278d0e7d44f654313f4342d9675c5f244d7dd7220f`；這是離線 `npm pack --ignore-scripts` 產物，尚非凍結提交的 fresh identity。
-- r4 原生準備 manifest 已逐檔比對候選 archive、解壓內容與離線安裝內容；目前 evidence draft 把原始 dictionary inventories 另行派生為兩份 52 檔 array-shaped comparison schemas，供既有 validator 的 reusable-case selector 使用。原 dictionary evidence 保持原樣。
+- 歷史 r4 準備套件：`@adamchanadam/agent-handoff-kit@0.4.2`，52 檔，SHA-256 `024f2d11c5adadf8f7f5dc278d0e7d44f654313f4342d9675c5f244d7dd7220f`；這是當時離線 `npm pack --ignore-scripts` 產物，並非本次凍結提交的 fresh identity。
+- r4 原生準備 manifest 已逐檔比對其原 archive、解壓內容與離線安裝內容；目前 evidence draft 把原始 dictionary inventories 另行派生為兩份 52 檔 array-shaped comparison schemas，供既有 validator 的 historical reusable-case selector 使用。原 dictionary evidence、artifact、raw 與 review selector 保持原樣。
 - 五個 r4 fixture 的 native skills/list 選單已由獨立非作者讀回：每個均有九項 project-local skills、零項外來 skill。menu-only 證據仍不等於 actor invocation。current native 案例不聲稱自動 shortcut-body loading；該 host-dispatch 細節仍為 UNVERIFIED，沒有因此虛構補測。
-- 候選 evidence draft 現有 9 個 commands、19 個正常／邊界案例及四個交付 feature 的四 stage 形狀；全部 19 項案例有接受的現行或有界沿用證據。close-normal binder 保留原 context、四條實際 follow-up、actual final 和 tool records；corrected context 內的 changed source hashes 只屬較後檔案值，不能倒推為原生執行當時 received 值。draft 仍是 `notForFull`。
+- 歷史 candidate evidence draft 現有 9 個 commands、19 個正常／邊界案例及四個交付 feature 的四 stage 形狀；全部 19 項案例只保留其原有接受／有界沿用證據。close-normal binder 保留原 context、四條實際 follow-up、actual final 和 tool records；corrected context 內的 changed source hashes 只屬較後檔案值，不能倒推為原生執行當時 received 值。draft 仍是 `notForFull`，本次 freeze 須另建新 waiting evidence。
 
 | required delivery feature | package | fresh install | upgrade | entry / native route | current source-preparation state |
 | --- | --- | --- | --- | --- | --- |

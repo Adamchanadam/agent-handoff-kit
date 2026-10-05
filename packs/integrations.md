@@ -158,7 +158,7 @@ Record declared integrations in `PROJECT_INDEX` `## Installed Integrations`, usi
 
 #### Phase 2 — Cross-session handoff
 
-`SESSION_HANDOFF` durable anchors should point future agents to `PROJECT_INDEX` `## Installed Integrations`. The next-session opening message already includes `PROJECT_INDEX` in the read order.
+`SESSION_HANDOFF` durable anchors should point future agents to `PROJECT_INDEX` `## Installed Integrations`. Follow the core Intent And Startup contract for when to read that section; a durable anchor does not add it to every next-session opening read order.
 
 #### Phase 3 — Before-use availability probe
 

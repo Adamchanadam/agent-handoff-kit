@@ -8,7 +8,7 @@ import { gunzipSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installedFileContracts, requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
-import { canonicalizeOfficialText, getOfficialBaseline, loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
+import { canonicalizeOfficialText, getOfficialBaseline, loadOfficialOriginCatalog, RECENT_PUBLISHED_UPGRADE_VERSION_LIMIT, selectRecentPublishedStableVersions } from "../bin/official-origin-catalog.mjs";
 import { markdownVisibleLinesOutsideHiddenBlocks, materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 
@@ -18,6 +18,9 @@ const fixturesRoot = path.join(root, "test-fixtures");
 const qaTmp = process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "D:\\_temp" : systemTmpdir());
 const packageVersion = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
 const officialOriginCatalog = await loadOfficialOriginCatalog();
+const recentPublishedUpgradeVersions = selectRecentPublishedStableVersions(officialOriginCatalog);
+const oldestRecentPublishedUpgradeVersion = recentPublishedUpgradeVersions[0];
+if (!oldestRecentPublishedUpgradeVersion) throw new Error("official catalog has no published stable upgrade fixture");
 const qaTemp = createQaTempTracker("upgrade safety QA");
 const rootOrVersionGeneratedTargets = new Set([
   "START_NEXT_SESSION_PROMPT.txt",
@@ -35,12 +38,25 @@ try {
 }
 
 function main() {
+  if (process.argv.includes("--recent-window-rebased-only")) {
+    checkRecentPublishedUpgradeWindow();
+    checkHistoricalCrlfAndBaselineMismatch();
+    checkHistoricalProjectIndexAuthorizedTransforms();
+    checkV038HeadedAppendixProtection();
+    console.log("Focused recent-window upgrade checks passed; this is not formal full acceptance.");
+    return;
+  }
   if (process.argv.includes("--session-log-upgrade-only")) {
     checkHistoricalSessionLogTemplateMigration();
     return;
   }
   if (process.argv.includes("--project-rules-only")) {
     checkProjectRuleWriteBoundary();
+    return;
+  }
+  if (process.argv.includes("--runtime-content-sequential-only")) {
+    checkRetainedSequentialChain();
+    console.log("Focused sequential runtime-content check passed; this is not formal full acceptance.");
     return;
   }
   if (process.argv.includes("--runtime-content-only")) {
@@ -64,6 +80,7 @@ function main() {
     checkFutureVersionBlock();
     checkJunctionRootBlock();
     checkCredentialPreBackupStop();
+    checkRecentPublishedUpgradeWindow();
     checkHistoricalSingleHopFixtures();
   }
   checkHistoricalCrlfAndBaselineMismatch();
@@ -314,7 +331,7 @@ function checkCredentialPreBackupStop() {
   const fakePattern = `sk-${"A".repeat(28)}`;
   append(path.join(project, "dev", "SESSION_LOG.md"), `\nSynthetic QA credential pattern: ${fakePattern}\n`);
   const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
-  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, "| Agent Handoff Kit template version | 0.3.38 |"), "utf8");
+  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, `| Agent Handoff Kit template version | ${oldestRecentPublishedUpgradeVersion} |`), "utf8");
   const migrationRoot = path.join(project, "dev", "governance_migrations");
   const beforeDirs = countMigrationDirectories(migrationRoot);
   const before = governanceSnapshot(project);
@@ -327,14 +344,11 @@ function checkCredentialPreBackupStop() {
 }
 
 function checkHistoricalSingleHopFixtures() {
-  const versions = readdirSync(fixturesRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && /^v\d+\.\d+\.\d+$/.test(entry.name))
-    .map((entry) => entry.name)
-    .sort(compareVersions);
-  assert(versions.length >= 30, "historical fixture coverage unexpectedly small");
-  for (const version of versions) {
+  const versions = recentPublishedUpgradeVersions;
+  assert(versions.length === Math.min(RECENT_PUBLISHED_UPGRADE_VERSION_LIMIT, countPublishedStableVersions(officialOriginCatalog)), "historical fixture window did not select the expected published stable coverage");
+  for (const versionNumber of versions) {
+    const version = `v${versionNumber}`;
     const project = fresh(`fixture-${version}`);
-    const versionNumber = version.replace(/^v/, "");
     materializeOfficialInstall(versionNumber, project);
     const result = cli(["upgrade", "--yes", "--root", project], `single-hop ${version}`);
     assertRequiredFixtureFiles(project, `single-hop ${version} upgrade`, result);
@@ -344,7 +358,24 @@ function checkHistoricalSingleHopFixtures() {
     assert(doctor.stdout.includes("status: passed"), `${version} single-hop doctor did not pass\nupgrade output:\n${output(result)}\ndoctor output:\n${output(doctor)}`);
     assert(count(read(path.join(project, "AGENTS.md")), "BEGIN Agent Handoff Kit managed core") === 1, `${version} did not end with one managed core`);
   }
-  console.log(`ok: ${versions.length} committed historical fixtures single-hop upgrade`);
+  console.log(`ok: ${versions.length} recent published stable fixtures single-hop upgrade`);
+}
+
+function checkRecentPublishedUpgradeWindow() {
+  const release = publishedAt => ({ source: { npm: { spec: "@adamchanadam/agent-handoff-kit@fixture" }, githubRelease: { publishedAt } } });
+  const synthetic = { releases: Object.fromEntries(Array.from({ length: 31 }, (_, index) => [`1.0.${index}`, release(`2026-01-${String(index + 1).padStart(2, "0")}T00:00:00Z`)])) };
+  synthetic.releases["1.1.0-beta.1"] = release("2026-12-01T00:00:00Z");
+  synthetic.releases["1.1.0"] = { source: { npm: { spec: "@adamchanadam/agent-handoff-kit@fixture" } } };
+  const selected = selectRecentPublishedStableVersions(synthetic);
+  assert(selected.length === 30 && !selected.includes("1.0.0") && selected[0] === "1.0.1" && selected.at(-1) === "1.0.30", "recent published window did not trim 31 stable releases to the newest 30");
+  assert(!selected.some(version => version.includes("beta")) && !selected.includes("1.1.0"), "recent published window included prerelease or unpublished versions");
+  const shortCatalog = { releases: { "2.0.0": release("2026-02-01T00:00:00Z"), "2.0.1": release("2026-02-02T00:00:00Z") } };
+  assert(JSON.stringify(selectRecentPublishedStableVersions(shortCatalog)) === JSON.stringify(["2.0.0", "2.0.1"]), "recent published window did not retain every stable release when fewer than 30 exist");
+  console.log("ok: recent published stable upgrade window selects 30-or-fewer releases and excludes prerelease/unpublished entries");
+}
+
+function countPublishedStableVersions(catalog) {
+  return selectRecentPublishedStableVersions(catalog, Number.MAX_SAFE_INTEGER).length;
 }
 
 function materializeOfficialInstall(version, project) {
@@ -482,17 +513,22 @@ function tarText(bytes) {
 }
 
 function checkHistoricalCrlfAndBaselineMismatch() {
-  const crlfProject = fresh("v035-crlf");
-  materializeOfficialInstall("0.3.35", crlfProject);
+  const crlfProject = fresh(`v${oldestRecentPublishedUpgradeVersion}-crlf`);
+  materializeOfficialInstall(oldestRecentPublishedUpgradeVersion, crlfProject);
   for (const { targetRel } of installedFileContracts) {
     const targetPath = path.join(crlfProject, targetRel);
     if (!existsSync(targetPath)) continue;
     writeFileSync(targetPath, read(targetPath).replace(/\r?\n/g, "\r\n"), "utf8");
   }
+  const crlfProjectIndex = path.join(crlfProject, "dev", "PROJECT_INDEX.md");
+  const localIndexSentinel = "CRLF_PROJECT_INDEX_LOCAL_SENTINEL";
+  const indexBeforeSentinel = read(crlfProjectIndex);
+  writeFileSync(crlfProjectIndex, indexBeforeSentinel.replace("## Local QC Commands", `${localIndexSentinel}\r\n\r\n## Local QC Commands`), "utf8");
+  assert(read(crlfProjectIndex).includes(localIndexSentinel), "CRLF fixture could not place the PROJECT_INDEX local-byte sentinel");
   const crlfBefore = new Map(installedFileContracts
     .map(({ targetRel }) => [targetRel, readOptionalBuffer(path.join(crlfProject, targetRel))])
     .filter(([, bytes]) => bytes != null));
-  const crlfUpgrade = cli(["upgrade", "--yes", "--root", crlfProject], "v0.3.35 CRLF official upgrade");
+  const crlfUpgrade = cli(["upgrade", "--yes", "--root", crlfProject], `v${oldestRecentPublishedUpgradeVersion} CRLF official upgrade`);
   assert(crlfUpgrade.stdout.includes("status: passed"), "newline-only official variation did not upgrade cleanly");
   const authorizedLifecycleTargets = new Set([
     "AGENTS.md",
@@ -511,15 +547,14 @@ function checkHistoricalCrlfAndBaselineMismatch() {
     if (targetRel === "dev/PROJECT_INDEX.md") {
       const afterText = read(path.join(crlfProject, targetRel));
       const beforeText = before.toString("utf8");
-      assert(parseProjectIndexTemplateVersion(beforeText) === "0.3.35", "CRLF fixture PROJECT_INDEX did not expose the old Stack version");
-      assert(realH2Count(beforeText, "Installed Integrations") === 1, "CRLF fixture PROJECT_INDEX did not start with one Installed Integrations section");
-      assert(realH2Count(beforeText, "Tool Operation References") === 0, "CRLF fixture PROJECT_INDEX unexpectedly started with Tool Operation References");
+      const localSentinel = "CRLF_PROJECT_INDEX_LOCAL_SENTINEL";
+      assert(beforeText.includes(localSentinel), "CRLF fixture PROJECT_INDEX did not retain its local-byte sentinel before migration");
+      assert(parseProjectIndexTemplateVersion(beforeText) === oldestRecentPublishedUpgradeVersion, "CRLF fixture PROJECT_INDEX did not expose the oldest selected Stack version");
       assert(parseProjectIndexTemplateVersion(afterText) === packageVersion, "CRLF fixture PROJECT_INDEX did not materialize the current Stack version");
-      assert(realH2Count(afterText, "Installed Integrations") === 1, "CRLF fixture PROJECT_INDEX lost the Installed Integrations section");
-      assert(realH2Count(afterText, "Tool Operation References") === 1, "CRLF fixture PROJECT_INDEX did not insert exactly one Tool Operation References section");
+      assert(afterText.includes(localSentinel), "CRLF fixture PROJECT_INDEX changed bytes outside its authorized Stack-version transition");
+      const reversed = materializeProjectIndexTemplateVersion(afterText, oldestRecentPublishedUpgradeVersion);
+      assert(reversed === beforeText, "CRLF fixture PROJECT_INDEX changed bytes outside the authorized Stack-version transition");
       assert(!afterText.replace(/\r\n/g, "").includes("\n"), "CRLF fixture PROJECT_INDEX contains bare LF after migration");
-      const reversed = materializeProjectIndexTemplateVersion(removeH2(afterText, "Tool Operation References"), "0.3.35");
-      assert(reversed === beforeText, "CRLF fixture PROJECT_INDEX changed bytes outside the version row and Tool Operation References insertion");
       continue;
     }
     if (authorizedLifecycleTargets.has(targetRel)) {
@@ -531,8 +566,8 @@ function checkHistoricalCrlfAndBaselineMismatch() {
   assertRuntimeContentCurrent(crlfProject);
 
   for (const mode of ["forged", "missing"]) {
-    const project = fresh(`v035-${mode}-baseline`);
-    materializeOfficialInstall("0.3.35", project);
+    const project = fresh(`v${oldestRecentPublishedUpgradeVersion}-${mode}-baseline`);
+    materializeOfficialInstall(oldestRecentPublishedUpgradeVersion, project);
     const safetyPath = path.join(project, "dev", "rules", "safety.md");
     append(safetyPath, "\n## Local Project Rules\n\nKeep the project-specific protected branch list.\n");
     const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
@@ -540,12 +575,12 @@ function checkHistoricalCrlfAndBaselineMismatch() {
     writeFileSync(
       indexPath,
       mode === "forged"
-        ? index.replace(/\| Agent Handoff Kit template version \| [^|]+ \|/, "| Agent Handoff Kit template version | 0.3.38 |")
+        ? index.replace(/\| Agent Handoff Kit template version \| [^|]+ \|/, "| Agent Handoff Kit template version | 0.4.1 |")
         : index.replace(/^\| Agent Handoff Kit template version \|.*\r?\n/m, ""),
       "utf8"
     );
     const before = governanceSnapshot(project);
-    const result = cli(["upgrade", "--dry-run", "--root", project], `v0.3.35 ${mode} baseline`, { allowFailure: true });
+    const result = cli(["upgrade", "--dry-run", "--root", project], `v${oldestRecentPublishedUpgradeVersion} ${mode} baseline`, { allowFailure: true });
     assert(result.status !== 0 && output(result).includes("do not identify one consistent historical baseline"), `${mode} baseline did not stop safely`);
     assert(equalSnapshots(before, governanceSnapshot(project)), `${mode} baseline dry-run changed governance files`);
   }
@@ -565,17 +600,56 @@ function assertRuntimeContentCurrent(project) {
   }
 }
 
+function checkRetainedSequentialChain() {
+  const probe = fresh("v063-chain-artifact");
+  const { artifactCli } = materializeOfficialInstall("0.3.63", probe);
+  const project = fresh("runtime-content-sequential");
+  materializeOfficialInstall("0.3.62", project);
+  const ordinary = path.join(project, "user-data.txt");
+  writeFileSync(ordinary, "Ordinary data must remain exact.\r\nUTF-8: 貓\n", "utf8");
+  const ordinaryBefore = readFileSync(ordinary);
+  for (const { targetRel } of installedFileContracts) {
+    const file = path.join(project, targetRel);
+    if (!existsSync(file)) continue;
+    writeFileSync(file, Buffer.from(read(file).replace(/\r?\n/g, "\r\n"), "utf8"));
+  }
+  const oldUpgrade = spawnSync(process.execPath, [artifactCli, "upgrade", "--yes", "--root", project], { encoding: "utf8", env: buildCliEnv() });
+  assert(!oldUpgrade.error && oldUpgrade.status === 0, `old sequential fixture failed\n${output(oldUpgrade)}`);
+  assert(!read(path.join(project, "dev/rules/onboarding.md")).includes("### 1.1 Public capability answer"), "old sequential fixture did not reproduce missed requirements");
+  const before = governanceSnapshot(project);
+  cli(["upgrade", "--dry-run", "--root", project], "sequential runtime-content dry-run");
+  assert(equalSnapshots(before, governanceSnapshot(project)), "sequential dry-run changed inputs");
+  cli(["upgrade", "--yes", "--root", project], "sequential runtime-content upgrade");
+  assertRuntimeContentCurrent(project);
+  assert(readFileSync(ordinary).equals(ordinaryBefore), "ordinary data changed during sequential runtime update");
+  const updated = governanceSnapshot(project);
+  cli(["upgrade", "--yes", "--root", project], "sequential same-version repeat");
+  assert(equalSnapshots(updated, governanceSnapshot(project)), "sequential repeat was not a no-op");
+}
+
 function checkRuntimeContentPropagation() {
   for (const mode of ["marked", "unmarked", "unmarked-without-terminator", "sandwich"]) {
     const customCore = fresh(`runtime-content-preformal-core-${mode}`);
-    materializeOfficialInstall("0.3.35", customCore);
+    materializeOfficialInstall(oldestRecentPublishedUpgradeVersion, customCore);
     const customAgents = path.join(customCore, "AGENTS.md");
     const originalCore = read(customAgents);
-    let editedCore = originalCore.replace("After this core is loaded, read in order:", "Project-specific startup: ask the project owner which state to load.");
+    let editedCore = originalCore.replace("Classify the user's visible intent before loading project state.", "Project-specific startup: ask the project owner which state to load.");
     assert(editedCore !== originalCore, "pre-formal core negative did not change its instruction");
-    if (mode.startsWith("unmarked")) editedCore = editedCore.replace(/^<!-- (?:BEGIN|END) Agent Handoff Kit managed core -->\r?\n?/gm, "");
-    if (mode === "unmarked-without-terminator") editedCore = editedCore.replace("keep the core within budget.", "Preserve this locally maintained rule.") + "\nNever upload private project data.\n";
-    if (mode === "sandwich") editedCore = "# Agent Handoff Kit Core Runtime\n\nNever upload private project data.\n\n" + editedCore;
+    if (mode.startsWith("unmarked")) {
+      const beforeUnmark = editedCore;
+      editedCore = editedCore.replace(/^<!-- (?:BEGIN|END) Agent Handoff Kit managed core -->\r?\n?/gm, "");
+      assert(editedCore !== beforeUnmark, `${mode} core negative did not remove managed markers`);
+    }
+    if (mode === "unmarked-without-terminator") {
+      const beforeAppend = editedCore;
+      editedCore += "\nNever upload private project data.\n";
+      assert(editedCore !== beforeAppend, "unmarked-without-terminator core negative did not append local content");
+    }
+    if (mode === "sandwich") {
+      const beforeSandwich = editedCore;
+      editedCore = "# Agent Handoff Kit Core Runtime\n\nNever upload private project data.\n\n" + editedCore;
+      assert(editedCore !== beforeSandwich, "sandwich core negative did not add the local prefix");
+    }
     writeFileSync(customAgents, editedCore, "utf8");
     const customBefore = governanceSnapshot(customCore);
     for (const command of ["init", "upgrade"]) {
@@ -585,15 +659,14 @@ function checkRuntimeContentPropagation() {
       assert(!existsSync(path.join(customCore, "dev/governance_migrations/.upgrade.lock")), "rejected pre-formal custom core left a lock");
     }
   }
-  const probe = fresh("v063-chain-artifact");
-  const { artifactCli } = materializeOfficialInstall("0.3.63", probe);
-  for (const mode of ["lf", "crlf", "bom-crlf", "already-stamped", "mixed-appendices", "sequential"]) {
+  const retainedSequentialChain = ["0.3.62", "0.3.63"].every((version) => recentPublishedUpgradeVersions.includes(version));
+  for (const mode of ["lf", "crlf", "bom-crlf", "already-stamped", "mixed-appendices"]) {
     const project = fresh(`runtime-content-${mode}`);
-    materializeOfficialInstall(mode === "sequential" ? "0.3.62" : "0.3.63", project);
+    materializeOfficialInstall(oldestRecentPublishedUpgradeVersion, project);
     const ordinary = path.join(project, "user-data.txt");
     writeFileSync(ordinary, "Ordinary data must remain exact.\r\nUTF-8: 貓\n", "utf8");
     const ordinaryBefore = readFileSync(ordinary);
-    if (["crlf", "bom-crlf", "already-stamped", "sequential"].includes(mode)) {
+    if (["crlf", "bom-crlf", "already-stamped"].includes(mode)) {
       for (const { targetRel } of installedFileContracts) {
         const file = path.join(project, targetRel);
         if (existsSync(file)) {
@@ -612,11 +685,6 @@ function checkRuntimeContentPropagation() {
       const agents = path.join(project, "AGENTS.md");
       writeFileSync(agents, prefix + read(agents) + suffix, "utf8");
       append(path.join(project, "dev/rules/closeout.md"), suffix);
-    }
-    if (mode === "sequential") {
-      const oldUpgrade = spawnSync(process.execPath, [artifactCli, "upgrade", "--yes", "--root", project], { encoding: "utf8", env: buildCliEnv() });
-      assert(!oldUpgrade.error && oldUpgrade.status === 0, `old sequential fixture failed\n${output(oldUpgrade)}`);
-      assert(!read(path.join(project, "dev/rules/onboarding.md")).includes("### 1.1 Public capability answer"), "old sequential fixture did not reproduce missed requirements");
     }
     const before = governanceSnapshot(project);
     cli(["upgrade", "--dry-run", "--root", project], `${mode} runtime-content dry-run`);
@@ -640,14 +708,21 @@ function checkRuntimeContentPropagation() {
     assert(equalSnapshots(updated, governanceSnapshot(project)), `${mode} repeat was not a no-op`);
   }
   const unknown = fresh("runtime-content-local-edit");
-  materializeOfficialInstall("0.3.63", unknown);
+  materializeOfficialInstall(oldestRecentPublishedUpgradeVersion, unknown);
   const closeout = path.join(unknown, "dev/rules/closeout.md");
-  writeFileSync(closeout, read(closeout).replace("Full closeout is differential", "Local closeout is deliberately different"), "utf8");
+  const originalCloseout = read(closeout);
+  const changedCloseout = originalCloseout.replace("This pack is the single detailed contract for full Agent Handoff Kit closeout.", "This locally maintained text replaces the official closeout contract.");
+  assert(changedCloseout !== originalCloseout, "unproven custom rule negative did not change the official pack body");
+  writeFileSync(closeout, changedCloseout, "utf8");
   const before = governanceSnapshot(unknown);
   const rejected = cli(["upgrade", "--yes", "--root", unknown], "unproven custom rule", { allowFailure: true });
   assert(rejected.status !== 0, "unproven custom rule falsely completed");
   assert(equalSnapshots(before, governanceSnapshot(unknown)), "unproven custom rule changed on rejection");
   assert(!existsSync(path.join(unknown, "dev/governance_migrations/.upgrade.lock")), "rejected custom rule left a lock");
+  if (retainedSequentialChain) checkRetainedSequentialChain();
+  else {
+    console.log("skip: version-specific 0.3.62-to-0.3.63 sequential chain is outside the recent published upgrade window");
+  }
   for (const [pack, snippet] of [
     ["safety", "cmd /c rmdir"],
     ["onboarding", "Scenario F. External-tool governance"],
@@ -692,47 +767,10 @@ function checkRealSessionLogEntryBoundary() {
 }
 
 function checkHistoricalProjectIndexAuthorizedTransforms() {
-  const v031Project = fresh("v031-project-index-authorized-transforms");
-  materializeOfficialInstall("0.3.1", v031Project);
-  const v031IndexPath = path.join(v031Project, "dev", "PROJECT_INDEX.md");
-  const v031BeforeText = read(v031IndexPath);
-  const v031BeforeVersion = parseProjectIndexTemplateVersion(v031BeforeText);
-  assert(v031BeforeVersion === "0.1.7", "v0.3.1 fixture PROJECT_INDEX did not expose its historical Stack version");
-  assert(realH2Count(v031BeforeText, "Installed Integrations") === 1, "v0.3.1 fixture PROJECT_INDEX did not start with one Installed Integrations section");
-  assert(realH2Count(v031BeforeText, "Tool Operation References") === 0, "v0.3.1 fixture PROJECT_INDEX unexpectedly started with Tool Operation References");
-  assert(v031BeforeText.includes("### Connectors（Anthropic 官方 vetted）"), "v0.3.1 fixture lacks the legacy connector heading text");
-  const v031Upgrade = cli(["upgrade", "--yes", "--root", v031Project], "v0.3.1 PROJECT_INDEX authorized transform upgrade");
-  assert(v031Upgrade.stdout.includes("status: passed"), "v0.3.1 authorized PROJECT_INDEX transform did not pass doctor");
-  const v031AfterText = read(v031IndexPath);
-  assert(parseProjectIndexTemplateVersion(v031AfterText) === packageVersion, "v0.3.1 PROJECT_INDEX did not materialize the current Stack version");
-  assert(realH2Count(v031AfterText, "Installed Integrations") === 1, "v0.3.1 PROJECT_INDEX lost Installed Integrations");
-  assert(realH2Count(v031AfterText, "Tool Operation References") === 1, "v0.3.1 PROJECT_INDEX did not insert Tool Operation References");
-  assert(v031AfterText.includes("### Connectors（Anthropic 官方 vetted）"), "v0.3.1 PROJECT_INDEX normalized a legacy pre-existing connector heading");
-  const v031Reversed = materializeProjectIndexTemplateVersion(removeH2(v031AfterText, "Tool Operation References"), v031BeforeVersion);
-  assert(v031Reversed === v031BeforeText, "v0.3.1 PROJECT_INDEX changed bytes outside Tool Operation References insertion and Stack version-row materialization");
-
-  const gapProject = fresh("v031-project-index-gap-preservation");
-  materializeOfficialInstall("0.3.1", gapProject);
-  const gapIndexPath = path.join(gapProject, "dev", "PROJECT_INDEX.md");
-  const gapSentinel = "CUSTOM_GAP_SENTINEL  \n\n\n";
-  let gapBeforeText = read(gapIndexPath);
-  const gapBeforeVersion = parseProjectIndexTemplateVersion(gapBeforeText);
-  assert(gapBeforeVersion === "0.1.7", "v0.3.1 gap fixture PROJECT_INDEX did not expose its historical Stack version");
-  assert(realH2Count(gapBeforeText, "Tool Operation References") === 0, "v0.3.1 gap fixture unexpectedly started with Tool Operation References");
-  gapBeforeText = gapBeforeText.replace("## Local QC Commands", `${gapSentinel}## Local QC Commands`);
-  writeFileSync(gapIndexPath, gapBeforeText, "utf8");
-  const gapBeforeBytes = readFileSync(gapIndexPath);
-  const gapUpgrade = cli(["upgrade", "--yes", "--root", gapProject], "v0.3.1 PROJECT_INDEX gap preservation");
-  assert(gapUpgrade.stdout.includes("status: passed"), "v0.3.1 gap preservation PROJECT_INDEX transform did not pass doctor");
-  const gapAfterText = read(gapIndexPath);
-  assert(gapAfterText.includes(gapSentinel), "v0.3.1 PROJECT_INDEX gap sentinel bytes were not preserved");
-  const gapReversed = materializeProjectIndexTemplateVersion(removeH2(gapAfterText, "Tool Operation References"), gapBeforeVersion);
-  assert(Buffer.from(gapReversed, "utf8").equals(gapBeforeBytes), "v0.3.1 PROJECT_INDEX gap fixture changed bytes outside Tool Operation References insertion and Stack version-row materialization");
-
   const customProject = install("project-index-custom-credential-text");
   const customIndexPath = path.join(customProject, "dev", "PROJECT_INDEX.md");
   const customLiteral = "Former normalization literal retained as local content: ### Connectors（Anthropic 官方 vetted）";
-  let customBeforeText = materializeProjectIndexTemplateVersion(read(customIndexPath), "0.3.38");
+  let customBeforeText = materializeProjectIndexTemplateVersion(read(customIndexPath), oldestRecentPublishedUpgradeVersion);
   customBeforeText = customBeforeText.replace("## Workspace Identity", `## Local Project Notes\n\n${customLiteral}\n\n## Workspace Identity`);
   writeFileSync(customIndexPath, customBeforeText, "utf8");
   const customUpgrade = cli(["upgrade", "--yes", "--root", customProject], "PROJECT_INDEX custom credential-normalization literal");
@@ -744,11 +782,11 @@ function checkHistoricalProjectIndexAuthorizedTransforms() {
   const mixedFenceProject = install("project-index-mixed-fence-visible");
   const mixedIndexPath = path.join(mixedFenceProject, "dev", "PROJECT_INDEX.md");
   const mixedLine = "```~ mixed invalid fence opener remains ordinary visible text";
-  let mixedBeforeText = materializeProjectIndexTemplateVersion(read(mixedIndexPath), "0.3.38");
+  let mixedBeforeText = materializeProjectIndexTemplateVersion(read(mixedIndexPath), oldestRecentPublishedUpgradeVersion);
   mixedBeforeText = mixedBeforeText.replace("## Stack", `${mixedLine}\n\n## Stack`);
   writeFileSync(mixedIndexPath, mixedBeforeText, "utf8");
   assert(markdownVisibleLinesOutsideHiddenBlocks(mixedBeforeText).some((line) => line.text === mixedLine), "mixed backtick/tilde line was treated as a fence opener");
-  assert(parseProjectIndexTemplateVersion(mixedBeforeText) === "0.3.38", "mixed invalid fence line hid the real Stack version row");
+  assert(parseProjectIndexTemplateVersion(mixedBeforeText) === oldestRecentPublishedUpgradeVersion, "mixed invalid fence line hid the real Stack version row");
   assert(realH2Count(mixedBeforeText, "Tool Operation References") === 1 && realH2Count(mixedBeforeText, "Local QC Commands") === 1, "mixed invalid fence line hid real PROJECT_INDEX governance sections");
   const mixedUpgrade = cli(["upgrade", "--yes", "--root", mixedFenceProject], "PROJECT_INDEX mixed invalid fence line");
   assert(mixedUpgrade.stdout.includes("status: passed"), "mixed invalid fence line made upgrade/doctor false-block");
@@ -762,12 +800,12 @@ function checkHistoricalProjectIndexAuthorizedTransforms() {
 
 function checkV038HeadedAppendixProtection() {
   const project = fresh("v038-headed-appendix-protection");
-  materializeOfficialInstall("0.3.38", project);
+  materializeOfficialInstall(oldestRecentPublishedUpgradeVersion, project);
   const target = "dev/rules/integrations.md";
   const localAppendix = Buffer.from("\n## Local Project Rules\n\nPreserve the signed-in user browser profile.\n", "utf8");
   append(path.join(project, target), localAppendix.toString("utf8"));
   const rawBefore = readFileSync(path.join(project, target));
-  const result = cli(["upgrade", "--yes", "--root", project], "v0.3.38 headed appendix preservation transaction");
+  const result = cli(["upgrade", "--yes", "--root", project], `v${oldestRecentPublishedUpgradeVersion} headed appendix preservation transaction`);
   assert(result.status === 0 && output(result).includes("migration committed") && output(result).includes("project health: passed"), "headed appendix did not complete a same-readback preservation transaction");
   const rawAfter = readFileSync(path.join(project, target));
   assert(rawAfter.indexOf(localAppendix) >= 0, "headed appendix preservation transaction lost local appendix bytes");
@@ -893,7 +931,7 @@ function checkPromptThirdCopy() {
 
 function exactHistoricalSafetyBytes() {
   const artifactFreshRoot = fresh("v038-exact-safety");
-  materializeOfficialInstall("0.3.38", artifactFreshRoot);
+  materializeOfficialInstall(oldestRecentPublishedUpgradeVersion, artifactFreshRoot);
   return readFileSync(path.join(artifactFreshRoot, "dev", "rules", "safety.md"));
 }
 
@@ -901,7 +939,7 @@ function checkFaultRollback() {
   const project = install("fault-rollback");
   writeFileSync(path.join(project, "dev", "rules", "safety.md"), exactHistoricalSafetyBytes());
   const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
-  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, "| Agent Handoff Kit template version | 0.3.38 |"), "utf8");
+  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, `| Agent Handoff Kit template version | ${oldestRecentPublishedUpgradeVersion} |`), "utf8");
   const before = governanceSnapshot(project);
   const result = cli(["upgrade", "--yes", "--root", project], "fault rollback", { allowFailure: true, env: { AGENT_HANDOFF_KIT_QA_FAIL_AFTER_COMMIT: "1" } });
   assert(result.status !== 0 && output(result).includes("migration rolled back"), "fault injection did not trigger rollback");
@@ -915,7 +953,7 @@ function prepareInterruptedReplacement(label) {
   const project = install(label);
   writeFileSync(path.join(project, "dev", "rules", "safety.md"), exactHistoricalSafetyBytes());
   const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
-  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, "| Agent Handoff Kit template version | 0.3.38 |"), "utf8");
+  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, `| Agent Handoff Kit template version | ${oldestRecentPublishedUpgradeVersion} |`), "utf8");
   const before = governanceSnapshot(project);
   const interrupted = cli(["upgrade", "--yes", "--root", project], `${label} replacement interruption`, {
     allowFailure: true,
@@ -1024,7 +1062,7 @@ function checkCommittedRecoveryRebuildsReport() {
   const project = install("committed-recovery");
   writeFileSync(path.join(project, "dev", "rules", "safety.md"), exactHistoricalSafetyBytes());
   const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
-  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, "| Agent Handoff Kit template version | 0.3.38 |"), "utf8");
+  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, `| Agent Handoff Kit template version | ${oldestRecentPublishedUpgradeVersion} |`), "utf8");
   const interrupted = cli(["upgrade", "--yes", "--root", project], "committed journal interruption", {
     allowFailure: true,
     env: { AGENT_HANDOFF_KIT_QA_INTERRUPT_AFTER_JOURNAL_COMMIT: "1" }
@@ -1210,7 +1248,8 @@ function writeWitnesslessCommittedMigration(project, id, version) {
 
 function checkProjectRuleWriteBoundary() {
   // A deterministic write/upgrade replay, not proof that an AI understood a rule.
-  for (const [fromVersion, crlf] of [["0.3.64", false], ["0.3.64", true], ["0.3.65", false], ["0.3.65", true]]) {
+  for (const crlf of [false, true]) {
+    const fromVersion = oldestRecentPublishedUpgradeVersion;
     const project = fresh(`project-rules-${fromVersion}-${crlf ? "crlf" : "lf"}`);
     materializeOfficialInstall(fromVersion, project);
     const pack = path.join(project, "dev/rules/agent-governance.md");

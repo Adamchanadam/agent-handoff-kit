@@ -111,8 +111,9 @@ async function main() {
     await validateCandidatePreflight(options, { requireFrozenIdentity: true });
     accepted = await validateCandidateEvidence(options);
   }
+  const claimOptions = { ...options, acceptedCandidateEvidenceSha256: accepted?.candidateEvidenceSha256 ?? null };
   if (layer === "candidate-preflight" || layer === "postpublish") {
-    for (const claim of claims) await runClaim(claim, options);
+    for (const claim of claims) await runClaim(claim, claimOptions);
   }
   if (options.validateOnly) {
     console.log(`ok: ${layer} evidence contract (${QA_ASSURANCE_MANIFEST_DIGEST})`);
@@ -120,18 +121,19 @@ async function main() {
   }
 
   if (layer === "quick" || layer === "full") {
-    for (const claim of claims) await runClaim(claim, options);
+    for (const claim of claims) await runClaim(claim, claimOptions);
   }
   if (layer === "full") await finalizeCandidateAcceptance(accepted, options.receipt);
   console.log(`Agent Handoff Kit ${layer} QA passed (${QA_ASSURANCE_MANIFEST_DIGEST})`);
 }
 
 function parseArgs(args) {
-  const options = { layer: null, list: false, validateOnly: false, candidate: null, version: null, evidence: null, receipt: null, collect: null, testFailClaim: null, testRunnerFixture: null, testRunnerTimeoutMs: null, testCommandShellFixture: null, testCommandSpawnError: false };
+  const options = { layer: null, list: false, validateOnly: false, mode: "complete", candidate: null, version: null, evidence: null, receipt: null, collect: null, testFailClaim: null, testRunnerFixture: null, testRunnerTimeoutMs: null, testCommandShellFixture: null, testCommandSpawnError: false };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--list") options.list = true;
     else if (value === "--validate-only") options.validateOnly = true;
+    else if (value === "--mode") options.mode = requireValue(args, ++index, value);
     else if (value === "--candidate") options.candidate = requireValue(args, ++index, value);
     else if (value === "--version") options.version = requireValue(args, ++index, value);
     else if (value === "--evidence") options.evidence = requireValue(args, ++index, value);
@@ -145,21 +147,28 @@ function parseArgs(args) {
     else if (!options.layer) options.layer = value;
     else throw new Error(`unknown argument: ${value}`);
   }
+  assert(options.mode === "complete" || options.mode === "diff", "--mode must be complete or diff");
+  if (options.layer && options.layer !== "full") assert(options.mode === "complete", "--mode is only available for full");
   return options;
 }
 
-async function validateCandidateEvidence(options) {
+export async function validateCandidateEvidence(options) {
   assert(options.candidate, "full requires --candidate <version>");
   const evidence = readEvidence(options.evidence, "full requires --evidence <candidate-evidence.json>");
-  const accepted = captureCandidateIdentity(options.evidence, evidence);
   const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
   assert(packageJson.version === options.candidate, "full candidate version does not match package.json");
+  assert(evidence.kind === "candidate-assurance" && evidence.schemaVersion === 1, "candidate evidence has the wrong schema");
+  assert(evidence.candidate && typeof evidence.candidate === "object", "candidate evidence requires candidate identity");
   const status = await candidateGitStatus();
   assert(status.stdout.trim() === "", "full requires a clean worktree before candidate evidence can be accepted");
   const head = await candidateGitHead();
-  assert(evidence.kind === "candidate-assurance" && evidence.schemaVersion === 1, "candidate evidence has the wrong schema");
+  const accepted = captureCandidateIdentity(options.evidence, evidence);
   assert(evidence.manifestDigest === QA_ASSURANCE_MANIFEST_DIGEST, "candidate evidence manifest digest does not match this source");
   assert(evidence.releaseReadinessInventoryDigest === QA_RELEASE_READINESS_INVENTORY_DIGEST, "candidate evidence release-readiness inventory digest does not match this source");
+  assert((evidence.executionMode ?? "complete") === options.mode, "candidate evidence executionMode does not match --mode");
+  const machineResults = options.mode === "complete"
+    ? (assert(!Object.hasOwn(evidence, "machineResults"), "complete candidate evidence cannot carry reusable machine-results"), null)
+    : validateMachineResultsBinding(evidence);
   assert(evidence.candidate?.version === options.candidate, "candidate evidence version does not match --candidate");
   assert(evidence.candidate?.packageJsonVersion === packageJson.version, "candidate evidence packageJsonVersion does not match package.json");
   assert(evidence.candidate?.commit === head, "candidate evidence commit does not match clean HEAD");
@@ -167,7 +176,8 @@ async function validateCandidateEvidence(options) {
   assert(isSha256(evidence.candidate?.tarballSha256, 64), "candidate evidence requires tarballSha256");
   assert(await freshCandidateTarballSha256() === evidence.candidate.tarballSha256.toLowerCase(), "candidate evidence tarballSha256 does not match a freshly packed candidate");
   assert(validManualVerdicts(evidence.manualVerdicts), `candidate evidence requires all five full-check verdicts to be passed: ${CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.join(", ")}`);
-  validateRoleIsolationEvidence(evidence, head);
+  const bundle = validateRoleIsolationEvidence(evidence, head);
+  if (machineResults) validateMachineReviewBindings(machineResults, bundle.value.reviewSubject, evidence.reviewReceipt);
   validateCandidateReportSection(options.candidate);
   validateEvidenceRecords(evidence.evidence);
   await validateCandidateFeatureDelivery(evidence, head);
@@ -301,7 +311,10 @@ export async function runClaim(claim, options = {}, executors = {
   "node-script": async (item) => {
     const script = item.executor.script;
     assert(isInside(root, path.resolve(root, script)) && existsSync(path.resolve(root, script)), `manifest executor is missing or unsafe: ${script}`);
-    await runNodeScriptChecked(script, item.id, { cwd: root, env: process.env, timeoutMs: item.executor.timeoutMs });
+    const args = item.id === "release-readiness"
+      ? ["--execution-mode", options.mode, ...(options.mode === "diff" ? ["--candidate-evidence", path.resolve(options.evidence), "--accepted-evidence-sha256", options.acceptedCandidateEvidenceSha256] : [])]
+      : [];
+    await runNodeScriptChecked(script, item.id, { cwd: root, env: process.env, timeoutMs: item.executor.timeoutMs, args });
   },
   "internal-validator": () => validateCandidatePreflight(options),
   "evidence-validator": () => validatePostpublishEvidence(options)
@@ -532,6 +545,7 @@ function validateRoleIsolationEvidence(evidence, head) {
   assert(validManualVerdicts(receipt.fiveConclusions), "review receipt must carry the same five passed full-check conclusions");
   assert(semanticEqual(receipt.fiveConclusions, evidence.manualVerdicts), "review receipt five conclusions do not match candidate evidence");
   assert(typeof receipt.receivedAt === "string" && receipt.receivedAt, "review receipt receivedAt is required");
+  return bundle;
 }
 
 function assertValidStateHistory(history, requiredPath) {
@@ -603,6 +617,29 @@ function validateCandidateReportSection(version) {
 function isSha256(value, exactLength = null) {
   const lengths = exactLength ? [exactLength] : [40, 64];
   return typeof value === "string" && lengths.includes(value.length) && /^[a-f0-9]+$/i.test(value);
+}
+
+function validateMachineResultsBinding(evidence) {
+  const value = evidence.machineResults;
+  assert(value && value.schemaVersion === 1 && value.kind === "release-readiness-machine-results", "diff evidence requires machineResults");
+  assert(value.outcome === "completed", "diff machine-results capture did not complete");
+  assert(value.inventoryDigest === QA_RELEASE_READINESS_INVENTORY_DIGEST && Array.isArray(value.records), "diff machine-results inventory binding is invalid");
+  const digest = sha256(Buffer.from(JSON.stringify(value), "utf8"));
+  assert(evidence.machineResultsDigest === digest, "diff machine-results digest mismatch");
+  const ids = new Set();
+  for (const record of value.records) {
+    assert(record && typeof record === "object" && !Array.isArray(record), "diff machine-result record must be an object");
+    assert(QA_RELEASE_READINESS_INVENTORY.some((entry) => entry.id === record.id), "diff machine-result record has an unknown id");
+    assert(!ids.has(record.id), "diff machine-results contains a duplicate id");
+    ids.add(record.id);
+  }
+  return { value, digest };
+}
+
+function validateMachineReviewBindings(machineResults, reviewSubject, receipt) {
+  assert(reviewSubject?.machineResultsDigest === machineResults.digest, "review subject machine-results digest mismatch");
+  assert(semanticEqual(reviewSubject?.machineResults, machineResults.value), "review subject machine-results differs");
+  assert(receipt?.machineResultsDigest === machineResults.digest, "review receipt machine-results digest mismatch");
 }
 
 function validateEvidenceRecords(records) {
