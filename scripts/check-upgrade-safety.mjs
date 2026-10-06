@@ -8,6 +8,7 @@ import { gunzipSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installedFileContracts, requiredInstalledTargets } from "../bin/installed-file-contract.mjs";
+import { commandFiles } from "../bin/commands.mjs";
 import { canonicalizeOfficialText, getOfficialBaseline, loadOfficialOriginCatalog, RECENT_PUBLISHED_UPGRADE_VERSION_LIMIT, selectRecentPublishedStableVersions } from "../bin/official-origin-catalog.mjs";
 import { markdownVisibleLinesOutsideHiddenBlocks, materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
 import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
@@ -68,6 +69,7 @@ function main() {
   if (!process.argv.includes("--after-historical")) {
     assertCliEnvDisablesUpdateNotice();
     checkDryRunNoWrites();
+    checkGeneratedShortcutByteContract();
     checkRuntimeStateFilesStableForOrdinaryWorkAndDryRun();
     checkCancelledWriteLeavesMissingRootAbsent();
     checkFreshInstallNoMigrationArtifacts();
@@ -113,6 +115,61 @@ function checkDryRunNoWrites() {
   assert(result.stdout.includes("dry-run: no files written"), "missing-root dry-run did not report zero writes");
   assert(!existsSync(project), "init --dry-run created the selected root");
   console.log("ok: init dry-run leaves a missing root absent");
+}
+
+function assertGeneratedShortcutBytes(project, label) {
+  for (const item of commandFiles()) {
+    const actual = readFileSync(path.join(project, item.file));
+    assert(actual.equals(Buffer.from(item.text, "utf8")), `${label}: generated shortcut bytes drifted: ${item.file}`);
+  }
+}
+
+function checkGeneratedShortcutByteContract() {
+  const project = fresh("generated-shortcut-exact-bytes");
+  const beforeDryRun = fullSnapshot(project);
+  const dryRun = cli(["init", "--dry-run", "--root", project], "generated shortcut fresh-init dry-run");
+  assert(dryRun.stdout.includes("dry-run: no files written"), "generated shortcut fresh-init dry-run did not report zero writes");
+  assert(equalSnapshots(beforeDryRun, fullSnapshot(project)), "generated shortcut fresh-init dry-run changed the selected root");
+  cli(["init", "--yes", "--root", project], "generated shortcut fresh init");
+  assertGeneratedShortcutBytes(project, "fresh init");
+  assert(cli(["doctor", "--root", project], "generated shortcut fresh-init doctor").stdout.includes("status: passed"), "generated shortcut fresh init did not pass doctor");
+
+  const beforeRepeat = fullSnapshot(project);
+  cli(["upgrade", "--yes", "--root", project], "generated shortcut same-version repeat");
+  assert(equalSnapshots(beforeRepeat, fullSnapshot(project)), "generated shortcut same-version upgrade was not byte-idempotent");
+
+  const historical = fresh("generated-shortcut-recognized-history");
+  materializeOfficialInstall("0.4.2", historical);
+  const historicalBefore = fullSnapshot(historical);
+  cli(["upgrade", "--dry-run", "--root", historical], "recognized historical shortcut dry-run");
+  assert(equalSnapshots(historicalBefore, fullSnapshot(historical)), "recognized historical shortcut dry-run changed files");
+  cli(["upgrade", "--yes", "--root", historical], "recognized historical shortcut upgrade");
+  assertGeneratedShortcutBytes(historical, "recognized historical shortcut upgrade");
+  assert(cli(["doctor", "--root", historical], "recognized historical shortcut doctor").stdout.includes("status: passed"), "recognized historical shortcut upgrade did not pass doctor");
+
+  const altered = commandFiles().find((item) => item.file === "dev/handoff-kit/project-version.mjs");
+  const alteredPath = path.join(project, altered.file);
+  const alteredBytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(readFileSync(alteredPath).toString("utf8").replace(/\r?\n/g, "\r\n"), "utf8")]);
+  writeFileSync(alteredPath, alteredBytes);
+  const alteredBefore = fullSnapshot(project);
+  const rejected = cli(["upgrade", "--dry-run", "--root", project], "altered generated shortcut dry-run", { allowFailure: true });
+  assert(rejected.status !== 0 && output(rejected).includes(altered.file), "altered BOM/CRLF generated shortcut did not remain a conflict");
+  assert(equalSnapshots(alteredBefore, fullSnapshot(project)), "altered generated shortcut conflict wrote files");
+
+  const missingProject = fresh("generated-shortcut-missing");
+  cli(["init", "--yes", "--root", missingProject], "missing generated shortcut fresh init");
+  const missing = commandFiles().find((item) => item.file === "dev/handoff-kit/launch.mjs");
+  const missingPath = path.join(missingProject, missing.file);
+  renameSync(missingPath, `${missingPath}.missing`);
+  const missingDoctor = cli(["doctor", "--root", missingProject], "missing generated shortcut doctor", { allowFailure: true });
+  assert(missingDoctor.status !== 0 && output(missingDoctor).includes(missing.file), "missing generated shortcut made doctor pass");
+  const missingBefore = fullSnapshot(missingProject);
+  const missingPreview = cli(["upgrade", "--dry-run", "--root", missingProject], "missing generated shortcut dry-run");
+  assert(missingPreview.stdout.includes("dry-run: no files written") && output(missingPreview).includes(missing.file), "missing generated shortcut was not planned for create-only repair");
+  assert(equalSnapshots(missingBefore, fullSnapshot(missingProject)), "missing generated shortcut dry-run changed files");
+  cli(["upgrade", "--yes", "--root", missingProject], "missing generated shortcut repair");
+  assertGeneratedShortcutBytes(missingProject, "missing generated shortcut repair");
+  console.log("ok: generated shortcut exact source bytes, no-write preview, historical merge, idempotency, altered BOM/CRLF conflict and missing-output doctor/repair");
 }
 
 function checkRuntimeStateFilesStableForOrdinaryWorkAndDryRun() {
@@ -875,10 +932,9 @@ function checkProjectIndexHiddenGovernanceFalseClose() {
 }
 
 function checkHistoricalSessionLogTemplateMigration() {
-  const project = install("historical-session-log");
-  const indexPath = path.join(project, "dev", "PROJECT_INDEX.md");
   const baselineVersion = "0.4.1";
-  writeFileSync(indexPath, read(indexPath).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, `| Agent Handoff Kit template version | ${baselineVersion} |`), "utf8");
+  const project = fresh("historical-session-log");
+  materializeOfficialInstall(baselineVersion, project);
   const logPath = path.join(project, "dev", "SESSION_LOG.md");
   const baseline = getOfficialBaseline({ version: baselineVersion, targetRel: "dev/SESSION_LOG.md", catalog: officialOriginCatalog });
   assert(baseline?.state === "present", "official v0.4.1 SESSION_LOG baseline is unavailable");
@@ -896,9 +952,8 @@ function checkHistoricalSessionLogTemplateMigration() {
   assert(after.includes("Each closeout applies `dev/rules/closeout.md` `## Maintenance Trigger Check`"), "verified official v0.4.1 SESSION_LOG preamble did not transition to the current owner");
   assert(!after.includes("N=1–3 keep full"), "legacy official SESSION_LOG N-threshold preamble remained after upgrade");
   assert(cli(["doctor", "--root", project], "historical SESSION_LOG doctor").stdout.includes("status: passed"), "doctor rejected legal historical log marker pairs");
-  const customProject = install("custom-session-log-preamble");
-  const customIndex = path.join(customProject, "dev", "PROJECT_INDEX.md");
-  writeFileSync(customIndex, read(customIndex).replace(`| Agent Handoff Kit template version | ${packageVersion} |`, `| Agent Handoff Kit template version | ${baselineVersion} |`), "utf8");
+  const customProject = fresh("custom-session-log-preamble");
+  materializeOfficialInstall(baselineVersion, customProject);
   const customLog = path.join(customProject, "dev", "SESSION_LOG.md");
   const customPreamble = baseline.text.replace("<!-- ack:section:session-log-entry-template -->", "Local preamble note: preserve this project-specific routing.\n\n<!-- ack:section:session-log-entry-template -->");
   writeFileSync(customLog, customPreamble, "utf8");
