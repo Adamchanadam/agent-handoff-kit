@@ -9,7 +9,7 @@ import { commands, commandFiles } from './commands.mjs';
 // QA stages/evidence are defined by the existing assurance gate, not runtime doctor.
 export const deliveredFeatureContracts = Object.freeze([
  {id:'installer',sources:['package.json','bin/agent-handoff-kit.mjs','bin/installed-file-contract.mjs','bin/official-origin-catalog.mjs','bin/migration-baselines/','bin/upgrade-inventory.mjs','bin/user-rules-router.mjs']},
- {id:'shortcuts',sources:['bin/commands.mjs'],requiredForFull:true,hosts:['claude','gemini','codex','antigravity'],nativeAcceptanceHosts:['codex'],nativeInvocationEntries:commands.map(({name})=>name)},
+ {id:'shortcuts',sources:['bin/commands.mjs'],hosts:['claude','gemini','codex','antigravity'],nativeAcceptanceHosts:['codex'],nativeInvocationEntries:commands.map(({name})=>name)},
  {id:'dashboard',sources:['bin/progress/']},
  {id:'continuity',sources:['runtime-core/','bin/handoff-read.mjs','bin/prompt-mirror-core.mjs']},
  {id:'task-packs',sources:['packs/']}
@@ -38,6 +38,45 @@ export function dependencyRootMatches(file,root){return root.endsWith('/')?file.
 export function shortcutEntryDependencyRoots(entry){
  if(!Object.hasOwn(shortcutEntrySpecificDependencyRoots,entry))throw Error(`Unknown shortcut delivery dependency entry: ${entry}`);
  return Object.freeze([...new Set([...sharedShortcutDependencyRoots,...shortcutEntrySpecificDependencyRoots[entry]])]);
+}
+
+// Native acceptance scope is narrower than reuse scope. Reuse stays
+// conservative because it decides whether old evidence remains applicable;
+// this map decides which *new* real user journey can change in the diff.
+const sharedNativeShortcutRoots=Object.freeze(['bin/commands.mjs','runtime-core/','bin/installed-file-contract.mjs']);
+const shortcutEntryNativeRoots=Object.freeze({
+ 'handoff-kit-start':Object.freeze(['bin/handoff-read.mjs','packs/onboarding.md']),
+ 'handoff-kit-close':Object.freeze(['bin/agent-handoff-kit.mjs','bin/prompt-mirror-core.mjs','packs/closeout.md','packs/safety.md']),
+ 'handoff-kit-progress':Object.freeze(['bin/progress/']),
+ 'handoff-kit-align':Object.freeze(['packs/agent-governance.md']),
+ 'handoff-kit-onboard':Object.freeze(['packs/onboarding.md']),
+ 'handoff-kit-remember':Object.freeze(['packs/agent-governance.md','packs/coding.md','packs/writing.md','packs/research.md','packs/release.md','packs/knowledge.md','packs/communication.md','packs/integrations.md','packs/safety.md','packs/closeout.md','packs/onboarding.md']),
+ 'handoff-kit-check':Object.freeze(['bin/agent-handoff-kit.mjs','bin/official-origin-catalog.mjs','bin/migration-baselines/','bin/upgrade-inventory.mjs','bin/user-rules-router.mjs']),
+ 'handoff-kit-update':Object.freeze(['bin/agent-handoff-kit.mjs','bin/official-origin-catalog.mjs','bin/migration-baselines/','bin/upgrade-inventory.mjs','bin/user-rules-router.mjs']),
+ 'handoff-kit-help':Object.freeze([])
+});
+const shippedDocumentation=Object.freeze(['README.md','docs/commands.md','docs/progress.md','LICENSE']);
+function isShippedRuntimeSource(file){return file==='package.json'||file.startsWith('bin/')||file.startsWith('runtime-core/')||file.startsWith('packs/');}
+export function shortcutEntryNativeRootsFor(entry){
+ if(!Object.hasOwn(shortcutEntryNativeRoots,entry))throw Error(`Unknown shortcut native entry: ${entry}`);
+ return Object.freeze([...new Set([...sharedNativeShortcutRoots,...shortcutEntryNativeRoots[entry]])]);
+}
+export function selectDeliveryEvidence(changedFiles){
+ if(!Array.isArray(changedFiles))throw Error('Changed delivery files must be an array');
+ const featureIds=new Set(),nativeEntries=[];
+ for(const file of changedFiles){
+  if(typeof file!=='string'||!file)throw Error('Changed delivery file path is invalid');
+  const owners=deliveredFeatureContracts.filter(contract=>contract.sources.some(source=>dependencyRootMatches(file,source)));
+  if(isShippedRuntimeSource(file)&&!owners.length)throw Error(`Unmapped shipped feature source: ${file}`);
+  for(const owner of owners)featureIds.add(owner.id);
+  if(packageInstallDependencyRoots.some(root=>dependencyRootMatches(file,root)))featureIds.add('installer');
+  if(!isShippedRuntimeSource(file)&&!shippedDocumentation.includes(file))continue;
+ }
+ for(const entry of commands.map(({name})=>name)){
+  if(shortcutEntryNativeRootsFor(entry).some(root=>changedFiles.some(file=>dependencyRootMatches(file,root))))nativeEntries.push(entry);
+ }
+ if(nativeEntries.length)featureIds.add('shortcuts');
+ return Object.freeze({featureIds:Object.freeze([...featureIds].sort()),nativeEntries:Object.freeze(nativeEntries)});
 }
 
 export const INSTALLED_FILE_CONTRACT_SCHEMA = 1;

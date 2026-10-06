@@ -5,7 +5,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {affectedDeliveryFeatures,validateFeatureDelivery} from './feature-delivery.mjs';
 import {commands} from '../bin/commands.mjs';
-import {deliveredFeatureContracts} from '../bin/installed-file-contract.mjs';
+import {deliveredFeatureContracts,selectDeliveryEvidence} from '../bin/installed-file-contract.mjs';
 export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256}){
  const sha='a'.repeat(64),base='b'.repeat(40),ref={path:evidencePath,sha256:evidenceSha256};
  const reuseRoot=mkdtempSync(path.join(tmpdir(),'ack-feature-delivery-reuse-'));
@@ -36,20 +36,46 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
   const bad=structuredClone(data);mutate(bad);assert.throws(()=>validate(bad));
  }
  assert.throws(()=>affectedDeliveryFeatures(['bin/new-unmapped-feature.mjs']));
- assert.deepEqual(affectedDeliveryFeatures(['README.md']),['shortcuts']);
+ assert.deepEqual(affectedDeliveryFeatures(['README.md']),[]);
  assert.deepEqual(affectedDeliveryFeatures(['packs/closeout.md']),['installer','shortcuts','task-packs']);
  assert.deepEqual(affectedDeliveryFeatures(['runtime-core/AGENTS.core.md']),['continuity','installer','shortcuts']);
  assert.deepEqual(affectedDeliveryFeatures(['bin/agent-handoff-kit.mjs']),['installer','shortcuts']);
- assert.deepEqual(affectedDeliveryFeatures(['package.json']),['installer','shortcuts']);
+ assert.deepEqual(affectedDeliveryFeatures(['package.json']),['installer']);
  assert.deepEqual(affectedDeliveryFeatures(['bin/commands.mjs']),['installer','shortcuts']);
  assert.deepEqual(affectedDeliveryFeatures(['bin/progress/launch.mjs']),['dashboard','installer','shortcuts']);
+ assert.deepEqual(selectDeliveryEvidence(['README.md']).nativeEntries,[]);
+ assert.deepEqual(selectDeliveryEvidence(['packs/closeout.md']).nativeEntries,['handoff-kit-close','handoff-kit-remember']);
+ assert.deepEqual(selectDeliveryEvidence(['packs/safety.md']).nativeEntries,['handoff-kit-close','handoff-kit-remember']);
+ assert.deepEqual(selectDeliveryEvidence(['packs/onboarding.md']).nativeEntries,['handoff-kit-start','handoff-kit-onboard','handoff-kit-remember']);
+ assert.deepEqual(selectDeliveryEvidence(['bin/progress/launch.mjs']).nativeEntries,['handoff-kit-progress']);
+ assert.deepEqual(selectDeliveryEvidence(['bin/commands.mjs']).nativeEntries,entries);
+ assert.deepEqual(selectDeliveryEvidence(['runtime-core/AGENTS.core.md']).nativeEntries,entries);
+ assert.deepEqual(selectDeliveryEvidence(['bin/installed-file-contract.mjs']).nativeEntries,entries);
  const shortcutsOnly=structuredClone(data);shortcutsOnly.features=shortcutsOnly.features.filter(feature=>feature.id==='shortcuts');
  assert.throws(()=>validateFeatureDelivery(shortcutsOnly,{...options,changedFiles:['package.json']}));
  assert.throws(()=>validateFeatureDelivery(shortcutsOnly,{...options,changedFiles:['bin/commands.mjs']}));
- assert.throws(()=>validateFeatureDelivery({...data,features:[]},{...options,changedFiles:['README.md']}));
+ validateFeatureDelivery({...data,features:[]},{...options,changedFiles:['README.md']});
  for(const entry of entries){
   const missing=structuredClone(representative);missing.features[0].entry.hosts.codex.invocation.results=results.filter(r=>r.entry!==entry);assert.throws(()=>validate(missing));
  }
+ const packScoped=structuredClone(representative);packScoped.features.push({id:'task-packs',...installerStages});
+ for(const [changedFile,expectedEntries] of [
+  ['packs/closeout.md',['handoff-kit-close','handoff-kit-remember']],
+  ['packs/safety.md',['handoff-kit-close','handoff-kit-remember']],
+  ['packs/onboarding.md',['handoff-kit-start','handoff-kit-onboard','handoff-kit-remember']]
+ ]){
+  const scoped=structuredClone(packScoped),host=scoped.features[0].entry.hosts.codex;
+  host.invocation.entries=expectedEntries;host.invocation.results=results.filter(record=>expectedEntries.includes(record.entry));
+  validateFeatureDelivery(scoped,{...options,changedFiles:[changedFile]});
+  for(const entry of expectedEntries){
+   const missing=structuredClone(scoped);missing.features[0].entry.hosts.codex.invocation.results=missing.features[0].entry.hosts.codex.invocation.results.filter(record=>record.entry!==entry);assert.throws(()=>validateFeatureDelivery(missing,{...options,changedFiles:[changedFile]}));
+  }
+  const extra=entries.find(entry=>!expectedEntries.includes(entry)),overbroad=structuredClone(scoped);
+  overbroad.features[0].entry.hosts.codex.invocation.entries.push(extra);overbroad.features[0].entry.hosts.codex.invocation.results.push(results.find(record=>record.entry===extra));assert.throws(()=>validateFeatureDelivery(overbroad,{...options,changedFiles:[changedFile]}));
+ }
+ const progressOnly=structuredClone(representative);progressOnly.features.push({id:'dashboard',...installerStages});
+ const progressHost=progressOnly.features[0].entry.hosts.codex;progressHost.invocation.entries=['handoff-kit-progress'];progressHost.invocation.results=results.filter(record=>record.entry==='handoff-kit-progress');
+ validateFeatureDelivery(progressOnly,{...options,changedFiles:['bin/progress/launch.mjs']});
   // Native menu, command-generator inventory, and both normal/boundary cases are all required.
   for(const mutate of [h=>h.menu.entries=[],h=>h.menu.entries.push(entries[0]),h=>h.invocation.entries=['handoff-kit-progress','handoff-kit-progress'],h=>h.invocation.entries.push('unknown-command'),h=>delete h.invocation.results,h=>h.invocation.results.push(h.invocation.results[0]),h=>h.invocation.results[0].tarballSha256='0'.repeat(64),h=>h.invocation.results[0].installRoute='source',h=>h.invocation.results[0].cases.pop(),h=>delete h.invocation.results[0].cases[0].id,h=>h.invocation.results[0].cases[1].id=h.invocation.results[0].cases[0].id,h=>h.invocation.results[0].cases[0].scenario='unsupported',h=>h.invocation.results[0].cases[0].scenario='boundary',h=>h.invocation.results[0].cases[0].status='blocked',h=>h.invocation.results[0].cases[0].outcome='expected-stop',h=>h.invocation.results[0].cases[0].kind='file-exists',h=>delete h.invocation.results[0].cases[0].readback,h=>delete h.invocation.results[0].cases[0].input,h=>h.invocation.results[0].cases[0].evidence=[],h=>h.invocation.results[0].cases[0].evidence=[{...ref,sha256:'0'.repeat(64)}]]){
   const bad=structuredClone(representative);mutate(bad.features[0].entry.hosts.codex);assert.throws(()=>validate(bad));
@@ -100,7 +126,7 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
  checkNormal.reuse={sourceReview,sourceCase:{id:'historical-check-normal',scenario:'normal'},comparison};
  validate(mixed);
  // Documentation itself does not invalidate byte-identical behavior dependencies.
- const docsOnly=structuredClone(mixed);docsOnly.features=docsOnly.features.filter(feature=>feature.id==='shortcuts');
+ const docsOnly=structuredClone(mixed);docsOnly.features=[];
  validateFeatureDelivery(docsOnly,{...options,changedFiles:['README.md']});
  const staleSource=structuredClone(mixed);writeFileSync(sourceReview.path,'changed source review bytes');assert.throws(()=>validate(staleSource));
  writeFileSync(sourceReview.path,JSON.stringify(sourceReviewValue(sourceRaw)));
@@ -129,8 +155,10 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
  // Package/version data cannot relabel check or update execution as current.
  assert.throws(()=>validate(staleShortcut('handoff-kit-check','package.json','version-metadata-check-comparison.json')));
  assert.throws(()=>validate(staleShortcut('handoff-kit-update','package.json','version-metadata-update-comparison.json')));
- // A version-only candidate may retain unrelated help raw evidence.
- validateFeatureDelivery(withShortcutReuse('handoff-kit-help','version-only-help-comparison.json',sourceFiles.map(file=>file.path==='package.json'?{...file,sha256:'0'.repeat(64)}:file)),{...options,changedFiles:['package.json']});
+ // A version-only package change does not reopen unrelated native journeys.
+ const versionOnly=structuredClone(data);versionOnly.features=versionOnly.features.filter(feature=>feature.id==='installer');
+ validateFeatureDelivery(versionOnly,{...options,changedFiles:['package.json']});
+ assert.throws(()=>validateFeatureDelivery(withShortcutReuse('handoff-kit-help','version-only-help-comparison.json',sourceFiles.map(file=>file.path==='package.json'?{...file,sha256:'0'.repeat(64)}:file)),{...options,changedFiles:['package.json']}));
  assert.throws(()=>validate(withShortcutReuse('handoff-kit-check','omitted-check-mirror-comparison.json',sourceFiles.filter(file=>file.path!=='bin/prompt-mirror-core.mjs'))));
  assert.throws(()=>validate(withShortcutReuse('handoff-kit-progress','omitted-progress-inventory-member-comparison.json',sourceFiles.filter(file=>file.path!=='bin/progress/open.mjs'))));
  const failedReview=writeReuse('failed-review.json',{candidateTarball:oldArtifact,cases:[{id:'historical-check-normal',scenario:'normal',status:'failed',outcome:'mismatched',raw:sourceRaw}]});
@@ -151,6 +179,6 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
   assert.throws(()=>validate(bad));
  }finally{catalog.splice(0,catalog.length,...saved);}
  rmSync(reuseRoot,{recursive:true,force:true});
- console.log('ok: every full requires all catalog commands, exact native inventories, individual normal/boundary results and fresh-session prompt/context/trace references; hash-bound historical case reuse rejects stale/failed/unrun/mismatched source, crossed raw and changed entry, while update normal still requires the current controlled transaction metadata (structural identity proof only)');
+ console.log('ok: formal full selects only diff-affected native entries while every generated host catalog remains checked; selected entries require exact normal/boundary results and fresh-session prompt/context/trace references, and historical reuse still rejects stale/failed/unrun/mismatched source, crossed raw and changed behavior dependencies');
  return data;
 }

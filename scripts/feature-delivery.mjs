@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {deliveredFeatureContracts,dependencyRootMatches,packageInstallDependencyRoots,shortcutEntryDependencyRoots} from '../bin/installed-file-contract.mjs';
+import {deliveredFeatureContracts,dependencyRootMatches,selectDeliveryEvidence,shortcutEntryDependencyRoots} from '../bin/installed-file-contract.mjs';
 import {runChecked} from './qa-runner-core.mjs';
 export const DELIVERY_STAGES=Object.freeze(['package','freshInstall','upgrade','entry']);
 const hash=x=>createHash('sha256').update(x).digest('hex');
@@ -159,15 +159,7 @@ export async function resolveFeatureDeliveryBase(root,candidateVersion,{head='HE
  return {baseVersion:previous.slice(1),baseCommit,changedFiles};
 }
 export function affectedDeliveryFeatures(changedFiles){
- const ids=new Set(deliveredFeatureContracts.filter(c=>c.requiredForFull).map(c=>c.id));
- for(const file of changedFiles){
-  if(!/^(bin\/|runtime-core\/|packs\/|package\.json$)/.test(file))continue;
-  const owners=deliveredFeatureContracts.filter(c=>c.sources.some(s=>s.endsWith('/')?file.startsWith(s):file===s));
-  assert(owners.length,`Unmapped shipped feature source: ${file}`);
-  for(const owner of owners)ids.add(owner.id);
-  if(packageInstallDependencyRoots.some(root=>dependencyRootMatches(file,root)))ids.add('installer');
- }
- return [...ids].sort();
+ return selectDeliveryEvidence(changedFiles).featureIds;
 }
 export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,baseCommit,root,baselineNpm,candidateVersion}){
  assert(delivery?.schemaVersion===1,'Missing featureDelivery evidence');
@@ -185,7 +177,7 @@ export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,bas
    assert.equal(createHash('sha1').update(bytes).digest('hex'),baselineNpm.shasum,'Baseline npm shasum mismatch');
   }
  }
- const expected=affectedDeliveryFeatures(changedFiles);
+ const selected=selectDeliveryEvidence(changedFiles),expected=selected.featureIds;
  assert.deepEqual(delivery.features.map(x=>x.id).sort(),expected,'Affected feature evidence missing, duplicated or stale');
  const references=(item,label)=>validateEvidenceReferences(item,label,{root});
  function passed(item,label){
@@ -228,15 +220,16 @@ export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,bas
       passed(item.hosts[host]?.invocation,`${label}/${host}/invocation`);
       assert.equal(item.hosts[host].menu.kind,'native-menu',`${label}: file/metadata checks are not native menu acceptance`);
       assert.equal(item.hosts[host].invocation.kind,'native-invocation',`${label}: file checks are not native invocation`);
-      const entries=[...contract.nativeInvocationEntries].sort();
-      assert(entries.length&&entries.every(e=>typeof e==='string'&&/^handoff-kit-[a-z0-9-]+$/.test(e))&&new Set(entries).size===entries.length,`${label}: invalid or duplicate catalog commands`);
-      for(const surface of ['menu','invocation']){
-       assert(Array.isArray(result[surface].entries),`${label}/${host}/${surface}: command inventory required`);
-       assert.deepEqual([...result[surface].entries].sort(),entries,`${label}/${host}/${surface}: missing, duplicate or unknown commands`);
-      }
+      const catalogEntries=[...contract.nativeInvocationEntries].sort(),nativeEntries=[...selected.nativeEntries].sort();
+      assert(catalogEntries.length&&catalogEntries.every(e=>typeof e==='string'&&/^handoff-kit-[a-z0-9-]+$/.test(e))&&new Set(catalogEntries).size===catalogEntries.length,`${label}: invalid or duplicate catalog commands`);
+      assert(nativeEntries.length&&nativeEntries.every(entry=>catalogEntries.includes(entry)),`${label}: invalid selected native command scope`);
+      assert(Array.isArray(result.menu.entries),`${label}/${host}/menu: command inventory required`);
+      assert.deepEqual([...result.menu.entries].sort(),catalogEntries,`${label}/${host}/menu: generated catalog is incomplete`);
+      assert(Array.isArray(result.invocation.entries),`${label}/${host}/invocation: command inventory required`);
+      assert.deepEqual([...result.invocation.entries].sort(),nativeEntries,`${label}/${host}/invocation: native diff scope is incomplete or overbroad`);
       const records=result.invocation.results;
       assert(Array.isArray(records),`${label}/${host}: individual invocation results required`);
-      assert.deepEqual(records.map(r=>r.entry).sort(),entries,`${label}/${host}: individual command coverage incomplete`);
+      assert.deepEqual(records.map(r=>r.entry).sort(),nativeEntries,`${label}/${host}: individual command coverage incomplete or overbroad`);
       for(const record of records){
        const commandLabel=`${label}/${host}/${record.entry}`;
        assert.equal(record.kind,'native-invocation',`${commandLabel}: actual native invocation required`);
