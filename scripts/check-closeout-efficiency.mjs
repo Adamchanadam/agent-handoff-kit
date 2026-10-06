@@ -22,6 +22,7 @@ const registry = createServer((_request, response) => {
 });
 
 try {
+  assertFreshRulePackRendererCases();
   const registryUrl = await listen(registry);
   const ordinaryEnv = cleanEnvironment({
     AGENT_HANDOFF_KIT_UPDATE_REGISTRY_URL: registryUrl,
@@ -43,7 +44,10 @@ try {
   assert(closeoutContract.sourceRel === "packs/closeout.md", `installed handoff cold-zone route resolves to ${closeoutContract.sourceRel}, not packs/closeout.md`);
   const installedCloseoutTarget = readFileSync(path.join(fixtureRoot, closeoutContract.targetRel));
   const closeoutSource = readFileSync(path.join(sourceRoot, closeoutContract.sourceRel));
-  assert(installedCloseoutTarget.equals(closeoutSource), `installed cold-zone target ${closeoutContract.targetRel} does not match ${closeoutContract.sourceRel}`);
+  // Fresh install uses encodeLikeExisting(..., null), whose existing contract
+  // canonicalizes source CRLF/CR to LF before the complete target bytes are written.
+  // Normalize only the expected source. The actual installed bytes stay exact.
+  assertFreshRulePackBytes(installedCloseoutTarget, closeoutSource, `installed cold-zone target ${closeoutContract.targetRel} does not match the fresh-install renderer output for ${closeoutContract.sourceRel}`);
   const installedGovernance = readFileSync(path.join(fixtureRoot, "dev", "rules", "agent-governance.md"), "utf8");
   const installedKnowledge = readFileSync(path.join(fixtureRoot, "dev", "rules", "knowledge.md"), "utf8");
   const installedIntegrations = readFileSync(path.join(fixtureRoot, "dev", "rules", "integrations.md"), "utf8");
@@ -271,4 +275,32 @@ function closeoutRetryPlan(gates, unchangedIdentities) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function freshRulePackBytes(source) {
+  return Buffer.from(source.toString("utf8").replace(/\r\n?/gu, "\n"), "utf8");
+}
+
+function assertFreshRulePackBytes(actual, source, message) {
+  assert(actual.equals(freshRulePackBytes(source)), message);
+}
+
+function assertFreshRulePackRejects(actual, source, label) {
+  let rejected = false;
+  try {
+    assertFreshRulePackBytes(actual, source, label);
+  } catch {
+    rejected = true;
+  }
+  assert(rejected, `${label}: fresh rule-pack comparison accepted a changed actual target`);
+}
+
+function assertFreshRulePackRendererCases() {
+  const expected = Buffer.from("one\ntwo\n", "utf8");
+  for (const source of ["one\ntwo\n", "one\r\ntwo\r\n", "one\rtwo\r"]) {
+    assertFreshRulePackBytes(expected, Buffer.from(source, "utf8"), "fresh rule-pack renderer did not canonicalize source newlines to LF");
+  }
+  for (const actual of ["One\ntwo\n", "one\ntwo", "one \ntwo\n", "one\ntwo\nextra\n", "one\r\ntwo\r\n"]) {
+    assertFreshRulePackRejects(Buffer.from(actual, "utf8"), Buffer.from("one\r\ntwo\r\n", "utf8"), "fresh rule-pack exact-byte counterexample");
+  }
 }
