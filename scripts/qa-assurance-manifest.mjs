@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
-import { NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, NATIVE_UPDATE_METADATA_KEYS, NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES } from "./feature-delivery.mjs";
+import { FEATURE_DELIVERY_ACCEPTANCE_SCOPE, FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, NATIVE_UPDATE_METADATA_KEYS, NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES, REQUIRED_OBSERVABLE_OPERATIONS } from "./feature-delivery.mjs";
 
 export const QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS = 120_000;
 
@@ -233,12 +233,12 @@ export const PUBLIC_MIRROR_CONTRACT = Object.freeze({
 
 export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  featureDelivery: Object.freeze({ schemaVersion: 1, owner: "scripts/feature-delivery.mjs", sourceOwner: "bin/installed-file-contract.mjs", requiredStages: ["package", "freshInstall", "upgrade", "entry"], nativeMenusAndObservableResultsRequired: true, observableResult: Object.freeze({ kind: "observable-result", evidenceRoles: NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, telemetryBoundary: "Host auto-discovery and shortcut-body dispatch remain unverified when platform telemetry is unavailable." }), nativeUpdate: Object.freeze({ entry: "handoff-kit-update", prepublishRegistryMode: "controlled", prepublishRegistryConfig: "inherited-npm-config-registry-from-npx-invocation", postpublishRegistryMode: "official-live", metadataKeys: NATIVE_UPDATE_METADATA_KEYS, observableEvidenceRoles: NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES }) }),
+  featureDelivery: Object.freeze({ schemaVersion: 1, owner: "scripts/feature-delivery.mjs", sourceOwner: "bin/installed-file-contract.mjs", requiredStages: ["package", "freshInstall", "upgrade", "entry"], acceptanceScope: FEATURE_DELIVERY_ACCEPTANCE_SCOPE, acceptanceScopeDigest: FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, generatedStaticContractRequired: true, deterministicObservableOperations: REQUIRED_OBSERVABLE_OPERATIONS, unverifiedAgentSemantics: FEATURE_DELIVERY_ACCEPTANCE_SCOPE.unverifiedAgentSemantics, observableResult: Object.freeze({ kind: "observable-deterministic-operation", evidenceRoles: NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, telemetryBoundary: "Agent semantic interpretation, host auto-discovery and shortcut-body dispatch remain unverified without real independent output." }), nativeUpdate: Object.freeze({ entry: "handoff-kit-update", prepublishRegistryMode: "controlled", prepublishRegistryConfig: "inherited-npm-config-registry-from-npx-invocation", postpublishRegistryMode: "official-live", metadataKeys: NATIVE_UPDATE_METADATA_KEYS, observableEvidenceRoles: NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES }) }),
   fullAcceptanceReceipt: Object.freeze({ schemaVersion: 1, kind: "accepted-candidate-receipt" }),
   manualVerdictKeys: Object.freeze([
     "governanceHealth",
     "productJourney",
-    "userJourney",
+    "observableOperations",
     "qcBackflow",
     "rulesPacksRouting"
   ]),
@@ -289,6 +289,7 @@ export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
       "releaseReadinessInventoryDigest",
       "reviewBundle.sha256",
       "reviewSubjectDigest",
+      "featureDelivery.acceptanceScopeDigest",
       "manualVerdicts",
       "machineResultsDigest"
     ])

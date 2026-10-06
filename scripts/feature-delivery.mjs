@@ -7,6 +7,42 @@ import {deliveredFeatureContracts,dependencyRootMatches,selectDeliveryEvidence,s
 import {runChecked} from './qa-runner-core.mjs';
 export const DELIVERY_STAGES=Object.freeze(['package','freshInstall','upgrade','entry']);
 const hash=x=>createHash('sha256').update(x).digest('hex');
+// Formal full has three deliberately separate evidence categories. Generated
+// files prove the exact static catalogue, deterministic CLI operations prove
+// only their recorded I/O, and no record can promote unavailable agent/host
+// semantics to PASS.
+export const FEATURE_DELIVERY_ACCEPTANCE_SCOPE=Object.freeze({
+ generatedStaticContract:'Exact generated adapter/menu inventory for every supported host.',
+ observableDeterministicOperations:'Only the named deterministic CLI operations with independently reviewed input/result/readback evidence.',
+ unverifiedAgentSemantics:Object.freeze(['agent semantic interpretation','host auto-discovery','shortcut-body dispatch'])
+});
+export const FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST=hash(JSON.stringify(FEATURE_DELIVERY_ACCEPTANCE_SCOPE));
+const deterministicOperationCase=(id,scenario,outcome)=>Object.freeze({id,scenario,outcome});
+export const REQUIRED_OBSERVABLE_OPERATIONS=Object.freeze([
+ Object.freeze({id:'package',entry:null,cases:Object.freeze([deterministicOperationCase('normal','normal','matched')])}),
+ Object.freeze({id:'fresh-install',entry:null,cases:Object.freeze([deterministicOperationCase('normal','normal','matched')])}),
+ Object.freeze({id:'upgrade',entry:null,cases:Object.freeze([deterministicOperationCase('normal','normal','matched')])}),
+ Object.freeze({id:'handoff-read',entry:'handoff-kit-start',cases:Object.freeze([
+  deterministicOperationCase('normal','normal','matched'),deterministicOperationCase('truncation','boundary','matched'),
+  deterministicOperationCase('hash','boundary','expected-stop'),deterministicOperationCase('lock','boundary','expected-stop')
+ ])}),
+ Object.freeze({id:'close-status',entry:'handoff-kit-close',cases:Object.freeze([
+  deterministicOperationCase('normal','normal','matched'),deterministicOperationCase('incomplete','boundary','expected-stop'),
+  deterministicOperationCase('mirror-readback','boundary','matched')
+ ])}),
+ Object.freeze({id:'progress-launcher',entry:'handoff-kit-progress',cases:Object.freeze([
+  deterministicOperationCase('normal-readback','normal','matched'),deterministicOperationCase('rejected','boundary','expected-stop')
+ ])}),
+ Object.freeze({id:'doctor',entry:'handoff-kit-check',cases:Object.freeze([
+  deterministicOperationCase('normal','normal','matched'),deterministicOperationCase('broken','boundary','expected-stop'),
+  deterministicOperationCase('lock','boundary','expected-stop')
+ ])}),
+ Object.freeze({id:'controlled-update',entry:'handoff-kit-update',cases:Object.freeze([
+  deterministicOperationCase('normal','normal','matched'),deterministicOperationCase('official-refusal','boundary','expected-stop'),
+  deterministicOperationCase('no-op','boundary','expected-stop'),deterministicOperationCase('version-boundary','boundary','expected-stop'),
+  deterministicOperationCase('tarball-boundary','boundary','expected-stop'),deterministicOperationCase('registry-boundary','boundary','expected-stop')
+ ])})
+]);
 export const NATIVE_UPDATE_METADATA_KEYS=Object.freeze(['cliVersion','fromVersion','registryMode','registryVersion','toVersion']);
 export const NATIVE_INVOCATION_CASE_SCENARIOS=Object.freeze(['normal','boundary']);
 export const NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES=Object.freeze(['input','result']);
@@ -109,6 +145,94 @@ function validateCaseReuse(test,{root,label,host,entry,dependencyRoots,tarballSh
  const matches=comparison.reusableCases.filter(item=>item?.host===host&&item.entry===entry&&item.id===test.id&&item.scenario===test.scenario);
  assert.equal(matches.length,1,`${label}: comparison does not accept this exact case`);
 }
+export function observableOperationReviewSubjectDigest(operation){
+ const subject=structuredClone(operation);delete subject.independentReview;
+ return hash(JSON.stringify(subject));
+}
+function validateObservableOperationReview(operation,label,{root}){
+ const review=operation.independentReview;
+ assert(review&&typeof review==='object'&&!Array.isArray(review),`${label}: independently reviewed observable operation required`);
+ assert.equal(review.verdict,'accepted',`${label}: observable operation review is not accepted`);
+ assert(operation.writerProvenance&&typeof operation.writerProvenance==='object'&&!Array.isArray(operation.writerProvenance),`${label}: operation writer provenance required`);
+ assert.equal(operation.writerProvenance.role,'workspace-writer',`${label}: operation writer role is invalid`);
+ assert(typeof operation.writerProvenance.provenanceId==='string'&&operation.writerProvenance.provenanceId,`${label}: operation writer provenanceId required`);
+ assert.equal(review.reviewer?.role,'independent-readonly-reviewer',`${label}: observable operation reviewer must be independent-readonly-reviewer`);
+ assert(typeof review.reviewer?.provenanceId==='string'&&review.reviewer.provenanceId,`${label}: observable operation reviewer provenanceId required`);
+ assert.notEqual(review.reviewer.provenanceId,operation.writerProvenance.provenanceId,`${label}: executor/self-authored observable result cannot pass as independent evidence`);
+ assert.equal(review.subjectDigest,observableOperationReviewSubjectDigest(operation),`${label}: observable operation review does not bind this exact record`);
+ validateEvidenceReferences(review,`${label}/independentReview`,{root});
+}
+function validateObservableOperation(operation,required,{root,tarballSha256,baseVersion,candidateVersion}){
+ const label=`shortcuts/observableOperations/${required.id}`;
+ assert(operation&&typeof operation==='object'&&!Array.isArray(operation),`${label}: required operation is missing`);
+ assert.equal(operation.id,required.id,`${label}: operation id drifted`);
+ assert.equal(operation.entry,required.entry,`${label}: operation entry drifted`);
+ assert.equal(operation.status,'passed',`${label}: deterministic operation is not passed`);
+ assert.equal(operation.kind,'observable-deterministic-operation',`${label}: operation must not claim agent semantics`);
+ assert.equal(operation.tarballSha256,tarballSha256,`${label}: candidate identity mismatch`);
+ if(!required.entry)assert(!Object.hasOwn(operation,'reuse')&&!Object.hasOwn(operation,'executedArtifact'),`${label}: lifecycle operation reuse is unsupported`);
+ assert(Array.isArray(operation.cases),`${label}: operation cases required`);
+ assert.deepEqual(operation.cases.map(item=>item?.id).sort(),required.cases.map(item=>item.id).sort(),`${label}: operation cases are incomplete, duplicated or downgraded`);
+ for(const test of operation.cases){
+  const caseLabel=`${label}/${test.id}`;
+  const requiredCase=required.cases.find(item=>item.id===test.id);
+  assert(requiredCase,`${caseLabel}: operation case is not permitted`);
+  assert(['normal','boundary'].includes(test.scenario),`${caseLabel}: scenario required`);
+  assert.equal(test.status,'passed',`${caseLabel}: actual deterministic operation did not pass`);
+  assert.equal(test.kind,'observable-deterministic-operation',`${caseLabel}: file/static evidence cannot replace actual operation`);
+  assert(['matched','expected-stop'].includes(test.outcome),`${caseLabel}: operation outcome required`);
+  assert.equal(test.scenario,requiredCase.scenario,`${caseLabel}: operation scenario is not permitted for this case`);
+  assert.equal(test.outcome,requiredCase.outcome,`${caseLabel}: operation outcome is not permitted for this case`);
+  if(Object.hasOwn(test,'tarballSha256'))assert.equal(test.tarballSha256,tarballSha256,`${caseLabel}: operation case tarball identity mismatch`);
+  if(!required.entry)assert(!Object.hasOwn(test,'reuse')&&!Object.hasOwn(test,'executedArtifact'),`${caseLabel}: lifecycle operation reuse is unsupported`);
+  for(const field of ['input','expected','actual','readback'])assert(typeof test[field]==='string'&&test[field].trim(),`${caseLabel}: ${field} required`);
+  validateEvidenceReferences(test,caseLabel,{root});
+  validateObservableResultEvidence(test,caseLabel,{root,requiredRoles:test.id==='normal'&&required.id==='controlled-update'?NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES:NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES});
+  validateObservableOperationReview(test,caseLabel,{root});
+  if(required.entry)validateCaseReuse(test,{root,label:caseLabel,host:'deterministic-cli',entry:required.entry,dependencyRoots:shortcutEntryDependencyRoots(required.entry),tarballSha256});
+  if(required.id==='controlled-update'){
+   assert(test.execution&&typeof test.execution==='object'&&!Array.isArray(test.execution),`${caseLabel}: update execution metadata required`);
+   if(test.id==='normal'){
+    assert.equal(test.execution.transport,'npx-registry',`${caseLabel}: controlled update must use npx --registry`);
+    assert(typeof test.execution.command==='string'&&/\bnpx\s+--registry\s+\S+/.test(test.execution.command),`${caseLabel}: direct Node or .npmrc-only update is not controlled-registry evidence`);
+    assert.equal(test.execution.registryInheritance,'npx-invocation',`${caseLabel}: update registry inheritance must be observed at npx invocation`);
+    validateNativeUpdateNormal({...test,kind:'observable-result'},{root,label:caseLabel,candidateVersion,baseVersion,tarballSha256,registryMode:'controlled',requireOwnTarball:Object.hasOwn(test,'tarballSha256')});
+   }
+  }
+ }
+}
+function validateShortcutEntry(item,contract,selected,{root,tarballSha256,baseVersion,candidateVersion}){
+ const label='shortcuts/entry';
+ assert(item.generatedStatic&&typeof item.generatedStatic==='object'&&!Array.isArray(item.generatedStatic),`${label}: generated static contract required`);
+ const staticContract=item.generatedStatic;
+ assert.equal(staticContract.kind,'generated-static-contract',`${label}: generated menu/adapters must not claim native dispatch`);
+ assert.deepEqual(staticContract.selectedEntries,[...selected.nativeEntries],`${label}: selector structural coverage drifted`);
+ assert.deepEqual(Object.keys(staticContract.hosts??{}).sort(),[...contract.hosts].sort(),`${label}: generated host coverage incomplete`);
+ const catalog=[...contract.nativeInvocationEntries].sort();
+ for(const host of contract.hosts){
+  const record=staticContract.hosts[host];
+  assert(record&&typeof record==='object'&&!Array.isArray(record),`${label}/${host}: generated adapter/menu record required`);
+  assert.deepEqual(Object.keys(record).sort(),['entries','evidence','kind','observation','status'],`${label}/${host}: generated coverage cannot claim invocation or dispatch`);
+  assert.equal(record.status,'passed',`${label}/${host}: generated adapter/menu is not checked`);
+  assert.equal(record.kind,'generated-adapter-menu',`${label}/${host}: menu cannot claim native dispatch`);
+  assert.deepEqual([...record.entries].sort(),catalog,`${label}/${host}: generated catalog is incomplete`);
+  validateEvidenceReferences(record,`${label}/${host}`,{root});
+ }
+ assert(Array.isArray(item.classifications),`${label}: entry classifications required`);
+ assert.deepEqual(item.classifications.map(record=>record?.entry).sort(),[...selected.nativeEntries].sort(),`${label}: classifications must cover each selected entry exactly once`);
+ const deterministicEntries=new Set(REQUIRED_OBSERVABLE_OPERATIONS.map(operation=>operation.entry));
+ for(const classification of item.classifications){
+  assert.deepEqual(Object.keys(classification).sort(),['agentSemantics','entry','hostAutoDiscovery','shortcutDispatch','structuralCoverage'],`${label}/${classification.entry}: unsupported classification fields`);
+  assert.equal(classification.structuralCoverage,'passed',`${label}/${classification.entry}: selected structural coverage is not passed`);
+  assert.equal(classification.agentSemantics,'unverified',`${label}/${classification.entry}: agent semantics must remain unverified without independent output`);
+  assert.equal(classification.hostAutoDiscovery,'unverified',`${label}/${classification.entry}: host auto-discovery must remain unverified`);
+  assert.equal(classification.shortcutDispatch,'unverified',`${label}/${classification.entry}: shortcut dispatch must remain unverified`);
+  assert(deterministicEntries.has(classification.entry)||classification.entry==='handoff-kit-align'||classification.entry==='handoff-kit-onboard'||classification.entry==='handoff-kit-remember'||classification.entry==='handoff-kit-help',`${label}: unknown classified entry`);
+ }
+ assert(Array.isArray(item.observableOperations),`${label}: deterministic operations required`);
+ assert.deepEqual(item.observableOperations.map(operation=>operation?.id).sort(),REQUIRED_OBSERVABLE_OPERATIONS.map(operation=>operation.id).sort(),`${label}: mandatory deterministic operations cannot be omitted or replaced by agent claims`);
+ for(const required of REQUIRED_OBSERVABLE_OPERATIONS)validateObservableOperation(item.observableOperations.find(operation=>operation.id===required.id),required,{root,tarballSha256,baseVersion,candidateVersion});
+}
 // Both full and postpublish use this exact structural check. It binds observable
 // results, not unavailable platform telemetry about host discovery or dispatch.
 export function validateNativeUpdateNormal(test,{root,label,candidateVersion,baseVersion,tarballSha256,registryMode,requireOwnTarball=false}){
@@ -171,6 +295,8 @@ export function affectedDeliveryFeatures(changedFiles){
 }
 export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,baseCommit,root,baselineNpm,candidateVersion}){
  assert(delivery?.schemaVersion===1,'Missing featureDelivery evidence');
+ assert.deepEqual(delivery.acceptanceScope,FEATURE_DELIVERY_ACCEPTANCE_SCOPE,'Feature evidence acceptance scope drifted');
+ assert.equal(delivery.acceptanceScopeDigest,FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST,'Feature evidence acceptance scope digest drifted');
  assert.equal(delivery.tarballSha256,tarballSha256,'Feature evidence package identity mismatch');
  assert.equal(delivery.baseCommit,baseCommit,'Feature evidence baseline mismatch');
  assert(Array.isArray(delivery.features),'Missing affected features');
@@ -213,63 +339,7 @@ export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,bas
    }
    if(stage==='entry'){
     assert(typeof item.entry==='string'&&item.entry.trim(),`${label}: use entry required`);
-    if(contract.hosts){
-     assert.deepEqual(Object.keys(item.hosts??{}).sort(),[...contract.hosts].sort(),`${label}: native hosts incomplete`);
-     const requiredHosts=contract.nativeAcceptanceHosts??contract.hosts;
-     assert(requiredHosts.length&&requiredHosts.every(h=>contract.hosts.includes(h)),`${label}: invalid native acceptance scope`);
-     for(const host of contract.hosts){
-      const result=item.hosts[host];
-      if(!requiredHosts.includes(host)&&result?.menu?.status==='unverified'&&result?.invocation?.status==='unverified'){
-       assert(typeof result.reason==='string'&&result.reason.trim(),`${label}/${host}: unverified scope requires a reason`);
-       references(result,`${label}/${host}/scope`);
-       continue;
-      }
-      passed(result?.menu,`${label}/${host}/menu`);
-      passed(item.hosts[host]?.invocation,`${label}/${host}/invocation`);
-      assert.equal(item.hosts[host].menu.kind,'native-menu',`${label}: file/metadata checks are not native menu acceptance`);
-      assert.equal(item.hosts[host].invocation.kind,'observable-result',`${label}: file checks are not observable command results`);
-      const catalogEntries=[...contract.nativeInvocationEntries].sort(),nativeEntries=[...selected.nativeEntries].sort();
-      assert(catalogEntries.length&&catalogEntries.every(e=>typeof e==='string'&&/^handoff-kit-[a-z0-9-]+$/.test(e))&&new Set(catalogEntries).size===catalogEntries.length,`${label}: invalid or duplicate catalog commands`);
-      assert(nativeEntries.length&&nativeEntries.every(entry=>catalogEntries.includes(entry)),`${label}: invalid selected native command scope`);
-      assert(Array.isArray(result.menu.entries),`${label}/${host}/menu: command inventory required`);
-      assert.deepEqual([...result.menu.entries].sort(),catalogEntries,`${label}/${host}/menu: generated catalog is incomplete`);
-      assert(Array.isArray(result.invocation.entries),`${label}/${host}/invocation: command inventory required`);
-      assert.deepEqual([...result.invocation.entries].sort(),nativeEntries,`${label}/${host}/invocation: native diff scope is incomplete or overbroad`);
-      const records=result.invocation.results;
-      assert(Array.isArray(records),`${label}/${host}: individual invocation results required`);
-      assert.deepEqual(records.map(r=>r.entry).sort(),nativeEntries,`${label}/${host}: individual command coverage incomplete or overbroad`);
-      for(const record of records){
-       const commandLabel=`${label}/${host}/${record.entry}`;
-       assert.equal(record.kind,'observable-result',`${commandLabel}: observable command result required`);
-       assert.equal(record.tarballSha256,tarballSha256,`${commandLabel}: candidate identity mismatch`);
-       assert(['freshInstall','upgrade'].includes(record.installRoute),`${commandLabel}: installed candidate route required`);
-        assert(Array.isArray(record.cases)&&record.cases.length,`${commandLabel}: normal and boundary cases required`);
-        const caseIds=new Set(),scenarios=new Set();
-        for(const test of record.cases){
-         assert(typeof test.id==='string'&&stableNativeCaseId.test(test.id),`${commandLabel}: stable case id required`);
-         assert(!caseIds.has(test.id),`${commandLabel}: duplicate case id: ${test.id}`);caseIds.add(test.id);
-         assert(NATIVE_INVOCATION_CASE_SCENARIOS.includes(test.scenario),`${commandLabel}/${test.id}: unsupported scenario`);scenarios.add(test.scenario);
-         const caseLabel=`${commandLabel}/${test.id}`;
-        passed(test,caseLabel);
-        for(const field of ['input','expected','actual','readback'])assert(typeof test[field]==='string'&&test[field].trim(),`${caseLabel}: ${field} required`);
-        assert.equal(test.kind,'observable-result',`${caseLabel}: file checks cannot replace an observable command result`);
-        // A controller recap or synthetic trace cannot be the sole evidence:
-        // the reviewer must inspect separately readable input/result records and any required state/transaction records.
-        // Their presence does not prove host auto-discovery or shortcut-body dispatch without platform telemetry.
-        validateObservableResultEvidence(test,caseLabel,{root});
-        assert(['matched','expected-stop'].includes(test.outcome),`${caseLabel}: execution outcome required`);
-        if(test.scenario==='normal')assert.equal(test.outcome,'matched',`${caseLabel}: blocked execution is not normal acceptance`);
-        const dependencyRoots=feature.id==='shortcuts'?shortcutEntryDependencyRoots(record.entry):contract.sources;
-        validateCaseReuse(test,{root,label:caseLabel,host,entry:record.entry,dependencyRoots,tarballSha256});
-         if(record.entry==='handoff-kit-update'&&test.scenario==='normal'){
-         assert.equal(record.installRoute,'upgrade',`${caseLabel}: update normal must be an old-to-candidate upgrade transaction`);
-         validateNativeUpdateNormal(test,{root,label:caseLabel,candidateVersion,baseVersion:delivery.baseVersion,tarballSha256,registryMode:'controlled'});
-         }
-        }
-        assert(scenarios.has('normal')&&scenarios.has('boundary'),`${commandLabel}: normal and boundary coverage incomplete`);
-      }
-     }
-    }
+    if(contract.hosts)validateShortcutEntry(item,contract,selected,{root,tarballSha256,baseVersion:delivery.baseVersion,candidateVersion});
    }
   }
  }

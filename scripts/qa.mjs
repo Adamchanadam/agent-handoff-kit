@@ -17,7 +17,7 @@ import {
   QA_RELEASE_READINESS_INVENTORY_DIGEST,
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
-import { resolveFeatureDeliveryBase, validateFeatureDelivery, validateNativeUpdateNormal, validateNativeUpdateReview } from "./feature-delivery.mjs";
+import { FEATURE_DELIVERY_ACCEPTANCE_SCOPE, FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, resolveFeatureDeliveryBase, validateFeatureDelivery, validateNativeUpdateNormal, validateNativeUpdateReview } from "./feature-delivery.mjs";
 import { loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
 import { LONG_QA_TIMEOUT_MS, QaRunError, runChecked, runNodeScriptChecked } from "./qa-runner-core.mjs";
 
@@ -177,6 +177,8 @@ export async function validateCandidateEvidence(options) {
   assert(isSha256(evidence.candidate?.tarballSha256, 64), "candidate evidence requires tarballSha256");
   assert(await freshCandidateTarballSha256() === evidence.candidate.tarballSha256.toLowerCase(), "candidate evidence tarballSha256 does not match a freshly packed candidate");
   assert(validManualVerdicts(evidence.manualVerdicts), `candidate evidence requires all five full-check verdicts to be passed: ${CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.join(", ")}`);
+  assert(semanticEqual(evidence.featureDelivery?.acceptanceScope, FEATURE_DELIVERY_ACCEPTANCE_SCOPE), "candidate evidence cannot broaden the defined observable acceptance scope");
+  assert(evidence.featureDelivery?.acceptanceScopeDigest === FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, "candidate evidence observable acceptance scope digest drifted");
   const bundle = validateRoleIsolationEvidence(evidence, head);
   if (machineResults) validateMachineReviewBindings(machineResults, bundle.value.reviewSubject, evidence.reviewReceipt);
   validateCandidateReportSection(options.candidate);
@@ -353,6 +355,8 @@ export function captureCandidateIdentity(evidencePath, evidence, sourceRoot = ro
     version: evidence.candidate.version, commit: evidence.candidate.commit,
     tarballSha256: evidence.candidate.tarballSha256.toLowerCase(),
     baseVersion: evidence.featureDelivery?.baseVersion,
+    acceptanceScope: evidence.featureDelivery?.acceptanceScope,
+    acceptanceScopeDigest: evidence.featureDelivery?.acceptanceScopeDigest,
     manifestDigest: evidence.manifestDigest,
     releaseReadinessInventoryDigest: evidence.releaseReadinessInventoryDigest,
     candidateEvidenceSha256: sha256(bytes), evidencePath: absolute, sourceRoot: realpathSync(sourceRoot),
@@ -401,6 +405,7 @@ function readAcceptanceReceipt(options) {
   assert(receipt.version === options.version, "full acceptance receipt version mismatch");
   assert(isStableSemver(receipt.baseVersion), "full acceptance receipt update baseline is incomplete");
   assert(receipt.manifestDigest === QA_ASSURANCE_MANIFEST_DIGEST && receipt.releaseReadinessInventoryDigest === QA_RELEASE_READINESS_INVENTORY_DIGEST, "full acceptance receipt source contract mismatch");
+  assert(semanticEqual(receipt.acceptanceScope, FEATURE_DELIVERY_ACCEPTANCE_SCOPE) && receipt.acceptanceScopeDigest === FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, "full receipt cannot promote unverified agent semantics");
   assert(isSha256(receipt.commit, 40) && isSha256(receipt.tarballSha256, 64) && isSha256(receipt.candidateEvidenceSha256, 64), "full acceptance receipt identity is incomplete");
   return receipt;
 }
@@ -561,6 +566,8 @@ function validateRoleIsolationEvidence(evidence, head) {
   assert(receipt.reviewSubjectDigest === evidence.roleIsolation.reviewSubjectDigest, "review receipt reviewSubjectDigest does not match evidence");
   assert(validManualVerdicts(receipt.fiveConclusions), "review receipt must carry the same five passed full-check conclusions");
   assert(semanticEqual(receipt.fiveConclusions, evidence.manualVerdicts), "review receipt five conclusions do not match candidate evidence");
+  assert(semanticEqual(receipt.acceptanceScope, evidence.featureDelivery.acceptanceScope), "review receipt cannot upgrade unverified agent semantics");
+  assert(receipt.acceptanceScopeDigest === evidence.featureDelivery.acceptanceScopeDigest, "review receipt observable acceptance scope binding drifted");
   assert(typeof receipt.receivedAt === "string" && receipt.receivedAt, "review receipt receivedAt is required");
   return bundle;
 }
@@ -597,6 +604,8 @@ export function validateReviewBundle(bundle, evidence, head) {
   assert(parsed.reviewSubjectDigest === computedSubjectDigest, "review bundle reviewSubjectDigest does not match reviewSubject bytes");
   assert(parsed.reviewSubjectDigest === evidence.roleIsolation.reviewSubjectDigest, "review bundle reviewSubjectDigest does not match evidence");
   assert(semanticEqual(parsed.reviewSubject?.featureDelivery, evidence.featureDelivery), "reviewSubject featureDelivery does not match evidence");
+  assert(semanticEqual(parsed.reviewSubject?.acceptanceScope, evidence.featureDelivery.acceptanceScope), "reviewSubject cannot broaden the observable acceptance scope");
+  assert(parsed.reviewSubject?.acceptanceScopeDigest === evidence.featureDelivery.acceptanceScopeDigest, "reviewSubject observable acceptance scope binding drifted");
   assert(parsed.reviewSubject?.candidateCommit === evidence.candidate.commit, "reviewSubject candidateCommit does not match evidence");
   assert(parsed.reviewSubject?.tarballSha256 === evidence.candidate.tarballSha256, "reviewSubject tarballSha256 does not match evidence");
   assert(parsed.reviewSubject?.manifestDigest === evidence.manifestDigest, "reviewSubject manifestDigest does not match evidence");

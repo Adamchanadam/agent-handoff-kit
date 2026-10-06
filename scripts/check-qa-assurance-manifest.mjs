@@ -103,8 +103,8 @@ async function validateAcceptanceBoundaries() {
   const verdicts = Object.fromEntries(CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.map((key) => [key, "passed"]));
   assert(semanticEqual(verdicts, Object.fromEntries(Object.entries(verdicts).reverse())), "object key order changed verdict equality");
   assert(!semanticEqual(verdicts, { ...verdicts, extra: "passed" }), "extra verdict accepted");
-  assert(!semanticEqual(verdicts, { ...verdicts, userJourney: "failed" }), "wrong verdict accepted");
-  const missing = { ...verdicts }; delete missing.userJourney;
+  assert(!semanticEqual(verdicts, { ...verdicts, observableOperations: "failed" }), "wrong verdict accepted");
+  const missing = { ...verdicts }; delete missing.observableOperations;
   assert(!semanticEqual(verdicts, missing), "missing verdict accepted");
   assert(!semanticEqual(["first", "second"], ["second", "first"]), "state history order was relaxed");
 
@@ -148,15 +148,17 @@ async function validateAcceptanceBoundaries() {
   assert(existsSync(path.join(outsideDir, "receipt.json")), "external canonical receipt was not written");
 
   const caller = path.join(fixtureRoot, "bundle-caller"); mkdirSync(caller);
+  const scope = CANDIDATE_EVIDENCE_CONTRACT.featureDelivery.acceptanceScope;
+  const scopeDigest = CANDIDATE_EVIDENCE_CONTRACT.featureDelivery.acceptanceScopeDigest;
   const subject = { candidateCommit: data.candidate.commit, tarballSha256: data.candidate.tarballSha256,
     manifestDigest: data.manifestDigest, releaseReadinessInventoryDigest: data.releaseReadinessInventoryDigest,
-    manualVerdicts: verdicts, featureDelivery: {}, stateHistory: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath };
+    manualVerdicts: verdicts, featureDelivery: { acceptanceScope: scope, acceptanceScopeDigest: scopeDigest }, acceptanceScope: scope, acceptanceScopeDigest: scopeDigest, stateHistory: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath };
   const bundle = { schemaVersion: 1, kind: "role-isolation-review-bundle", state: "WAITING_INDEPENDENT_REVIEW",
     candidate: data.candidate, manifestDigest: data.manifestDigest, releaseReadinessInventoryDigest: data.releaseReadinessInventoryDigest,
     stateHistory: subject.stateHistory, fiveConclusions: verdicts, reviewSubject: subject, reviewSubjectDigest: sha256(JSON.stringify(subject)) };
   const consumed = path.join(caller, "review.json");
   writeEvidence(consumed, bundle); writeEvidence(path.join(candidateRoot, "review.json"), bundle);
-  const relativeData = { ...data, manualVerdicts: verdicts, featureDelivery: {}, roleIsolation: {
+  const relativeData = { ...data, manualVerdicts: verdicts, featureDelivery: { acceptanceScope: scope, acceptanceScopeDigest: scopeDigest }, roleIsolation: {
     reviewBundle: { path: "review.json", sha256: sha256(readFileSync(consumed)) },
     reviewSubjectStateHistory: subject.stateHistory, reviewSubjectDigest: bundle.reviewSubjectDigest } };
   const relativeEvidence = path.join(fixtureRoot, "relative-candidate.json"); writeEvidence(relativeEvidence, relativeData);
@@ -269,11 +271,13 @@ function validateReleaseStateContract() {
 function validateCandidateEvidenceContract() {
   assert(CANDIDATE_EVIDENCE_CONTRACT.schemaVersion === 1, "unexpected candidate evidence contract schema version");
   const featureDelivery = CANDIDATE_EVIDENCE_CONTRACT.featureDelivery;
-  assert(featureDelivery.nativeMenusAndObservableResultsRequired === true, "native menu and observable-result contract drifted");
+  assert(featureDelivery.generatedStaticContractRequired === true, "generated static contract drifted");
+  assert(featureDelivery.acceptanceScopeDigest === CANDIDATE_EVIDENCE_CONTRACT.featureDelivery.acceptanceScopeDigest, "observable acceptance scope digest drifted");
+  assert(featureDelivery.unverifiedAgentSemantics.includes("shortcut-body dispatch"), "unverified agent boundary drifted");
   const observableResult = featureDelivery.observableResult;
-  assert(observableResult?.kind === "observable-result", "observable-result evidence kind drifted");
+  assert(observableResult?.kind === "observable-deterministic-operation", "observable deterministic operation kind drifted");
   assert(observableResult.evidenceRoles === NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, "observable-result evidence roles must bind the feature-delivery owner");
-  assert(observableResult.telemetryBoundary.includes("Host auto-discovery") && observableResult.telemetryBoundary.includes("unverified"), "observable-result telemetry boundary drifted");
+  assert(observableResult.telemetryBoundary.includes("host auto-discovery") && observableResult.telemetryBoundary.includes("unverified"), "observable-result telemetry boundary drifted");
   const nativeUpdate = CANDIDATE_EVIDENCE_CONTRACT.featureDelivery.nativeUpdate;
   assert(nativeUpdate?.entry === "handoff-kit-update", "native update evidence owner drifted");
   assert(nativeUpdate.prepublishRegistryMode === "controlled" && nativeUpdate.postpublishRegistryMode === "official-live", "native update registry modes drifted");
@@ -283,7 +287,7 @@ function validateCandidateEvidenceContract() {
   assert(JSON.stringify(CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys) === JSON.stringify([
     "governanceHealth",
     "productJourney",
-    "userJourney",
+    "observableOperations",
     "qcBackflow",
     "rulesPacksRouting"
   ]), "candidate evidence manual verdict contract drifted");
@@ -315,7 +319,7 @@ function validateCandidateEvidenceContract() {
     "REVIEW_BUNDLE_READY",
     "WAITING_INDEPENDENT_REVIEW"
   ]), "review subject path drifted");
-  for (const binding of ["candidate.commit", "candidate.tarballSha256", "manifestDigest", "releaseReadinessInventoryDigest", "reviewBundle.sha256", "reviewSubjectDigest", "manualVerdicts", "machineResultsDigest"]) {
+  for (const binding of ["candidate.commit", "candidate.tarballSha256", "manifestDigest", "releaseReadinessInventoryDigest", "reviewBundle.sha256", "reviewSubjectDigest", "featureDelivery.acceptanceScopeDigest", "manualVerdicts", "machineResultsDigest"]) {
     assert(roleIsolation.reviewReceiptBindings.includes(binding), `review receipt binding missing: ${binding}`);
   }
   const releaseReadiness = CANDIDATE_EVIDENCE_CONTRACT.records["release-readiness"];
@@ -571,7 +575,7 @@ function validateEvidenceContracts() {
   const manualVerdicts = {
     governanceHealth: "passed",
     productJourney: "passed",
-    userJourney: "passed",
+    observableOperations: "passed",
     qcBackflow: "passed",
     rulesPacksRouting: "passed"
   };
@@ -580,6 +584,8 @@ function validateEvidenceContracts() {
   const featureDelivery = checkFeatureDeliveryEvidence({root,evidencePath:releaseQaPath,evidenceSha256:releaseQaSha256,fixtureRoot});
   const reviewSubject = {
     featureDelivery,
+    acceptanceScope: featureDelivery.acceptanceScope,
+    acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest,
     version,
     candidateCommit: head,
     tarballSha256: candidateTarballSha256,
@@ -702,6 +708,8 @@ function validateEvidenceContracts() {
       reviewBundleSha256,
       reviewSubjectDigest,
       fiveConclusions: manualVerdicts,
+      acceptanceScope: featureDelivery.acceptanceScope,
+      acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest,
       receivedAt: "2026-07-20T00:00:00.000Z"
     },
     evidence: [{
@@ -813,7 +821,16 @@ function validateEvidenceContracts() {
   });
   invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "writer self-review rejected", { env: selfTestEnv });
 
-  const fourVerdicts = { governanceHealth: "passed", productJourney: "passed", userJourney: "passed", qcBackflow: "passed" };
+  writeEvidence(candidate, {
+    ...validCandidate,
+    reviewReceipt: {
+      ...validCandidate.reviewReceipt,
+      acceptanceScope: { ...validCandidate.reviewReceipt.acceptanceScope, unverifiedAgentSemantics: [] }
+    }
+  });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "five passed verdicts cannot upgrade unverified agent semantics", { env: selfTestEnv });
+
+  const fourVerdicts = { governanceHealth: "passed", productJourney: "passed", observableOperations: "passed", qcBackflow: "passed" };
   writeEvidence(candidate, { ...validCandidate, manualVerdicts: fourVerdicts, reviewReceipt: { ...validCandidate.reviewReceipt, fiveConclusions: fourVerdicts } });
   invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "missing fifth full-check conclusion", { env: selfTestEnv });
 
@@ -973,10 +990,15 @@ function validateEvidenceContracts() {
     ...CANDIDATE_EVIDENCE_CONTRACT.fullAcceptanceReceipt, version, commit: gitCommit,
     tarballSha256: publishedTarballSha256, manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST, baseVersion: featureDelivery.baseVersion,
+    acceptanceScope: featureDelivery.acceptanceScope, acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest,
     candidateEvidenceSha256: sha256(readFileSync(candidate))
   });
+  const acceptedReceiptBytes = readFileSync(fullReceipt);
+  writeEvidence(fullReceipt, { ...JSON.parse(acceptedReceiptBytes), acceptanceScope: { ...featureDelivery.acceptanceScope, unverifiedAgentSemantics: [] } });
   const postpublish = path.join(fixtureRoot, "postpublish.json");
   writeEvidence(postpublish, validPostpublish);
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish cannot upgrade unverified agent semantics through a receipt", { env: postpublishSelfTestEnv });
+  writeFileSync(fullReceipt, acceptedReceiptBytes);
   invoke(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "near-valid postpublish evidence", { env: postpublishSelfTestEnv });
 
   const missingPostpublishCatalog = writeCatalogFixture("missing-postpublish-catalog.json", (catalog) => {
