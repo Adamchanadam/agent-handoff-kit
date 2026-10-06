@@ -118,7 +118,8 @@ async function validateAcceptanceBoundaries() {
   const data = { candidate: { version: "1.2.3", commit: "a".repeat(40), tarballSha256: "b".repeat(64) },
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST, releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
     roleIsolation: { reviewBundle: { path: bundlePath, sha256: sha256(readFileSync(bundlePath)) } },
-    featureDelivery: { evidence: [{ path: stagePath, sha256: sha256(readFileSync(stagePath)) }] } };
+    featureDelivery: { evidence: [{ path: stagePath, sha256: sha256(readFileSync(stagePath)) }] },
+    evidence: [{ claimId: "fixture-evidence", path: stagePath, sha256: sha256(readFileSync(stagePath)), readback: "stage A" }] };
   writeEvidence(evidencePath, data);
   const accepted = captureCandidateIdentity(evidencePath, data);
   const readers = { head: async () => data.candidate.commit, status: async () => ({ stdout: "" }), tarball: async () => data.candidate.tarballSha256 };
@@ -152,7 +153,7 @@ async function validateAcceptanceBoundaries() {
   const scopeDigest = CANDIDATE_EVIDENCE_CONTRACT.featureDelivery.acceptanceScopeDigest;
   const subject = { candidateCommit: data.candidate.commit, tarballSha256: data.candidate.tarballSha256,
     manifestDigest: data.manifestDigest, releaseReadinessInventoryDigest: data.releaseReadinessInventoryDigest,
-    manualVerdicts: verdicts, featureDelivery: { acceptanceScope: scope, acceptanceScopeDigest: scopeDigest }, acceptanceScope: scope, acceptanceScopeDigest: scopeDigest, stateHistory: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath };
+    manualVerdicts: verdicts, featureDelivery: { acceptanceScope: scope, acceptanceScopeDigest: scopeDigest }, acceptanceScope: scope, acceptanceScopeDigest: scopeDigest, evidenceRecords: data.evidence, stateHistory: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath };
   const bundle = { schemaVersion: 1, kind: "role-isolation-review-bundle", state: "WAITING_INDEPENDENT_REVIEW",
     candidate: data.candidate, manifestDigest: data.manifestDigest, releaseReadinessInventoryDigest: data.releaseReadinessInventoryDigest,
     stateHistory: subject.stateHistory, fiveConclusions: verdicts, reviewSubject: subject, reviewSubjectDigest: sha256(JSON.stringify(subject)) };
@@ -582,6 +583,12 @@ function validateEvidenceContracts() {
   const roleStateHistory = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.fullGateAcceptedPath;
   const reviewSubjectStateHistory = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath;
   const featureDelivery = checkFeatureDeliveryEvidence({root,evidencePath:releaseQaPath,evidenceSha256:releaseQaSha256,fixtureRoot});
+  const evidenceRecords = [{
+    claimId: "release-readiness",
+    path: releaseQaPath,
+    sha256: releaseQaSha256,
+    readback: "self-test pre-release final audit readback; full 必須等 clean commit; Full-check role isolation; five-conclusion writer assessment"
+  }];
   const reviewSubject = {
     featureDelivery,
     acceptanceScope: featureDelivery.acceptanceScope,
@@ -592,6 +599,7 @@ function validateEvidenceContracts() {
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
     releaseQa: { path: releaseQaPath, sha256: releaseQaSha256 },
+    evidenceRecords,
     manualVerdicts,
     stateHistory: reviewSubjectStateHistory
   };
@@ -712,12 +720,7 @@ function validateEvidenceContracts() {
       acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest,
       receivedAt: "2026-07-20T00:00:00.000Z"
     },
-    evidence: [{
-      claimId: "release-readiness",
-      path: releaseQaPath,
-      sha256: releaseQaSha256,
-      readback: "self-test pre-release final audit readback; full 必須等 clean commit; Full-check role isolation; five-conclusion writer assessment"
-    }]
+    evidence: evidenceRecords
   };
   const candidate = path.join(fixtureRoot, "candidate.json");
   writeEvidence(candidate, validCandidate);
@@ -800,6 +803,14 @@ function validateEvidenceContracts() {
   writeEvidence(candidate, validCandidate);
   writeEvidence(candidate, { ...validCandidate, manualVerdicts: Object.fromEntries(Object.entries(manualVerdicts).reverse()), reviewReceipt: { ...validCandidate.reviewReceipt, fiveConclusions: Object.fromEntries(Object.entries(manualVerdicts).reverse()) } });
   invoke(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "equivalent verdict key order is accepted without relaxing byte digests", { env: selfTestEnv });
+  writeEvidence(candidate, validCandidate);
+
+  writeEvidence(candidate, {
+    ...validCandidate,
+    evidence: [{ ...validCandidate.evidence[0], readback: `${validCandidate.evidence[0].readback}; post-review candidate-only mutation` }]
+  });
+  const postReviewEvidenceMutation = invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "post-review candidate evidence mutation is rejected", { env: selfTestEnv });
+  assert(`${postReviewEvidenceMutation.stdout}\n${postReviewEvidenceMutation.stderr}`.includes("reviewSubject evidenceRecords do not match candidate evidence"), "post-review evidence mutation failed for the wrong reason");
   writeEvidence(candidate, validCandidate);
 
 

@@ -612,6 +612,9 @@ export function validateReviewBundle(bundle, evidence, head) {
   assert(parsed.reviewSubject?.releaseReadinessInventoryDigest === evidence.releaseReadinessInventoryDigest, "reviewSubject release-readiness inventory digest does not match evidence");
   assert(semanticEqual(parsed.reviewSubject?.manualVerdicts, evidence.manualVerdicts), "reviewSubject manualVerdicts do not match evidence");
   assert(JSON.stringify(parsed.reviewSubject?.stateHistory) === JSON.stringify(evidence.roleIsolation.reviewSubjectStateHistory), "reviewSubject stateHistory does not match evidence review subject state");
+  assert(Array.isArray(parsed.reviewSubject?.evidenceRecords), "reviewSubject evidenceRecords are required");
+  assert(Array.isArray(evidence.evidence), "candidate evidence records must be an array before review binding");
+  assert(semanticEqual(parsed.reviewSubject.evidenceRecords, evidence.evidence), "reviewSubject evidenceRecords do not match candidate evidence");
   return { path: absolute, sha256: actualSha256, value: parsed };
 }
 
