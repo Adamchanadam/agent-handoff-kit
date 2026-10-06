@@ -9,6 +9,8 @@ export const DELIVERY_STAGES=Object.freeze(['package','freshInstall','upgrade','
 const hash=x=>createHash('sha256').update(x).digest('hex');
 export const NATIVE_UPDATE_METADATA_KEYS=Object.freeze(['cliVersion','fromVersion','registryMode','registryVersion','toVersion']);
 export const NATIVE_INVOCATION_CASE_SCENARIOS=Object.freeze(['normal','boundary']);
+export const NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES=Object.freeze(['input','result']);
+export const NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES=Object.freeze([...NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES,'state','transaction']);
 const stableNativeCaseId=/^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export function validateEvidenceReferences(item,label,{root}){
  assert(Array.isArray(item?.evidence)&&item.evidence.length,`${label}: evidence required`);
@@ -55,31 +57,41 @@ function sourceReviewTarballSha256(review,label){
  assert(typeof digest==='string'&&/^[a-f0-9]{64}$/.test(digest),`${label}: source review candidate artifact required`);
  return digest;
 }
-function sourceReviewRawReference(source,role,label){
- const raw=source.raw??source.rawEvidence;
- assert(raw,`${label}: source raw evidence required`);
- let ref;
- if(Array.isArray(raw)){
-  const file={prompt:'prompt.txt',context:'context.json',trace:'trace.jsonl'}[role];
-  const matches=raw.filter(item=>typeof item?.path==='string'&&item.path.replace(/\\/g,'/').endsWith('/'+file));
-  assert.equal(matches.length,1,`${label}: source ${role} evidence must resolve exactly once`);
-  ref=matches[0];
- }else ref=raw[role];
- assert(typeof ref?.path==='string'&&ref.path&&/^[a-f0-9]{64}$/.test(ref.sha256),`${label}: invalid source ${role} evidence`);
+function observableResultEvidenceReference(observableResult,role,label,{requiredRoles=NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES}={}){
+ assert(observableResult&&typeof observableResult==='object'&&!Array.isArray(observableResult),`${label}: observable-result evidence required`);
+ const keys=Object.keys(observableResult);
+ assert(requiredRoles.every(key=>keys.includes(key))&&keys.every(key=>NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES.includes(key)),`${label}: observable-result evidence is incomplete or has unsupported fields`);
+ const ref=observableResult[role];
+ assert(typeof ref?.path==='string'&&ref.path&&/^[a-f0-9]{64}$/.test(ref.sha256),`${label}: invalid observable-result ${role} evidence`);
  return {path:ref.path,sha256:ref.sha256};
+}
+function canonicalEvidenceFileIdentity(ref,{root}){
+ const canonical=fs.realpathSync(path.resolve(root,ref.path));
+ return process.platform==='win32'?canonical.toLocaleLowerCase('en-US'):canonical;
+}
+function validateObservableResultEvidence(test,label,{root,requiredRoles=NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES}={}){
+ const observableResult=test?.observableResult;
+ for(const role of requiredRoles)observableResultEvidenceReference(observableResult,role,label,{requiredRoles});
+ const roles=Object.keys(observableResult??{});
+ const references=roles.map(role=>observableResultEvidenceReference(observableResult,role,label,{requiredRoles}));
+ for(const [index,role] of roles.entries())validateEvidenceReferences({evidence:[references[index]]},`${label}/observableResult/${role}`,{root});
+ const independentlyReadable=new Set(references.map(ref=>`${canonicalEvidenceFileIdentity(ref,{root})}\u0000${ref.sha256}`));
+ assert.equal(independentlyReadable.size,references.length,`${label}: observable input/result and any required state/transaction must be separately readable evidence`);
+ return observableResult;
 }
 function validateCaseReuse(test,{root,label,host,entry,dependencyRoots,tarballSha256}){
  if(!Object.hasOwn(test,'reuse'))return;
  assert(test.reuse&&typeof test.reuse==='object'&&!Array.isArray(test.reuse),`${label}: reuse must be an object`);
  assert.deepEqual(Object.keys(test.reuse).sort(),['comparison','sourceCase','sourceReview'],`${label}: unsupported reuse fields`);
- const artifact=exactReference(test.execution?.artifact,`${label}/execution artifact`,{root});
+ const artifact=exactReference(test.executedArtifact,`${label}/executed artifact`,{root});
  assert.notEqual(artifact.sha256,tarballSha256,`${label}: reuse cannot relabel current execution as historical`);
  const review=readEvidenceReference(test.reuse.sourceReview,`${label}/source review`,{root});
  const original=sourceReviewCase(review,test.reuse.sourceCase,`${label}/source review`);
  assert.equal(sourceReviewTarballSha256(review,`${label}/source review`),artifact.sha256,`${label}: source review does not bind the executed artifact`);
  if(typeof original.scenario==='string')assert.equal(original.scenario,test.scenario,`${label}: source review scenario does not match reused case`);
  if(typeof original.outcome==='string')assert.equal(original.outcome,test.outcome,`${label}: source review outcome does not match reused case`);
- for(const role of ['prompt','context','trace'])assert.deepEqual(test.execution[role],sourceReviewRawReference(original,role,`${label}/source review`),`${label}: source review ${role} does not match reused execution`);
+ assert.deepEqual(Object.keys(test.observableResult).sort(),Object.keys(original.observableResult??{}).sort(),`${label}: source review observable-result shape does not match reused execution`);
+ for(const role of Object.keys(test.observableResult))assert.deepEqual(test.observableResult[role],observableResultEvidenceReference(original.observableResult,role,`${label}/source review`,{requiredRoles:Object.keys(test.observableResult)}),`${label}: source review ${role} does not match reused observable result`);
  const comparison=readEvidenceReference(test.reuse.comparison,`${label}/comparison`,{root});
  assert(comparison&&typeof comparison==='object'&&!Array.isArray(comparison),`${label}: comparison required`);
  assert.equal(comparison.source?.tarballSha256,artifact.sha256,`${label}: comparison source artifact mismatch`);
@@ -97,22 +109,18 @@ function validateCaseReuse(test,{root,label,host,entry,dependencyRoots,tarballSh
  const matches=comparison.reusableCases.filter(item=>item?.host===host&&item.entry===entry&&item.id===test.id&&item.scenario===test.scenario);
  assert.equal(matches.length,1,`${label}: comparison does not accept this exact case`);
 }
-// Both full and postpublish use this exact structural check. It deliberately
-// binds inspectable raw artifacts, not a claim that the actor was uncoached.
+// Both full and postpublish use this exact structural check. It binds observable
+// results, not unavailable platform telemetry about host discovery or dispatch.
 export function validateNativeUpdateNormal(test,{root,label,candidateVersion,baseVersion,tarballSha256,registryMode,requireOwnTarball=false}){
  assert(test&&typeof test==='object'&&!Array.isArray(test),`${label}: native update case required`);
  assert.equal(test.status,'passed',`${label}: native update did not pass`);
  assert(typeof test.observation==='string'&&test.observation.trim(),`${label}: native update observation required`);
  validateEvidenceReferences(test,label,{root});
  assert.equal(test.scenario,'normal',`${label}: native update must be a normal case`);
- assert.equal(test.kind,'native-invocation',`${label}: native update must be an actual invocation`);
+ assert.equal(test.kind,'observable-result',`${label}: native update must carry an observable result`);
  assert.equal(test.outcome,'matched',`${label}: refused or incomplete update is not normal acceptance`);
  for(const field of ['input','expected','actual','readback'])assert(typeof test[field]==='string'&&test[field].trim(),`${label}: ${field} required`);
- assert.equal(test.execution?.mode,'fresh-session',`${label}: native update must retain the original fresh-session execution`);
- for(const role of ['prompt','context','trace']){
-  assert(test.execution?.[role],`${label}: raw ${role} evidence required`);
-  validateEvidenceReferences({evidence:[test.execution[role]]},`${label}/${role}`,{root});
- }
+ validateObservableResultEvidence(test,label,{root,requiredRoles:NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES});
  const update=test.update;
  assert(update&&typeof update==='object'&&!Array.isArray(update),`${label}: update metadata required`);
  assert.deepEqual(Object.keys(update).sort(),[...NATIVE_UPDATE_METADATA_KEYS].sort(),`${label}: update metadata is incomplete or has unsupported fields`);
@@ -124,9 +132,9 @@ export function validateNativeUpdateNormal(test,{root,label,candidateVersion,bas
  const observedTarball=requireOwnTarball?test.tarballSha256:tarballSha256;
   assert.equal(observedTarball,tarballSha256,`${label}: native update artifact identity mismatch`);
 }
-// This receipt binds an independently judged native observation to its exact
-// structural record. It intentionally does not interpret prompt/context/trace
-// text or claim cryptographic identity for the declared reviewer.
+// This receipt binds an independently judged observable result to its exact
+// structural record. It does not prove platform telemetry or the declared
+// reviewer's cryptographic identity.
 export function nativeUpdateReviewSubjectDigest(test){
  const subject=structuredClone(test);delete subject.nativeReview;
  return hash(JSON.stringify(subject));
@@ -219,7 +227,7 @@ export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,bas
       passed(result?.menu,`${label}/${host}/menu`);
       passed(item.hosts[host]?.invocation,`${label}/${host}/invocation`);
       assert.equal(item.hosts[host].menu.kind,'native-menu',`${label}: file/metadata checks are not native menu acceptance`);
-      assert.equal(item.hosts[host].invocation.kind,'native-invocation',`${label}: file checks are not native invocation`);
+      assert.equal(item.hosts[host].invocation.kind,'observable-result',`${label}: file checks are not observable command results`);
       const catalogEntries=[...contract.nativeInvocationEntries].sort(),nativeEntries=[...selected.nativeEntries].sort();
       assert(catalogEntries.length&&catalogEntries.every(e=>typeof e==='string'&&/^handoff-kit-[a-z0-9-]+$/.test(e))&&new Set(catalogEntries).size===catalogEntries.length,`${label}: invalid or duplicate catalog commands`);
       assert(nativeEntries.length&&nativeEntries.every(entry=>catalogEntries.includes(entry)),`${label}: invalid selected native command scope`);
@@ -232,7 +240,7 @@ export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,bas
       assert.deepEqual(records.map(r=>r.entry).sort(),nativeEntries,`${label}/${host}: individual command coverage incomplete or overbroad`);
       for(const record of records){
        const commandLabel=`${label}/${host}/${record.entry}`;
-       assert.equal(record.kind,'native-invocation',`${commandLabel}: actual native invocation required`);
+       assert.equal(record.kind,'observable-result',`${commandLabel}: observable command result required`);
        assert.equal(record.tarballSha256,tarballSha256,`${commandLabel}: candidate identity mismatch`);
        assert(['freshInstall','upgrade'].includes(record.installRoute),`${commandLabel}: installed candidate route required`);
         assert(Array.isArray(record.cases)&&record.cases.length,`${commandLabel}: normal and boundary cases required`);
@@ -244,14 +252,11 @@ export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,bas
          const caseLabel=`${commandLabel}/${test.id}`;
         passed(test,caseLabel);
         for(const field of ['input','expected','actual','readback'])assert(typeof test[field]==='string'&&test[field].trim(),`${caseLabel}: ${field} required`);
-        assert.equal(test.kind,'native-invocation',`${caseLabel}: file checks cannot replace command execution`);
-        // This binds inspectable provenance; it cannot prove an actor was not coached.
-        // The existing independent reviewer must inspect the raw prompt/context/trace.
-        assert.equal(test.execution?.mode,'fresh-session',`${caseLabel}: guided or inherited-context execution is not clean user-journey acceptance`);
-        for(const role of ['prompt','context','trace']){
-         assert(test.execution[role],`${caseLabel}: raw ${role} evidence required`);
-         references({evidence:[test.execution[role]]},`${caseLabel}/${role}`);
-        }
+        assert.equal(test.kind,'observable-result',`${caseLabel}: file checks cannot replace an observable command result`);
+        // A controller recap or synthetic trace cannot be the sole evidence:
+        // the reviewer must inspect separately readable input/result records and any required state/transaction records.
+        // Their presence does not prove host auto-discovery or shortcut-body dispatch without platform telemetry.
+        validateObservableResultEvidence(test,caseLabel,{root});
         assert(['matched','expected-stop'].includes(test.outcome),`${caseLabel}: execution outcome required`);
         if(test.scenario==='normal')assert.equal(test.outcome,'matched',`${caseLabel}: blocked execution is not normal acceptance`);
         const dependencyRoots=feature.id==='shortcuts'?shortcutEntryDependencyRoots(record.entry):contract.sources;

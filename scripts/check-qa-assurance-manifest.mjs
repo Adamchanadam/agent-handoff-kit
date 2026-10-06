@@ -25,7 +25,7 @@ import {
 } from "./qa-assurance-manifest.mjs";
 import { assertRunFailed, invokeAsync, runSync, runSyncChecked, TIMEOUT_EXIT_CODE } from "./qa-runner-core.mjs";
 import { checkFeatureDeliveryEvidence } from "./feature-delivery-cases.mjs";
-import { NATIVE_UPDATE_METADATA_KEYS, nativeUpdateReviewSubjectDigest } from "./feature-delivery.mjs";
+import { NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, NATIVE_UPDATE_METADATA_KEYS, NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES, nativeUpdateReviewSubjectDigest } from "./feature-delivery.mjs";
 import { readRemoteTagCommit, runClaim, captureCandidateIdentity, verifyCandidateIdentity, finalizeCandidateAcceptance, assertPublishedCandidate, semanticEqual, resolveAcceptanceReceiptPath, validateReviewBundle } from "./qa.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -268,11 +268,18 @@ function validateReleaseStateContract() {
 
 function validateCandidateEvidenceContract() {
   assert(CANDIDATE_EVIDENCE_CONTRACT.schemaVersion === 1, "unexpected candidate evidence contract schema version");
+  const featureDelivery = CANDIDATE_EVIDENCE_CONTRACT.featureDelivery;
+  assert(featureDelivery.nativeMenusAndObservableResultsRequired === true, "native menu and observable-result contract drifted");
+  const observableResult = featureDelivery.observableResult;
+  assert(observableResult?.kind === "observable-result", "observable-result evidence kind drifted");
+  assert(observableResult.evidenceRoles === NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, "observable-result evidence roles must bind the feature-delivery owner");
+  assert(observableResult.telemetryBoundary.includes("Host auto-discovery") && observableResult.telemetryBoundary.includes("unverified"), "observable-result telemetry boundary drifted");
   const nativeUpdate = CANDIDATE_EVIDENCE_CONTRACT.featureDelivery.nativeUpdate;
   assert(nativeUpdate?.entry === "handoff-kit-update", "native update evidence owner drifted");
   assert(nativeUpdate.prepublishRegistryMode === "controlled" && nativeUpdate.postpublishRegistryMode === "official-live", "native update registry modes drifted");
   assert(nativeUpdate.prepublishRegistryConfig === "inherited-npm-config-registry-from-npx-invocation", "native update controlled registry configuration owner drifted");
   assert(nativeUpdate.metadataKeys === NATIVE_UPDATE_METADATA_KEYS, "native update metadata contract must bind the feature-delivery owner");
+  assert(nativeUpdate.observableEvidenceRoles === NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES, "native update observable-result evidence roles must bind the feature-delivery owner");
   assert(JSON.stringify(CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys) === JSON.stringify([
     "governanceHealth",
     "productJourney",
@@ -570,7 +577,7 @@ function validateEvidenceContracts() {
   };
   const roleStateHistory = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.fullGateAcceptedPath;
   const reviewSubjectStateHistory = CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath;
-  const featureDelivery = checkFeatureDeliveryEvidence({root,evidencePath:releaseQaPath,evidenceSha256:releaseQaSha256});
+  const featureDelivery = checkFeatureDeliveryEvidence({root,evidencePath:releaseQaPath,evidenceSha256:releaseQaSha256,fixtureRoot});
   const reviewSubject = {
     featureDelivery,
     version,
@@ -913,6 +920,11 @@ function validateEvidenceContracts() {
   writeEvidence(candidate, { ...validCandidate, candidate: { ...validCandidate.candidate, cleanWorktree: false } });
   invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "dirty or concurrent candidate rejected", { env: selfTestEnv });
 
+  const nativeUpdateObservableResult = Object.fromEntries(NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES.map((role) => {
+    const file = path.join(fixtureRoot, `official-live-update-${role}.txt`);
+    writeFileSync(file, `${role} evidence`, "utf8");
+    return [role, { path: file, sha256: sha256(readFileSync(file)) }];
+  }));
   const validPostpublish = {
     schemaVersion: 1,
     kind: "postpublish-assurance",
@@ -936,14 +948,14 @@ function validateEvidenceContracts() {
         observation: "Actual official-live native update completed",
         evidence: [{ path: releaseQaPath, sha256: releaseQaSha256 }],
         scenario: "normal",
-        kind: "native-invocation",
+        kind: "observable-result",
         outcome: "matched",
         input: "$handoff-kit-update",
         expected: "Upgrade the prior published install to the accepted live package",
         actual: "The native update transaction committed the accepted live package",
         readback: "Installed version, health and preserved custom content were read back",
         tarballSha256: publishedTarballSha256,
-        execution: { mode: "fresh-session", prompt: { path: releaseQaPath, sha256: releaseQaSha256 }, context: { path: releaseQaPath, sha256: releaseQaSha256 }, trace: { path: releaseQaPath, sha256: releaseQaSha256 } },
+        observableResult: nativeUpdateObservableResult,
         update: { registryMode: "official-live", registryVersion: version, cliVersion: version, fromVersion: featureDelivery.baseVersion, toVersion: version },
         writerProvenance: { role: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.writerRole, provenanceId: "postpublish-native-writer" }
       }
@@ -1010,8 +1022,8 @@ function validateEvidenceContracts() {
   invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish refused native update", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, update: { ...validPostpublish.readbacks.nativeUpdate.update, fromVersion: version } } } });
   invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish no-op native update", { env: postpublishSelfTestEnv });
-  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, execution: { ...validPostpublish.readbacks.nativeUpdate.execution, trace: undefined } } } });
-  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update missing raw trace", { env: postpublishSelfTestEnv });
+  writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, observableResult: { ...validPostpublish.readbacks.nativeUpdate.observableResult, transaction: undefined } } } });
+  invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update missing observable transaction evidence", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, nativeReview: undefined } } });
   invokeFailure(["scripts/qa.mjs", "postpublish", "--receipt", fullReceipt, "--version", version, "--evidence", postpublish, "--validate-only"], "postpublish native update requires independent review receipt", { env: postpublishSelfTestEnv });
   writeEvidence(postpublish, { ...validPostpublish, readbacks: { ...validPostpublish.readbacks, nativeUpdate: { ...validPostpublish.readbacks.nativeUpdate, nativeReview: { ...validPostpublish.readbacks.nativeUpdate.nativeReview, verdict: "rejected" } } } });

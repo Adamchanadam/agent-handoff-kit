@@ -3,26 +3,31 @@ import {mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {affectedDeliveryFeatures,validateFeatureDelivery} from './feature-delivery.mjs';
+import {affectedDeliveryFeatures,NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES,NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES,validateFeatureDelivery} from './feature-delivery.mjs';
 import {commands} from '../bin/commands.mjs';
 import {deliveredFeatureContracts,selectDeliveryEvidence} from '../bin/installed-file-contract.mjs';
-export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256}){
+export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256,fixtureRoot}){
  const sha='a'.repeat(64),base='b'.repeat(40),ref={path:evidencePath,sha256:evidenceSha256};
- const reuseRoot=mkdtempSync(path.join(tmpdir(),'ack-feature-delivery-reuse-'));
+ const reuseRoot=mkdtempSync(path.join(fixtureRoot??tmpdir(),'ack-feature-delivery-reuse-'));
  const digest=value=>createHash('sha256').update(value).digest('hex');
  const writeReuse=(name,value)=>{const file=path.join(reuseRoot,name),bytes=typeof value==='string'?value:JSON.stringify(value);writeFileSync(file,bytes);return {path:file,sha256:digest(bytes)};};
  const baseVersion='0.4.0',candidateVersion=JSON.parse(readFileSync(path.join(root,'package.json'),'utf8')).version;
  const observed={status:'passed',observation:'Observed through the named entry',evidence:[ref]};
  const stage={...observed,tarballSha256:sha};
  const entries=commands.map(c=>c.name);
+ const observableResult=Object.fromEntries(NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES.map(role=>[role,writeReuse(`observable-${role}.txt`,`${role} evidence`)]));
+ const sameFileAlias=ref=>({...ref,path:`${path.dirname(ref.path)}${path.sep}..${path.sep}${path.basename(path.dirname(ref.path))}${path.sep}${path.basename(ref.path)}`});
  // These are validator fixtures, not native acceptance evidence.
   const results=entries.map(entry=>{
-   const cases=['normal','boundary'].map(scenario=>({...observed,id:`${entry}-${scenario}`,scenario,kind:'native-invocation',outcome:scenario==='normal'?'matched':'expected-stop',input:'$'+entry,expected:'Contract result',actual:'Observed contract result',readback:'Verified output and project state',execution:{mode:'fresh-session',prompt:ref,context:ref,trace:ref}}));
-  if(entry==='handoff-kit-update')cases[0].update={registryMode:'controlled',registryVersion:candidateVersion,cliVersion:candidateVersion,fromVersion:baseVersion,toVersion:candidateVersion};
-  return {entry,kind:'native-invocation',tarballSha256:sha,installRoute:entry==='handoff-kit-update'?'upgrade':'freshInstall',cases};
+   const cases=['normal','boundary'].map(scenario=>({...observed,id:`${entry}-${scenario}`,scenario,kind:'observable-result',outcome:scenario==='normal'?'matched':'expected-stop',input:'$'+entry,expected:'Contract result',actual:'Observed contract result',readback:'Verified output and project state',observableResult:structuredClone(observableResult)}));
+  if(entry==='handoff-kit-update'){
+   cases[0].observableResult={...cases[0].observableResult,state:writeReuse('update-state.txt','installed version and doctor readback'),transaction:writeReuse('update-transaction.txt','controlled-registry upgrade transaction')};
+   cases[0].update={registryMode:'controlled',registryVersion:candidateVersion,cliVersion:candidateVersion,fromVersion:baseVersion,toVersion:candidateVersion};
+  }
+  return {entry,kind:'observable-result',tarballSha256:sha,installRoute:entry==='handoff-kit-update'?'upgrade':'freshInstall',cases};
  });
  const installerStages={package:stage,freshInstall:{...stage,command:'init'},upgrade:{...stage,command:'upgrade',baselineVersion:baseVersion,baselineTarballSha256:evidenceSha256},entry:{...stage,entry:'current package install and upgrade routes'}};
- const data={schemaVersion:1,tarballSha256:sha,baseCommit:base,baseVersion,baselineArtifact:ref,features:[{id:'shortcuts',package:stage,freshInstall:{...stage,command:'init'},upgrade:{...stage,command:'upgrade',baselineVersion:baseVersion,baselineTarballSha256:evidenceSha256},entry:{...stage,entry:'each command in native tools',hosts:Object.fromEntries(['claude','gemini','codex','antigravity'].map(h=>[h,{menu:{...observed,kind:'native-menu',entries},invocation:{...observed,kind:'native-invocation',entries,results}}]))}},{id:'installer',...installerStages}]};
+ const data={schemaVersion:1,tarballSha256:sha,baseCommit:base,baseVersion,baselineArtifact:ref,features:[{id:'shortcuts',package:stage,freshInstall:{...stage,command:'init'},upgrade:{...stage,command:'upgrade',baselineVersion:baseVersion,baselineTarballSha256:evidenceSha256},entry:{...stage,entry:'each command in native tools',hosts:Object.fromEntries(['claude','gemini','codex','antigravity'].map(h=>[h,{menu:{...observed,kind:'native-menu',entries},invocation:{...observed,kind:'observable-result',entries,results}}]))}},{id:'installer',...installerStages}]};
  const options={root,changedFiles:['bin/commands.mjs'],tarballSha256:sha,baseCommit:base,candidateVersion};
  const validate=d=>validateFeatureDelivery(d,options);
  validate(data);
@@ -32,7 +37,7 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
  for(const mutate of [d=>delete d.features[0].entry.hosts.codex,d=>d.features[0].entry.hosts.codex=structuredClone(d.features[0].entry.hosts.claude),d=>delete d.features[0].entry.hosts.claude.reason,d=>delete d.features[0].entry.hosts.claude.evidence,d=>d.features[0].entry.hosts.codex.menu.kind='file-exists']){
   const bad=structuredClone(representative);mutate(bad);assert.throws(()=>validate(bad));
  }
- for(const mutate of [d=>d.features[0].entry.hosts.codex.invocation.entries=['handoff-kit-help'],d=>delete d.features[0].entry.hosts.codex.invocation.entries,d=>d.features[0].entry.hosts.codex.invocation.entries='handoff-kit-help only; handoff-kit-progress NOT tested',d=>delete d.features[0].package,d=>delete d.features[0].upgrade,d=>d.features=[],d=>d.tarballSha256='d'.repeat(64),d=>d.features[0].entry.hosts.codex.menu.kind='file-exists',d=>d.features[0].entry.hosts.claude.invocation.status='blocked',d=>delete d.features[0].entry.hosts.gemini,d=>d.features[0].freshInstall={status:'not_applicable'},d=>d.features[0].upgrade.command='commands',d=>d.features[0].package.evidence=[{...ref,sha256:'0'.repeat(64)}],d=>d.features[0].upgrade.baselineTarballSha256='c'.repeat(64),d=>d.baselineArtifact.sha256='c'.repeat(64)]){
+ for(const mutate of [d=>d.features[0].entry.hosts.codex.invocation.entries=['handoff-kit-help'],d=>delete d.features[0].entry.hosts.codex.invocation.entries,d=>d.features[0].entry.hosts.codex.invocation.entries='handoff-kit-help only; handoff-kit-progress NOT tested',d=>delete d.features[0].package,d=>delete d.features[0].upgrade,d=>d.features=[],d=>d.tarballSha256='d'.repeat(64),d=>d.features[0].entry.hosts.codex.menu.kind='file-exists',d=>d.features[0].entry.hosts.codex.invocation.kind='native-invocation',d=>d.features[0].entry.hosts.claude.invocation.status='blocked',d=>delete d.features[0].entry.hosts.gemini,d=>d.features[0].freshInstall={status:'not_applicable'},d=>d.features[0].upgrade.command='commands',d=>d.features[0].package.evidence=[{...ref,sha256:'0'.repeat(64)}],d=>d.features[0].upgrade.baselineTarballSha256='c'.repeat(64),d=>d.baselineArtifact.sha256='c'.repeat(64)]){
   const bad=structuredClone(data);mutate(bad);assert.throws(()=>validate(bad));
  }
  assert.throws(()=>affectedDeliveryFeatures(['bin/new-unmapped-feature.mjs']));
@@ -77,16 +82,18 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
  const progressHost=progressOnly.features[0].entry.hosts.codex;progressHost.invocation.entries=['handoff-kit-progress'];progressHost.invocation.results=results.filter(record=>record.entry==='handoff-kit-progress');
  validateFeatureDelivery(progressOnly,{...options,changedFiles:['bin/progress/launch.mjs']});
   // Native menu, command-generator inventory, and both normal/boundary cases are all required.
-  for(const mutate of [h=>h.menu.entries=[],h=>h.menu.entries.push(entries[0]),h=>h.invocation.entries=['handoff-kit-progress','handoff-kit-progress'],h=>h.invocation.entries.push('unknown-command'),h=>delete h.invocation.results,h=>h.invocation.results.push(h.invocation.results[0]),h=>h.invocation.results[0].tarballSha256='0'.repeat(64),h=>h.invocation.results[0].installRoute='source',h=>h.invocation.results[0].cases.pop(),h=>delete h.invocation.results[0].cases[0].id,h=>h.invocation.results[0].cases[1].id=h.invocation.results[0].cases[0].id,h=>h.invocation.results[0].cases[0].scenario='unsupported',h=>h.invocation.results[0].cases[0].scenario='boundary',h=>h.invocation.results[0].cases[0].status='blocked',h=>h.invocation.results[0].cases[0].outcome='expected-stop',h=>h.invocation.results[0].cases[0].kind='file-exists',h=>delete h.invocation.results[0].cases[0].readback,h=>delete h.invocation.results[0].cases[0].input,h=>h.invocation.results[0].cases[0].evidence=[],h=>h.invocation.results[0].cases[0].evidence=[{...ref,sha256:'0'.repeat(64)}]]){
+  for(const mutate of [h=>h.menu.entries=[],h=>h.menu.entries.push(entries[0]),h=>h.invocation.entries=['handoff-kit-progress','handoff-kit-progress'],h=>h.invocation.entries.push('unknown-command'),h=>delete h.invocation.results,h=>h.invocation.results.push(h.invocation.results[0]),h=>h.invocation.results[0].tarballSha256='0'.repeat(64),h=>h.invocation.results[0].installRoute='source',h=>h.invocation.results[0].cases.pop(),h=>delete h.invocation.results[0].cases[0].id,h=>h.invocation.results[0].cases[1].id=h.invocation.results[0].cases[0].id,h=>h.invocation.results[0].cases[0].scenario='unsupported',h=>h.invocation.results[0].cases[0].scenario='boundary',h=>h.invocation.results[0].cases[0].status='blocked',h=>h.invocation.results[0].cases[0].outcome='expected-stop',h=>h.invocation.results[0].cases[0].kind='native-invocation',h=>delete h.invocation.results[0].cases[0].readback,h=>delete h.invocation.results[0].cases[0].input,h=>h.invocation.results[0].cases[0].evidence=[],h=>h.invocation.results[0].cases[0].evidence=[{...ref,sha256:'0'.repeat(64)}]]){
   const bad=structuredClone(representative);mutate(bad.features[0].entry.hosts.codex);assert.throws(()=>validate(bad));
   }
   const multipleApplicable=structuredClone(representative);const updateRecord=multipleApplicable.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-update');updateRecord.cases.push({...structuredClone(updateRecord.cases[1]),id:'update-boundary-future-official-registry'});validate(multipleApplicable);
  const updateNormal=d=>d.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-update').cases.find(test=>test.scenario==='normal');
- for(const mutate of [d=>delete updateNormal(d).update,d=>updateNormal(d).update.registryMode='official-live',d=>updateNormal(d).update.registryVersion=baseVersion,d=>updateNormal(d).update.cliVersion=baseVersion,d=>updateNormal(d).update.fromVersion=candidateVersion,d=>updateNormal(d).update.toVersion=baseVersion,d=>updateNormal(d).outcome='expected-stop',d=>delete updateNormal(d).execution.trace,d=>d.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-update').installRoute='freshInstall']){
+ for(const mutate of [d=>delete updateNormal(d).update,d=>updateNormal(d).update.registryMode='official-live',d=>updateNormal(d).update.registryVersion=baseVersion,d=>updateNormal(d).update.cliVersion=baseVersion,d=>updateNormal(d).update.fromVersion=candidateVersion,d=>updateNormal(d).update.toVersion=baseVersion,d=>updateNormal(d).outcome='expected-stop',d=>delete updateNormal(d).observableResult.transaction,d=>{const observable=updateNormal(d).observableResult;for(const role of NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES)observable[role]=sameFileAlias(observable.input);},d=>d.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-update').installRoute='freshInstall']){
   const bad=structuredClone(representative);mutate(bad);assert.throws(()=>validate(bad));
  }
  const justified=structuredClone(data);justified.features[0].upgrade={status:'not_applicable',reason:'Not exercised',evidence:[ref]};assert.throws(()=>validate(justified));
- for(const mutate of [c=>delete c.execution,c=>c.execution.mode='inherited-context',c=>c.execution.mode='guided-replay',...['prompt','context','trace'].flatMap(role=>[c=>delete c.execution[role],c=>c.execution[role]={...ref,sha256:'0'.repeat(64)}])]){
+ for(const mutate of [c=>delete c.observableResult,...NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES.flatMap(role=>[c=>delete c.observableResult[role],c=>c.observableResult[role]={...ref,sha256:'0'.repeat(64)}]),c=>c.observableResult.result=sameFileAlias(c.observableResult.input),c=>{
+  const first=c.observableResult.input;for(const role of NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES)c.observableResult[role]=first;
+ }]){
   const bad=structuredClone(representative);mutate(bad.features[0].entry.hosts.codex.invocation.results[0].cases[0]);assert.throws(()=>validate(bad));
  }
  const oldArtifact=writeReuse('historical.tgz','historical package bytes');
@@ -116,26 +123,26 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
   candidate:{tarballSha256:sha,files:candidateFiles},
   reusableCases:[{host:'codex',entry,id,scenario}]
  });
- const sourceReviewValue=raw=>({candidateTarball:oldArtifact,cases:[{id:'historical-check-normal',scenario:'normal',status:'passed',outcome:'matched',raw}]});
- const sourceRaw={prompt:ref,context:ref,trace:ref};
- const sourceReview=writeReuse('source-review.json',sourceReviewValue(sourceRaw));
+ const sourceReviewValue=(id,observable)=>({candidateTarball:oldArtifact,cases:[{id,scenario:'normal',status:'passed',outcome:'matched',observableResult:observable}]});
+ const sourceObservable=structuredClone(observableResult);
+ const sourceReview=writeReuse('source-review.json',sourceReviewValue('historical-check-normal',sourceObservable));
  const comparison=writeReuse('comparison.json',reusable('handoff-kit-check','handoff-kit-check-normal'));
  const mixed=structuredClone(representative);
  const checkNormal=mixed.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-check').cases.find(test=>test.scenario==='normal');
- checkNormal.execution.artifact=oldArtifact;
+ checkNormal.executedArtifact=oldArtifact;
  checkNormal.reuse={sourceReview,sourceCase:{id:'historical-check-normal',scenario:'normal'},comparison};
  validate(mixed);
  // Documentation itself does not invalidate byte-identical behavior dependencies.
  const docsOnly=structuredClone(mixed);docsOnly.features=[];
  validateFeatureDelivery(docsOnly,{...options,changedFiles:['README.md']});
  const staleSource=structuredClone(mixed);writeFileSync(sourceReview.path,'changed source review bytes');assert.throws(()=>validate(staleSource));
- writeFileSync(sourceReview.path,JSON.stringify(sourceReviewValue(sourceRaw)));
+ writeFileSync(sourceReview.path,JSON.stringify(sourceReviewValue('historical-check-normal',sourceObservable)));
  const changedEntryComparison=writeReuse('changed-entry-comparison.json',{...reusable('handoff-kit-check','handoff-kit-check-normal'),candidate:{tarballSha256:sha,files:sourceFiles.map(file=>file.path==='bin/commands.mjs'?{...file,sha256:'0'.repeat(64)}:file)}});
  const changedEntry=structuredClone(mixed);changedEntry.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-check').cases.find(test=>test.scenario==='normal').reuse.comparison=changedEntryComparison;assert.throws(()=>validate(changedEntry));
  const withShortcutReuse=(entry,name,candidateFiles=sourceFiles)=>{
   const stale=structuredClone(mixed);
   const test=stale.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry===entry).cases.find(item=>item.scenario==='normal');
-  test.execution.artifact=oldArtifact;
+  test.executedArtifact=oldArtifact;
   test.reuse={sourceReview,sourceCase:{id:'historical-check-normal',scenario:'normal'},comparison:writeReuse(name,reusable(entry,test.id,'normal',candidateFiles))};
   return stale;
  };
@@ -161,15 +168,17 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
  assert.throws(()=>validateFeatureDelivery(withShortcutReuse('handoff-kit-help','version-only-help-comparison.json',sourceFiles.map(file=>file.path==='package.json'?{...file,sha256:'0'.repeat(64)}:file)),{...options,changedFiles:['package.json']}));
  assert.throws(()=>validate(withShortcutReuse('handoff-kit-check','omitted-check-mirror-comparison.json',sourceFiles.filter(file=>file.path!=='bin/prompt-mirror-core.mjs'))));
  assert.throws(()=>validate(withShortcutReuse('handoff-kit-progress','omitted-progress-inventory-member-comparison.json',sourceFiles.filter(file=>file.path!=='bin/progress/open.mjs'))));
- const failedReview=writeReuse('failed-review.json',{candidateTarball:oldArtifact,cases:[{id:'historical-check-normal',scenario:'normal',status:'failed',outcome:'mismatched',raw:sourceRaw}]});
+ const failedReview=writeReuse('failed-review.json',{candidateTarball:oldArtifact,cases:[{id:'historical-check-normal',scenario:'normal',status:'failed',outcome:'mismatched',observableResult:sourceObservable}]});
  const failedReuse=structuredClone(mixed);failedReuse.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-check').cases.find(test=>test.scenario==='normal').reuse.sourceReview=failedReview;assert.throws(()=>validate(failedReuse));
- const unrunReview=writeReuse('unrun-review.json',{candidateTarball:oldArtifact,cases:[{id:'historical-check-normal',scenario:'normal',status:'unrun',raw:sourceRaw}]});
+ const unrunReview=writeReuse('unrun-review.json',{candidateTarball:oldArtifact,cases:[{id:'historical-check-normal',scenario:'normal',status:'unrun',observableResult:sourceObservable}]});
  const unrunReuse=structuredClone(mixed);unrunReuse.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-check').cases.find(test=>test.scenario==='normal').reuse.sourceReview=unrunReview;assert.throws(()=>validate(unrunReuse));
- const mismatchedReview=writeReuse('mismatched-review.json',{candidateTarball:{...oldArtifact,sha256:'f'.repeat(64)},cases:[{id:'historical-check-normal',scenario:'normal',status:'passed',outcome:'matched',raw:sourceRaw}]});
+ const mismatchedReview=writeReuse('mismatched-review.json',{candidateTarball:{...oldArtifact,sha256:'f'.repeat(64)},cases:[{id:'historical-check-normal',scenario:'normal',status:'passed',outcome:'matched',observableResult:sourceObservable}]});
  const mismatchedReuse=structuredClone(mixed);mismatchedReuse.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-check').cases.find(test=>test.scenario==='normal').reuse.sourceReview=mismatchedReview;assert.throws(()=>validate(mismatchedReuse));
- const crossedRawReview=writeReuse('crossed-raw-review.json',sourceReviewValue({...sourceRaw,context:writeReuse('other-context.json','different context bytes')}));
- const crossedRaw=structuredClone(mixed);crossedRaw.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-check').cases.find(test=>test.scenario==='normal').reuse.sourceReview=crossedRawReview;assert.throws(()=>validate(crossedRaw));
- const updateReuse=structuredClone(mixed);const updateCase=updateNormal(updateReuse);updateCase.execution.artifact=oldArtifact;updateCase.reuse={sourceReview,sourceCase:{id:'historical-check-normal',scenario:'normal'},comparison:writeReuse('update-comparison.json',reusable('handoff-kit-update',updateCase.id))};validate(updateReuse);
+ const crossedObservableReview=writeReuse('crossed-observable-review.json',sourceReviewValue('historical-check-normal',{...sourceObservable,result:writeReuse('other-result.txt','different result bytes')}));
+ const crossedObservable=structuredClone(mixed);crossedObservable.features[0].entry.hosts.codex.invocation.results.find(record=>record.entry==='handoff-kit-check').cases.find(test=>test.scenario==='normal').reuse.sourceReview=crossedObservableReview;assert.throws(()=>validate(crossedObservable));
+ const sourceUpdateObservable=structuredClone(updateNormal(data).observableResult);
+ const sourceUpdateReview=writeReuse('source-update-review.json',sourceReviewValue('historical-update-normal',sourceUpdateObservable));
+ const updateReuse=structuredClone(mixed);const updateCase=updateNormal(updateReuse);updateCase.executedArtifact=oldArtifact;updateCase.reuse={sourceReview:sourceUpdateReview,sourceCase:{id:'historical-update-normal',scenario:'normal'},comparison:writeReuse('update-comparison.json',reusable('handoff-kit-update',updateCase.id))};validate(updateReuse);
  // Even equally duplicated evidence must not validate against a broken catalog.
  const catalog=deliveredFeatureContracts.find(c=>c.id==='shortcuts').nativeInvocationEntries;
  const saved=[...catalog];
@@ -178,7 +187,7 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256})
   for(const h of Object.values(bad.features[0].entry.hosts)){h.menu.entries=[...catalog];h.invocation.entries=[...catalog];h.invocation.results[1]=structuredClone(h.invocation.results[0]);}
   assert.throws(()=>validate(bad));
  }finally{catalog.splice(0,catalog.length,...saved);}
- rmSync(reuseRoot,{recursive:true,force:true});
- console.log('ok: formal full selects only diff-affected native entries while every generated host catalog remains checked; selected entries require exact normal/boundary results and fresh-session prompt/context/trace references, and historical reuse still rejects stale/failed/unrun/mismatched source, crossed raw and changed behavior dependencies');
+ if(!fixtureRoot)rmSync(reuseRoot,{recursive:true,force:true});
+ console.log('ok: formal full selects only diff-affected observable shortcut results while every generated host catalog remains checked; selected entries require exact normal/boundary results with separately readable input/result evidence, while update also requires state/transaction evidence; historical reuse still rejects stale/failed/unrun/mismatched source, crossed observable result and changed behavior dependencies');
  return data;
 }

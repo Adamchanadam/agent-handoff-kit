@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
-import { NATIVE_UPDATE_METADATA_KEYS } from "./feature-delivery.mjs";
+import { NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, NATIVE_UPDATE_METADATA_KEYS, NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES } from "./feature-delivery.mjs";
 
 export const QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS = 120_000;
 
@@ -122,7 +122,7 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
       provenance: "published npm and GitHub artifacts, the generated official-origin catalog, plus a completed official-live native update captured after publication",
       stateAxes: Object.freeze(["published version", "registry artifact", "external surfaces", "official-origin catalog sync", "official-live native update"]),
       expected: Object.freeze({ positive: "version-bound external readback, matching official-origin catalog entry, and official-live native update are complete", negative: "missing, controlled, rejected, catalog-stale, or mismatched evidence blocks the command" }),
-      readback: "version, package identity, release URL, named external observations, matching catalog npm shasum/integrity and remote-tag commit, and raw native update execution/readback evidence",
+      readback: "version, package identity, release URL, named external observations, matching catalog npm shasum/integrity and remote-tag commit, and observable official-live update input/result/state/transaction evidence",
       evidenceOutput: "postpublish evidence JSON",
       failureMode: "blocked; no pre-publish success may be inferred",
       outOfScope: "does not replace pre-publish candidate validation"
@@ -233,7 +233,7 @@ export const PUBLIC_MIRROR_CONTRACT = Object.freeze({
 
 export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
   schemaVersion: 1,
-  featureDelivery: Object.freeze({ schemaVersion: 1, owner: "scripts/feature-delivery.mjs", sourceOwner: "bin/installed-file-contract.mjs", requiredStages: ["package", "freshInstall", "upgrade", "entry"], nativeMenusAndInvocationRequired: true, nativeUpdate: Object.freeze({ entry: "handoff-kit-update", prepublishRegistryMode: "controlled", prepublishRegistryConfig: "inherited-npm-config-registry-from-npx-invocation", postpublishRegistryMode: "official-live", metadataKeys: NATIVE_UPDATE_METADATA_KEYS }) }),
+  featureDelivery: Object.freeze({ schemaVersion: 1, owner: "scripts/feature-delivery.mjs", sourceOwner: "bin/installed-file-contract.mjs", requiredStages: ["package", "freshInstall", "upgrade", "entry"], nativeMenusAndObservableResultsRequired: true, observableResult: Object.freeze({ kind: "observable-result", evidenceRoles: NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, telemetryBoundary: "Host auto-discovery and shortcut-body dispatch remain unverified when platform telemetry is unavailable." }), nativeUpdate: Object.freeze({ entry: "handoff-kit-update", prepublishRegistryMode: "controlled", prepublishRegistryConfig: "inherited-npm-config-registry-from-npx-invocation", postpublishRegistryMode: "official-live", metadataKeys: NATIVE_UPDATE_METADATA_KEYS, observableEvidenceRoles: NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES }) }),
   fullAcceptanceReceipt: Object.freeze({ schemaVersion: 1, kind: "accepted-candidate-receipt" }),
   manualVerdictKeys: Object.freeze([
     "governanceHealth",
