@@ -154,6 +154,13 @@ function assertReceiptBinds(receipt, candidate, bundleSha256, subjectDigest) {
   assert(semanticEqual(receipt.fiveConclusions, candidate.manualVerdicts), "review receipt conclusions do not bind the candidate");
   assert(semanticEqual(receipt.releaseBlockers, candidate.releaseBlockers), "review receipt release-blocker record does not bind the candidate");
   assert(semanticEqual(receipt.acceptanceScope, candidate.featureDelivery?.acceptanceScope) && receipt.acceptanceScopeDigest === candidate.featureDelivery?.acceptanceScopeDigest, "review receipt acceptance scope does not bind the candidate");
+  if (Object.hasOwn(candidate, "machineResults")) {
+    const machineResultsDigest = digest(Buffer.from(JSON.stringify(candidate.machineResults)));
+    assert(candidate.machineResultsDigest === machineResultsDigest, "candidate machine-results digest does not bind its machine results");
+    assert(receipt.machineResultsDigest === machineResultsDigest, "review receipt machine-results digest does not bind the candidate");
+  } else {
+    assert(!Object.hasOwn(receipt, "machineResultsDigest"), "review receipt cannot carry machine-results digest for a complete candidate");
+  }
   requiredText(receipt.receivedAt, "review receipt receivedAt");
 }
 
