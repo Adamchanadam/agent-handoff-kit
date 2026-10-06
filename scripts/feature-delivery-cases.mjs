@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {
  FEATURE_DELIVERY_ACCEPTANCE_SCOPE,FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST,
  NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES,NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES,
- REQUIRED_OBSERVABLE_OPERATIONS,affectedDeliveryFeatures,observableOperationReviewSubjectDigest,
+ affectedDeliveryFeatures,observableOperationReviewSubjectDigest,selectedObservableOperations,
  validateFeatureDelivery
 } from './feature-delivery.mjs';
 import {commands} from '../bin/commands.mjs';
@@ -22,7 +22,9 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256,f
  const observed={status:'passed',observation:'Observed through the named deterministic route',evidence:[ref]};
  const stage={...observed,tarballSha256:sha};
  const baselineArtifact=write('baseline.tgz','published baseline bytes');
+ const changedFiles=['bin/commands.mjs'];
  const entries=commands.map(command=>command.name);
+ const selectedOperations=selectedObservableOperations(changedFiles);
  const resultEvidence=(name,roles=NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES)=>Object.fromEntries(roles.map(role=>[role,write(`${name}-${role}.txt`,`${name}/${role}`)]));
  const operationCase=(operation,requiredCase)=>{
   const {id,scenario,outcome}=requiredCase;
@@ -41,7 +43,7 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256,f
   test.independentReview={verdict:'accepted',reviewer:{role:'independent-readonly-reviewer',provenanceId:`reviewer-${operation.id}-${id}`},subjectDigest:observableOperationReviewSubjectDigest(test),evidence:[ref]};
   return test;
  };
- const operations=REQUIRED_OBSERVABLE_OPERATIONS.map(operation=>({
+ const operations=selectedOperations.map(operation=>({
   id:operation.id,entry:operation.entry,status:'passed',kind:'observable-deterministic-operation',tarballSha256:sha,evidence:[ref],
   cases:operation.cases.map(requiredCase=>operationCase(operation,requiredCase))
  }));
@@ -54,18 +56,38 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256,f
  const data={
   schemaVersion:1,acceptanceScope:FEATURE_DELIVERY_ACCEPTANCE_SCOPE,acceptanceScopeDigest:FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST,
   tarballSha256:sha,baseCommit:base,baseVersion,baselineArtifact,
+  selectedOperations,
+  observableOperations:operations,
   features:[
    {id:'installer',...installerStages},
-   {id:'shortcuts',package:stage,freshInstall:{...stage,command:'init'},upgrade:{...stage,command:'upgrade',baselineVersion:baseVersion,baselineTarballSha256:baselineArtifact.sha256},entry:{...stage,entry:'generated static contract plus deterministic operations',generatedStatic,classifications,observableOperations:operations}}
+   {id:'shortcuts',package:stage,freshInstall:{...stage,command:'init'},upgrade:{...stage,command:'upgrade',baselineVersion:baseVersion,baselineTarballSha256:baselineArtifact.sha256},entry:{...stage,entry:'generated static contract plus deterministic operations',generatedStatic,classifications}}
   ]
  };
- const options={root,changedFiles:['bin/commands.mjs'],tarballSha256:sha,baseCommit:base,candidateVersion};
+ const options={root,changedFiles,tarballSha256:sha,baseCommit:base,candidateVersion};
  const validate=value=>validateFeatureDelivery(value,options);
  validate(data);
 
  assert.deepEqual(selectDeliveryEvidence(['bin/commands.mjs']).nativeEntries,entries);
  assert.deepEqual(selectDeliveryEvidence(['README.md']).nativeEntries,[]);
  assert.throws(()=>affectedDeliveryFeatures(['bin/unmapped-formal-feature.mjs']));
+ const operationIds=files=>selectedObservableOperations(files).map(operation=>operation.id);
+ const caseCount=files=>selectedObservableOperations(files).flatMap(operation=>operation.cases).length;
+ // Bounded dry-run selection matrix.  It deliberately exercises only the
+ // selector and fixture validator; no native capture is started here.
+ assert.deepEqual(operationIds(['packs/writing.md']),['package','fresh-install','upgrade']);
+ assert.equal(caseCount(['packs/writing.md']),3,'pack writing keeps only lifecycle cases');
+ assert.deepEqual(operationIds(['packs/closeout.md']),['package','fresh-install','upgrade','close-status']);
+ assert.equal(caseCount(['packs/closeout.md']),6,'pack closeout selects close-status plus lifecycle');
+ assert.deepEqual(operationIds(['bin/handoff-read.mjs']),['package','fresh-install','upgrade','handoff-read']);
+ assert.equal(caseCount(['bin/handoff-read.mjs']),7,'bin entry selects its deterministic operation plus lifecycle');
+ assert.equal(caseCount(['runtime-core/AGENTS.core.md']),21,'shared core selects every deterministic entry operation');
+ assert.deepEqual(operationIds(['package.json']),['package','fresh-install','upgrade']);
+ assert.deepEqual(operationIds(['bin/progress/launch.mjs']),['package','fresh-install','upgrade','progress-launcher']);
+ assert.equal(caseCount(['bin/progress/launch.mjs']),5,'progress-only selects its deterministic launcher cases plus lifecycle');
+ assert.throws(()=>selectedObservableOperations(['bin/unknown-shipped-runtime.mjs']));
+ // The full release delta is the authority.  A child-only/package-only
+ // interpretation cannot relabel the complete selected operation envelope.
+ assert.throws(()=>validateFeatureDelivery(data,{...options,changedFiles:['package.json']}),'child delta cannot replace release delta selection');
  for(const entry of entries){
   const missing=structuredClone(data);missing.features[1].entry.classifications=missing.features[1].entry.classifications.filter(item=>item.entry!==entry);assert.throws(()=>validate(missing));
  }
@@ -75,14 +97,15 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256,f
   value=>value.features[1].entry.generatedStatic.hosts.codex.entries=entries.slice(1),
   value=>value.features[1].entry.classifications.push(structuredClone(value.features[1].entry.classifications[0])),
   value=>value.features[1].entry.classifications[0].agentSemantics='passed',
-  value=>value.features[1].entry.observableOperations=value.features[1].entry.observableOperations.filter(operation=>operation.id!=='controlled-update'),
-  value=>value.features[1].entry.observableOperations.find(operation=>operation.id==='doctor').status='unverified',
+  value=>value.observableOperations=value.observableOperations.filter(operation=>operation.id!=='controlled-update'),
+  value=>value.observableOperations.find(operation=>operation.id==='doctor').status='unverified',
+  value=>value.selectedOperations=value.selectedOperations.filter(operation=>operation.id!=='controlled-update'),
   value=>value.acceptanceScope.unverifiedAgentSemantics=[],
   value=>value.acceptanceScopeDigest='0'.repeat(64)
  ]){const bad=structuredClone(data);mutate(bad);assert.throws(()=>validate(bad));}
 
  const rebindReview=test=>{test.independentReview.subjectDigest=observableOperationReviewSubjectDigest(test);};
- const update=value=>value.features[1].entry.observableOperations.find(operation=>operation.id==='controlled-update');
+ const update=value=>value.observableOperations.find(operation=>operation.id==='controlled-update');
  const updateNormal=value=>update(value).cases.find(test=>test.id==='normal');
  for(const mutate of [
   value=>{const test=updateNormal(value);test.execution={transport:'node',command:'node bin/agent-handoff-kit.mjs update',registryInheritance:'project-npmrc'};rebindReview(test);},
@@ -93,7 +116,7 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256,f
   value=>{const test=updateNormal(value);test.tarballSha256='f'.repeat(64);rebindReview(test);}
  ]){const bad=structuredClone(data);mutate(bad);assert.throws(()=>validate(bad));}
 
- const first=value=>value.features[1].entry.observableOperations.find(operation=>operation.id==='doctor').cases[0];
+ const first=value=>value.observableOperations.find(operation=>operation.id==='doctor').cases[0];
  for(const mutate of [
   value=>{const test=first(value);test.independentReview.reviewer.provenanceId=test.writerProvenance.provenanceId;rebindReview(test);},
   value=>{const test=first(value);test.scenario='boundary';rebindReview(test);},
@@ -102,7 +125,7 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256,f
 
  // Lifecycle stages have no reusable entry dependency contract. A supplied
  // reuse or executed artifact must fail rather than be silently ignored.
- const freshInstall=value=>value.features[1].entry.observableOperations.find(operation=>operation.id==='fresh-install').cases[0];
+ const freshInstall=value=>value.observableOperations.find(operation=>operation.id==='fresh-install').cases[0];
  for(const mutate of [
   value=>{const test=freshInstall(value);test.reuse={};rebindReview(test);},
   value=>{const test=freshInstall(value);test.executedArtifact=baselineArtifact;rebindReview(test);}
@@ -110,14 +133,14 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256,f
 
  // A bounded handoff continuation and close mirror readback are real matched
  // observations; refusal or broken-state boundaries remain expected stops.
- const operationCaseById=(value,operationId,caseId)=>value.features[1].entry.observableOperations.find(operation=>operation.id===operationId).cases.find(test=>test.id===caseId);
+ const operationCaseById=(value,operationId,caseId)=>value.observableOperations.find(operation=>operation.id===operationId).cases.find(test=>test.id===caseId);
  for(const mutate of [
   value=>{const test=operationCaseById(value,'handoff-read','truncation');test.outcome='expected-stop';rebindReview(test);},
   value=>{const test=operationCaseById(value,'close-status','mirror-readback');test.outcome='expected-stop';rebindReview(test);},
   value=>{const test=operationCaseById(value,'handoff-read','hash');test.outcome='matched';rebindReview(test);},
   value=>{const test=operationCaseById(value,'doctor','broken');test.outcome='matched';rebindReview(test);}
  ]){const bad=structuredClone(data);mutate(bad);assert.throws(()=>validate(bad));}
- for(const requiredOperation of REQUIRED_OBSERVABLE_OPERATIONS)for(const requiredCase of requiredOperation.cases){
+ for(const requiredOperation of selectedOperations)for(const requiredCase of requiredOperation.cases){
   const bad=structuredClone(data);const test=operationCaseById(bad,requiredOperation.id,requiredCase.id);
   test.outcome=requiredCase.outcome==='matched'?'expected-stop':'matched';rebindReview(test);assert.throws(()=>validate(bad));
  }

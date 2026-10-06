@@ -7,6 +7,12 @@ import {deliveredFeatureContracts,dependencyRootMatches,selectDeliveryEvidence,s
 import {runChecked} from './qa-runner-core.mjs';
 export const DELIVERY_STAGES=Object.freeze(['package','freshInstall','upgrade','entry']);
 const hash=x=>createHash('sha256').update(x).digest('hex');
+const semanticEqual=(left,right)=>{
+ if(left===right)return true;
+ if(!left||!right||typeof left!=='object'||typeof right!=='object')return false;
+ if(Array.isArray(left)||Array.isArray(right))return Array.isArray(left)&&Array.isArray(right)&&left.length===right.length&&left.every((item,index)=>semanticEqual(item,right[index]));
+ const keys=Object.keys(left);return keys.length===Object.keys(right).length&&keys.every(key=>Object.hasOwn(right,key)&&semanticEqual(left[key],right[key]));
+};
 // Formal full has three deliberately separate evidence categories. Generated
 // files prove the exact static catalogue, deterministic CLI operations prove
 // only their recorded I/O, and no record can promote unavailable agent/host
@@ -43,6 +49,34 @@ export const REQUIRED_OBSERVABLE_OPERATIONS=Object.freeze([
   deterministicOperationCase('tarball-boundary','boundary','expected-stop'),deterministicOperationCase('registry-boundary','boundary','expected-stop')
  ])})
 ]);
+// This catalog is deliberately broader than a particular candidate.  The
+// selector below is the only route from a release delta to the operation and
+// case matrix used by capture, assembly, review, and validation.
+export function selectedObservableOperations(changedFiles){
+ const selectedEntries=new Set(selectDeliveryEvidence(changedFiles).nativeEntries);
+ return Object.freeze(REQUIRED_OBSERVABLE_OPERATIONS.filter(operation=>operation.entry===null||selectedEntries.has(operation.entry)));
+}
+export function observableOperationCaseManifest(operations){
+ assert(Array.isArray(operations)&&operations.length,'selected observable operations are required');
+ const cases=operations.flatMap(operation=>operation.cases.map(item=>{
+  const source={operation:operation.id,entry:operation.entry,id:item.id,scenario:item.scenario,outcome:item.outcome};
+  return {...source,caseKey:caseKeyFor(operation,item),definitionDigest:hash(JSON.stringify(source))};
+ }));
+ const keys=new Set(cases.map(item=>item.caseKey));
+ assert(keys.size===cases.length&&cases.length,'selected observable operation cases must be unique');
+ return cases;
+}
+export function observableOperationSourceOwnerDigest(operations){
+ return hash(JSON.stringify(operations));
+}
+export function selectedOperationsForFeatureDelivery(delivery){
+ const operations=delivery?.selectedOperations;
+ assert(Array.isArray(operations)&&operations.length,'feature delivery selectedOperations are required');
+ return operations;
+}
+export function observableOperationCaseManifestForFeatureDelivery(delivery){
+ return observableOperationCaseManifest(selectedOperationsForFeatureDelivery(delivery));
+}
 export const NATIVE_UPDATE_METADATA_KEYS=Object.freeze(['cliVersion','fromVersion','registryMode','registryVersion','toVersion']);
 export const NATIVE_INVOCATION_CASE_SCENARIOS=Object.freeze(['normal','boundary']);
 export const NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES=Object.freeze(['input','result']);
@@ -149,6 +183,97 @@ export function observableOperationReviewSubjectDigest(operation){
  const subject=structuredClone(operation);delete subject.independentReview;
  return hash(JSON.stringify(subject));
 }
+const caseKeyFor=(operation,item)=>`${operation.id}:${operation.entry??'lifecycle'}:${item.id}:${item.scenario}`;
+function assertReference(ref,label){
+ assert(typeof ref?.path==='string'&&ref.path&&/^[a-f0-9]{64}$/.test(ref.sha256),`${label}: invalid evidence reference`);
+}
+function readBoundJson(ref,label,{root}){
+ assertReference(ref,label);validateEvidenceReferences({evidence:[ref]},label,{root});
+ try{return JSON.parse(fs.readFileSync(path.resolve(root,ref.path),'utf8'));}
+ catch(error){throw Error(`${label}: invalid JSON evidence: ${error.message}`);}
+}
+export function readIndependentOperationReviewBindingSources(binding,{root}){
+ assert(binding&&typeof binding==='object'&&!Array.isArray(binding),'operation review binding required');
+ return {
+  input:readBoundJson(binding.candidateInput,'case candidate input',{root}),
+  reviewBundle:readBoundJson(binding.reviewBundle,'case review bundle',{root}),
+  manifest:readBoundJson(binding.caseManifest,'case manifest source',{root}),
+  decisions:readBoundJson(binding.source,'case decision source',{root}),
+  operationReview:readBoundJson(binding.operationReview,'operation review source',{root})
+ };
+}
+function observableCases(delivery){
+ const requiredOperations=selectedOperationsForFeatureDelivery(delivery);
+ assert(Array.isArray(delivery?.observableOperations),'feature delivery observable operations required');
+ return delivery.observableOperations.flatMap(operation=>{
+  const required=requiredOperations.find(item=>item.id===operation.id&&item.entry===operation.entry);
+  assert(required,`unexpected observable operation: ${operation.id}`);
+  return operation.cases.map(item=>({operation,required,item,caseKey:caseKeyFor(operation,item)}));
+ });
+}
+function exactObjectKeys(value,keys,label){assert(value&&typeof value==='object'&&!Array.isArray(value)&&semanticEqual(Object.keys(value).sort(),keys.sort()),`${label}: unsupported schema`);}
+function sameCandidate(left,right){return semanticEqual(left,right);}
+function sameCandidateIdentity(left,right){return left?.version===right?.version&&left?.commit===right?.commit&&left?.tarballSha256===right?.tarballSha256;}
+function validatedOperationReviewBinding(candidate,binding,sources,{requireIndividualReview}){
+ assert(binding?.kind==='candidate-case-decision-binding'&&binding.schemaVersion===1,'operation review binding schema is invalid');
+ const selectedOperations=selectedOperationsForFeatureDelivery(candidate.featureDelivery);
+ assert(binding.sourceOwner==='scripts/feature-delivery.mjs'&&binding.sourceOwnerDigest===observableOperationSourceOwnerDigest(selectedOperations),'operation review binding source owner drifted');
+ assert(binding.acceptanceScopeDigest===FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST,'operation review binding scope drifted');
+ for(const field of ['candidateInput','reviewBundle','caseManifest','source','operationReview'])assertReference(binding[field],`operation review binding ${field}`);
+ const expected=observableOperationCaseManifest(selectedOperations);
+ assert(semanticEqual(binding.cases,expected),'operation review binding does not cover the exact case matrix');
+ const {input,reviewBundle,manifest,decisions,operationReview}=sources;
+ assert(input?.kind==='candidate-assurance'&&input.schemaVersion===1&&sameCandidate(input.candidate,candidate.candidate),'operation review binding candidate input drifted');
+ assert(!input.reviewReceipt&&!input.reviewReceiptSource,'operation review binding cannot replay an accepted candidate');
+ assert(semanticEqual(input.roleIsolation?.reviewBundle,binding.reviewBundle),'operation review binding candidate/bundle reference drifted');
+ assert(reviewBundle?.kind==='role-isolation-review-bundle'&&reviewBundle.schemaVersion===1&&reviewBundle.state==='WAITING_INDEPENDENT_REVIEW','operation review binding waiting bundle is invalid');
+ assert(sameCandidateIdentity(reviewBundle.candidate,candidate.candidate),'operation review binding bundle candidate drifted');
+ exactObjectKeys(manifest,['acceptanceScopeDigest','candidateInputSha256','cases','kind','schemaVersion','selectedOperations','sourceOwner','sourceOwnerDigest'],'operation review case manifest');
+ assert(manifest.kind==='candidate-case-manifest'&&manifest.schemaVersion===1&&manifest.sourceOwner==='scripts/feature-delivery.mjs'&&manifest.sourceOwnerDigest===binding.sourceOwnerDigest&&manifest.acceptanceScopeDigest===binding.acceptanceScopeDigest,'operation review case manifest identity drifted');
+ assert(/^[a-f0-9]{64}$/.test(manifest.candidateInputSha256)&&semanticEqual(manifest.selectedOperations,selectedOperations)&&semanticEqual(manifest.cases,expected),'operation review case manifest is stale or incomplete');
+ exactObjectKeys(decisions,['acceptanceScopeDigest','candidateSha256','decisions','kind','schemaVersion','sourceOwner','sourceOwnerDigest'],'operation review decisions');
+ assert(decisions.kind==='candidate-case-decisions'&&decisions.schemaVersion===1&&decisions.candidateSha256===binding.candidateInput.sha256&&decisions.sourceOwner===binding.sourceOwner&&decisions.sourceOwnerDigest===binding.sourceOwnerDigest&&decisions.acceptanceScopeDigest===binding.acceptanceScopeDigest,'operation review decisions identity drifted');
+ assert(semanticEqual(binding.sourceManifest,decisions),'operation review binding decision source drifted');
+ assert(operationReview?.kind==='independent-observable-operation-review'&&operationReview.schemaVersion===1&&operationReview.verdict==='accepted','operation review verdict is not accepted');
+ assert(sameCandidate(operationReview.candidate,candidate.candidate)&&operationReview.candidateSha256===binding.candidateInput.sha256&&operationReview.reviewBundleSha256===binding.reviewBundle.sha256&&operationReview.caseManifestSha256===binding.caseManifest.sha256&&operationReview.acceptanceScopeDigest===binding.acceptanceScopeDigest,'operation review identity is stale or cross-candidate');
+ assert(operationReview.accepted===expected.length&&operationReview.rejected===0&&Array.isArray(operationReview.cases),'operation review acceptance count is invalid');
+ assert(operationReview.reviewer?.role==='independent-readonly-reviewer'&&typeof operationReview.reviewer.provenanceId==='string'&&operationReview.reviewer.provenanceId,'operation review reviewer is invalid');
+ assert(typeof operationReview.receivedAt==='string'&&operationReview.receivedAt,'operation review receivedAt is required');
+ const transition=binding.transitionWriter;
+ assert(transition?.role==='workspace-writer'&&typeof transition.provenanceId==='string'&&transition.provenanceId,'operation review transition writer is invalid');
+ const reviewerId=operationReview.reviewer.provenanceId;
+ assert(reviewerId!==candidate.writerProvenance?.provenanceId&&reviewerId!==transition.provenanceId,'operation review reviewer is not role-isolated');
+ const decisionByKey=new Map(),reviewByKey=new Map();
+ for(const decision of decisions.decisions??[]){assert(!decisionByKey.has(decision?.caseKey),'operation review decisions duplicate a case');decisionByKey.set(decision?.caseKey,decision);}
+ for(const review of operationReview.cases){assert(!reviewByKey.has(review?.caseKey),'operation review duplicates a case');reviewByKey.set(review?.caseKey,review);}
+ assert(decisionByKey.size===expected.length&&reviewByKey.size===expected.length,'operation review case set is incomplete');
+ for(const record of observableCases(candidate.featureDelivery)){
+  const definition=expected.find(item=>item.caseKey===record.caseKey);const decision=decisionByKey.get(record.caseKey);const review=reviewByKey.get(record.caseKey);
+  assert(definition&&decision&&review,'operation review omits a current observable case');
+  assert(decision.verdict==='accepted'&&decision.outcome===definition.outcome&&decision.definitionDigest===definition.definitionDigest,'operation review decision does not bind the required case');
+  assert(decision.evidenceDigest===review.subjectDigest&&review.verdict==='accepted','operation review decision digest does not bind the review case');
+  assert(review.operation===definition.operation&&review.id===definition.id&&review.scenario===definition.scenario&&review.outcome===definition.outcome,'operation review case shape drifted');
+  assert(semanticEqual(decision.reviewer,operationReview.reviewer)&&decision.receivedAt===operationReview.receivedAt,'operation review reviewer or time drifted');
+  assert(semanticEqual(decision.caseWriter,record.item.writerProvenance),'operation review case writer drifted');
+  assert(reviewerId!==record.item.writerProvenance?.provenanceId,'operation review case reviewer cannot self-review');
+  assert(review.subjectDigest===observableOperationReviewSubjectDigest(record.item),'operation review subject digest does not bind the actual operation');
+  assert(semanticEqual(review.evidence,record.item.evidence),'operation review raw evidence does not match the actual operation');
+  if(requireIndividualReview)assert(semanticEqual(record.item.independentReview,{verdict:'accepted',reviewer:operationReview.reviewer,subjectDigest:review.subjectDigest,evidence:[{path:binding.operationReview.path,sha256:binding.operationReview.sha256}]}),'operation review was not incorporated into the individual operation');
+ }
+ return {reviewer:operationReview.reviewer,operationReview};
+}
+export function bindIndependentOperationReviews(delivery,binding){
+ const reviewer=binding.operationReview.source.reviewer;
+ const byKey=new Map(binding.operationReview.source.cases.map(item=>[item.caseKey,item]));
+ for(const record of observableCases(delivery)){
+  const review=byKey.get(record.caseKey);assert(review,'operation review omits a current observable case');
+  record.item.independentReview={verdict:'accepted',reviewer,subjectDigest:review.subjectDigest,evidence:[{path:binding.operationReview.path,sha256:binding.operationReview.sha256}]};
+ }
+}
+export function validateIndependentOperationReviewBinding(candidate,binding,sources=null){
+ const resolved=sources??readIndependentOperationReviewBindingSources(binding,{root:process.cwd()});
+ return validatedOperationReviewBinding(candidate,binding,resolved,{requireIndividualReview:true});
+}
 function validateObservableOperationReview(operation,label,{root}){
  const review=operation.independentReview;
  assert(review&&typeof review==='object'&&!Array.isArray(review),`${label}: independently reviewed observable operation required`);
@@ -201,7 +326,7 @@ function validateObservableOperation(operation,required,{root,tarballSha256,base
   }
  }
 }
-function validateShortcutEntry(item,contract,selected,{root,tarballSha256,baseVersion,candidateVersion}){
+function validateShortcutEntry(item,contract,selected,{root}){
  const label='shortcuts/entry';
  assert(item.generatedStatic&&typeof item.generatedStatic==='object'&&!Array.isArray(item.generatedStatic),`${label}: generated static contract required`);
  const staticContract=item.generatedStatic;
@@ -220,18 +345,20 @@ function validateShortcutEntry(item,contract,selected,{root,tarballSha256,baseVe
  }
  assert(Array.isArray(item.classifications),`${label}: entry classifications required`);
  assert.deepEqual(item.classifications.map(record=>record?.entry).sort(),[...selected.nativeEntries].sort(),`${label}: classifications must cover each selected entry exactly once`);
- const deterministicEntries=new Set(REQUIRED_OBSERVABLE_OPERATIONS.map(operation=>operation.entry));
  for(const classification of item.classifications){
   assert.deepEqual(Object.keys(classification).sort(),['agentSemantics','entry','hostAutoDiscovery','shortcutDispatch','structuralCoverage'],`${label}/${classification.entry}: unsupported classification fields`);
   assert.equal(classification.structuralCoverage,'passed',`${label}/${classification.entry}: selected structural coverage is not passed`);
   assert.equal(classification.agentSemantics,'unverified',`${label}/${classification.entry}: agent semantics must remain unverified without independent output`);
   assert.equal(classification.hostAutoDiscovery,'unverified',`${label}/${classification.entry}: host auto-discovery must remain unverified`);
   assert.equal(classification.shortcutDispatch,'unverified',`${label}/${classification.entry}: shortcut dispatch must remain unverified`);
-  assert(deterministicEntries.has(classification.entry)||classification.entry==='handoff-kit-align'||classification.entry==='handoff-kit-onboard'||classification.entry==='handoff-kit-remember'||classification.entry==='handoff-kit-help',`${label}: unknown classified entry`);
+  assert(contract.nativeInvocationEntries.includes(classification.entry),`${label}: unknown classified entry`);
  }
- assert(Array.isArray(item.observableOperations),`${label}: deterministic operations required`);
- assert.deepEqual(item.observableOperations.map(operation=>operation?.id).sort(),REQUIRED_OBSERVABLE_OPERATIONS.map(operation=>operation.id).sort(),`${label}: mandatory deterministic operations cannot be omitted or replaced by agent claims`);
- for(const required of REQUIRED_OBSERVABLE_OPERATIONS)validateObservableOperation(item.observableOperations.find(operation=>operation.id===required.id),required,{root,tarballSha256,baseVersion,candidateVersion});
+}
+function validateObservableOperations(delivery,operations,{root,tarballSha256,baseVersion,candidateVersion}){
+ assert(semanticEqual(delivery.selectedOperations,operations),'feature delivery selected operations drifted from the candidate delta');
+ assert(Array.isArray(delivery.observableOperations),'feature delivery deterministic operations required');
+ assert.deepEqual(delivery.observableOperations.map(operation=>operation?.id).sort(),operations.map(operation=>operation.id).sort(),'selected deterministic operations are missing, duplicated or stale');
+ for(const required of operations)validateObservableOperation(delivery.observableOperations.find(operation=>operation.id===required.id),required,{root,tarballSha256,baseVersion,candidateVersion});
 }
 // Both full and postpublish use this exact structural check. It binds observable
 // results, not unavailable platform telemetry about host discovery or dispatch.
@@ -311,8 +438,9 @@ export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,bas
    assert.equal(createHash('sha1').update(bytes).digest('hex'),baselineNpm.shasum,'Baseline npm shasum mismatch');
   }
  }
- const selected=selectDeliveryEvidence(changedFiles),expected=selected.featureIds;
+ const selected=selectDeliveryEvidence(changedFiles),expected=selected.featureIds,operations=selectedObservableOperations(changedFiles);
  assert.deepEqual(delivery.features.map(x=>x.id).sort(),expected,'Affected feature evidence missing, duplicated or stale');
+ validateObservableOperations(delivery,operations,{root,tarballSha256,baseVersion:delivery.baseVersion,candidateVersion});
  const references=(item,label)=>validateEvidenceReferences(item,label,{root});
  function passed(item,label){
   assert.equal(item?.status,'passed',`${label}: delivery is not passed`);
@@ -339,7 +467,7 @@ export function validateFeatureDelivery(delivery,{changedFiles,tarballSha256,bas
    }
    if(stage==='entry'){
     assert(typeof item.entry==='string'&&item.entry.trim(),`${label}: use entry required`);
-    if(contract.hosts)validateShortcutEntry(item,contract,selected,{root,tarballSha256,baseVersion:delivery.baseVersion,candidateVersion});
+    if(contract.hosts)validateShortcutEntry(item,contract,selected,{root});
    }
   }
  }

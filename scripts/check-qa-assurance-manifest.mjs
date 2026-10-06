@@ -25,8 +25,8 @@ import {
 } from "./qa-assurance-manifest.mjs";
 import { assertRunFailed, invokeAsync, runSync, runSyncChecked, TIMEOUT_EXIT_CODE } from "./qa-runner-core.mjs";
 import { checkFeatureDeliveryEvidence } from "./feature-delivery-cases.mjs";
-import { NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, NATIVE_UPDATE_METADATA_KEYS, NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES, nativeUpdateReviewSubjectDigest } from "./feature-delivery.mjs";
-import { readRemoteTagCommit, runClaim, captureCandidateIdentity, verifyCandidateIdentity, finalizeCandidateAcceptance, assertPublishedCandidate, semanticEqual, resolveAcceptanceReceiptPath, validateReviewBundle } from "./qa.mjs";
+import { NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, NATIVE_UPDATE_METADATA_KEYS, NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES, nativeUpdateReviewSubjectDigest, observableOperationCaseManifestForFeatureDelivery, observableOperationReviewSubjectDigest, observableOperationSourceOwnerDigest, selectedOperationsForFeatureDelivery } from "./feature-delivery.mjs";
+import { readRemoteTagCommit, runClaim, captureCandidateIdentity, verifyCandidateIdentity, finalizeCandidateAcceptance, assertPublishedCandidate, mandatoryCrossMindBlockersFromReport, semanticEqual, resolveAcceptanceReceiptPath, validateCandidateReleaseBlockers, validateMandatoryCrossMindBlockers, validateReviewBundle } from "./qa.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), "ack-qa-assurance-"));
@@ -320,7 +320,8 @@ function validateCandidateEvidenceContract() {
     "REVIEW_BUNDLE_READY",
     "WAITING_INDEPENDENT_REVIEW"
   ]), "review subject path drifted");
-  for (const binding of ["candidate.commit", "candidate.tarballSha256", "manifestDigest", "releaseReadinessInventoryDigest", "reviewBundle.sha256", "reviewSubjectDigest", "featureDelivery.acceptanceScopeDigest", "manualVerdicts", "machineResultsDigest"]) {
+  assert(CANDIDATE_EVIDENCE_CONTRACT.releaseBlockers.kind === "candidate-release-blockers" && CANDIDATE_EVIDENCE_CONTRACT.releaseBlockers.fullState === "clear", "candidate release-blocker contract drifted");
+  for (const binding of ["candidate.commit", "candidate.tarballSha256", "manifestDigest", "releaseReadinessInventoryDigest", "reviewBundle.sha256", "reviewSubjectDigest", "featureDelivery.acceptanceScopeDigest", "releaseBlockers", "manualVerdicts", "machineResultsDigest"]) {
     assert(roleIsolation.reviewReceiptBindings.includes(binding), `review receipt binding missing: ${binding}`);
   }
   const releaseReadiness = CANDIDATE_EVIDENCE_CONTRACT.records["release-readiness"];
@@ -572,6 +573,27 @@ function validateEvidenceContracts() {
   const releaseQaPath = "docs/qa/release-grade-qa.md";
   const releaseQaSha256 = sha256(readFileSync(path.join(root, releaseQaPath)));
   const candidateTarballSha256 = "a".repeat(64);
+  const releaseBlockers = { schemaVersion: 1, kind: "candidate-release-blockers", candidate: { version, commit: head, tarballSha256: candidateTarballSha256 }, state: "clear", items: [] };
+  validateCandidateReleaseBlockers(releaseBlockers, releaseBlockers.candidate, { requireClear: true });
+  let rejected = false;
+  try { validateCandidateReleaseBlockers({ ...releaseBlockers, state: "clear", items: [{ id: "forged", reason: "forged", evidence: [{ path: "forged.json", sha256: "0".repeat(64) }] }] }, releaseBlockers.candidate, { requireClear: true }); } catch { rejected = true; }
+  assert(rejected, "clear record must reject forged items");
+  rejected = false;
+  try { validateCandidateReleaseBlockers({ ...releaseBlockers, candidate: { ...releaseBlockers.candidate, commit: "0".repeat(40) } }, releaseBlockers.candidate, { requireClear: true }); } catch { rejected = true; }
+  assert(rejected, "release-blocker record must bind the candidate identity");
+  const blockedTable = [
+    "### Cross-mind evidence 9-trigger table（v9.8.7）",
+    "| 1. failure / blocker | yes | blocked | Direct counterexample remains unresolved. |",
+    ...Array.from({ length: 8 }, (_, index) => `| ${index + 2}. trigger ${index + 2} | yes | passed | Covered. |`)
+  ].join("\n");
+  const mandatory = mandatoryCrossMindBlockersFromReport(blockedTable, "9.8.7");
+  assert(semanticEqual(mandatory, [{ id: "cross-mind-1", reason: "Direct counterexample remains unresolved." }]), "mandatory Cross-mind finding extraction drifted");
+  let crossMindMismatch;
+  try { validateMandatoryCrossMindBlockers(releaseBlockers, "9.8.7", blockedTable); } catch (error) { crossMindMismatch = error; }
+  assert(crossMindMismatch?.message.includes("must flow into candidate release-blocker record"), "mandatory Cross-mind blocked finding must reject a clear record");
+  const blockedRecord = { ...releaseBlockers, state: "blocked", items: [{ id: mandatory[0].id, reason: mandatory[0].reason, evidence: [{ path: "review.json", sha256: "e".repeat(64) }] }] };
+  validateCandidateReleaseBlockers(blockedRecord, blockedRecord.candidate);
+  validateMandatoryCrossMindBlockers(blockedRecord, "9.8.7", blockedTable);
   const reviewBundle = path.join(fixtureRoot, "review-bundle.json");
   const manualVerdicts = {
     governanceHealth: "passed",
@@ -601,6 +623,7 @@ function validateEvidenceContracts() {
     releaseQa: { path: releaseQaPath, sha256: releaseQaSha256 },
     evidenceRecords,
     manualVerdicts,
+    releaseBlockers,
     stateHistory: reviewSubjectStateHistory
   };
   const reviewSubjectDigest = sha256(JSON.stringify(reviewSubject));
@@ -613,6 +636,7 @@ function validateEvidenceContracts() {
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
     fiveConclusions: manualVerdicts,
+    releaseBlockers,
     reviewSubjectDigest,
     reviewSubject
   });
@@ -700,6 +724,7 @@ function validateEvidenceContracts() {
     reviewBundleSha256,
     reviewSubjectDigest,
     fiveConclusions: manualVerdicts,
+    releaseBlockers,
     acceptanceScope: featureDelivery.acceptanceScope,
     acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest,
     receivedAt: "2026-07-20T00:00:00.000Z"
@@ -715,6 +740,7 @@ function validateEvidenceContracts() {
     candidate: { version, packageJsonVersion: version, commit: head, cleanWorktree: true, tarballSha256: candidateTarballSha256 },
     writerProvenance: { role: "workspace-writer", provenanceId: "self-test-writer-thread" },
     manualVerdicts,
+    releaseBlockers,
     roleIsolation: {
       provenanceBoundary: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.provenanceBoundary,
       transition: { role: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.transitionRole, provenanceId: "self-test-transition-thread" },
@@ -727,6 +753,22 @@ function validateEvidenceContracts() {
     reviewReceiptSource: { path: reviewReceiptSource, sha256: sha256(readFileSync(reviewReceiptSource)) },
     evidence: evidenceRecords
   };
+  const binding = bindSelfTestOperationReviews(validCandidate);
+  validCandidate.caseDecisionBinding = binding;
+  const boundReviewSubject = { ...reviewSubject, featureDelivery: validCandidate.featureDelivery, caseDecisionBinding: binding };
+  const boundReviewSubjectDigest = sha256(JSON.stringify(boundReviewSubject));
+  writeEvidence(reviewBundle, {
+    schemaVersion: 1, kind: "role-isolation-review-bundle", state: "WAITING_INDEPENDENT_REVIEW", stateHistory: reviewSubjectStateHistory,
+    candidate: { version, commit: head, tarballSha256: candidateTarballSha256 }, manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST, fiveConclusions: manualVerdicts,
+    reviewSubjectDigest: boundReviewSubjectDigest, reviewSubject: boundReviewSubject
+  });
+  const boundReviewBundleSha256 = sha256(readFileSync(reviewBundle));
+  validCandidate.roleIsolation.reviewSubjectDigest = boundReviewSubjectDigest;
+  validCandidate.roleIsolation.reviewBundle = { path: reviewBundle, sha256: boundReviewBundleSha256 };
+  validCandidate.reviewReceipt = { ...reviewReceipt, reviewBundleSha256: boundReviewBundleSha256, reviewSubjectDigest: boundReviewSubjectDigest };
+  writeEvidence(reviewReceiptSource, validCandidate.reviewReceipt);
+  validCandidate.reviewReceiptSource = { path: reviewReceiptSource, sha256: sha256(readFileSync(reviewReceiptSource)) };
   const candidate = path.join(fixtureRoot, "candidate.json");
   writeEvidence(candidate, validCandidate);
   writeEvidence(candidate, { ...validCandidate, roleIsolation: { ...validCandidate.roleIsolation, transition: { ...validCandidate.roleIsolation.transition, provenanceId: validCandidate.reviewReceipt.reviewer.provenanceId } } });
@@ -753,7 +795,7 @@ function validateEvidenceContracts() {
     records: [{ id: "prompt-mirror" }]
   };
   const diffMachineResultsDigest = sha256(JSON.stringify(diffMachineResults));
-  const diffReviewSubject = { ...reviewSubject, machineResults: diffMachineResults, machineResultsDigest: diffMachineResultsDigest };
+  const diffReviewSubject = { ...boundReviewSubject, machineResults: diffMachineResults, machineResultsDigest: diffMachineResultsDigest };
   const diffReviewSubjectDigest = sha256(JSON.stringify(diffReviewSubject));
   writeEvidence(reviewBundle, {
     schemaVersion: 1,
@@ -787,7 +829,7 @@ function validateEvidenceContracts() {
   console.log("ok: diff qa validator rejects a tampered review receipt binding");
   const failedMachineResults = { ...diffMachineResults, outcome: "failed" };
   const failedMachineResultsDigest = sha256(JSON.stringify(failedMachineResults));
-  const failedReviewSubject = { ...reviewSubject, machineResults: failedMachineResults, machineResultsDigest: failedMachineResultsDigest };
+  const failedReviewSubject = { ...boundReviewSubject, machineResults: failedMachineResults, machineResultsDigest: failedMachineResultsDigest };
   const failedReviewSubjectDigest = sha256(JSON.stringify(failedReviewSubject));
   writeEvidence(reviewBundle, {
     schemaVersion: 1, kind: "role-isolation-review-bundle", state: "WAITING_INDEPENDENT_REVIEW", stateHistory: reviewSubjectStateHistory,
@@ -814,8 +856,8 @@ function validateEvidenceContracts() {
     manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
     releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
     fiveConclusions: manualVerdicts,
-    reviewSubjectDigest,
-    reviewSubject
+    reviewSubjectDigest: boundReviewSubjectDigest,
+    reviewSubject: boundReviewSubject
   });
   writeEvidence(reviewReceiptSource, validCandidate.reviewReceipt);
   writeEvidence(candidate, validCandidate);
@@ -1118,6 +1160,38 @@ function validateEvidenceContracts() {
 
 function invoke(args, label, options = {}) {
   return runSyncChecked(process.execPath, args, label, { cwd: root, env: options.env ?? process.env });
+}
+
+function bindSelfTestOperationReviews(candidate) {
+  const featureDelivery = candidate.featureDelivery;
+  const selectedOperations = selectedOperationsForFeatureDelivery(featureDelivery);
+  const cases = featureDelivery.observableOperations.flatMap((operation) => operation.cases.map((item) => ({ operation, item, caseKey: `${operation.id}:${operation.entry ?? "lifecycle"}:${item.id}:${item.scenario}` })));
+  const sourceOwnerDigest = observableOperationSourceOwnerDigest(selectedOperations);
+  const manifestCases = observableOperationCaseManifestForFeatureDelivery(featureDelivery);
+  const waitingBundlePath = path.join(fixtureRoot, "case-waiting-bundle.json");
+  writeEvidence(waitingBundlePath, { schemaVersion: 1, kind: "role-isolation-review-bundle", state: "WAITING_INDEPENDENT_REVIEW", candidate: { version: candidate.candidate.version, commit: candidate.candidate.commit, tarballSha256: candidate.candidate.tarballSha256 } });
+  const waitingBundle = { path: waitingBundlePath, sha256: sha256(readFileSync(waitingBundlePath)) };
+  const input = structuredClone(candidate);
+  delete input.reviewReceipt; delete input.reviewReceiptSource;
+  input.roleIsolation = { provenanceBoundary: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.provenanceBoundary, stateHistory: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath, reviewSubjectStateHistory: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath, reviewBundle: waitingBundle };
+  const inputPath = path.join(fixtureRoot, "case-candidate-input.json"); writeEvidence(inputPath, input);
+  const candidateInput = { path: inputPath, sha256: sha256(readFileSync(inputPath)) };
+  const manifestValue = { schemaVersion: 1, kind: "candidate-case-manifest", sourceOwner: "scripts/feature-delivery.mjs", sourceOwnerDigest, acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest, candidateInputSha256: candidateInput.sha256, selectedOperations, cases: manifestCases };
+  const manifestPath = path.join(fixtureRoot, "case-manifest.json"); writeEvidence(manifestPath, manifestValue);
+  const manifest = { path: manifestPath, sha256: sha256(readFileSync(manifestPath)), source: manifestValue };
+  const receivedAt = "2026-10-06T18:10:13Z";
+  const reviewCases = cases.map(({ operation, item, caseKey }) => ({ caseKey, operation: operation.id, id: item.id, scenario: item.scenario, outcome: item.outcome, verdict: "accepted", subjectDigest: observableOperationReviewSubjectDigest(item), evidence: item.evidence }));
+  const operationReviewValue = { schemaVersion: 1, kind: "independent-observable-operation-review", verdict: "accepted", reviewer: { role: "independent-readonly-reviewer", provenanceId: "self-test-case-reviewer" }, receivedAt, candidate: candidate.candidate, candidateSha256: candidateInput.sha256, reviewBundleSha256: waitingBundle.sha256, caseManifestSha256: manifest.sha256, acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest, accepted: reviewCases.length, rejected: 0, cases: reviewCases };
+  const operationReviewPath = path.join(fixtureRoot, "independent-operation-review.json"); writeEvidence(operationReviewPath, operationReviewValue);
+  const operationReview = { path: operationReviewPath, sha256: sha256(readFileSync(operationReviewPath)), source: operationReviewValue };
+  const decisionsValue = { schemaVersion: 1, kind: "candidate-case-decisions", candidateSha256: candidateInput.sha256, sourceOwner: "scripts/feature-delivery.mjs", sourceOwnerDigest, acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest, decisions: reviewCases.map((review) => ({ caseKey: review.caseKey, outcome: review.outcome, definitionDigest: manifestCases.find((item) => item.caseKey === review.caseKey).definitionDigest, evidenceDigest: review.subjectDigest, verdict: "accepted", reviewer: operationReviewValue.reviewer, caseWriter: structuredClone(cases.find((item) => item.caseKey === review.caseKey).item.writerProvenance), receivedAt })) };
+  const decisionsPath = path.join(fixtureRoot, "case-decisions.json"); writeEvidence(decisionsPath, decisionsValue);
+  const source = { path: decisionsPath, sha256: sha256(readFileSync(decisionsPath)) };
+  for (const { item, caseKey } of cases) {
+    const review = reviewCases.find((entry) => entry.caseKey === caseKey);
+    item.independentReview = { verdict: "accepted", reviewer: operationReviewValue.reviewer, subjectDigest: review.subjectDigest, evidence: [{ path: operationReview.path, sha256: operationReview.sha256 }] };
+  }
+  return { schemaVersion: 1, kind: "candidate-case-decision-binding", sourceOwner: "scripts/feature-delivery.mjs", sourceOwnerDigest, acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest, candidateInput, reviewBundle: waitingBundle, cases: manifestCases, caseManifest: manifest, decisions: decisionsValue.decisions, source, sourceManifest: decisionsValue, operationReview, transitionWriter: structuredClone(candidate.roleIsolation.transition) };
 }
 
 function writeCatalogFixture(name, mutate) {

@@ -7,8 +7,8 @@ import { existsSync, lstatSync, mkdirSync, openSync, closeSync, readFileSync, re
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CANDIDATE_EVIDENCE_CONTRACT } from "./qa-assurance-manifest.mjs";
-import { FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, REQUIRED_OBSERVABLE_OPERATIONS } from "./feature-delivery.mjs";
-import { semanticEqual } from "./qa.mjs";
+import { FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, bindIndependentOperationReviews, observableOperationCaseManifestForFeatureDelivery, observableOperationSourceOwnerDigest, selectedOperationsForFeatureDelivery, validateIndependentOperationReviewBinding } from "./feature-delivery.mjs";
+import { semanticEqual, validateCandidateReleaseBlockers } from "./qa.mjs";
 
 const sourceRoot = realpathSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."));
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -34,21 +34,33 @@ function main(options) {
 function plan(input, options, output) {
   const writer = requiredIdentity(options.writer, "--writer");
   const candidate = prepareWaitingCandidate(input.value, writer);
-  writeWaitingSet(output, candidate, { schemaVersion: 1, kind: "candidate-case-manifest", sourceOwner: "scripts/feature-delivery.mjs", sourceOwnerDigest: sourceOwnerDigest(), acceptanceScopeDigest: FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, candidateInputSha256: input.sha256, cases: caseManifest() });
+  writeWaitingSet(output, candidate, { schemaVersion: 1, kind: "candidate-case-manifest", sourceOwner: "scripts/feature-delivery.mjs", sourceOwnerDigest: sourceOwnerDigest(candidate), acceptanceScopeDigest: FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, candidateInputSha256: input.sha256, selectedOperations: selectedOperationsForFeatureDelivery(candidate.featureDelivery), cases: caseManifest(candidate) });
 }
 
 function bindCases(input, options, runRoot, output) {
   const transitionWriter = requiredIdentity(options.transitionWriter, "--transition-writer");
   const decisionInput = readVerifiedJson(options.cases, options.casesSha256, runRoot, "case decisions");
-  const decisions = decisionInput.value;
+  const operationReviewInput = readVerifiedJson(options.operationReview, options.operationReviewSha256, runRoot, "operation review");
+  const manifestInput = readVerifiedJson(options.caseManifest, options.caseManifestSha256, runRoot, "case manifest");
   const candidate = structuredClone(input.value);
   assert(candidate.roleIsolation?.reviewBundle, "bind-cases requires a waiting candidate");
-  validateWaitingCandidate(candidate, runRoot);
-  const expected = caseManifest();
-  const accepted = parseCaseDecisionSource(decisions, candidate, expected, input.sha256, transitionWriter);
-  candidate.caseDecisionBinding = { schemaVersion: 1, kind: "candidate-case-decision-binding", sourceOwner: "scripts/feature-delivery.mjs", sourceOwnerDigest: sourceOwnerDigest(), acceptanceScopeDigest: FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, candidateInputSha256: input.sha256, cases: expected, decisions: accepted, source: { path: decisionInput.path, sha256: decisionInput.sha256 }, sourceManifest: decisions, transitionWriter: { role: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.transitionRole, provenanceId: transitionWriter } };
+  const frozen = validateWaitingCandidate(candidate, runRoot);
+  const expected = caseManifest(candidate);
+  const accepted = parseCaseDecisionSource(decisionInput.value, candidate, expected, input.sha256, transitionWriter);
+  candidate.caseDecisionBinding = {
+    schemaVersion: 1, kind: "candidate-case-decision-binding", sourceOwner: "scripts/feature-delivery.mjs", sourceOwnerDigest: sourceOwnerDigest(candidate), acceptanceScopeDigest: FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST,
+    candidateInput: { path: input.path, sha256: input.sha256 }, reviewBundle: { path: candidate.roleIsolation.reviewBundle.path, sha256: frozen.bundleSha256 },
+    cases: expected, caseManifest: { path: manifestInput.path, sha256: manifestInput.sha256, source: manifestInput.value },
+    decisions: accepted, source: { path: decisionInput.path, sha256: decisionInput.sha256 }, sourceManifest: decisionInput.value,
+    operationReview: { path: operationReviewInput.path, sha256: operationReviewInput.sha256, source: operationReviewInput.value },
+    transitionWriter: { role: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.transitionRole, provenanceId: transitionWriter }
+  };
+  bindIndependentOperationReviews(candidate.featureDelivery, candidate.caseDecisionBinding);
+  validateIndependentOperationReviewBinding(candidate, candidate.caseDecisionBinding);
   candidate.reviewReceipt = undefined;
+  candidate.reviewReceiptSource = undefined;
   delete candidate.reviewReceipt;
+  delete candidate.reviewReceiptSource;
   writeWaitingSet(output, candidate);
 }
 
@@ -78,6 +90,7 @@ function validate(input, options, runRoot) {
 function prepareWaitingCandidate(input, writer) {
   assert(input?.kind === "candidate-assurance" && input.schemaVersion === 1, "candidate has the wrong schema");
   const candidate = structuredClone(input);
+  validateCandidateReleaseBlockers(candidate.releaseBlockers, candidate.candidate);
   candidate.writerProvenance = { role: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.writerRole, provenanceId: writer };
   candidate.roleIsolation = { provenanceBoundary: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.provenanceBoundary, stateHistory: [...CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath], reviewSubjectStateHistory: [...CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath] };
   delete candidate.reviewReceipt; delete candidate.reviewReceiptSource;
@@ -121,6 +134,7 @@ function makeSubject(candidate) {
     releaseReadinessInventoryDigest: candidate.releaseReadinessInventoryDigest,
     evidenceRecords: candidate.evidence,
     manualVerdicts: candidate.manualVerdicts,
+    releaseBlockers: candidate.releaseBlockers,
     stateHistory: [...CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath]
   };
   if (candidate.machineResults) { subject.machineResults = candidate.machineResults; subject.machineResultsDigest = candidate.machineResultsDigest; }
@@ -138,6 +152,7 @@ function assertReceiptBinds(receipt, candidate, bundleSha256, subjectDigest) {
   assert(receipt.reviewBundleSha256 === bundleSha256, "review receipt does not bind the exact frozen waiting review bundle bytes");
   assert(receipt.reviewSubjectDigest === subjectDigest, "review receipt does not bind the exact review subject");
   assert(semanticEqual(receipt.fiveConclusions, candidate.manualVerdicts), "review receipt conclusions do not bind the candidate");
+  assert(semanticEqual(receipt.releaseBlockers, candidate.releaseBlockers), "review receipt release-blocker record does not bind the candidate");
   assert(semanticEqual(receipt.acceptanceScope, candidate.featureDelivery?.acceptanceScope) && receipt.acceptanceScopeDigest === candidate.featureDelivery?.acceptanceScopeDigest, "review receipt acceptance scope does not bind the candidate");
   requiredText(receipt.receivedAt, "review receipt receivedAt");
 }
@@ -153,21 +168,16 @@ function validateReviewReceipt(receipt, candidate, frozen, transitionWriter) {
   assert(reviewerId !== transitionWriter, "transition writer cannot self-review");
   if (candidate.caseDecisionBinding) assert(semanticEqual(candidate.caseDecisionBinding.transitionWriter, { role: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.transitionRole, provenanceId: transitionWriter }), "review transition writer does not match the persisted case transition");
   for (const decision of candidate.caseDecisionBinding?.decisions ?? []) assert(reviewerId !== decision.caseWriter.provenanceId, "case writer cannot give the final review");
+  validateCandidateReleaseBlockers(candidate.releaseBlockers, candidate.candidate, { requireClear: true });
   assertReceiptBinds(receipt, candidate, frozen.bundleSha256, frozen.subjectDigest);
 }
 
-function caseManifest() {
-  const cases = REQUIRED_OBSERVABLE_OPERATIONS.flatMap((operation) => operation.cases.map((item) => {
-    const source = { operation: operation.id, entry: operation.entry, id: item.id, scenario: item.scenario, outcome: item.outcome };
-    return { ...source, caseKey: `${operation.id}:${operation.entry ?? "lifecycle"}:${item.id}:${item.scenario}`, definitionDigest: digest(Buffer.from(JSON.stringify(source))) };
-  }));
-  const unique = new Set(cases.map((entry) => entry.caseKey)); assert(unique.size === cases.length && cases.length, "feature-delivery source owner must expose a non-empty exact case set");
-  return cases;
-}
-function sourceOwnerDigest() { return digest(Buffer.from(JSON.stringify(REQUIRED_OBSERVABLE_OPERATIONS))); }
+function caseManifest(candidate) { return observableOperationCaseManifestForFeatureDelivery(candidate.featureDelivery); }
+function sourceOwnerDigest(candidate) { return observableOperationSourceOwnerDigest(selectedOperationsForFeatureDelivery(candidate.featureDelivery)); }
 
 function validateWaitingCandidate(candidate, runRoot) {
   assert(candidate?.kind === "candidate-assurance" && candidate.schemaVersion === 1, "candidate has the wrong schema");
+  validateCandidateReleaseBlockers(candidate.releaseBlockers, candidate.candidate);
   assert(candidate.writerProvenance?.role === CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.writerRole && requiredIdentity(candidate.writerProvenance?.provenanceId, "candidate writer"), "candidate writer provenance is invalid");
   assert(!candidate.reviewReceipt && !candidate.reviewReceiptSource, "waiting candidate cannot already carry an accepted receipt");
   assert(semanticEqual(candidate.roleIsolation?.stateHistory, CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewSubjectPath), "candidate is not in the exact waiting state");
@@ -187,24 +197,37 @@ function validateWaitingCandidate(candidate, runRoot) {
 
 function validateCaseDecisionBinding(binding, candidate, runRoot) {
   assert(binding.kind === "candidate-case-decision-binding" && binding.schemaVersion === 1, "case decision binding has the wrong schema");
-  assert(binding.sourceOwner === "scripts/feature-delivery.mjs" && binding.sourceOwnerDigest === sourceOwnerDigest(), "case decision binding source owner drifted");
+  assert(binding.sourceOwner === "scripts/feature-delivery.mjs" && binding.sourceOwnerDigest === sourceOwnerDigest(candidate), "case decision binding source owner drifted");
   assert(binding.acceptanceScopeDigest === FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, "case decision binding scope drifted");
-  assert(semanticEqual(binding.cases, caseManifest()), "case decision binding does not cover the current exact case set");
+  assert(semanticEqual(binding.cases, caseManifest(candidate)), "case decision binding does not cover the current exact case set");
+  assertReference(binding.candidateInput, "case candidate input");
+  assertReference(binding.reviewBundle, "case review bundle");
   assert(Array.isArray(binding.decisions) && binding.decisions.length === binding.cases.length, "case decision binding is incomplete");
   assert(binding.source?.path && sha256.test(binding.source.sha256 ?? ""), "case decision binding source is invalid");
+  assertReference(binding.caseManifest, "case manifest source");
+  assertReference(binding.operationReview, "operation review source");
+  const input = readVerifiedJson(binding.candidateInput.path, binding.candidateInput.sha256, runRoot, "case candidate input").value;
+  const reviewBundle = readVerifiedJson(binding.reviewBundle.path, binding.reviewBundle.sha256, runRoot, "case review bundle").value;
   const source = readVerifiedJson(binding.source.path, binding.source.sha256, runRoot, "case decision source").value;
+  const manifest = readVerifiedJson(binding.caseManifest.path, binding.caseManifest.sha256, runRoot, "case manifest source").value;
+  const operationReview = readVerifiedJson(binding.operationReview.path, binding.operationReview.sha256, runRoot, "operation review source").value;
   assert(semanticEqual(binding.sourceManifest, source), "case decision binding discarded or changed its parsed source manifest");
+  assert(semanticEqual(binding.caseManifest.source, manifest), "case decision binding discarded or changed its parsed case manifest");
+  assert(semanticEqual(binding.operationReview.source, operationReview), "case decision binding discarded or changed its parsed operation review");
   const transition = requiredIdentity(binding.transitionWriter?.provenanceId, "case transition writer");
   assert(binding.transitionWriter?.role === CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.transitionRole, "case transition writer role is invalid");
-  assert(semanticEqual(binding.decisions, parseCaseDecisionSource(source, candidate, binding.cases, binding.candidateInputSha256, transition)), "case decision binding does not semantically equal its source manifest");
+  assert(semanticEqual(binding.decisions, parseCaseDecisionSource(source, candidate, binding.cases, binding.candidateInput.sha256, transition)), "case decision binding does not semantically equal its source manifest");
+  validateIndependentOperationReviewBinding(candidate, binding, { input, reviewBundle, manifest, decisions: source, operationReview });
 }
+
+function assertReference(reference, label) { assert(reference?.path && sha256.test(reference.sha256 ?? ""), `${label} is invalid`); }
 
 function parseCaseDecisionSource(source, candidate, expected, candidateSha256, transitionWriter) {
   assert(source && typeof source === "object" && !Array.isArray(source), "case decision source must be a JSON object");
   assert(semanticEqual(Object.keys(source).sort(), ["acceptanceScopeDigest", "candidateSha256", "decisions", "kind", "schemaVersion", "sourceOwner", "sourceOwnerDigest"]), "case decision source has an unsupported schema");
   assert(source.kind === "candidate-case-decisions" && source.schemaVersion === 1, "case decisions have the wrong schema");
   assert(source.candidateSha256 === candidateSha256, "case decisions do not bind the supplied candidate bytes");
-  assert(source.sourceOwner === "scripts/feature-delivery.mjs" && source.sourceOwnerDigest === sourceOwnerDigest(), "case decisions do not bind the feature-delivery source owner");
+  assert(source.sourceOwner === "scripts/feature-delivery.mjs" && source.sourceOwnerDigest === sourceOwnerDigest(candidate), "case decisions do not bind the feature-delivery source owner");
   assert(source.acceptanceScopeDigest === FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST && Array.isArray(source.decisions), "case decisions acceptance scope or list drifted");
   const byKey = new Map();
   for (const decision of source.decisions) {
@@ -232,7 +255,12 @@ function parseArgs(args) {
   if (command !== "validate") requiredText(options.out, "--out");
   assert(sha256.test(options.candidateSha256), "--candidate-sha256 must be SHA-256");
   if (command === "plan") requiredText(options.writer, "--writer");
-  if (command === "bind-cases") { requiredText(options.cases, "--cases"); assert(sha256.test(options.casesSha256 ?? ""), "--cases-sha256 must be SHA-256"); requiredText(options.transitionWriter, "--transition-writer"); }
+  if (command === "bind-cases") {
+    requiredText(options.cases, "--cases"); assert(sha256.test(options.casesSha256 ?? ""), "--cases-sha256 must be SHA-256");
+    requiredText(options.operationReview, "--operation-review"); assert(sha256.test(options.operationReviewSha256 ?? ""), "--operation-review-sha256 must be SHA-256");
+    requiredText(options.caseManifest, "--case-manifest"); assert(sha256.test(options.caseManifestSha256 ?? ""), "--case-manifest-sha256 must be SHA-256");
+    requiredText(options.transitionWriter, "--transition-writer");
+  }
   if (command === "bind-review") { requiredText(options.review, "--review"); assert(sha256.test(options.reviewSha256 ?? ""), "--review-sha256 must be SHA-256"); requiredText(options.transitionWriter, "--transition-writer"); }
   if (command === "validate" && options.review) { assert(sha256.test(options.reviewSha256 ?? ""), "--review-sha256 must be SHA-256"); requiredText(options.transitionWriter, "--transition-writer"); }
   return options;

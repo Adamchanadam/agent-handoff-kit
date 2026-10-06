@@ -13,6 +13,7 @@ export const QA_EXECUTOR_CONTRACT = Object.freeze({
 
 export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
   releaseReadinessCheck("qa-assurance-manifest", "check-qa-assurance-manifest.mjs", "QA assurance manifest wiring", 180_000),
+  releaseReadinessCheck("candidate-evidence", "check-candidate-evidence.mjs", "candidate evidence binding QA", 120_000),
   releaseReadinessCheck("install-lock-smoke", "check-install-lock-smoke.mjs", "install lock smoke QA", 120_000),
   releaseReadinessCheck("public-prototype", "check-public-prototype.mjs", "prototype QA", 120_000),
   releaseReadinessCheck("command-entry", "check-command-entry.mjs", "portable shortcuts and progress opener QA", 120_000),
@@ -235,6 +236,7 @@ export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
   schemaVersion: 1,
   featureDelivery: Object.freeze({ schemaVersion: 1, owner: "scripts/feature-delivery.mjs", sourceOwner: "bin/installed-file-contract.mjs", requiredStages: ["package", "freshInstall", "upgrade", "entry"], acceptanceScope: FEATURE_DELIVERY_ACCEPTANCE_SCOPE, acceptanceScopeDigest: FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, generatedStaticContractRequired: true, deterministicObservableOperations: REQUIRED_OBSERVABLE_OPERATIONS, unverifiedAgentSemantics: FEATURE_DELIVERY_ACCEPTANCE_SCOPE.unverifiedAgentSemantics, observableResult: Object.freeze({ kind: "observable-deterministic-operation", evidenceRoles: NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, telemetryBoundary: "Agent semantic interpretation, host auto-discovery and shortcut-body dispatch remain unverified without real independent output." }), nativeUpdate: Object.freeze({ entry: "handoff-kit-update", prepublishRegistryMode: "controlled", prepublishRegistryConfig: "inherited-npm-config-registry-from-npx-invocation", postpublishRegistryMode: "official-live", metadataKeys: NATIVE_UPDATE_METADATA_KEYS, observableEvidenceRoles: NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES }) }),
   fullAcceptanceReceipt: Object.freeze({ schemaVersion: 1, kind: "accepted-candidate-receipt" }),
+  releaseBlockers: Object.freeze({ schemaVersion: 1, kind: "candidate-release-blockers", states: Object.freeze(["unassessed", "blocked", "clear"]), fullState: "clear" }),
   manualVerdictKeys: Object.freeze([
     "governanceHealth",
     "productJourney",
@@ -291,6 +293,7 @@ export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
       "reviewBundle.sha256",
       "reviewSubjectDigest",
       "featureDelivery.acceptanceScopeDigest",
+      "releaseBlockers",
       "manualVerdicts",
       "machineResultsDigest"
     ])

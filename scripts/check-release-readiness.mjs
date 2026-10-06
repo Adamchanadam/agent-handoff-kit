@@ -44,6 +44,7 @@ const MACHINE_RESULT_SCOPE_CANDIDATES = Object.freeze({
 });
 const MACHINE_RESULT_NON_REUSABLE = Object.freeze({
   "qa-assurance-manifest": "runtime-selected subprocess and candidate inputs",
+  "candidate-evidence": "external candidate review inputs and execution-environment inputs",
   "install-lock-smoke": "subprocess and execution-environment inputs",
   "public-prototype": "repository-wide scan and package inputs",
   "command-entry": "CLI, service, and execution-environment inputs",
@@ -2261,6 +2262,7 @@ function validateMachineResultRawIntegrity(record, qaCheck) {
 // two allowlisted members can reach a validated diff reuse decision.
 function machineResultInputRoots() { return Object.freeze({
   "qa-assurance-manifest": ["docs", "test-fixtures", "scripts/check-qa-assurance-manifest.mjs"],
+  "candidate-evidence": ["scripts/check-candidate-evidence.mjs"],
   "install-lock-smoke": ["test-fixtures", "scripts/check-install-lock-smoke.mjs"],
   "public-prototype": ["scripts/check-public-prototype.mjs"],
   "command-entry": ["scripts/check-command-entry.mjs"],
@@ -3438,7 +3440,9 @@ function assertLatestCrossMindTableComplete(version, text = read("docs/qa/releas
     triggers.add(name);
     assert(/^(yes|no)\b/i.test(cells[1]), `latest Cross-mind evidence Required cell must start with yes/no: ${row}`);
     assert(/^(passed|iterated|blocked)$/i.test(cells[2]), `latest Cross-mind evidence Result cell must be passed / iterated / blocked: ${row}`);
-    assert(cells[2].toLowerCase() !== 'blocked', `Cross-mind trigger is blocked; release cannot proceed: ${row}`);
+    // This table is coverage evidence.  A mandatory unresolved finding is
+    // release-blocking only when the candidate-bound release-blocker record
+    // carries it; prose here must not be a second, arbitrary gate.
     if (/^no\b/i.test(cells[1])) {
       const reason = cells[1].replace(/^no\b[\s:;—–-]*/i, '') || cells[3];
       assert(!/^(?:n\/?a|none|not[_ ](?:required|applicable)|skip(?:ped)?|passed|iterated)[.!。]?$/i.test(reason), `Cross-mind not-required trigger needs a specific reason: ${row}`);
@@ -3456,8 +3460,6 @@ function checkCrossMindTableCounterexamples() {
   notRequired[0] = '| 1. trigger 1 | no | passed | No external write is included in this candidate. |';
   assertLatestCrossMindTableComplete('9.8.7', table(notRequired));
   const mutations = [
-    ['required blocked', values => { values[0] = values[0].replace('passed', 'blocked'); }],
-    ['non-required blocked', values => { values[0] = values[0].replace('yes | passed', 'no | blocked'); }],
     ['same row nine times', values => values.fill(values[0])],
     ['missing trigger', values => values.pop()],
     ['unknown trigger', values => { values[8] = values[8].replace('9. trigger', '10. trigger'); }],
@@ -3469,6 +3471,10 @@ function checkCrossMindTableCounterexamples() {
     const changed = [...rows]; mutate(changed);
     assertThrows(() => assertLatestCrossMindTableComplete('9.8.7', table(changed)), `Cross-mind accepted ${label}`);
   }
+  const requiredBlocked = [...rows]; requiredBlocked[0] = requiredBlocked[0].replace('passed', 'blocked');
+  assertLatestCrossMindTableComplete('9.8.7', table(requiredBlocked));
+  const nonRequiredBlocked = [...rows]; nonRequiredBlocked[0] = nonRequiredBlocked[0].replace('yes | passed', 'no | blocked');
+  assertLatestCrossMindTableComplete('9.8.7', table(nonRequiredBlocked));
   assertThrows(() => assertLatestCrossMindTableComplete('9.8.7', `${table(rows)}\n${table(rows)}`), 'Cross-mind accepted duplicate candidate tables');
   console.log('ok: Cross-mind terminal-state and unique-trigger counterexamples');
 }

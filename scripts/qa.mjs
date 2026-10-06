@@ -17,7 +17,7 @@ import {
   QA_RELEASE_READINESS_INVENTORY_DIGEST,
   RELEASE_STATE_CONTRACT
 } from "./qa-assurance-manifest.mjs";
-import { FEATURE_DELIVERY_ACCEPTANCE_SCOPE, FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, REQUIRED_OBSERVABLE_OPERATIONS, resolveFeatureDeliveryBase, validateFeatureDelivery, validateNativeUpdateNormal, validateNativeUpdateReview } from "./feature-delivery.mjs";
+import { FEATURE_DELIVERY_ACCEPTANCE_SCOPE, FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, REQUIRED_OBSERVABLE_OPERATIONS, readIndependentOperationReviewBindingSources, resolveFeatureDeliveryBase, validateFeatureDelivery, validateIndependentOperationReviewBinding, validateNativeUpdateNormal, validateNativeUpdateReview } from "./feature-delivery.mjs";
 import { loadOfficialOriginCatalog } from "../bin/official-origin-catalog.mjs";
 import { LONG_QA_TIMEOUT_MS, QaRunError, runChecked, runNodeScriptChecked } from "./qa-runner-core.mjs";
 
@@ -177,14 +177,22 @@ export async function validateCandidateEvidence(options) {
   assert(isSha256(evidence.candidate?.tarballSha256, 64), "candidate evidence requires tarballSha256");
   assert(await freshCandidateTarballSha256() === evidence.candidate.tarballSha256.toLowerCase(), "candidate evidence tarballSha256 does not match a freshly packed candidate");
   assert(validManualVerdicts(evidence.manualVerdicts), `candidate evidence requires all five full-check verdicts to be passed: ${CANDIDATE_EVIDENCE_CONTRACT.manualVerdictKeys.join(", ")}`);
+  validateCandidateReleaseBlockers(evidence.releaseBlockers, evidence.candidate, { requireClear: true });
+  validateMandatoryCrossMindBlockers(evidence.releaseBlockers, evidence.candidate.version);
   assert(semanticEqual(evidence.featureDelivery?.acceptanceScope, FEATURE_DELIVERY_ACCEPTANCE_SCOPE), "candidate evidence cannot broaden the defined observable acceptance scope");
   assert(evidence.featureDelivery?.acceptanceScopeDigest === FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, "candidate evidence observable acceptance scope digest drifted");
   const bundle = validateRoleIsolationEvidence(evidence, head);
   if (machineResults) validateMachineReviewBindings(machineResults, bundle.value.reviewSubject, evidence.reviewReceipt);
-  validateCandidateReportSection(options.candidate);
   validateEvidenceRecords(evidence.evidence);
   await validateCandidateFeatureDelivery(evidence, head);
+  validateCandidateIndependentOperationReviewBinding(evidence);
   return accepted;
+}
+
+function validateCandidateIndependentOperationReviewBinding(evidence) {
+  assert(evidence.caseDecisionBinding, "candidate evidence requires independently bound observable-operation review evidence");
+  const sources = readIndependentOperationReviewBindingSources(evidence.caseDecisionBinding, { root });
+  validateIndependentOperationReviewBinding(evidence, evidence.caseDecisionBinding, sources);
 }
 
 async function validateCandidateFeatureDelivery(evidence, head) {
@@ -422,6 +430,59 @@ export function semanticEqual(left, right) {
   return keys.length === Object.keys(right).length && keys.every((key) => Object.hasOwn(right, key) && semanticEqual(left[key], right[key]));
 }
 
+// A candidate-bound record is the single release decision gate.  Narrative QA
+// text and the Cross-mind table remain useful coverage, but cannot block or
+// clear a release by matching incidental prose.
+export function validateCandidateReleaseBlockers(record, candidate, { requireClear = false } = {}) {
+  assert(record && typeof record === "object" && !Array.isArray(record), "candidate release-blocker record is required");
+  assert(semanticEqual(Object.keys(record).sort(), ["candidate", "items", "kind", "schemaVersion", "state"]), "candidate release-blocker record has an unsupported schema");
+  assert(record.schemaVersion === 1 && record.kind === "candidate-release-blockers", "candidate release-blocker record schema is invalid");
+  assert(semanticEqual(record.candidate, { version: candidate?.version, commit: candidate?.commit, tarballSha256: candidate?.tarballSha256 }), "candidate release-blocker record identity drifted");
+  assert(["unassessed", "blocked", "clear"].includes(record.state), "candidate release-blocker state is invalid");
+  assert(Array.isArray(record.items), "candidate release-blocker items are required");
+  const ids = new Set();
+  for (const item of record.items) {
+    assert(item && typeof item === "object" && !Array.isArray(item), "candidate release-blocker item is invalid");
+    assert(semanticEqual(Object.keys(item).sort(), ["evidence", "id", "reason"]), "candidate release-blocker item has an unsupported schema");
+    assert(typeof item.id === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(item.id) && !ids.has(item.id), "candidate release-blocker item id is invalid or duplicated");
+    ids.add(item.id);
+    assert(typeof item.reason === "string" && item.reason.trim(), "candidate release-blocker item reason is required");
+    assert(Array.isArray(item.evidence) && item.evidence.length, "candidate release-blocker item evidence is required");
+    for (const evidence of item.evidence) assert(evidence && typeof evidence.path === "string" && evidence.path && isSha256(evidence.sha256, 64), "candidate release-blocker item evidence is invalid");
+  }
+  if (record.state === "blocked") assert(record.items.length > 0, "blocked candidate release-blocker record requires an item");
+  else assert(record.items.length === 0, `${record.state} candidate release-blocker record must not carry blocker items`);
+  if (requireClear) assert(record.state === "clear" && record.items.length === 0, "formal full requires a clear candidate release-blocker record");
+  return record;
+}
+
+// The table describes coverage.  This helper extracts only a named mandatory
+// unresolved finding so the candidate-bound record, rather than incidental
+// table prose, remains the release decision owner.
+export function mandatoryCrossMindBlockersFromReport(report, version) {
+  assert(typeof report === "string", "Cross-mind report must be text");
+  report = report.replace(/\r\n/g, "\n");
+  const heading = `### Cross-mind evidence 9-trigger table（v${version}）`;
+  const start = report.indexOf(heading);
+  assert(start >= 0, `candidate release-blocker record cannot verify missing Cross-mind table for v${version}`);
+  const section = report.slice(start + heading.length, (() => { const next = report.slice(start + heading.length).search(/\n#{1,3} /); return next < 0 ? undefined : start + heading.length + next; })());
+  return section.split("\n").filter(line => /^\|\s*\d+\.\s+/.test(line)).flatMap(line => {
+    const cells = line.split("|").slice(1, -1).map(cell => cell.trim());
+    const match = /^(\d+)\.\s+/.exec(cells[0] ?? "");
+    return /^yes\b/i.test(cells[1] ?? "") && /^blocked$/i.test(cells[2] ?? "") && match
+      ? [{ id: `cross-mind-${match[1]}`, reason: cells[3] }]
+      : [];
+  });
+}
+
+export function validateMandatoryCrossMindBlockers(record, version, report = readFileSync(path.join(root, "docs", "qa", "release-grade-qa.md"), "utf8")) {
+  const mandatory = mandatoryCrossMindBlockersFromReport(report, version);
+  for (const finding of mandatory) {
+    const item = record.items.find(value => value.id === finding.id);
+    assert(record.state === "blocked" && item && item.reason === finding.reason, `mandatory Cross-mind finding must flow into candidate release-blocker record: ${finding.id}`);
+  }
+}
+
 async function validateCandidatePreflight(options, config = {}) {
   assert(options.candidate, "candidate-preflight requires --candidate <version>");
   assert(QA_ASSURANCE_MANIFEST.layers["candidate-preflight"].command === "node scripts/qa.mjs candidate-preflight --candidate <version>", "candidate-preflight command contract drifted");
@@ -570,6 +631,7 @@ function validateRoleIsolationEvidence(evidence, head) {
   assert(receipt.reviewSubjectDigest === evidence.roleIsolation.reviewSubjectDigest, "review receipt reviewSubjectDigest does not match evidence");
   assert(validManualVerdicts(receipt.fiveConclusions), "review receipt must carry the same five passed full-check conclusions");
   assert(semanticEqual(receipt.fiveConclusions, evidence.manualVerdicts), "review receipt five conclusions do not match candidate evidence");
+  assert(semanticEqual(receipt.releaseBlockers, evidence.releaseBlockers), "review receipt release-blocker record does not match candidate evidence");
   assert(semanticEqual(receipt.acceptanceScope, evidence.featureDelivery.acceptanceScope), "review receipt cannot upgrade unverified agent semantics");
   assert(receipt.acceptanceScopeDigest === evidence.featureDelivery.acceptanceScopeDigest, "review receipt observable acceptance scope binding drifted");
   assert(typeof receipt.receivedAt === "string" && receipt.receivedAt, "review receipt receivedAt is required");
@@ -637,6 +699,7 @@ export function validateReviewBundle(bundle, evidence, head) {
   assert(parsed.reviewSubject?.manifestDigest === evidence.manifestDigest, "reviewSubject manifestDigest does not match evidence");
   assert(parsed.reviewSubject?.releaseReadinessInventoryDigest === evidence.releaseReadinessInventoryDigest, "reviewSubject release-readiness inventory digest does not match evidence");
   assert(semanticEqual(parsed.reviewSubject?.manualVerdicts, evidence.manualVerdicts), "reviewSubject manualVerdicts do not match evidence");
+  assert(semanticEqual(parsed.reviewSubject?.releaseBlockers, evidence.releaseBlockers), "reviewSubject release-blocker record does not match evidence");
   assert(JSON.stringify(parsed.reviewSubject?.stateHistory) === JSON.stringify(evidence.roleIsolation.reviewSubjectStateHistory), "reviewSubject stateHistory does not match evidence review subject state");
   assert(Array.isArray(parsed.reviewSubject?.evidenceRecords), "reviewSubject evidenceRecords are required");
   assert(Array.isArray(evidence.evidence), "candidate evidence records must be an array before review binding");
@@ -647,52 +710,11 @@ export function validateReviewBundle(bundle, evidence, head) {
 
 function validateOptionalCaseDecisionBinding(binding, evidence, finalReviewerId, transition) {
   if (binding === undefined) return;
-  assert(binding && typeof binding === "object" && !Array.isArray(binding), "case decision binding must be an object");
-  const expectedCases = REQUIRED_OBSERVABLE_OPERATIONS.flatMap((operation) => operation.cases.map((item) => {
-    const source = { operation: operation.id, entry: operation.entry, id: item.id, scenario: item.scenario, outcome: item.outcome };
-    return { ...source, caseKey: `${operation.id}:${operation.entry ?? "lifecycle"}:${item.id}:${item.scenario}`, definitionDigest: sha256(Buffer.from(JSON.stringify(source))) };
-  }));
-  assert(binding.kind === "candidate-case-decision-binding" && binding.schemaVersion === 1, "case decision binding has the wrong schema");
-  assert(binding.sourceOwner === "scripts/feature-delivery.mjs" && binding.sourceOwnerDigest === sha256(Buffer.from(JSON.stringify(REQUIRED_OBSERVABLE_OPERATIONS)), "utf8"), "case decision binding source owner drifted");
-  assert(binding.acceptanceScopeDigest === FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST && semanticEqual(binding.cases, expectedCases), "case decision binding exact case set drifted");
-  assert(isSha256(binding.source?.sha256, 64) && typeof binding.source?.path === "string" && binding.source.path, "case decision binding source reference is invalid");
-  const sourceBytes = readFileSync(path.resolve(binding.source.path));
-  assert(sha256(sourceBytes) === binding.source.sha256.toLowerCase(), "case decision binding source bytes changed");
-  let sourceManifest;
-  try { sourceManifest = JSON.parse(sourceBytes.toString("utf8")); }
-  catch (error) { throw new Error(`case decision binding source is invalid JSON: ${error.message}`); }
-  assert(semanticEqual(binding.sourceManifest, sourceManifest), "case decision binding source manifest does not semantically equal its recorded source");
-  assert(semanticEqual(Object.keys(sourceManifest).sort(), ["acceptanceScopeDigest", "candidateSha256", "decisions", "kind", "schemaVersion", "sourceOwner", "sourceOwnerDigest"]), "case decision binding source has an unsupported schema");
-  assert(sourceManifest.kind === "candidate-case-decisions" && sourceManifest.schemaVersion === 1 && sourceManifest.candidateSha256 === binding.candidateInputSha256 && sourceManifest.sourceOwner === binding.sourceOwner && sourceManifest.sourceOwnerDigest === binding.sourceOwnerDigest && sourceManifest.acceptanceScopeDigest === binding.acceptanceScopeDigest, "case decision binding source manifest drifted");
-  const transitionWriter = binding.transitionWriter?.provenanceId;
-  assert(binding.transitionWriter?.role === CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.transitionRole && typeof transitionWriter === "string" && transitionWriter, "case decision transition writer is invalid");
+  const sources = readIndependentOperationReviewBindingSources(binding, { root });
+  validateIndependentOperationReviewBinding(evidence, binding, sources);
   assert(semanticEqual(binding.transitionWriter, transition), "case decision transition provenance differs from accepted candidate transition");
-  assert(finalReviewerId !== transitionWriter && finalReviewerId !== evidence.writerProvenance.provenanceId, "final reviewer overlaps a candidate transition writer");
-  assert(Array.isArray(binding.decisions) && binding.decisions.length === expectedCases.length, "case decision binding is incomplete");
-  const seen = new Set();
-  for (const decision of binding.decisions) {
-    assert(!seen.has(decision.caseKey), "case decision binding duplicates a case"); seen.add(decision.caseKey);
-    const expected = expectedCases.find((item) => item.caseKey === decision.caseKey);
-    assert(expected && decision.verdict === "accepted" && decision.outcome === expected.outcome && decision.definitionDigest === expected.definitionDigest && isSha256(decision.evidenceDigest, 64), "case decision binding has a stale case outcome or digest");
-    assert(decision.caseWriter?.role === CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.writerRole && typeof decision.caseWriter?.provenanceId === "string" && decision.caseWriter.provenanceId, "case decision writer provenance is invalid");
-    assert(decision.reviewer?.role === CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewerRole && typeof decision.reviewer?.provenanceId === "string" && decision.reviewer.provenanceId, "case decision reviewer provenance is invalid");
-    assert(decision.reviewer.provenanceId !== evidence.writerProvenance.provenanceId && decision.reviewer.provenanceId !== decision.caseWriter.provenanceId && decision.reviewer.provenanceId !== transitionWriter, "case decision actor isolation drifted");
-    assert(finalReviewerId !== decision.caseWriter.provenanceId, "final reviewer overlaps a case writer");
-  }
-  const sourceByKey = new Map();
-  for (const decision of sourceManifest.decisions ?? []) {
-    assert(decision && typeof decision === "object" && !Array.isArray(decision), "case decision source contains an invalid decision");
-    assert(semanticEqual(Object.keys(decision).sort(), ["caseKey", "caseWriter", "definitionDigest", "evidenceDigest", "outcome", "receivedAt", "reviewer", "verdict"]), "case decision source has an unsupported decision schema");
-    assert(!sourceByKey.has(decision.caseKey), "case decision source duplicates a case"); sourceByKey.set(decision.caseKey, decision);
-  }
-  assert(sourceByKey.size === expectedCases.length, "case decision source is incomplete");
-  const canonicalSource = expectedCases.map((expected) => {
-    const decision = sourceByKey.get(expected.caseKey); assert(decision, "case decision source is missing a current case");
-    assert(decision.verdict === "accepted" && decision.outcome === expected.outcome && decision.definitionDigest === expected.definitionDigest && isSha256(decision.evidenceDigest, 64), "case decision source outcome/digest drifted");
-    assert(decision.reviewer?.role === CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.reviewerRole && decision.caseWriter?.role === CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.writerRole, "case decision source provenance role drifted");
-    return { caseKey: expected.caseKey, outcome: expected.outcome, definitionDigest: expected.definitionDigest, evidenceDigest: decision.evidenceDigest.toLowerCase(), verdict: "accepted", reviewer: decision.reviewer, caseWriter: decision.caseWriter, receivedAt: decision.receivedAt };
-  });
-  assert(semanticEqual(binding.decisions, canonicalSource), "case decision source does not semantically equal inline case decisions");
+  assert(finalReviewerId !== transition.provenanceId && finalReviewerId !== evidence.writerProvenance.provenanceId, "final reviewer overlaps a candidate transition writer");
+  for (const decision of binding.decisions) assert(finalReviewerId !== decision.caseWriter.provenanceId, "final reviewer overlaps a case writer");
 }
 
 function parseReviewBundle(bytes, absolute) {
@@ -707,17 +729,6 @@ function validBundleConclusions(bundle, manualVerdicts) {
   if (Object.hasOwn(bundle, "fiveConclusions")) return semanticEqual(bundle.fiveConclusions, manualVerdicts);
   const assessment = bundle.writerAssessment;
   return assessment && semanticEqual(Object.fromEntries(Object.entries(assessment).map(([key, value]) => [key, value?.verdict])), manualVerdicts);
-}
-
-function validateCandidateReportSection(version) {
-  const reportPath = path.join(root, "docs", "qa", "release-grade-qa.md");
-  const report = readFileSync(reportPath, "utf8").replace(/\r\n/g, "\n");
-  const heading = `## v${version} candidate status`;
-  const start = report.indexOf(heading);
-  assert(start >= 0, `candidate report section is missing: ${heading}`);
-  const next = report.indexOf("\n## v", start + heading.length);
-  const section = report.slice(start, next >= 0 ? next : undefined);
-  assert(!/\|\s*[^|\n]+\|\s*(?:yes|no)\s*\|\s*(?:pending|blocked)\s*\|/iu.test(section), "candidate report still contains pending or blocked current-trigger rows");
 }
 
 function isSha256(value, exactLength = null) {
@@ -764,7 +775,6 @@ function validateEvidenceRecords(records) {
     assert(isSha256(record.sha256, 64), `candidate evidence record has invalid sha256: ${record.path}`);
     assert(sha256(readFileSync(absolute)) === record.sha256.toLowerCase(), `candidate evidence record hash does not match file bytes: ${record.path}`);
     assert(typeof record.readback === "string" && record.readback, `candidate evidence record lacks readback: ${record.path}`);
-    assert(!/\|\s*[^|\n]+\|\s*(?:yes|no)\s*\|\s*(?:pending|blocked)\s*\|/iu.test(record.readback), `candidate evidence record readback contains pending or blocked status: ${record.claimId}`);
     for (const snippet of contract.requiredReadbackSnippets) {
       assert(record.readback.includes(snippet), `candidate evidence record readback for ${record.claimId} lacks required snippet: ${snippet}`);
     }
