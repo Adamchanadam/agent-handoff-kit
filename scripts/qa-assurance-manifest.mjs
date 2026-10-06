@@ -245,6 +245,7 @@ export const CANDIDATE_EVIDENCE_CONTRACT = Object.freeze({
   roleIsolation: Object.freeze({
     provenanceBoundary: "role and thread fields are audit provenance only; they are not cryptographic identity proof and never authorize CLI data operations",
     writerRole: "workspace-writer",
+    transitionRole: "workspace-writer",
     reviewerRole: "independent-readonly-reviewer",
     stateMachine: Object.freeze([
       "PLAN_FROZEN",

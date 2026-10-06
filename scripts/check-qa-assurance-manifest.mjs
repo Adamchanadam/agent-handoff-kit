@@ -689,6 +689,23 @@ function validateEvidenceContracts() {
     return;
   }
 
+  const reviewReceipt = {
+    schemaVersion: 1,
+    verdict: "accepted",
+    provenanceBoundary: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.provenanceBoundary,
+    reviewer: { role: "independent-readonly-reviewer", provenanceId: "self-test-reviewer-thread" },
+    candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
+    manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
+    releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
+    reviewBundleSha256,
+    reviewSubjectDigest,
+    fiveConclusions: manualVerdicts,
+    acceptanceScope: featureDelivery.acceptanceScope,
+    acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest,
+    receivedAt: "2026-07-20T00:00:00.000Z"
+  };
+  const reviewReceiptSource = path.join(fixtureRoot, "independent-review-receipt.json");
+  writeEvidence(reviewReceiptSource, reviewReceipt);
   const validCandidate = {
     schemaVersion: 1,
     kind: "candidate-assurance",
@@ -700,29 +717,26 @@ function validateEvidenceContracts() {
     manualVerdicts,
     roleIsolation: {
       provenanceBoundary: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.provenanceBoundary,
+      transition: { role: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.transitionRole, provenanceId: "self-test-transition-thread" },
       stateHistory: roleStateHistory,
       reviewSubjectStateHistory,
       reviewSubjectDigest,
       reviewBundle: { path: reviewBundle, sha256: reviewBundleSha256 }
     },
-    reviewReceipt: {
-      schemaVersion: 1,
-      verdict: "accepted",
-      provenanceBoundary: CANDIDATE_EVIDENCE_CONTRACT.roleIsolation.provenanceBoundary,
-      reviewer: { role: "independent-readonly-reviewer", provenanceId: "self-test-reviewer-thread" },
-      candidate: { version, commit: head, tarballSha256: candidateTarballSha256 },
-      manifestDigest: QA_ASSURANCE_MANIFEST_DIGEST,
-      releaseReadinessInventoryDigest: QA_RELEASE_READINESS_INVENTORY_DIGEST,
-      reviewBundleSha256,
-      reviewSubjectDigest,
-      fiveConclusions: manualVerdicts,
-      acceptanceScope: featureDelivery.acceptanceScope,
-      acceptanceScopeDigest: featureDelivery.acceptanceScopeDigest,
-      receivedAt: "2026-07-20T00:00:00.000Z"
-    },
+    reviewReceipt,
+    reviewReceiptSource: { path: reviewReceiptSource, sha256: sha256(readFileSync(reviewReceiptSource)) },
     evidence: evidenceRecords
   };
   const candidate = path.join(fixtureRoot, "candidate.json");
+  writeEvidence(candidate, validCandidate);
+  writeEvidence(candidate, { ...validCandidate, roleIsolation: { ...validCandidate.roleIsolation, transition: { ...validCandidate.roleIsolation.transition, provenanceId: validCandidate.reviewReceipt.reviewer.provenanceId } } });
+  const directTransitionOverlap = invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "full rejects direct transition-writer self-review", { env: selfTestEnv });
+  assert(`${directTransitionOverlap.stdout}\n${directTransitionOverlap.stderr}`.includes("final reviewer overlaps the accepted candidate transition writer"), "direct transition overlap failed for the wrong reason");
+  writeEvidence(candidate, validCandidate);
+  writeEvidence(candidate, { ...validCandidate, reviewReceiptSource: { ...validCandidate.reviewReceiptSource, sha256: "0".repeat(64) } });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "full rejects receipt source hash drift", { env: selfTestEnv });
+  writeEvidence(candidate, { ...validCandidate, reviewReceipt: { ...validCandidate.reviewReceipt, receivedAt: "2026-07-21T00:00:00.000Z" } });
+  invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "full rejects generated receipt differing from source", { env: selfTestEnv });
   writeEvidence(candidate, validCandidate);
   invokeFailure(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "full rejects dirty candidate before evidence acceptance", {
     env: { ...selfTestEnv, AGENT_HANDOFF_KIT_QA_SELF_TEST_GIT_STATUS: " M package.json\n" }
@@ -754,13 +768,16 @@ function validateEvidenceContracts() {
     reviewSubject: diffReviewSubject
   });
   const diffReviewBundleSha256 = sha256(readFileSync(reviewBundle));
+  const diffReviewReceipt = { ...validCandidate.reviewReceipt, reviewBundleSha256: diffReviewBundleSha256, reviewSubjectDigest: diffReviewSubjectDigest, machineResultsDigest: diffMachineResultsDigest };
+  writeEvidence(reviewReceiptSource, diffReviewReceipt);
   const validDiffCandidate = {
     ...validCandidate,
     executionMode: "diff",
     machineResults: diffMachineResults,
     machineResultsDigest: diffMachineResultsDigest,
     roleIsolation: { ...validCandidate.roleIsolation, reviewSubjectDigest: diffReviewSubjectDigest, reviewBundle: { path: reviewBundle, sha256: diffReviewBundleSha256 } },
-    reviewReceipt: { ...validCandidate.reviewReceipt, reviewBundleSha256: diffReviewBundleSha256, reviewSubjectDigest: diffReviewSubjectDigest, machineResultsDigest: diffMachineResultsDigest }
+    reviewReceipt: diffReviewReceipt,
+    reviewReceiptSource: { path: reviewReceiptSource, sha256: sha256(readFileSync(reviewReceiptSource)) }
   };
   writeEvidence(candidate, validDiffCandidate);
   invoke(["scripts/qa.mjs", "full", "--mode", "diff", "--candidate", version, "--evidence", candidate, "--validate-only"], "diff child validates the review subject machine-results binding", { env: selfTestEnv });
@@ -800,6 +817,7 @@ function validateEvidenceContracts() {
     reviewSubjectDigest,
     reviewSubject
   });
+  writeEvidence(reviewReceiptSource, validCandidate.reviewReceipt);
   writeEvidence(candidate, validCandidate);
   writeEvidence(candidate, { ...validCandidate, manualVerdicts: Object.fromEntries(Object.entries(manualVerdicts).reverse()), reviewReceipt: { ...validCandidate.reviewReceipt, fiveConclusions: Object.fromEntries(Object.entries(manualVerdicts).reverse()) } });
   invoke(["scripts/qa.mjs", "full", "--candidate", version, "--evidence", candidate, "--validate-only"], "equivalent verdict key order is accepted without relaxing byte digests", { env: selfTestEnv });
