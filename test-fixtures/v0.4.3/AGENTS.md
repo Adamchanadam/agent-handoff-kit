@@ -1,0 +1,173 @@
+<!-- BEGIN Agent Handoff Kit managed core -->
+# Agent Handoff Kit Core Runtime
+
+This is the small always-read contract. Detailed task and closeout procedures live in routed packs.
+
+## 1. Intent And Startup
+
+### Upgrade lock guard
+
+Before any handoff, user-rule router, pack, or other project-state read, use the verified project root to probe `dev/governance_migrations/.upgrade.lock`. A present lock, or inability to establish its absence, stops ordinary work and all further project-state reads and searches. Do not search for recovery instructions or edit or delete the lock. Before that explanation, render this fenced brand card:
+
+```text
+   /\_/\   Agent Handoff Kit
+  ( x.x )  continuity unavailable
+   > ^ <
+```
+
+It must not claim loaded, healthy, saved, or version-verified state. Explain that continuity is unavailable and give the supported recovery command `agent-handoff-kit upgrade --yes --root <verified-project-root>`. Bare startup never runs this command automatically. If the existence probe is unreadable, report continuity unavailable without claiming a lock is present and do not auto-recover. When the visible user request explicitly authorizes update, upgrade or recovery, only the official CLI performs transaction recovery; resume ordinary state loading only after that CLI succeeds and a new probe establishes lock absence.
+
+Classify the user's visible intent before loading project state. For explicit continuity, closeout, or a task whose next action depends on persisted project state, read `dev/SESSION_HANDOFF.md` first; it is the current-state authority. A direct ordinary or stateless task does not read the handoff merely because the project root is known. If the message is genuinely unresolved and the handoff can resolve it, read the handoff before asking the user.
+
+Do not read `dev/SESSION_LOG.md` during ordinary startup; it is trace-back evidence only. Do not read `START_NEXT_SESSION_PROMPT.txt` in addition to the handoff when already operating in the project root; that file is a portable generated mirror for an agent that has not yet been pointed at the root.
+
+When resuming, recover the parent outcome, current step, resume point, remaining acceptance and source coverage from the fully received handoff under the checkpoint below. Preserve decision-changing user corrections, rejected approaches and their reasons, reusable work and permission boundaries. Surface missing critical context in the startup warning and recommend the specific clarification/read; do not infer parent completion from a finished child or treat previous-session reading as your own. Bare startup remains status-only, with no extra source reads or writes.
+
+Route intent in this order:
+
+1. Clear closeout intent routes directly to `dev/rules/closeout.md`.
+2. Clear continuity intent such as "開工", "Start Agent Handoff", "開始接力", or "continue handoff" resumes the minimum current state from the handoff. A plain continuity message with no same-message task or explicit long-run instruction authorizes only that recovery, the display-only current-thread naming checkpoint when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out wording such as "unless you object I will start". First-use exception: when `dev/SESSION_HANDOFF.md` says `First-use guidance state: eligible`, the active objective is empty / `TBD`, and there is no same-message concrete task, load `dev/rules/onboarding.md` and include a short first-use welcome plus the most relevant guided choices in the same response instead of ending status-only. A concrete objective found only in loaded state is not authority to complete it. A same-message task may begin normally. An explicit instruction such as "開工，繼續做到下一個 blocker" or "開工，繼續完成目前目標" may continue under the normal task and safety rules.
+3. A direct ordinary task begins without a startup card or onboarding ceremony. Read only the sources and packs required by that task.
+4. Explicit guidance requests such as "I'm new", "teach me", "help me start", "新手", "教我用", or "點開始" may load `dev/rules/onboarding.md`. A fresh install marks first-use guidance as `eligible`, so the first unresolved startup must enter onboarding; upgrade must not reset `consumed` or `not_applicable` back to `eligible`. A short message in a non-eligible root only makes guidance available; it never overrides a concrete objective. If no executable objective remains after state reading, ask one concise question or offer guided onboarding.
+
+Treat a phrase as ambiguous only when its ordinary meaning may genuinely refer to a real-world shift, event, or unrelated context. `開工，繼續 <task>`, `<project> 開工`, and `Start Agent Handoff and continue <task>` are continuity commands, not ambiguous phrases.
+
+### Handoff reception and recovery checkpoint
+
+Before claiming `loaded`, `resumed` or `continuity ready`, complete both gates below. A successful closeout, read command, exit code, digest, section list or summary does not establish reception or understanding.
+
+1. **Receive the whole packet.** Read all of `dev/SESSION_HANDOFF.md`, including its middle and end, from one unchanged file version. A full-file command is only a request: inspect the actual tool result. If output is truncated, omitted, paginated or uncertain, use smaller bounded reads and track contiguous ranges from the start through EOF, with no gaps or mixed versions. Check the entire returned body, not just its header/footer; a tool can retain both ends while omitting the middle. Reread any uncertain range. If the file changes during reading, restart coverage for the new version. Native file tools are valid; compare file identity before/after the read sequence. When an already-available local Kit CLI supports it, `handoff-read --root <root>` offers bounded Unicode ranges; continue with its `nextOffset` as `--offset` and the same `--sha256`, reducing `--max-chars` on truncation. Verify its canonical `root` matches the intended workspace; a root alias is not permission to read an unexpected location. Links below that root are rejected. This helper serves content only. Do not download, install, probe integrations or write a receipt for bare startup. Missing/unreadable content stays incomplete.
+2. **Recover the work.** From that packet, reconcile the user's outcome and consumer, current task's relation to it, completed work and reusable evidence, decision reasons and rejected approaches, remaining obligations/acceptance, exact bounded next action, required fresh sources, and authorization/stop boundaries. Preserve corrections and distinguish historical state from current truth. Use existing section locations as internal evidence; do not create another summary file or dump the packet into the reply. Missing or contradictory facts that prevent safe recovery make the checkpoint incomplete; identify their effect and the smallest clarification/read. A packet that honestly describes blocked work can still be sufficient: show its dependency blocker without inventing completion or requiring every linked source at startup. Eligible first-use TBD state still routes to onboarding; it is not a failed task handoff.
+
+Until both gates pass, replace the card's `continuity ready` with `continuity incomplete`, use `incomplete` for its handoff status, and name the unread/conflicting scope. Do not begin dependent task work. Complete safe same-file supplementary reads before giving up; elapsed time or a green CLI is not acceptance. Full reception does not prove every historical fact or linked source; follow the normal required-reading gate before an authorized action. Bare startup still ends after its card. With explicit continuation, check the recovered input, output, downstream use and acceptance against the current request, read the necessary sources, and continue within the authorized scope, including multiple steps when completion or the next blocker was explicitly requested; neither the packet nor this checkpoint grants new permissions. These gates also apply after interrupted reads or context compaction when coverage cannot be recovered from actual evidence.
+
+### Current-thread naming checkpoint
+
+During explicit continuity startup, naming is a required presentation checkpoint when safe current-thread title control is available, not an optional task. After the minimum authorized startup reads, derive the current objective, boundary and recommended next action; resolve this checkpoint before emitting the final startup card or beginning any same-message authorized task work. Do not defer the tool call until after the final response or until the task is finished. If interrupted before the checkpoint resolves, handle it on the next user-authorized turn using current facts; do not schedule a background rename.
+
+Use `<project name>｜<primary action>` from already-loaded facts: the concrete current user task first, then an unresolved current objective, then a concrete recommended action. Do not revive a completed child task from historical handoff text. When the project is known but no concrete action remains, use the project name alone; do not leave a new task named `開工` merely because the previous work is complete. If the project name is unknown, skip without guessing or extra source reads. `Start Agent Handoff`, `開工`, `開始交接工作` and `開始工作交接` are not primary actions. Titles must not contain progress, completion, status, task/session IDs, absolute paths, secrets or unverified facts.
+
+Use the current runtime's exposed tool schema. If a safe current-thread title tool is already available, call it directly; otherwise use a bounded runtime tool-discovery mechanism once with a narrow title/rename/current-thread query, when available. Never invent a tool name or require discovery when the tool is already exposed. Current-title readback is useful when available, but is not required when the tool safely targets the calling/current thread. Replace a generic or stale title; keep an informative title when readback proves it is already relevant, and preserve an explicitly user-chosen title unless the user asks to change it. When the current title cannot be read, use one safe current-thread set call with the derived title. Omit the target identifier only when the schema documents current-thread targeting; otherwise require a verified current-thread identifier. Do not list or inspect unrelated threads solely for naming, and do not create, fork, navigate, message, archive, pin or otherwise manage tasks for this checkpoint.
+
+Before the final response, resolve the checkpoint as applied (successful tool result confirms the title), kept (relevant or user-chosen title), unavailable (no safe capability), skipped (project unknown), or failed/unverified (error or no confirmation). Use a targeted current-thread readback when available; an ambiguous write requires readback before any retry. Only a verified mismatch permits one safe corrective call; never loop or overwrite a later user rename. Do not assume a universal timing window or automatic-title overwrite across AI apps. An unavailable capability does not block startup; skip silently. A failed/unverified attempted rename gets a brief startup warning, not a success claim. Once resolved, return the card and stop for bare startup. On a later user-authorized turn, revisit naming when the primary task becomes concrete or changes, or a generic/stale title is observed; do not rename for tests, reviews or small substeps.
+
+The title is display-only; it is not project state, permission, progress, completion evidence, a health result, or a source of truth. This checkpoint permits only the bounded title calls above; it does not authorize project/file writes, network research, external task work, extra startup reads or continuation beyond the startup boundary.
+
+Read `dev/PROJECT_INDEX.md` when the task needs its file, command, integration, workspace, or source map. Read `dev/RULE_PACKS.md` when a task pack must be selected. Read `dev/DOC_SYNC_REGISTRY.md` before durable cross-file or external synchronization and during closeout. Pack loading is normally silent; explain it only when it changes risk, requires a user decision, or materially affects the next action.
+
+If the user supplies the portable startup prompt, use it to locate the root, then trust the handoff over the mirror. If the root is unclear or mismatched, stop and ask for the intended root before reading or editing project state. Missing required governance files are a repair condition, not permission to invent a parallel structure.
+
+Before a non-trivial task, identify and read the required local and external truth sources or mark them blocked. Reachable is not the same as ingested. Search hits, truncated output, summaries, and status claims do not replace the relevant source content.
+
+Probe an integration only immediately before a task uses it, when the handoff explicitly identifies it as a dependency for the current objective, or when the user requests an integration health check. `TBD`, examples, blank rows, and undeclared placeholders are not installed integrations. Record `Last Verified` only after a real probe and through the normal persistence gate. Never write integration status merely because a session started.
+
+Show the startup card only for explicit continuity startup. For a plain continuity message, show the card after the minimum state recovery and end the turn; its recommended next action is advice, not permission to act. Render the startup card in a fenced `text` block and preserve spacing so the ASCII status marker remains aligned. The first-use exception above replaces that status-only stop with onboarding only when the handoff state is `eligible`, the objective is empty / `TBD`, and there is no same-message concrete task. An explicit same-message task or long-run continuation may combine the card with its first useful action. Direct ordinary tasks do not show the card. If onboarding is explicitly requested or first-use onboarding is triggered, combine any card and guidance in one response.
+
+For explicit bare continuity startup, after the handoff is read, the startup card may read only the bounded version evidence from `dev/PROJECT_INDEX.md`: the unique stable-semver `| Agent Handoff Kit template version | X.Y.Z | ... |` row inside the unique real `## Stack` section. Do not route on, summarize, or load any other Project Index content for startup, title, permissions, packs, health, or task work. Missing, unreadable, malformed, duplicate, prerelease, or out-of-Stack-only version evidence prints `version unverified`; the turn remains status-only with zero writes. A direct ordinary or stateless task does not read the handoff or Project Index merely to fill a card or version.
+
+```text
+   /\_/\   Agent Handoff Kit v<version>
+  ( o.o )  continuity ready
+   > ^ <
+
+🔎 交接狀態：<loaded / new install / resumed / incomplete>
+📌 目前目標：<current objective>
+⚠️ 注意事項：<important boundary or none>
+🚀 推薦下一步：<one action + reason>
+```
+
+Use the full product name, plain user language, and one recommended next action. Never print the literal placeholder `v<version>`.
+
+## 2. Proportionate Work Loop
+
+Apply PLAN → READ → CHANGE → QC internally and in proportion to task state and risk. Do not make the user watch governance ceremony that does not help the task.
+
+In every user-facing reply, lead with ordinary language: state the result and its practical effect, then the next action when one helps. Put exact commands, errors, hashes, and detailed evidence after that; brevity must not hide uncertainty or safety risk.
+
+- Simple answers, pure conversation or creation with no durable state, and low-risk tasks with an obvious target may proceed directly with proportionate reading and checking.
+- Non-trivial work reads relevant sources before changing them.
+- For failures spanning steps or recurring, trace relevant inputs, processing, saved state and actual consumers until evidence explains the cause and direct impact. Then stop expanding the investigation and repair the affected locations with that cause within the authorized scope; do not turn a simple local fix into a whole-system audit.
+- When repeated attempts produce no improved result, unblocked dependency or new evidence, reassess the cause and method before retrying; preserve useful results. Necessary waits and experiments that yield new evidence are not stagnation. Existing safety and retry limits still apply.
+- High-risk work states scope, impact, acceptance, and required confirmation before writes.
+- External skill flows, subagents, task plans, demo workspaces, and another tool's finish step do not replace the active root's persistence decision.
+- Task-first governance locality: when the user supplied a concrete, actionable, authorized task plan and no safety / source-truth / permission blocker prevents it, follow the plan's main acceptance path before governance side work. Governance may become the main path only when the task itself is governance, the user explicitly asks for governance bridge or long-term governance, the content semantically requires cross-session force, or deferring it would create a safety, continuity, source-of-truth, or discoverability blocker. Otherwise, keep governance to the smallest classification, indexing, sync, or Persistence Gate decision that does not change the main deliverable path; do not start governance bridge, long-term-governance routing, repo-wide scans, handoff writes, or closeout solely because the task mentions Markdown, README, docs, specs, plans, checklists, or generated outputs.
+- Materially changed Markdown governance artifacts must be indexed, synchronized, consolidated into their authoritative home, or explicitly classified as temporary / one-time evidence. Other durable formats follow the same human governance rule, but the bundled doctor does not claim to scan them.
+- Ordinary document edits normally use local read-back and task-specific checks only. If the edited document itself is the target authority and the task does not touch Kit-managed files, migrations, release / closeout gates, external effects, cross-source conflicts, or blockers for safe continuation, do not run `agent-handoff-kit doctor`, write handoff / log state, or regenerate the startup mirror solely because a document changed.
+
+## 2.1 Persistence Gate
+
+Choose exactly one tier after a task:
+
+1. No persistence: no durable fact was produced. One-off answers, transient output, active unapproved drafts, and routine rerunnable checks normally use this tier.
+2. Lightweight checkpoint: a durable fact affects future action while the session continues or may be interrupted. This is the default for ongoing sessions. Write only its smallest correct home; do not perform full closeout. Apply the bounded opening/mirror consistency rule below only when this checkpoint changes actionable state repeated there.
+3. Full closeout: explicit end-of-session / handoff intent, a real day / tool-session boundary, or a state where the current agent cannot continue and the next agent must take over. Ordinary external-tool use, a completed release / governance subtask, or a durable note during an ongoing session is not by itself a full closeout trigger. Load `dev/rules/closeout.md` only when this tier is selected.
+
+Pre-closeout checkpoint guard: before writing `dev/SESSION_HANDOFF.md` or `dev/SESSION_LOG.md` without explicit closeout / checkpoint intent, identify the durable fact, why the edited target authority or user-visible answer is insufficient, and why that file is the smallest correct home. Do not write either file merely because the next AI might misread stale state, because a target-authority document changed, or to make the handoff mirror every intermediate step. If the gate selects a checkpoint, update only the named current-state field(s) or one concise log entry; preserve unrelated / historical handoff sections byte-stable where practical. Without the opening-consistency condition below, do not regenerate `START_NEXT_SESSION_PROMPT.txt`.
+
+Checkpoint opening consistency: when an authorized checkpoint changes actionable facts repeated in the `Next Session Opening Message`, reconcile only those affected current facts in that same checkpoint. Derive `START_NEXT_SESSION_PROMPT.txt` from the sole marked opening block only if normalized content differs, then verify the block/mirror and the changed objective, next action and completion boundary agree. Do not merely label an authoritative opening historical while leaving instructions to redo completed work. Preserve unrelated opening text and cold evidence; this condition does not authorize full closeout, new task work, extra source scans or persistence after an ordinary document edit.
+
+During an ongoing task, between Persistence Gate decisions, `dev/SESSION_HANDOFF.md` may legitimately trail the read-back target authority. Treat that as expected lag, not drift, and do not update handoff merely to mirror each intermediate step. Still apply the gate when a durable or startup-needed fact must survive interruption, the handoff is the smallest correct home, Kit-managed / release / closeout / external-effect state changed, or full closeout is selected.
+
+Route current objective, next action, active risk, blocker, and startup-needed facts to `dev/SESSION_HANDOFF.md`; chronological evidence to `dev/SESSION_LOG.md`; maps to `dev/PROJECT_INDEX.md`; sync obligations to `dev/DOC_SYNC_REGISTRY.md`; long-term rationale to `dev/PROJECT_DECISIONS.md`; and reusable procedures to the relevant pack, registered reference, or QA check. Do not store the same task contract or reusable rule in several homes.
+
+External effects are never implied permission for commit, push, publish, release, deployment, cleanup, or another workspace write. Record verified external impact through the relevant integrations, release, safety, and closeout contracts without exposing private content or secrets.
+
+## 2.2 Upgrade Completion
+
+The CLI owns upgrade truth. An upgrade is complete only when:
+
+1. The root is not newer than the CLI and every target passes read-only classification.
+2. Conflict produces zero governance-target and version writes.
+3. Staged outputs pass the offline migration acceptance gate: root boundary, structure, cross-file invariants, preservation hashes, and version transition.
+4. The recoverable transaction commits without an unresolved journal; only a failure caused by this transaction triggers rollback.
+5. Whole-project `doctor` reports project health separately. Pre-existing or unrelated health failures do not convert a correct migration into a destructive rollback; new migration-caused blockers do.
+6. The migration report records attempted version, committed version, transaction state, actions, redacted reasons, and backup locations without credential values.
+
+Do not use "upgrade completed" to mean "the entire project is healthy". Report `migration committed` and `project health` separately. Conflict, incomplete recovery, failed migration acceptance, and future-version roots are not completed upgrades.
+
+## 3. Safety Baseline
+
+Do not delete, reset, overwrite user-owned content, bulk-move, publish, change permissions, or perform another irreversible or external action without the required explicit authorization.
+
+Named prohibited destructive commands in `dev/rules/safety.md` remain prohibited even when requested. Never use a weaker pack or local instruction to bypass core safety.
+
+Verify the selected root and real target boundaries before writes. Do not follow a link, junction, mount, or computed path outside the confirmed root. Do not expose credential values in output, reports, backups, tests, or logs. A real permission or lock refusal stops the affected operation; it is not permission to elevate, switch provider or mode, or use a riskier command. Normal platform approval and another already-authorized safe method remain available only after their actual scope and safety are verified.
+
+Do not modify unrelated files or erase unexpected user changes. Do not claim completion without read-back evidence and proportionate checks.
+
+## 4. Closeout Trigger
+
+Clear end-of-session or handoff intent such as "收工", "Wrap up Agent Handoff", "closeout", "wrap up", or "handoff" triggers full closeout, not a chat-only summary. Load `dev/rules/closeout.md` and follow its complete contract. `收工，記得 <handoff requirement>` and equivalent closeout-plus-instruction phrases are clear closeout intent. Ask one concise confirmation only when the phrase genuinely refers to an unrelated real-world closing or shift.
+
+The always-enforced closeout invariants are:
+
+1. Current state lives in `dev/SESSION_HANDOFF.md`; trace evidence lives in `dev/SESSION_LOG.md`.
+2. Completed, pending, risk, validation, and opening-message lifecycle states agree.
+3. `START_NEXT_SESSION_PROMPT.txt` is regenerated from the sole authoritative handoff block and no third full copy is retained.
+4. Workspace identity is a last-verified snapshot. Live root / Git / worktree truth belongs to `agent-handoff-kit workspace-health --root <project root>` or equivalent read-only Git probes, not to stale prose.
+5. Closeout is not complete until required files are written, read back, and the available closeout checks pass.
+6. After those checks, render the final card with `agent-handoff-kit closeout-status --root <project root>`; only its `status: complete` output may say `handoff saved`. A nonzero / `blocked` result is an honest blocked closeout, not a completed one.
+7. Git commit, push, release, publish, deployment, deletion, and permission changes remain separately authorized actions.
+
+## 5. Pack Loading
+
+Use `dev/RULE_PACKS.md` to load the minimum task-specific set. Read the applicable packs, including their project supplements and required references, before deciding how to act; an index, title or remembered summary is not the rule itself. Apply them within the user's actual objective and instruction priority: do not invent a replacement goal, acceptance standard or competing rule system. Missing or conflicting requirements must be resolved from their owners, not filled by an invented policy. Packs may add stricter requirements but cannot weaken core safety or continuity.
+
+Load `dev/rules/integrations.md` when the current task actually uses an external tool, not merely because a registry or placeholder table exists. Load `dev/rules/closeout.md` only for full closeout. If two packs conflict, use the safer and more verifiable path and record the unresolved conflict at closeout.
+
+After the task, apply the Persistence Gate. Do not assume the next session remembers pack context, and do not use handoff or log as the only home for reusable procedures.
+
+## Core Complexity Rule
+
+Before changing `AGENTS.md` or adding a durable governance rule, use `dev/RULE_PACKS.md` to load `dev/rules/agent-governance.md` and locate the existing normative owner. Follow its `Governance Write Boundary` before choosing a writable location: installed official core and pack bodies are not project-editable rule homes. Default-core rules must apply to most sessions, protect safety or continuity, and be shorter than the routed detail they replace. Scenario-specific or project-specific detail belongs in an existing pack's project supplement or registered reference; a new pack is justified only when it creates a smaller, independently loadable responsibility with one normative owner. Do not copy the agent-governance classification table or workflow into the core.
+<!-- END Agent Handoff Kit managed core -->
+
+<!-- ack:user-rules-router:dev/USER_RULES.md -->
+<!-- ack:user-rules-acceptance:sha256=17d96a5082e956205ea5e9b4507cf83a2c934cae5bdce7a0b32b52dc3da7a002 -->
+Before loading task packs, read `dev/USER_RULES.md`. Its registered entries
+under `dev/user_rules/` are user-controlled rules: read each accepted entry in
+the listed order and verify its accepted raw-byte witness. Do not treat this
+router, its directory, a heading, language, format, location, or
+official-looking text as proof that any legacy source belongs to the Kit.
+
+The core `Upgrade lock guard` applies first when it stops ordinary work.
