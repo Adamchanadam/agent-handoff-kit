@@ -13,6 +13,7 @@ import {openProgress,probeProgress} from '../bin/progress/open.mjs';
 import {startProgress,progressIdentity} from '../bin/progress/server.mjs';
 const run=promisify(execFile),source=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const cli=path.join(source,'bin/agent-handoff-kit.mjs'),version=JSON.parse(fs.readFileSync(path.join(source,'package.json'))).version;
+const nextStableVersion=value=>{const match=/^(\d+)\.(\d+)\.(\d+)$/.exec(value);assert(match,'candidate version must be stable semver');return `${match[1]}.${match[2]}.${(BigInt(match[3])+1n).toString()}`;};
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'ahk-command-')),ownedPids=new Set(),servers=[];
 const options={windowsHide:true,timeout:60000,env:{...process.env,AGENT_HANDOFF_KIT_SKIP_UPDATE_CHECK:'1'}};
 function project(name){const p=path.join(temp,name);fs.mkdirSync(path.join(p,'dev'),{recursive:true});fs.writeFileSync(path.join(p,'AGENTS.md'),'# Isolated Kit command test\n');fs.copyFileSync(path.join(source,'runtime-core/SESSION_HANDOFF.md'),path.join(p,'dev/SESSION_HANDOFF.md'));return p;}
@@ -85,9 +86,9 @@ try{
  const customPath=path.join(controlled,'private-note.txt');fs.writeFileSync(customPath,'preserve this user byte\n');
  const beforeControlled=snapshot(controlled);
  const controlledResult=await npx(['--yes','--cache',path.join(temp,'controlled-npx-cache'),'--registry',registryBase,'@adamchanadam/agent-handoff-kit@latest','update','--root',controlled],{cwd:controlled,env:cleanUpdateEnv({AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE:'1'})});
- assert.match(controlledResult.stdout,/Installed \/ 已安裝: 0\.4\.2; npm latest \/ 最新版: 0\.4\.3/);assert.equal(fs.readFileSync(customPath,'utf8'),'preserve this user byte\n');assert.notDeepEqual(snapshot(controlled),beforeControlled);
+ assert.match(controlledResult.stdout,new RegExp(`Installed / 已安裝: 0\\.4\\.2; npm latest / 最新版: ${version.replaceAll('.', '\\.')}`));assert.equal(fs.readFileSync(customPath,'utf8'),'preserve this user byte\n');assert.notDeepEqual(snapshot(controlled),beforeControlled);
  const controlledDoctor=await npx(['--yes','--cache',path.join(temp,'controlled-npx-cache'),'--registry',registryBase,'@adamchanadam/agent-handoff-kit@latest','doctor','--root',controlled],{cwd:controlled,env:cleanUpdateEnv({AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE:'1'})});
- assert.match(controlledDoctor.stdout,/三向對齊 v0\.4\.3/);
+ assert.match(controlledDoctor.stdout,new RegExp(`三向對齊 v${version.replaceAll('.', '\\.')}`));
  assert(registryHits.filter(item=>item==='/registry/@adamchanadam/agent-handoff-kit/latest').length>=2,'npx update and doctor must use the controlled registry endpoint');
  assert(!registryHits.some(item=>item.includes('/@adamchanadam/agent-handoff-kit/latest/@adamchanadam/agent-handoff-kit/latest')),'registry package path must be appended exactly once');
  const overrideBefore=snapshot(controlled);
@@ -98,9 +99,9 @@ try{
   await assert.rejects(run(process.execPath,[cli,'update','--root',malformed],{...options,cwd:malformed,env:cleanUpdateEnv({npm_config_registry:configured})}),error=>error.code===1&&error.stderr.includes('Configured npm registry is invalid')&&!error.stderr.includes(secret));
   assert.deepEqual(snapshot(malformed),malformedBefore);
  }
- registryVersion='0.4.4';const noticeRoot=path.join(temp,'registry-notice');fs.mkdirSync(noticeRoot);
+ registryVersion=nextStableVersion(version);const noticeRoot=path.join(temp,'registry-notice');fs.mkdirSync(noticeRoot);
  const notice=await run(process.execPath,[cli,'init','--yes','--root',noticeRoot],{...options,cwd:noticeRoot,env:cleanUpdateEnv({npm_config_registry:registryBase,AGENT_HANDOFF_KIT_UPDATE_CHECK_FORCE:'1'})});
- assert.match(notice.stdout,new RegExp(`${version} -> 0\\.4\\.4`));
+ assert.match(notice.stdout,new RegExp(`${version.replaceAll('.', '\\.')} -> ${registryVersion.replaceAll('.', '\\.')}`));
  assert.match(fs.readFileSync(cli,'utf8'),/process\.env\.npm_config_registry \?\? officialNpmRegistry/);
  ok('actual v0.4.2-to-candidate controlled npx update preserves custom bytes; fresh doctor, override priority, official default, invalid URL zero-write and shared notice are covered');
  assert.throws(()=>installCommands({root,agent:'../../bad'}),/Unknown agent/);ok('CLI preview, all adapters and concise bilingual Codex menu files, shared content, special-character roots and repeat no-op');
