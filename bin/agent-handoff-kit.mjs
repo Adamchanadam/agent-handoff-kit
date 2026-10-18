@@ -786,7 +786,7 @@ function assessCloseoutDeclarations(text) {
   }
   for (const [id, label] of [["recommended-next-step-explicit", "recommended next step"], ["opening-message-matches-current-state", "opening message"]]) {
     const value = field(id);
-    if (!isAffirmativeLifecycleFieldValue(value) || isUnresolvedLifecycleFieldValue(value)) {
+    if (!isAffirmativeLifecycleFieldValue(value) || isExplicitlyUnresolvedCloseoutFieldValue(value, id)) {
       findings.push(`Handoff: ${label} declaration is missing, negative or unverified; reconcile it before closeout.`);
     }
   }
@@ -1195,7 +1195,7 @@ function assessHandoffWorkspaceIdentity(handoffText, health) {
     findings.push(`Workspace: handoff Git root does not match live Git root ${health.gitRoot}`);
   }
 
-  const branchValue = workspaceFieldValue(section, "Branch");
+  const { branchValue, commitValue } = workspaceBranchCommitValues(section);
   if (hasSubstantiveWorkspaceValue(branchValue)
     && !workspaceValueMeansNoGit(branchValue)
     && health.branch !== "unverified"
@@ -1204,7 +1204,6 @@ function assessHandoffWorkspaceIdentity(handoffText, health) {
     findings.push(`Workspace: handoff branch does not match live branch ${health.branch}`);
   }
 
-  const commitValue = workspaceFieldValue(section, "Commit");
   if (hasSubstantiveWorkspaceValue(commitValue)
     && !workspaceValueMeansNoGit(commitValue)
     && health.head !== "unverified"
@@ -1235,8 +1234,24 @@ function assessHandoffWorkspaceIdentity(handoffText, health) {
 function workspaceFieldValue(section, label) {
   const escaped = escapeRegExp(label);
   const line = section.split(/\r?\n/u).find((candidate) => new RegExp(`^\\s*(?:[-*]\\s*)?${escaped}\\s*:`, "iu").test(candidate.trim()));
-  if (!line) return "";
-  return line.slice(line.indexOf(":") + 1).trim();
+  if (line) return line.slice(line.indexOf(":") + 1).trim();
+  for (const candidate of section.split(/\r?\n/u)) {
+    const cells = candidate.trim().replace(/^\||\|$/gu, "").split("|").map((cell) => cell.trim());
+    if (cells.length >= 2 && new RegExp(`^${escaped}$`, "iu").test(cells[0])) return cells[1];
+  }
+  return "";
+}
+
+function workspaceBranchCommitValues(section) {
+  const branchValue = workspaceFieldValue(section, "Branch");
+  const commitValue = workspaceFieldValue(section, "Commit");
+  const combined = workspaceFieldValue(section, "Branch / commit");
+  if (!combined) return { branchValue, commitValue };
+  const [combinedBranch = "", combinedCommit = ""] = combined.split(/\s+\/\s+/u, 2).map((value) => value.trim());
+  return {
+    branchValue: branchValue || combinedBranch,
+    commitValue: commitValue || combinedCommit
+  };
 }
 
 function hasSubstantiveWorkspaceValue(value) {
@@ -1261,16 +1276,13 @@ function workspaceValueIsNaturalNotApplicable(value) {
 }
 
 function workspaceSectionClaimsNoGit(section) {
-  return workspaceRootMeansNoGit(workspaceFieldValue(section, "Git root"))
-    || workspaceValueMeansNoGit(section);
+  return workspaceRootMeansNoGit(workspaceFieldValue(section, "Git root"));
 }
 
 function workspaceSectionClaimsGitRepository(section) {
   const gitRoot = workspaceFieldValue(section, "Git root");
-  const values = [
-    workspaceFieldValue(section, "Branch"),
-    workspaceFieldValue(section, "Commit")
-  ];
+  const { branchValue, commitValue } = workspaceBranchCommitValues(section);
+  const values = [branchValue, commitValue];
   return (hasSubstantiveWorkspaceValue(gitRoot) && !workspaceRootMeansNoGit(gitRoot))
     || values.some((value) => hasSubstantiveWorkspaceValue(value)
       && !workspaceValueMeansNoGit(value)
@@ -3991,7 +4003,7 @@ function assessHandoffLifecycleConsistency(text) {
   const fieldValue = fieldValueAfterMarker(text, "lifecycle-conflicts-resolved");
   const contradictions = findHandoffLifecycleContradictions(text);
   const conflict = contradictions[0];
-  if (isUnresolvedLifecycleFieldValue(fieldValue)) {
+  if (isExplicitlyUnresolvedLifecycleFieldValue(fieldValue)) {
     return { ok: false, reason: "lifecycle field is explicitly unresolved", conflict };
   }
   if (isPlaceholderLifecycleFieldValue(fieldValue) && hasSubstantiveHandoffState(text)) {
@@ -4001,6 +4013,33 @@ function assessHandoffLifecycleConsistency(text) {
     return { ok: false, reason: "resolved work overlaps unresolved carry-forward state", conflict };
   }
   return { ok: true, reason: "" };
+}
+
+function isExplicitlyUnresolvedLifecycleFieldValue(value) {
+  return isExplicitlyUnresolvedCloseoutFieldValue(value, "lifecycle-conflicts-resolved");
+}
+
+function isExplicitlyUnresolvedCloseoutFieldValue(value, fieldId) {
+  const trimmed = normalizeLifecycleFieldValue(value);
+  if (!isAffirmativeLifecycleFieldValue(trimmed)) return isUnresolvedLifecycleFieldValue(trimmed);
+  const detail = trimmed
+    .replace(/^(?:yes|resolved|confirmed|complete|completed|ok|passed|all clear)\b|^(?:是|完成|已完成|已解決|已核對|已確認|通過)(?=$|[\s，。；：、,.!:;—–-])/iu, "")
+    .replace(/^[\s，。；：、,.!:;—–-]+/u, "")
+    .trim();
+  const subject = fieldId === "recommended-next-step-explicit"
+    ? /\b(?:(?:recommended\s+)?next\s+step|this\s+(?:field|declaration))\b|(?:(?:推薦)?下一步|本欄|此欄|本項|此項)/iu
+    : fieldId === "opening-message-matches-current-state"
+      ? /\b(?:opening\s+message|current\s+state|this\s+(?:field|declaration))\b|(?:開場白|開場訊息|目前狀態|當前狀態|本欄|此欄|本項|此項)/iu
+    : /\b(?:lifecycle(?:\s+(?:conflicts?|state|field|declarations?|reconciliation))?|handoff(?:\s+(?:conflicts?|state|field|declarations?|reconciliation))?|this\s+(?:field|declaration))\b|(?:生命週期|生命周期|交接(?:矛盾|衝突|狀態)?|本欄|此欄|本項|此項)/iu;
+  return detail.split(/[;；。!?！？]+/u).map((part) => part.trim()).filter(Boolean).some((clause, index) => {
+    const state = clause.replace(/^(?:but|however|whereas|while|但|不過|然而)\s*[，,]?\s*/iu, "");
+    if (/^(?:unresolved|still unresolved|not resolved|not confirmed|unverified|uncertain|blocked|pending|unknown|needs-review)(?=$|[\s,.;:—–-])/iu.test(state)
+      || /^(?:(?:仍|尚)?未(?:解決|確認|核對)|未完成)(?=$|[\s，。；：、,.!:;—–-])/u.test(state)) return true;
+    if (index === 0 && /^(?:(?:仍|尚)?未(?:解決|確認|核對)|未完成)/u.test(state)) return true;
+    const unresolved = /\b(?:unresolved|still unresolved|not resolved|not confirmed|unverified|uncertain|blocked|pending|unknown|needs-review)\b|(?:仍|尚)?未(?:解決|確認|核對|完成)/iu;
+    const between = "[^,，;；。.!?！？]*";
+    return new RegExp(`(?:${subject.source})${between}(?:${unresolved.source})|(?:${unresolved.source})${between}(?:${subject.source})`, "iu").test(state);
+  });
 }
 
 function handoffLifecycleDiagnosticDetails(lifecycle) {

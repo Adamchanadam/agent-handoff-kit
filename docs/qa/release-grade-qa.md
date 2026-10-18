@@ -33,6 +33,68 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 
 Historical sections below may retain the legacy key `userJourney` as evidence text for their old contract. It is not a current formal conclusion and cannot broaden the v0.4.3 observable scope above.
 
+## v0.4.4 candidate status
+
+- 狀態：隔離原始碼候選，尚未凍結、未完成 candidate-preflight、formal full、receipt 或任何發布操作。
+- 範圍：修正收工欄位的同一範圍否定判讀，保留獨立未完成工作的交接；Workspace Identity 只讀取明示 Git 身分欄位，並支援 Markdown 表格與合併的 `Branch / commit` 欄位。
+- 獨立預凍結覆核：`D:\_temp\ahk-v044-closeout-release-20261018\review-prefreeze\review.md`，SHA-256 `C3CD97625F5DB581298C3BA32808E641050E4443E09333779818B59468012BDB`；verdict `accepted bounded source preparation`，不是 formal-full receipt 或發布批准。
+- GitHub Release binding：title `v0.4.4 - 收工狀態判讀更清楚`；notes `docs/whatsnew/v0.4.4.md`，SHA-256 `BFB67DA78A0EC9E85B06E46ECC73EAF476EF9C77D448DA0ACC32908A9E1B30C7`。
+- 邊界：不改 runtime-core、packs、已發布 v0.4.3 的 official-origin catalog 或兩個使用者 runtime。正式驗收必須以凍結後的 v0.4.4 candidate identity、獨立審閱、所需 evidence 與 current command contract 重新核對。
+
+### Source contract gate（v0.4.4，PASS）
+
+- 範圍：候選基底為 `5e95cf9024543e70a816b5f8d2f8aec3e7157764`；CLI 只套用已接受的 r4 closeout／Workspace Identity 修補，保留官方 transaction hunks；套件版本只由 `0.4.3` 變為 `0.4.4`。
+- `bin/agent-handoff-kit.mjs` SHA-256 `42EE9F394818F32D26EDEADE58FFE8006058FD696A8073C2C1A233139C83133B`
+- `scripts/check-closeout-card-contract.mjs` SHA-256 `50A3010DF006CD337F6397FBCC834C40C75895514CAD4999521DE4245E1174A9`
+- `node scripts/check-closeout-card-contract.mjs` exit 0；raw log `D:\_temp\ahk-v044-closeout-release-20261018\evidence\closeout-card-contract-source.log` SHA-256 `4DE84CCFF13D569991080392FA0127C87FC3FE73170CB3925D6744929D577BC4`。
+- Verdict: **PASS** — source contract coverage only; the independent packaged consumer evidence remains bounded to its unchanged responsible functions and inputs, and does not replace this candidate's frozen identity, formal full or release readback.
+
+### Bilingual README semantic gate（v0.4.4，PASS）
+
+- Reviewer: independent non-author `/root/closeout_independent_review`, 2026-10-18.
+- Scope: the full pair differs from official base only at its one version label per language. Chinese “文件對應程式版本” and English “Code version covered” both name v0.4.4 while the adjacent text explicitly keeps available features subject to the published version. Actions, limits, links and all other content are unchanged.
+- `README.md` SHA-256 `D638D8343106E937F44C522BEE060D10BD00E2DD5343C0A8B5EDCF59AD444CA9`
+- `README.en.md` SHA-256 `81BA8910D45A9D129ADBA185D2BF1907B313A2EB7F1EF6E7954FBE69A3C91040`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual practical-guide semantic gate（v0.4.4，PASS）
+
+- Reviewer: independent non-author `/root/closeout_independent_review`, 2026-10-18.
+- Scope: the full pair changes only hero and footer version labels to v0.4.4. Both retain their source-versus-published warning; the command journey, examples, authorization boundaries and consequences are unchanged. The new version label carries the same meaning in both languages.
+- `agent-handoff-kit-guide.html` SHA-256 `400C72DC845BD2650BDA6F857A9F819573DD63CD5FB8E577DF50D5D0DA5FA3CC`
+- `agent-handoff-kit-guide.en.html` SHA-256 `5B6F3B6AEE9DE60F94EDFADBFCCCC0304F99A187E0154E582F9E67F0746CB283`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual AI-install semantic gate（v0.4.4，PASS）
+
+- Reviewer: independent non-author `/root/closeout_independent_review`, 2026-10-18.
+- Scope: the full pair changes only hero and footer version labels to v0.4.4. Chinese and English still distinguish these instructions from published availability. Folder confirmation, installation/upgrade steps, checks and safeguards are byte-preserved apart from line endings and those labels; no new user action or permission is introduced.
+- `agent-handoff-kit-ai-install.html` SHA-256 `AC63D422F721A81AF9A68A9FEF91C6B388EE79FB6ED000A386F83CAE1C7F9BA0`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `88265A1C7E6DBFB37CC805BF5FCC65E56ED3A88D9801414F16EB66651DD73DAD`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual introduction semantic gate（v0.4.4，PASS）
+
+- Reviewer: independent non-author `/root/closeout_independent_review`, 2026-10-18.
+- Scope: the full pair changes only hero and footer version labels to v0.4.4. The surrounding introduction still describes retained progress, decisions, file locations and unfinished work, with the same unpublished-update warning. All functional promises and reader choices outside that version delta are unchanged.
+- `agent-handoff-kit-intro.html` SHA-256 `73F59AFB4DCD49B22F6BEA3F98DEAD7ABED2B1606867DA81D5209C3044C59E6D`
+- `agent-handoff-kit-intro.en.html` SHA-256 `7F39949F40D3C7070F30A15C43569C08269A1B015268D8522BA1101C0B173E44`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Cross-mind evidence 9-trigger table（v0.4.4）
+
+| Trigger | Required | Result | Evidence / boundary |
+| --- | --- | --- | --- |
+| 1. failure / blocker | yes | passed | r4 false-green counterexamples were retained; the candidate closeout contract passes with the long-clause, same-field negation and Workspace Identity table cases. |
+| 2. external side effects | yes | passed | Only isolated candidate and local evidence were written; no user runtime, original Public worktree, push, tag, GitHub Release or npm publish action occurred. |
+| 3. user-visible output | yes | passed | The closeout contract covers complete and blocked `closeout-status` paths, including independent unfinished work and genuine same-field contradictions. |
+| 4. complexity / boundary | yes | passed | The repair uses existing field helpers and current Workspace Identity fields; no schema, package, LLM interpretation or domain-word exception was added. |
+| 5. documentation drift | yes | passed | Independent review accepted the complete version-only deltas for README, guide, AI-install and introduction pairs; release title and notes were reviewed separately. |
+| 6. semantic runtime effect | yes | passed | Independent source review verified the changed classifier preserves explicit field/same-scope boundaries and leaves unrelated transaction behavior from the official base intact. |
+| 7. recurrence regression | yes | passed | Existing negative oracles remain and new regressions cover later bare negatives, Chinese attached-object denial, separate unfinished work, Git no-repository wording and combined branch/commit mismatches. |
+| 8. QA authority | yes | passed | Existing closeout contract, release-readiness, candidate evidence and formal full owners remain unchanged; this section records source preparation only. |
+| 9. release statement | yes | passed | v0.4.4 remains a local candidate until frozen identity, independent receipt, formal full and postpublish readback all pass. |
+
 ## v0.4.3 candidate status
 
 - 狀態：本地原始碼候選，尚未凍結、未完成 candidate-preflight、formal full、receipt 或任何發布操作。

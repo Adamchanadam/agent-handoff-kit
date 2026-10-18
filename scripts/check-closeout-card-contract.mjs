@@ -121,6 +121,13 @@ try {
   const nextPriorities = `${nextStep}\n\n1. follow-up scope — monitor only if a new reproducible failure occurs.`;
   const replacePriorities = (value) => complete.replace(nextPriorities, value);
   assertCloseoutComplete(complete.replace("Opening message matches current state: yes", "Opening message matches current state: 已確認"), "Chinese affirmative declaration");
+  assertCloseoutComplete(
+    complete.replace(
+      "Opening message matches current state: yes",
+      "Opening message matches current state: yes — the opening message matches the recorded state; supplier delivery remains unverified."
+    ),
+    "opening declaration preserves an independent unfinished delivery"
+  );
   for (const [label, narrative] of [
     ["original native invitation repro", "Recommended next step: read `docs/source-note.md` and verify the event date before drafting — reason: the invitation must not state an unverified date."],
     ["ordinary English prose", "Read the supplier record first. Its date determines the next delivery notice."],
@@ -133,8 +140,15 @@ try {
     assertCloseoutComplete(complete.replace(nextStep, narrative), label);
   }
   assertCloseoutComplete(replacePriorities("- Read the supplier record before drafting the next delivery notice."), "ordinary Markdown bullet priority");
+  const longSingleSubjectLifecycle = complete.replace(
+    "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes",
+    "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes — lifecycle conflicts after the completed archive comparison and the recorded inventory inspection and the checked evidence collection and the earlier preservation review are still unresolved."
+  );
+  writeFixtureHandoff(longSingleSubjectLifecycle);
+  const longSingleSubjectLifecycleResult = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!longSingleSubjectLifecycleResult.error && longSingleSubjectLifecycleResult.status !== 0 && longSingleSubjectLifecycleResult.stdout.includes("handoff lifecycle read-back is not healthy"), "long same-field lifecycle negation falsely completed closeout");
   for (const [label, text] of [
-    ...["否", "未確認", "待確認", "已", "已確認，仍未解決", "已確認，但尚未確認來源", "", "TBD"].map((value) => ["unconfirmed Chinese opening: " + value, complete.replace("Opening message matches current state: yes", "Opening message matches current state: " + value)]),
+    ...["否", "未確認", "待確認", "已", "已確認，仍未解決", "已確認，但尚未確認來源", "已確認，但尚未確認證據", "已確認，但此欄仍未確認", "", "TBD"].map((value) => ["unconfirmed Chinese opening: " + value, complete.replace("Opening message matches current state: yes", "Opening message matches current state: " + value)]),
     ["missing Next Priorities section", complete.replace(`<!-- ack:section:next-priorities -->\n## Next Priorities\n\n${nextPriorities}\n`, "")],
     ["empty Next Priorities", replacePriorities("")],
     ["single placeholder priority", replacePriorities("TBD")],
@@ -194,6 +208,58 @@ try {
   assertCloseoutComplete(complete.replace("## Handoff Sufficiency Check", "## 交接充分性檢查").replace(/\r?\n/g, "\r\n"), "localized heading and CRLF");
   assertCloseoutComplete(complete.replace(/^Reconstruction evidence:.*$/m, "Reconstruction evidence: Task Understanding and Active Objective preserve the outcome; Risks / Blockers records an unknown dependency and the safe next action; Next Task Required Reading names the unread source."), "evidence may faithfully describe blocked work");
   console.log("ok: explicit insufficiency, missing/hidden/duplicate proof and continuation contradictions cannot produce a complete card");
+
+  const lifecycleFieldValue = value => complete.replace(
+    "- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: yes",
+    `- Completed / pending / risk / opening-message lifecycle conflicts resolved or explicitly reclassified: ${value}`
+  );
+  for (const [label, value] of [
+    ["Chinese independent school risk in an affirmative lifecycle field", "yes — 撤銷及檢討保存與未完成學校交付分開；舊running差異已明示。"],
+    ["English independent school risk in an affirmative lifecycle field", "yes — school delivery remains unverified; lifecycle conflicts were separately resolved."]
+  ]) assertCloseoutComplete(lifecycleFieldValue(value), label);
+  assertCloseoutComplete(
+    lifecycleFieldValue("yes — 已完成交接保存；未完成學校交付另列為獨立工作。"),
+    "affirmative lifecycle field preserves independent unfinished school delivery"
+  );
+  assertCloseoutComplete(
+    lifecycleFieldValue("yes — 交接已完成，學校交付未完成。"),
+    "affirmative lifecycle field does not match a separate unfinished school delivery"
+  );
+  for (const [label, value] of [
+    ["negative lifecycle field", "no — lifecycle reconciliation is incomplete."],
+    ["blocked lifecycle field", "blocked — waiting for lifecycle evidence."],
+    ["unverified lifecycle field", "unverified"],
+    ["placeholder lifecycle field", "TBD"],
+    ["affirmative field with unresolved lifecycle", "yes — lifecycle conflicts are not resolved."],
+    ["affirmative field with remaining unresolved lifecycle", "yes — lifecycle conflicts remain unresolved."],
+    ["affirmative field with unresolved Chinese self-reference", "yes — 此欄仍未解決。"],
+    ["affirmative field with unresolved Chinese handoff conflict", "yes — 交接矛盾仍未解決。"],
+    ["affirmative field with a bare unverified state", "yes — unverified"],
+    ["affirmative field with a later bare unverified state", "yes — evidence checked; unverified"],
+    ["affirmative field with a later bare unverified reason", "yes — evidence checked; unverified — receipt missing"]
+  ]) assertLifecycleBlocked(lifecycleFieldValue(value), label);
+  assertCloseoutComplete(
+    complete.replace(
+      "Recommended next step is explicit and reasoned: yes — action and reason are recorded.",
+      "Recommended next step is explicit and reasoned: yes — 停止，等待 Adam 指定接手者或新任務；速度與文件對齊未完成。"
+    ),
+    "affirmative next-step declaration preserves independent unfinished work"
+  );
+  const unresolvedNextStep = complete.replace(
+    "Recommended next step is explicit and reasoned: yes — action and reason are recorded.",
+    "Recommended next step is explicit and reasoned: yes — recommended next step is unverified."
+  );
+  writeFixtureHandoff(unresolvedNextStep);
+  const unresolvedNextStepResult = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!unresolvedNextStepResult.error && unresolvedNextStepResult.status !== 0 && unresolvedNextStepResult.stdout.includes("recommended next step declaration"), "affirmative next-step declaration hid its own unresolved state");
+  const unresolvedNextStepSelfReference = complete.replace(
+    "Recommended next step is explicit and reasoned: yes — action and reason are recorded.",
+    "Recommended next step is explicit and reasoned: yes — this field remains unverified."
+  );
+  writeFixtureHandoff(unresolvedNextStepSelfReference);
+  const unresolvedNextStepSelfReferenceResult = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!unresolvedNextStepSelfReferenceResult.error && unresolvedNextStepSelfReferenceResult.status !== 0 && unresolvedNextStepSelfReferenceResult.stdout.includes("recommended next step declaration"), "affirmative next-step field self-reference hid its unresolved state");
+  console.log("ok: lifecycle field status is scoped to its declaration; independent school risks do not hide actual unresolved lifecycle state");
 
   const lifecycleConflict = complete.replace(
     "1. follow-up scope — monitor only if a new reproducible failure occurs.",
@@ -336,6 +402,33 @@ try {
     .replace("Worktree / parallel workspace status: not_applicable - no Git repository", "Worktree / parallel workspace status: one registered fixture worktree")
     .replace("Uncommitted changes summary: not_applicable - no Git repository", "Uncommitted changes summary: untracked fixture files");
   assertCloseoutComplete(gitPacket, "real Git fixture with matching branch");
+  assertCloseoutComplete(
+    gitPacket.replace(
+      "Uncommitted changes summary: untracked fixture files",
+      "Uncommitted changes summary: untracked fixture files\n| PUBLIC | Separate workspace; local delivery completed. No Git or online publication. |"
+    ),
+    "real Git fixture ignores unrelated PUBLIC no-Git-operation boundary"
+  );
+  const gitTablePacket = gitPacket
+    .replace(`Git root: ${fixtureRoot}`, `| Git root | ${fixtureRoot} |`)
+    .replace("Branch: main", "| Branch | main |")
+    .replace(`Commit: ${git(["rev-parse", "HEAD"])}`, `| Commit | ${git(["rev-parse", "HEAD"])} |`)
+    .replace("Worktree / parallel workspace status: one registered fixture worktree", "| Worktree / parallel workspace status | one registered fixture worktree |")
+    .replace("Uncommitted changes summary: untracked fixture files", "| Uncommitted changes summary | untracked fixture files |");
+  assertCloseoutComplete(gitTablePacket, "real Git fixture supports matching Workspace Identity table fields");
+  const gitCombinedTablePacket = gitPacket
+    .replace("Branch: main", `| Branch / commit | main / ${git(["rev-parse", "HEAD"])} |`)
+    .replace(`Commit: ${git(["rev-parse", "HEAD"])}`, "");
+  assertCloseoutComplete(gitCombinedTablePacket, "real Git fixture supports matching combined Workspace Identity branch and commit table field");
+  writeFixtureHandoff(gitCombinedTablePacket.replace("main /", "wrong-review-branch /"));
+  const combinedBranchMismatch = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!combinedBranchMismatch.error && combinedBranchMismatch.status !== 0 && combinedBranchMismatch.stdout.includes("handoff branch does not match live branch"), "combined Workspace Identity branch mismatch falsely completed closeout");
+  writeFixtureHandoff(gitCombinedTablePacket.replace(git(["rev-parse", "HEAD"]), "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"));
+  const combinedCommitMismatch = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!combinedCommitMismatch.error && combinedCommitMismatch.status !== 0 && combinedCommitMismatch.stdout.includes("handoff commit does not match live HEAD"), "combined Workspace Identity commit mismatch falsely completed closeout");
+  writeFixtureHandoff(gitPacket.replace(`Git root: ${fixtureRoot}`, "Git root: no Git repository"));
+  const noGitMismatch = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  assert(!noGitMismatch.error && noGitMismatch.status !== 0 && noGitMismatch.stdout.includes("handoff says no Git"), "explicit no-Git handoff claim hid a real Git repository");
   for (const branch of ["none (release branch)", "not_applicable; named branch", "n/a — named branch"]) {
     writeFixtureHandoff(gitPacket.replace("Branch: main", `Branch: ${branch}`));
     const mismatch = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
