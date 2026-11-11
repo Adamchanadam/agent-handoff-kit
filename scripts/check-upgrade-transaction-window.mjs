@@ -134,8 +134,7 @@ function checkCleanTransactionIsOperationLocal() {
 }
 
 function install(label) {
-  const project = path.join(tmpdir(), `ahk-txn-${label}-${packageVersion}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  qaTemp.track(project);
+  const project = qaTemp.ownedPath(tmpdir(), `ahk-txn-${label}-${packageVersion}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   mkdirSync(project, { recursive: true });
   cli(["init", "--yes", "--root", project], `${label} init`);
   const index = path.join(project, "dev", "PROJECT_INDEX.md");

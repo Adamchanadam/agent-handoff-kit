@@ -27,7 +27,7 @@ import { loadOfficialOriginCatalog, selectRecentPublishedStableVersions } from "
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const qaTemp = createQaTempTracker("release readiness QA");
-const tempRoot = qaTemp.track(path.join(tmpdir(), `ack-release-flow-${Date.now()}`));
+const tempRoot = qaTemp.ownedPath(tmpdir(), `ack-release-flow-${Date.now()}`);
 const cliNode = process.platform === "win32" ? "node" : process.execPath;
 const plainStartupBoundary = "A plain `Start Agent Handoff` / `開工` with no same-message task or explicit long-run instruction only authorizes minimum state recovery, the display-only current-thread naming checkpoint when safely supported, the startup card, the current objective/risk/recommended next action, and then the end of the turn. It does not authorize task-specific reads, research, plans, protocols, preflight, file searches, sub-agents, QA, packaging, project-file writes, network access, other external actions, or opt-out execution wording.";
 const GITHUB_RELEASE_BODY_HEADINGS = [
@@ -1022,7 +1022,7 @@ function simulateScenarioBranching() {
   console.log("");
   console.log("CLI scenario branching coverage (R-031.1):");
   const env = { ...process.env, AGENT_HANDOFF_KIT_NO_UPDATE_CHECK: "1" };
-  const tempBase = qaTemp.track(path.join(tmpdir(), `ack-r0311-${Date.now()}`));
+  const tempBase = qaTemp.ownedPath(tmpdir(), `ack-r0311-${Date.now()}`);
   const currentVersion = JSON.parse(read("package.json")).version;
   const s1Root = path.join(tempBase, "scenario-install-fresh");
 
@@ -1943,7 +1943,7 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
 }
 
 function simulateWorkspaceHealthCloseoutGuard() {
-  const repoRoot = qaTemp.track(path.join(tmpdir(), `ack-workspace-health-${Date.now()}`));
+  const repoRoot = qaTemp.ownedPath(tmpdir(), `ack-workspace-health-${Date.now()}`);
   const siblingWorktree = qaTemp.track(`${repoRoot}-parallel`);
   mkdirSync(repoRoot, { recursive: true });
   run("git", ["-C", repoRoot, "init"], "workspace-health git init");
@@ -2703,7 +2703,7 @@ function expectedPackageFileCount() {
 }
 
 function checkPackedPackageUpgradeSmoke(version, {featuresOnly=false} = {}) {
-  const smokeBase = qaTemp.track(path.join(tmpdir(), `ack-packed-smoke-${Date.now()}`));
+  const smokeBase = qaTemp.ownedPath(tmpdir(), `ack-packed-smoke-${Date.now()}`);
   const packDir = path.join(smokeBase, "pack");
   const prefix = path.join(smokeBase, "prefix");
   const upgradeRoot = path.join(smokeBase, "upgrade-root");
@@ -2972,7 +2972,7 @@ function run(command, args, label, options = {}) {
 }
 
 function checkResearchDecisionTraceContract() {
-  const positiveRoot = qaTemp.track(path.join(tmpdir(), `ack-research-trace-pass-${Date.now()}`));
+  const positiveRoot = qaTemp.ownedPath(tmpdir(), `ack-research-trace-pass-${Date.now()}`);
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", positiveRoot], "research trace positive bootstrap");
   const positiveIndexPath = path.join(positiveRoot, "dev/PROJECT_INDEX.md");
   const positiveDecisionsPath = path.join(positiveRoot, "dev/PROJECT_DECISIONS.md");
@@ -2995,7 +2995,7 @@ function checkResearchDecisionTraceContract() {
   const positiveDoctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", positiveRoot], "research trace positive doctor");
   assert(positiveDoctor.stdout.includes("status: passed"), "research trace positive fixture should pass doctor");
 
-  const negativeRoot = qaTemp.track(path.join(tmpdir(), `ack-research-trace-fail-${Date.now()}`));
+  const negativeRoot = qaTemp.ownedPath(tmpdir(), `ack-research-trace-fail-${Date.now()}`);
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", negativeRoot], "research trace negative bootstrap");
   const negativeDecisionsPath = path.join(negativeRoot, "dev/PROJECT_DECISIONS.md");
   writeFileSync(
@@ -3017,7 +3017,7 @@ function checkResearchDecisionTraceContract() {
 }
 
 function checkHandoffTemperatureBoundaryContract() {
-  const handoffTempRoot = qaTemp.track(path.join(tmpdir(), `ack-handoff-temperature-fail-${Date.now()}`));
+  const handoffTempRoot = qaTemp.ownedPath(tmpdir(), `ack-handoff-temperature-fail-${Date.now()}`);
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", handoffTempRoot], "handoff temperature boundary bootstrap");
   const handoffPath = path.join(handoffTempRoot, "dev/SESSION_HANDOFF.md");
   const handoffText = readFileSync(handoffPath, "utf8");
@@ -3045,7 +3045,7 @@ function checkHandoffTemperatureBoundaryContract() {
 }
 
 async function checkUnregisteredMarkdownNonDiscoveryContract() {
-  const negativeRoot = qaTemp.track(path.join(tmpdir(), `ack-generated-markdown-nondiscovery-${Date.now()}`));
+  const negativeRoot = qaTemp.ownedPath(tmpdir(), `ack-generated-markdown-nondiscovery-${Date.now()}`);
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", negativeRoot], "unregistered Markdown non-discovery bootstrap");
   mkdirSync(path.join(negativeRoot, "outputs"), { recursive: true });
   writeFileSync(
@@ -3080,7 +3080,7 @@ async function checkUnregisteredMarkdownNonDiscoveryContract() {
   const lookalikeDoctor = spawnSync(cliNode, ["bin/agent-handoff-kit.mjs", "doctor", "--root", negativeRoot], { cwd: root, encoding: "utf8" });
   assert(lookalikeDoctor.status === 0 && !outputText(lookalikeDoctor).includes("outputs/unregistered_design.md"), "lookalike rows or prose made doctor report an arbitrary unregistered Markdown path");
 
-  const positiveRoot = qaTemp.track(path.join(tmpdir(), `ack-generated-markdown-pass-${Date.now()}`));
+  const positiveRoot = qaTemp.ownedPath(tmpdir(), `ack-generated-markdown-pass-${Date.now()}`);
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", positiveRoot], "registered Markdown non-discovery bootstrap");
   mkdirSync(path.join(positiveRoot, "outputs"), { recursive: true });
   writeFileSync(
@@ -3480,7 +3480,7 @@ function checkCrossMindTableCounterexamples() {
 }
 
 async function checkBilingualBaselineCounterexamples() {
-  const project = qaTemp.track(path.join(tmpdir(), `ack-bilingual-baseline-${Date.now()}`));
+  const project = qaTemp.ownedPath(tmpdir(), `ack-bilingual-baseline-${Date.now()}`);
   mkdirSync(path.join(project, 'docs/qa'), { recursive: true });
   const git = (args) => run('git', ['-C', project, ...args], 'bilingual baseline fixture');
   const commit = (message) => { git(['add', '.']); git(['-c', 'user.name=Agent Handoff Kit QA', '-c', 'user.email=qa@example.invalid', 'commit', '-m', message]); };

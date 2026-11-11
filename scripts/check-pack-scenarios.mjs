@@ -45,7 +45,7 @@ const scenarios = [
     name: "coding",
     route: ["Code, tests, build", "dev/rules/coding.md"],
     pack: "coding",
-    snippets: ["tests", "dev/PROJECT_INDEX.md", "Do not guess current SDK"],
+    snippets: ["tests", "dev/PROJECT_INDEX.md", "Do not guess current SDK", "as a separate step before composing the command", "does not authorize a commit or backup", "temporary location they created"],
     safetyEscalators: ["package managers", "SDKs", "CLIs", "APIs"]
   },
   {

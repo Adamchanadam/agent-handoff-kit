@@ -33,6 +33,72 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 
 Historical sections below may retain the legacy key `userJourney` as evidence text for their old contract. It is not a current formal conclusion and cannot broaden the v0.4.3 observable scope above.
 
+## v0.4.5 candidate status
+
+- 狀態：隔離原始碼候選，尚未凍結、未完成 formal full、receipt 或任何發布操作。
+- 範圍：`packs/coding.md` 新增第 6、7 條（首次執行新寫或改動的程式前另行閱讀用法並確認可復原；自寫測試／輔助腳本只可刪除自建並核實的暫存位置，否則停止並報失敗）；QA 暫存清理改為只登記 tracker 以 `mkdtempSync` 建立的目錄（兩個替換空窗除外，見下文「未解決的獨立覆核發現」），並記錄其建立時的檔案系統身份（dev／ino／birthtime）；清理前身份不符即拒絕並報失敗，移除或發現不存在後即撤銷登記；其他測試路徑須為這些目錄內的單一名稱子路徑（`ownedPath`）或位於其內（`track`）；低風險精簡 `runtime-core/AGENTS.core.md`、`packs/closeout.md`、`packs/integrations.md`、`packs/safety.md` 的重複字句，不改變規則要求。
+- 獨立預凍結覆核：首輪：Codex CLI `gpt-6.1-sol` `D:\_temp\ahk-v045-run-guard-20261111\review-prefreeze\sol-review.json`，SHA-256 `58A1C2211099A9FF233EFE43B3E8AA76905B25E28357306A792C95516D0FD573`；Claude `fable` `D:\_temp\ahk-v045-run-guard-20261111\review-prefreeze\fable-review.json`，SHA-256 `B77B356C73AA6BFE112A5E0824FCBA571AC343E745A3D112257EE8987FDAF69C`；兩者均為 `accept_with_fixes`。修正覆核 r1（`sol-delta-review-r1.json`，SHA-256 `03BE26073357B5E335AA306FE40F4D8F21AC03058675F3821448A2F1A8264021`）及 r2（`sol-delta-review-r2.json`，SHA-256 `94E47BFB06D0DB07DAC12676966156D69B17908707CEF6304F39FFEC94247CE5`）均為 `reject`，所指 tracker 擁有權缺口已按其修正要求處理。修正覆核 r3（`sol-delta-review-r3.json`，SHA-256 `63F4B0EA7946DB6D9CD58D680B587C71EB06782DAE9953BEBF697F8791203DC4`）為 `reject`：阻擋性發現 G1 未解決，並非通過。Claude `fable` 決策覆核（`fable-decision-review.json`，SHA-256 `E7ADCE377B2EA8335405203E75F9DED1C5AA6A0E4266EBB759CFD2AE8A286523`）建議保留現版 tracker 並如實記錄。發布負責人已於 2026-11-11 就 G1 明確豁免「無阻擋性發現」的放行條件，只限此一項，空窗內容及理由見下文「未解決的獨立覆核發現」。以上均不是 formal-full receipt 或發布批准。
+- GitHub Release binding：title `v0.4.5 - 執行新程式前先防誤刪`；notes `docs/whatsnew/v0.4.5.md`，SHA-256 `8F707625C688138655018EB40780CD34CBA43673B2FD005A586F84E3EBE8BD92`。
+- 邊界：本候選改動 runtime-core 及四個 rule pack；共用 core 改動按 `selectDeliveryEvidence()` 選取全部九個入口，正式驗收必須以凍結後的 v0.4.5 candidate identity、全新 raw capture、獨立審閱 receipt 與 current command contract 重新核對。不改已發布 v0.4.4 的 official-origin catalog、test fixtures 或任何使用者 runtime。
+
+### Source contract gate（v0.4.5，PASS）
+
+- 範圍：候選基底為 `f2b1c531c28936fe2964e62dd35cbe67f1075106`；套件版本只由 `0.4.4` 變為 `0.4.5`。
+- `packs/coding.md` SHA-256 `1FF48D85D3627C3C0A88CF6F8E645E0FE3358876284D4252B1BBC42ADF7ECADC`
+- `scripts/qa-temp-cleanup.mjs` SHA-256 `03915A1467150608906D6EDB5B1EEE7F0DA161F2415C233707D203F95C852137`
+- `scripts/check-upgrade-safety.mjs` SHA-256 `C2E17E3903A257E3D13ECE8D6D837592ABA11E14B5C8B5EFCA7C07837BFD93D4`
+- `node scripts/qa.mjs quick` exit 0；其餘使用 tracker 的 `check-upgrade-safety.mjs`（完整）、`check-upgrade-transaction-window.mjs`、`check-upgrade-inventory.mjs`、`build-public-mirror.mjs`、`check-handoff-read.mjs`、`check-handoff-continuity.mjs`、`check-release-readiness.mjs --public-docs-only` 及 `--pre-freeze-evidence` 均 exit 0，事後沒有遺留 tracker 目錄。守衛檢查涵蓋：既有目錄及 tracker 目錄以外的路徑被拒；另一建立者其後建立的同名目錄、清理後被重建的已撤銷目錄、及清理前被替換的目錄均保留內容（替換情況令清理報失敗）；不合規的 `ownedPath` 名稱（空、`.`、`..`、含分隔符、絕對或磁碟路徑）在建立任何目錄前被拒；tracker 自建目錄在清理後被移除。
+- 反證：分別改回「接受既有空資料夾」、舊的 `..` 前綴判斷、「登記時不存在即可登記」、「清理後不撤銷登記」、「不核對身份」及「不檢查名稱」後，守衛檢查均失敗（例如 `did not refuse a replaced owned root`）；每次還原後檔案雜湊與修正版一致，失敗反證留下的測試目錄經核對後清除。
+- 已知限制：保證只限上述機制。路徑比對屬字面比對，未以 realpath 處理 junction／subst／8.3 別名；身份核對無法排除檔案系統重用相同 dev／ino／birthtime 的極端情況；這只是 QA 開發工具，不隨 npm 套件發佈。
+- 未解決的獨立覆核發現（r3 G1，發布負責人接受的剩餘風險）：tracker 以路徑名稱操作，並未把「建立」與「遞迴刪除」綁定到同一個檔案系統物件，仍有兩個替換空窗。（一）`mkdtempSync` 建立目錄後、讀取並記錄其身份之前，若另一程序把該目錄改名移走，並把自己的目錄搬到同一路徑，tracker 會記錄替換者的身份，清理時會刪除它。（二）清理時核對身份之後、`rmSync` 遞迴刪除之前，若目錄被替換，替換者會被刪除。兩者都不需要身份值重用；現有回歸檢查只在兩次 tracker 呼叫之間替換目錄，並未覆蓋這兩個空窗。觸發條件是同一使用者帳戶下的另一程序在極短時間內，對一個帶隨機後綴的目錄名稱完成改名及搬入；本專案的 QA 流程本身沒有這種行為，但不能排除。作者查核 Node.js v24 `fs` 沒有以 handle 為基準的遞迴刪除，因此本版沒有按覆核要求修正；改為 handle 綁定或原生清理的工作列為後續跟進，本版不聲稱已關閉。
+- Verdict: **PASS** — source contract coverage only; it does not replace this candidate's frozen identity, formal full or release readback.
+
+### Bilingual README semantic gate（v0.4.5，PASS）
+
+- Reviewer: independent non-authors Codex CLI `gpt-6.1-sol` (high reasoning, read-only sandbox) and Claude `fable` reviewer subagent, 2026-11-11; both returned PASS for this pair.
+- Scope: the full pair differs from official base only at its one version label per language. Chinese “文件對應程式版本” and English “Code version covered” both name v0.4.5 while the adjacent text explicitly keeps available features subject to the published version. Actions, limits, links and all other content are unchanged. Author byte check: replacing v0.4.5 with v0.4.4 and normalizing line endings reproduces each base blob exactly.
+- `README.md` SHA-256 `D5CDE251E6497554E394D51655512EAC1425A590CB26ECFC798222A031E8D5F4`
+- `README.en.md` SHA-256 `7DA29A81331D8EACBCA37F93ECBAD7B5F8908BE5C4A5D81E912BD55B06138FEF`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual practical-guide semantic gate（v0.4.5，PASS）
+
+- Reviewer: independent non-authors Codex CLI `gpt-6.1-sol` (high reasoning, read-only sandbox) and Claude `fable` reviewer subagent, 2026-11-11; both returned PASS for this pair.
+- Scope: the full pair changes only hero and footer version labels to v0.4.5. Both retain their source-versus-published warning; the command journey, examples, authorization boundaries and consequences are unchanged. Author byte check: replacing v0.4.5 with v0.4.4 and normalizing line endings reproduces each base blob exactly.
+- `agent-handoff-kit-guide.html` SHA-256 `0D3B1EA397B770E937E5EC8B013FC483FC9942F21D1FE3A73CDB33D75CDA9D77`
+- `agent-handoff-kit-guide.en.html` SHA-256 `C5FCCEF7C210A9A7232D392303353EE56155366283D1244F6955CEE9930BD7DC`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual AI-install semantic gate（v0.4.5，PASS）
+
+- Reviewer: independent non-authors Codex CLI `gpt-6.1-sol` (high reasoning, read-only sandbox) and Claude `fable` reviewer subagent, 2026-11-11; both returned PASS for this pair.
+- Scope: the full pair changes only hero and footer version labels to v0.4.5. Folder confirmation, installation/upgrade steps, checks and safeguards are unchanged apart from those labels; no new user action or permission is introduced. Author byte check: replacing v0.4.5 with v0.4.4 and normalizing line endings reproduces each base blob exactly.
+- `agent-handoff-kit-ai-install.html` SHA-256 `F4C20F260A7CDDA6F95E3177F7352B1E959D9D55F66EBF65C547950F3D1289D8`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `FCAA094434310232AE8275538B9E5F0DC11700608384968672A934CA16531DB8`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual introduction semantic gate（v0.4.5，PASS）
+
+- Reviewer: independent non-authors Codex CLI `gpt-6.1-sol` (high reasoning, read-only sandbox) and Claude `fable` reviewer subagent, 2026-11-11; both returned PASS for this pair.
+- Scope: the full pair changes only hero and footer version labels to v0.4.5. The surrounding introduction and its unpublished-update warning are unchanged in both languages. Author byte check: replacing v0.4.5 with v0.4.4 and normalizing line endings reproduces each base blob exactly.
+- `agent-handoff-kit-intro.html` SHA-256 `DF0F25471BF70F26F97051FD51E7FEF0DAD8A2D8F59353E11F77E3A785EFB81A`
+- `agent-handoff-kit-intro.en.html` SHA-256 `09B700A2694F9F8AE62993EE598B4E5D1F8122738C3AA84B011A98E3DD0CDC1B`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Cross-mind evidence 9-trigger table（v0.4.5）
+
+| Trigger | Required | Result | Evidence / boundary |
+| --- | --- | --- | --- |
+| 1. failure / blocker | yes | iterated | Independent reviews found defects in three earlier tracker designs (pre-existing empty directory accepted; absence at registration treated as ownership; registrations kept after removal without identity check). The tracker now registers only its own mkdtempSync roots with a recorded identity (except the two replacement windows listed under the unresolved review finding), retires them after removal, and holdouts fail when any old design is restored. The fourth review (r3) still rejected the design over those two windows (G1); that finding is unresolved and accepted by the release owner for this release only, not resolved. |
+| 2. external side effects | yes | passed | Only the isolated candidate worktree and local evidence were written; no user runtime, original Public worktree, push, tag, GitHub Release or npm publish action occurred. |
+| 3. user-visible output | yes | passed | Installed `dev/rules/coding.md` gains rules 6 and 7; upgrade merges the new body and keeps a `## Project Rules` appendix, verified by exact-equality upgrade cases including the latest published version. |
+| 4. complexity / boundary | yes | passed | Two rules are added to the existing coding pack only; safety, core routing and RULE_PACKS gain no new rule; slimming removes duplicated sentences only. |
+| 5. documentation drift | yes | passed | Independent review covered the version-only bilingual deltas, CHANGELOG, release notes and title. |
+| 6. semantic runtime effect | yes | passed | Two independent reviewers checked the slimming deletions; the one explicit lost example (wrapper exit code / outer command success) was restored in integrations rule 13, and rules 6 and 7 match the incident root causes. |
+| 7. recurrence regression | yes | passed | Pack-scenario anchors and upgrade-safety guard cases would fail if rules 6 and 7 or the owned-path guard were removed. |
+| 8. QA authority | yes | passed | Existing pack-scenario, upgrade-safety, release-readiness, candidate evidence and formal full owners remain unchanged; this section records source preparation only. |
+| 9. release statement | yes | passed | v0.4.5 remains a local candidate until frozen identity, independent receipt, formal full and postpublish readback all pass. |
+
 ## v0.4.4 candidate status
 
 - 狀態：隔離原始碼候選，尚未凍結、未完成 candidate-preflight、formal full、receipt 或任何發布操作。

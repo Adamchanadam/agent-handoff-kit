@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, realpathSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +14,7 @@ import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cli = path.join(sourceRoot, "bin/agent-handoff-kit.mjs");
 const tracker = createQaTempTracker("handoff read QA");
-const temp = tracker.track(mkdtempSync(path.join(process.env.AGENT_HANDOFF_KIT_QA_TMP || tmpdir(), "ack-handoff-read-")));
+const temp = tracker.mkdtemp(path.join(process.env.AGENT_HANDOFF_KIT_QA_TMP || tmpdir(), "ack-handoff-read-"));
 const project = path.join(temp, "project");
 mkdirSync(path.join(project, "dev"), { recursive: true });
 const file = path.join(project, "dev/SESSION_HANDOFF.md");

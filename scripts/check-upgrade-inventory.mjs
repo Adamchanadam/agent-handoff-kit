@@ -87,8 +87,7 @@ async function readyInventory(projectRoot) {
 }
 
 function fresh(label) {
-  const projectRoot = path.join(tmpdir(), `ahk-${label}-${packageVersion}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  qaTemp.track(projectRoot);
+  const projectRoot = qaTemp.ownedPath(tmpdir(), `ahk-${label}-${packageVersion}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   mkdirSync(projectRoot, { recursive: true });
   return projectRoot;
 }

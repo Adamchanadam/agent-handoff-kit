@@ -4,7 +4,7 @@
 // Run the separate blind-reader protocol in test-fixtures/continuity/README.md.
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -232,7 +232,7 @@ function saveHandoff(project, text) { writeAt(project, "dev/SESSION_HANDOFF.md",
 function normalizePrompt(text) { return text.replace(/\r\n?/g, "\n"); }
 function expectComplete(project, text, label) { saveHandoff(project, text); const before = snapshot(project); const result = cli(["closeout-status", "--root", project], label); assert(result.stdout.includes("status: complete"), `${label}: missing complete card`); assert(snapshot(project) === before, `${label}: read-only command changed files`); }
 function expectBlocked(project, text, label, reason) { saveHandoff(project, text); const before = snapshot(project); const result = invoke(path.join(root, "bin/agent-handoff-kit.mjs"), ["closeout-status", "--root", project], label, false); assert(result.status !== 0 && result.stdout.includes("status: blocked") && !result.stdout.includes("handoff saved"), `${label}: falsely passed\n${result.stdout}`); assert(`${result.stdout}\n${result.stderr}`.toLowerCase().includes(reason), `${label}: omitted ${reason} reason\n${result.stdout}`); assert(snapshot(project) === before, `${label}: read-only rejection changed files`); }
-function fresh(label) { mkdirSync(qaBase, { recursive: true }); return qaTemp.track(mkdtempSync(path.join(qaBase, `ack-continuity-${label}-`))); }
+function fresh(label) { mkdirSync(qaBase, { recursive: true }); return qaTemp.mkdtemp(path.join(qaBase, `ack-continuity-${label}-`)); }
 function readAt(base, relative) { return readFileSync(path.join(base, relative), "utf8"); }
 function writeAt(base, relative, content) { const target = path.join(base, relative); mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, content, "utf8"); }
 function sha(value) { return createHash("sha256").update(value).digest("hex"); }

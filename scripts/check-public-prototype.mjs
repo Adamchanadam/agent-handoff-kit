@@ -15,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const tmpdir = () => process.env.AGENT_HANDOFF_KIT_QA_TMP || (process.platform === "win32" ? "D:\\_temp" : systemTmpdir());
 const qaTemp = createQaTempTracker("public prototype QA");
-const tempRoot = qaTemp.track(path.join(tmpdir(), `ack-prototype-check-${Date.now()}`));
+const tempRoot = qaTemp.ownedPath(tmpdir(), `ack-prototype-check-${Date.now()}`);
 
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 const version = packageJson.version;
@@ -215,8 +215,7 @@ async function main() {
 }
 
 function checkUnregisteredMarkdownNonDiscovery() {
-  const orphanRoot = path.join(tmpdir(), `ack-prototype-nondiscovery-${Date.now()}`);
-  qaTemp.track(orphanRoot);
+  const orphanRoot = qaTemp.ownedPath(tmpdir(), `ack-prototype-nondiscovery-${Date.now()}`);
   run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", orphanRoot], "unregistered Markdown non-discovery bootstrap");
   mkdirSync(path.join(orphanRoot, "outputs"), { recursive: true });
   writeFileSync(

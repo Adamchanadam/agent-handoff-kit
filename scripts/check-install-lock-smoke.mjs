@@ -183,8 +183,7 @@ function writeStaleCompletedCreateOnlyInitLock(project) {
 }
 
 function fresh(label) {
-  const project = path.join(qaTmp, `ack-install-lock-smoke-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  qaTemp.track(project);
+  const project = qaTemp.ownedPath(qaTmp, `ack-install-lock-smoke-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   mkdirSync(project, { recursive: true });
   return project;
 }

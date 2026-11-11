@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { hostname, tmpdir as systemTmpdir } from "node:os";
@@ -11,7 +11,7 @@ import { installedFileContracts, requiredInstalledTargets } from "../bin/install
 import { commandFiles } from "../bin/commands.mjs";
 import { canonicalizeOfficialText, getOfficialBaseline, loadOfficialOriginCatalog, RECENT_PUBLISHED_UPGRADE_VERSION_LIMIT, selectRecentPublishedStableVersions } from "../bin/official-origin-catalog.mjs";
 import { markdownVisibleLinesOutsideHiddenBlocks, materializeProjectIndexTemplateVersion, parseProjectIndexTemplateVersion } from "../bin/upgrade-inventory.mjs";
-import { createQaTempTracker } from "./qa-temp-cleanup.mjs";
+import { createQaTempTracker, qaTempCleanupRefusal } from "./qa-temp-cleanup.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -39,6 +39,7 @@ try {
 }
 
 function main() {
+  checkQaTempTrackerGuard();
   if (process.argv.includes("--recent-window-rebased-only")) {
     checkRecentPublishedUpgradeWindow();
     checkHistoricalCrlfAndBaselineMismatch();
@@ -107,9 +108,116 @@ function main() {
   console.log("Agent Handoff Kit upgrade safety QA passed");
 }
 
+function checkQaTempTrackerGuard() {
+  // Rejected targets are never registered for cleanup.
+  // Each refusal branch is isolated with synthetic owned-name roots, so a
+  // removed branch cannot hide behind the name-prefix refusal.
+  const base = path.join(qaTmp, "ack-guard-parent");
+  const roots = { sourceRoot: path.join(base, "ack-guard-source"), cwd: path.join(base, "ack-guard-cwd-parent", "ack-guard-cwd") };
+  const cases = [
+    [path.join(qaTmp, "qa-unowned-name"), "unowned-name"],
+    [roots.sourceRoot, "source-root-or-inside"],
+    [path.join(roots.sourceRoot, "ack-inside"), "source-root-or-inside"],
+    [path.join(roots.sourceRoot, "..cache", "ack-dot-segment"), "source-root-or-inside"],
+    [base, "source-root-ancestor"],
+    [roots.cwd, "working-directory-or-ancestor"],
+    [path.dirname(roots.cwd), "working-directory-or-ancestor"],
+    [path.join(qaTmp, "ack-guard-unrelated"), null]
+  ];
+  for (const [target, expected] of cases) {
+    const actual = qaTempCleanupRefusal(target, roots);
+    assert(actual === expected, `QA temp cleanup decision for ${target}: expected ${expected}, got ${actual}`);
+  }
+  // Every probe cleanup below must really run, so the keep flag is cleared
+  // for this function and restored afterwards.
+  const keep = process.env.AGENT_HANDOFF_KIT_KEEP_QA_TMP;
+  delete process.env.AGENT_HANDOFF_KIT_KEEP_QA_TMP;
+  try {
+    checkQaTempTrackerOwnership();
+  } finally {
+    if (keep === undefined) delete process.env.AGENT_HANDOFF_KIT_KEEP_QA_TMP;
+    else process.env.AGENT_HANDOFF_KIT_KEEP_QA_TMP = keep;
+  }
+  console.log("ok: QA temp cleanup refuses paths outside tracker-created roots, replaced or re-created roots and escaping names, and removes its owned roots");
+}
+
+function checkQaTempTrackerOwnership() {
+  const probe = createQaTempTracker("QA temp guard probe");
+  const throwsWith = (action, pattern, why) => {
+    let message = null;
+    try {
+      action();
+    } catch (error) {
+      message = String(error?.message ?? error);
+    }
+    assert(message !== null && pattern.test(message), `QA temp cleanup did not refuse ${why} for the expected reason (${message})`);
+  };
+  const rejects = (target, pattern, why) => {
+    let message = null;
+    try {
+      probe.track(target);
+    } catch (error) {
+      message = String(error?.message ?? error);
+    }
+    assert(message !== null && pattern.test(message), `QA temp cleanup did not refuse ${why} for the expected reason: ${target} (${message})`);
+  };
+  rejects(root, /outside a tracker-created root/, "the real source root");
+  rejects(path.join(root, "ack-inside-source"), /outside a tracker-created root/, "a path inside the real source root");
+  mkdirSync(qaTmp, { recursive: true });
+  const occupied = qaTemp.mkdtemp(path.join(qaTmp, "ack-qa-guard-occupied-"));
+  writeFileSync(path.join(occupied, "user-work.txt"), "pre-existing content\n", "utf8");
+  rejects(occupied, /outside a tracker-created root/, "a pre-existing non-empty directory");
+  // An empty directory this run did not create is still someone else's: it
+  // must be refused, and refusal must leave it and later content untouched.
+  const foreignEmpty = qaTemp.mkdtemp(path.join(qaTmp, "ack-qa-guard-foreign-empty-"));
+  rejects(foreignEmpty, /outside a tracker-created root/, "a pre-existing empty directory");
+  writeFileSync(path.join(foreignEmpty, "later-user-work.txt"), "kept\n", "utf8");
+  probe.cleanupOnSuccess();
+  assert(readFileSync(path.join(foreignEmpty, "later-user-work.txt"), "utf8") === "kept\n", "refused pre-existing empty directory lost content after probe cleanup");
+  assert(readFileSync(path.join(occupied, "user-work.txt"), "utf8") === "pre-existing content\n", "refused pre-existing directory lost content after probe cleanup");
+  const foreign = path.join(qaTmp, `ack-guard-foreign-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  assert(!existsSync(foreign), "foreign fixture must initially be absent");
+  rejects(foreign, /outside a tracker-created root/, "an absent path outside an owned root");
+  mkdirSync(foreign);
+  const foreignFile = path.join(foreign, "foreign.txt");
+  writeFileSync(foreignFile, "foreign content\n", "utf8");
+  probe.cleanupOnSuccess();
+  assert(existsSync(foreign) && existsSync(foreignFile) && readFileSync(foreignFile, "utf8") === "foreign content\n", "probe cleanup changed the foreign fixture");
+  rmSync(foreign, { recursive: true, force: true });
+
+  const owned = probe.ownedPath(qaTmp, "ack-guard-owned");
+  const ownedRoot = path.dirname(owned);
+  assert(!existsSync(owned) && existsSync(ownedRoot), "ownedPath must return an absent path inside an existing owned root");
+  probe.cleanupOnSuccess();
+  assert(!existsSync(ownedRoot), "probe cleanup did not remove its owned root");
+
+  // A root removed by an earlier cleanup is retired: another creator that
+  // re-creates the same path later keeps its content on a second cleanup.
+  mkdirSync(ownedRoot);
+  writeFileSync(path.join(ownedRoot, "recreated.txt"), "recreated content\n", "utf8");
+  probe.cleanupOnSuccess();
+  assert(readFileSync(path.join(ownedRoot, "recreated.txt"), "utf8") === "recreated content\n", "second cleanup deleted a directory re-created by another creator");
+  rmSync(ownedRoot, { recursive: true, force: true });
+
+  // An owned root replaced before its first cleanup is a different directory:
+  // cleanup must refuse it, report failure and keep the replacement's content.
+  const replaced = probe.mkdtemp(path.join(qaTmp, "ack-qa-guard-replaced-"));
+  rmSync(replaced, { recursive: true, force: true });
+  mkdirSync(replaced);
+  writeFileSync(path.join(replaced, "replacement.txt"), "replacement content\n", "utf8");
+  throwsWith(() => probe.cleanupOnSuccess(), /identity changed since creation/, "a replaced owned root");
+  assert(readFileSync(path.join(replaced, "replacement.txt"), "utf8") === "replacement content\n", "cleanup deleted a replaced owned root");
+  rmSync(replaced, { recursive: true, force: true });
+  probe.cleanupOnSuccess();
+
+  // ownedPath accepts only one plain path segment, before creating anything.
+  for (const name of ["", ".", "..", "../ack-escape", "ack-a/ack-b", "ack-a\\ack-b", path.join(qaTmp, "ack-absolute"), "C:ack-drive"]) {
+    throwsWith(() => probe.ownedPath(qaTmp, name), /must be a single path segment/, `ownedPath name ${JSON.stringify(name)}`);
+  }
+}
+
 function checkDryRunNoWrites() {
-  const project = path.join(qaTmp, `ack-v039-dry-run-missing-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  qaTemp.track(project);
+  const project = qaTemp.ownedPath(qaTmp, `ack-v039-dry-run-missing-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   assert(!existsSync(project), "dry-run missing-root fixture already exists");
   const result = cli(["init", "--dry-run", "--root", project], "missing-root dry-run");
   assert(result.stdout.includes("dry-run: no files written"), "missing-root dry-run did not report zero writes");
@@ -199,8 +307,7 @@ function checkRuntimeStateFilesStableForOrdinaryWorkAndDryRun() {
 }
 
 function checkCancelledWriteLeavesMissingRootAbsent() {
-  const project = path.join(qaTmp, `ack-v041-cancel-missing-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  qaTemp.track(project);
+  const project = qaTemp.ownedPath(qaTmp, `ack-v041-cancel-missing-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   assert(!existsSync(project), "cancelled missing-root fixture already exists");
   const result = cli(["init", "--root", project], "missing-root cancellation", { input: "no\n" });
   assert(result.stdout.includes("cancelled: no files written"), "cancelled init did not report zero writes");
@@ -365,8 +472,7 @@ function checkFutureVersionBlock() {
 
 function checkJunctionRootBlock() {
   const target = install("junction-target");
-  const link = path.join(qaTmp, `ack-v039-junction-link-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  qaTemp.track(link);
+  const link = qaTemp.ownedPath(qaTmp, `ack-v039-junction-link-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   try {
     symlinkSync(target, link, process.platform === "win32" ? "junction" : "dir");
   } catch (error) {
@@ -717,9 +823,9 @@ function checkRuntimeContentPropagation() {
     }
   }
   const retainedSequentialChain = ["0.3.62", "0.3.63"].every((version) => recentPublishedUpgradeVersions.includes(version));
-  for (const mode of ["lf", "crlf", "bom-crlf", "already-stamped", "mixed-appendices"]) {
+  for (const mode of ["lf", "crlf", "bom-crlf", "already-stamped", "mixed-appendices", "latest-appendix"]) {
     const project = fresh(`runtime-content-${mode}`);
-    materializeOfficialInstall(oldestRecentPublishedUpgradeVersion, project);
+    materializeOfficialInstall(mode === "latest-appendix" ? recentPublishedUpgradeVersions.at(-1) : oldestRecentPublishedUpgradeVersion, project);
     const ordinary = path.join(project, "user-data.txt");
     writeFileSync(ordinary, "Ordinary data must remain exact.\r\nUTF-8: 貓\n", "utf8");
     const ordinaryBefore = readFileSync(ordinary);
@@ -738,11 +844,13 @@ function checkRuntimeContentPropagation() {
     }
     const prefix = "# Local Project Context\r\n\r\nPreserve UTF-8: 貓 and this mixed newline.\n\n";
     const suffix = "\r\n## Local Appendix\r\n\r\nKeep user-defined branch restrictions.\n";
+    const codingProjectRules = "\n## Project Rules\n\nRun the receipt-reading step before any project test command.\n";
     if (mode === "mixed-appendices") {
       const agents = path.join(project, "AGENTS.md");
       writeFileSync(agents, prefix + read(agents) + suffix, "utf8");
       append(path.join(project, "dev/rules/closeout.md"), suffix);
     }
+    if (["mixed-appendices", "latest-appendix"].includes(mode)) append(path.join(project, "dev/rules/coding.md"), codingProjectRules);
     const before = governanceSnapshot(project);
     cli(["upgrade", "--dry-run", "--root", project], `${mode} runtime-content dry-run`);
     assert(equalSnapshots(before, governanceSnapshot(project)), `${mode} dry-run changed inputs`);
@@ -758,6 +866,10 @@ function checkRuntimeContentPropagation() {
       assert(read(path.join(project, "AGENTS.md")).startsWith(prefix), "AGENTS prefix bytes changed");
       assert(read(path.join(project, "AGENTS.md")).endsWith(suffix), "AGENTS suffix bytes changed");
       assert(read(path.join(project, "dev/rules/closeout.md")).endsWith(suffix), "rule appendix bytes changed");
+    }
+    if (["mixed-appendices", "latest-appendix"].includes(mode)) {
+      const lf = (text) => text.replace(/\r\n?/g, "\n");
+      assert(lf(read(path.join(project, "dev/rules/coding.md"))) === lf(read(path.join(root, "packs/coding.md"))) + codingProjectRules, `${mode}: coding.md is not exactly the current body plus its Project Rules appendix`);
     }
     assert(readFileSync(ordinary).equals(ordinaryBefore), "ordinary data changed during runtime update");
     const updated = governanceSnapshot(project);
@@ -1031,8 +1143,7 @@ function checkReplacementBeforeJournalRecovery() {
     return target && sha(target) === entry.afterHash;
   });
   assert(changedEntry, "could not identify the target replaced before journal persistence");
-  const link = path.join(qaTmp, `ack-v041-pending-junction-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  qaTemp.track(link);
+  const link = qaTemp.ownedPath(qaTmp, `ack-v041-pending-junction-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   try {
     symlinkSync(fixture.project, link, process.platform === "win32" ? "junction" : "dir");
     const beforeJunctionAttempt = fullSnapshot(fixture.project);
@@ -1081,8 +1192,7 @@ function checkRecoveryArtifactValidation() {
   for (const kind of ["stage", "backup"]) {
     const linked = prepareInterruptedReplacement(`recovery-${kind}-junction`);
     const originalDir = path.join(path.dirname(linked.journalPath), kind);
-    const movedDir = path.join(qaTmp, `ack-v041-${kind}-outside-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-    qaTemp.track(movedDir);
+    const movedDir = qaTemp.ownedPath(qaTmp, `ack-v041-${kind}-outside-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     try {
       renameSync(originalDir, movedDir);
       symlinkSync(movedDir, originalDir, process.platform === "win32" ? "junction" : "dir");
@@ -1424,8 +1534,7 @@ function assertRequiredFixtureFiles(project, label, result = null, required = re
 }
 
 function fresh(label) {
-  const project = path.join(qaTmp, `ack-v039-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  qaTemp.track(project);
+  const project = qaTemp.ownedPath(qaTmp, `ack-v039-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   mkdirSync(project, { recursive: true });
   return project;
 }
