@@ -279,6 +279,8 @@ function main() {
   assertIncludes(core, ["Governance Write Boundary", "including their project supplements and required references", "do not invent a replacement goal"], "write/read boundary routing");
   assertIncludes(packs["agent-governance"], ["## Governance Write Boundary", "A matching topic does not make official prose writable", "after the entire verified official body", "## Project Rules", "Before and after an ordinary project-rule edit", "every protected byte must remain unchanged", "For a formal upgrade or explicitly scoped repair, verify the approved official diff", "upgrade --dry-run", "same-pack appendix uses that pack's existing route", "An indexed file that no applicable route reads is not connected"], "project rule write and consumer contract");
   assertIncludes(router, ["minimum set", "If a task clearly involves safety risk plus another domain", "cannot weaken core safety"], "router minimum loading rule");
+  // Always-read trigger: agents that never open dev/rules/coding.md still see the first-run reading step.
+  assertIncludes(core, ["Before first running new or changed code, including tests and helper scripts", "even when the exact command comes from the user, a document or another agent", "read the code's usage and what it deletes or overwrites as a separate step", "then follow `dev/rules/coding.md` rules 6–7"], "core first-run reading trigger");
   assertPackStructure();
 
   for (const scenario of scenarios) {

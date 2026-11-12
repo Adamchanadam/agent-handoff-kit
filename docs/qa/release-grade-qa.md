@@ -33,6 +33,70 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 
 Historical sections below may retain the legacy key `userJourney` as evidence text for their old contract. It is not a current formal conclusion and cannot broaden the v0.4.3 observable scope above.
 
+## v0.4.6 candidate status
+
+- 狀態：隔離原始碼候選，尚未凍結、未完成 formal full、receipt 或任何發布操作。
+- 範圍：`runtime-core/AGENTS.core.md` `## 3. Safety Baseline` 在「Named prohibited destructive commands…」段後新增一段：「Before first running new or changed code, including tests and helper scripts, and even when the exact command comes from the user, a document or another agent, read the code's usage and what it deletes or overwrites as a separate step, then follow `dev/rules/coding.md` rules 6–7.」；`scripts/check-pack-scenarios.mjs` 新增「core first-run reading trigger」片語斷言；版本由 `0.4.5` 變為 `0.4.6`（`package.json`、兩份 README、六個 HTML 頁的版本標示）、`CHANGELOG.md`、`docs/whatsnew/v0.4.6.md` 及其索引。不改任何 rule pack、`RULE_PACKS` 路由、QA 暫存工具或 official-origin catalog。
+- 依據：runtime-agent 實測 `D:\_temp\ahk-rule67-trial-20261112\results.md`，SHA-256 `287FE73347A8FDA6EA8FA93FBDB8B3D260C79CE246546035433035128F0B4E82`；預先登記 `prereg-round4.md`，SHA-256 `74836699E3CFAF65FB7ACE01F2987B81502A69C4B3F33B6ED6E39AD05EE13409`。模擬「照抄帶錯參數的指令」情境（Claude Code，`--model sonnet`，每組 8 次）：現行 v0.4.5 5/8 次誤刪 `app/`，核心一句指向 1/8，核心直寫句 0/8；候選句與 I 組逐字相同。限制：單一模型、小樣本、合成情境；0/8 不等於所有情況都不會誤刪。
+- 獨立預凍結覆核：Codex CLI `gpt-6.1-sol` `D:\_temp\ahk-v046-core-run-guard-20261112-review\prefreeze\review.json`，SHA-256 `940C54DADBB94593E85F5975F066E70639570C63BA8B26086DC1E4B512948D1C`（`review.md` SHA-256 `85133FDF5A3CDDF6B408B0CD622DBAD5A7854FCA1DBB54BE2B0DFE4231F0F995`），verdict `accept_with_fixes`。唯一阻擋項是覆核者沙盒內 `check-pack-scenarios.mjs` 經 `check-handoff-read.mjs` 的網絡觀察步驟中止；同一候選在一般環境重跑 exit 0（`D:\_temp\ahk-v046-core-run-guard-20261112-review\check-pack-scenarios-normal-env.log`，SHA-256 `C8B8DBF3EEFA34CDAF5A1871C6BD98958F8EA42B36EC2951505390E709256C01`）。兩項非阻擋文字建議（升級影響限定為由 v0.4.5 升級時的規則改動；變更紀錄附模型及樣本數）已於覆核後套用到 `CHANGELOG.md` 及 `docs/whatsnew/v0.4.6.md`，由凍結後的最終獨立覆核涵蓋。
+- GitHub Release binding：title `v0.4.6 - 核心規則直接提醒先讀後跑`；notes `docs/whatsnew/v0.4.6.md`，SHA-256 `156205A694D95C53265CEACDDD8F281CFA476AC5C9FD14262167D86268CE3313`。
+- 邊界：共用 core 改動按 `selectDeliveryEvidence()` 選取 continuity、installer 及 shortcuts，涵蓋九個入口；`selectedObservableOperations()` 選取 21 項中的 8 項。正式驗收必須以凍結後的 v0.4.6 candidate identity、對所選操作的全新 raw capture、獨立審閱 receipt 與 current command contract 重新核對；未選操作不重做。
+
+### Source contract gate（v0.4.6，PASS）
+
+- 範圍：候選基底為 `28546d1e1148d0ff800881f30d151870623056e9`；套件版本只由 `0.4.5` 變為 `0.4.6`。
+- `runtime-core/AGENTS.core.md` SHA-256 `B538915722A2D946235D08D4BAA2C333216649FF5C217D4509E27674095FA4CD`
+- `scripts/check-pack-scenarios.mjs` SHA-256 `008CE59A07B7356861DDCE2870F533E39FAF3E0674288B6FD1822BB382E9C308`
+- 核心改動後 `node scripts/qa.mjs quick` exit 0；加入新斷言後 `node scripts/check-pack-scenarios.mjs` exit 0（上列一般環境紀錄）。
+- 反證：移除核心句中「even when the exact command comes from the user, a document or another agent」子句後 `check-pack-scenarios.mjs` exit 1；還原後核心檔雜湊回到上列值。
+- Verdict: **PASS** — source contract coverage only; it does not replace this candidate's frozen identity, formal full or release readback.
+
+### Bilingual README semantic gate（v0.4.6，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-12; returned pass for this pair in the pre-freeze review above.
+- Scope: compared with base `28546d1`, the full pair differs only at its one version label per language (`0.4.5` → `0.4.6`, line endings aside); the adjacent statement that available features follow the published version is unchanged.
+- `README.md` SHA-256 `8592CA0A332C0050633377C116A01FE4ACCB066847BA79236ED65949991D2C97`
+- `README.en.md` SHA-256 `DDE17D2041AE9F04EC284F427BA226190E0279D3A1C711296165EC4BF78C2EEC`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual practical-guide semantic gate（v0.4.6，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-12; returned pass for this pair in the pre-freeze review above.
+- Scope: the full pair changes only hero and footer version labels to v0.4.6; the command journey, examples, authorization boundaries and consequences are unchanged.
+- `agent-handoff-kit-guide.html` SHA-256 `4DD2F7EEE68F46842EB7F7BA47C658C086E6C9A7EA39E6F7DF2D60C5D2B0B559`
+- `agent-handoff-kit-guide.en.html` SHA-256 `AE915BA9EDB21022CD2014515CAE4E205CD4B49C86D85F4BB7220C2A9BE2F7FA`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual AI-install semantic gate（v0.4.6，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-12; returned pass for this pair in the pre-freeze review above.
+- Scope: the full pair changes only hero and footer version labels to v0.4.6; folder confirmation, installation/upgrade steps, checks and safeguards are unchanged.
+- `agent-handoff-kit-ai-install.html` SHA-256 `68D4DA03736BB503170B8D911C22600FBA13EEB5163AC6B3DE3E8EE30B7B1489`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `F6178047FA78D6AE9FC29EE11E0D9077DA72936324044C7E8EAEC5B05A257E9E`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual introduction semantic gate（v0.4.6，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-12; returned pass for this pair in the pre-freeze review above.
+- Scope: the full pair changes only hero and footer version labels to v0.4.6; the surrounding introduction and its unpublished-update warning are unchanged in both languages.
+- `agent-handoff-kit-intro.html` SHA-256 `94D3639988345347F0DCFA1871ECB577099D449A4F22882240A8FC11CFAB43E7`
+- `agent-handoff-kit-intro.en.html` SHA-256 `6315FB96648D290A56C8AE9800770655614EBB6FD2BDAE4CE8F9475F281F2565`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Cross-mind evidence 9-trigger table（v0.4.6）
+
+| Trigger | Required | Result | Evidence / boundary |
+| --- | --- | --- | --- |
+| 1. failure / blocker | yes | iterated | A controlled runtime trial reproduced the original incident on shipped v0.4.5 (5/8 runs deleted `app/`); a pointer-only core sentence still failed once (1/8); the adopted inline sentence scored 0/8. The pre-freeze review's only blocker was a sandbox-only check abort, resolved by a normal-environment exit 0. |
+| 2. external side effects | yes | passed | Only the isolated candidate worktree and local evidence were written; no user runtime, original Public worktree, push, tag, GitHub Release or npm publish action occurred. |
+| 3. user-visible output | yes | passed | Every installed `AGENTS.md` managed core gains one Safety Baseline paragraph; upgrade replaces only the official managed core and preserves surrounding bytes, with the existing conflict refusal for a locally edited core. |
+| 4. complexity / boundary | yes | passed | One trigger paragraph shorter than the routed coding-pack detail; rules 6–7 stay the single detailed owner; no pack, router or safety-pack change. |
+| 5. documentation drift | yes | passed | Independent review covered the version-only bilingual deltas, CHANGELOG, release notes and title; later wording fixes follow its suggestions. |
+| 6. semantic runtime effect | yes | passed | The trial measured the intended behaviour change on Claude Code (unsafe attempts 5/8 → 0/8); the reviewer confirmed no conflict with startup, authorization or Persistence Gate sections. Limits: one model, small samples, synthetic scenario. |
+| 7. recurrence regression | yes | passed | The new pack-scenario assertion fails if the paragraph or its user/document/agent clause is removed. |
+| 8. QA authority | yes | passed | Existing pack-scenario, release-readiness, candidate evidence and formal full owners remain unchanged; this section records source preparation only. |
+| 9. release statement | yes | passed | v0.4.6 remains a local candidate until frozen identity, independent receipt, formal full and postpublish readback all pass, and publication needs a new user approval. |
+
 ## v0.4.5 candidate status
 
 - 狀態：隔離原始碼候選，尚未凍結、未完成 formal full、receipt 或任何發布操作。

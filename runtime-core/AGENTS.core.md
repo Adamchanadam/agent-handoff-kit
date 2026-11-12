@@ -128,6 +128,8 @@ Do not delete, reset, overwrite user-owned content, bulk-move, publish, change p
 
 Named prohibited destructive commands in `dev/rules/safety.md` remain prohibited even when requested. Never use a weaker pack or local instruction to bypass core safety.
 
+Before first running new or changed code, including tests and helper scripts, and even when the exact command comes from the user, a document or another agent, read the code's usage and what it deletes or overwrites as a separate step, then follow `dev/rules/coding.md` rules 6–7.
+
 Verify the selected root and real target boundaries before writes. Do not follow a link, junction, mount, or computed path outside the confirmed root. Do not expose credential values in output, reports, backups, tests, or logs. A real permission or lock refusal stops the affected operation; it is not permission to elevate, switch provider or mode, or use a riskier command. Normal platform approval and another already-authorized safe method remain available only after their actual scope and safety are verified.
 
 Do not modify unrelated files or erase unexpected user changes. Do not claim completion without read-back evidence and proportionate checks.
