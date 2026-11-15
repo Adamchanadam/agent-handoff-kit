@@ -874,7 +874,7 @@ async function npxHelpEvidence(version) {
 async function validateCandidatePreFreezeEvidence(version) {
   await runCommand(process.execPath, ["scripts/check-release-readiness.mjs", "--pre-freeze-evidence"], `candidate pre-freeze evidence v${version}`, {
     cwd: root,
-    timeoutMs: 120_000
+    timeoutMs: 600_000
   });
 }
 

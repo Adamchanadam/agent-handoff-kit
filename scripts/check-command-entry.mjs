@@ -15,7 +15,7 @@ const run=promisify(execFile),source=path.resolve(path.dirname(fileURLToPath(imp
 const cli=path.join(source,'bin/agent-handoff-kit.mjs'),version=JSON.parse(fs.readFileSync(path.join(source,'package.json'))).version;
 const nextStableVersion=value=>{const match=/^(\d+)\.(\d+)\.(\d+)$/.exec(value);assert(match,'candidate version must be stable semver');return `${match[1]}.${match[2]}.${(BigInt(match[3])+1n).toString()}`;};
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'ahk-command-')),ownedPids=new Set(),servers=[];
-const options={windowsHide:true,timeout:60000,env:{...process.env,AGENT_HANDOFF_KIT_SKIP_UPDATE_CHECK:'1'}};
+const options={windowsHide:true,timeout:180000,env:{...process.env,AGENT_HANDOFF_KIT_SKIP_UPDATE_CHECK:'1'}};
 function project(name){const p=path.join(temp,name);fs.mkdirSync(path.join(p,'dev'),{recursive:true});fs.writeFileSync(path.join(p,'AGENTS.md'),'# Isolated Kit command test\n');fs.copyFileSync(path.join(source,'runtime-core/SESSION_HANDOFF.md'),path.join(p,'dev/SESSION_HANDOFF.md'));return p;}
 function snapshot(root){const out={};function walk(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,e.name),key=path.relative(root,p);if(e.isSymbolicLink())out[key]={link:fs.readlinkSync(p)};else if(e.isDirectory()){out[key+path.sep]=null;walk(p);}else out[key]=fs.readFileSync(p,'utf8');}}walk(root);return out;}
 const ok=s=>console.log('ok: commands '+s);

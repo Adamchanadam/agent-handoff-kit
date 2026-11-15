@@ -19,6 +19,7 @@ const tempRoot = qaTemp.ownedPath(tmpdir(), `ack-prototype-check-${Date.now()}`)
 
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 const version = packageJson.version;
+const MAX_INSTALLED_AGENTS_BYTES = 30720;
 function nextPatch(v) {
   const [maj, min, p] = v.split(".").map(Number);
   return `${maj}.${min}.${p + 1}`;
@@ -59,6 +60,8 @@ async function main() {
   assert(upgradeStateMappings.some(([, targetRel]) => targetRel === "dev/USER_RULES.md"), "formal user-rules router is not included in its state-bound upgrade contract");
 
   const initResult = run(process.execPath, ["bin/agent-handoff-kit.mjs", "init", "--yes", "--root", tempRoot], "install templates");
+  const freshAgents = readFileSync(path.join(tempRoot, "AGENTS.md"));
+  assert(freshAgents.length <= MAX_INSTALLED_AGENTS_BYTES, `fresh AGENTS.md exceeds ${MAX_INSTALLED_AGENTS_BYTES} bytes: ${freshAgents.length}`);
   assert(initResult.stdout.includes("Start Agent Handoff"), "post-install CLI output missing primary startup phrase");
   assert(initResult.stdout.includes("Read AGENTS.md first, then Start Agent Handoff"), "post-install CLI output missing path-bearing startup fallback");
   assert(initResult.stdout.includes("普通 web chat AI 若不能讀寫本機資料夾，並不適合使用本工具"), "post-install CLI output missing local-agent support boundary");
@@ -74,6 +77,35 @@ async function main() {
   const installedProjectIndex = readFileSync(path.join(tempRoot, "dev", "PROJECT_INDEX.md"), "utf8");
   assert(parseProjectIndexTemplateVersion(installedProjectIndex) === version, "fresh init PROJECT_INDEX Stack version does not match package version");
   const doctor = run(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], "doctor installed templates");
+  const baselineStatus = doctor.stdout.match(/^status:.*$/m)?.[0];
+  for (const [size, prepend, expected, decoy] of [[32767, false, false], [32768, false, false], [32769, false, true], [65536, true, true], [65536, true, true, true]]) {
+    const lead = decoy ? Buffer.from("## 3. Safety Baseline\n", "utf8") : Buffer.alloc(0);
+    const padding = Buffer.alloc(size - freshAgents.length - lead.length, 32);
+    if (prepend) padding[padding.length - 1] = 10;
+    const agentsPath = path.join(tempRoot, "AGENTS.md");
+    writeFileSync(agentsPath, prepend ? Buffer.concat([lead, padding, freshAgents]) : Buffer.concat([freshAgents, padding]));
+    const result = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], { cwd: root, encoding: "utf8" });
+    assert(result.status === doctor.status, `doctor exit code changed at ${size} bytes`);
+    assert(result.stdout.match(/^status:.*$/m)?.[0] === baselineStatus, `doctor status changed at ${size} bytes`);
+    assert(result.stdout.includes("AGENTS.md 大小提醒:") === expected, `incorrect size advisory at ${size} bytes`);
+    if (prepend) assert(result.stdout.includes("Safety Baseline 標題"), `size advisory omitted the managed-core Safety Baseline beyond the limit${decoy ? " when a pre-core heading has the same text" : ""}`);
+  }
+  for (const [label, mutate] of [
+    ["duplicate core start", (agents) => Buffer.concat([Buffer.from("<!-- BEGIN Agent Handoff Kit managed core -->\n", "utf8"), agents])],
+    ["duplicate core end", (agents) => Buffer.concat([agents, Buffer.from("\n<!-- END Agent Handoff Kit managed core -->\n", "utf8")])]
+  ]) {
+    const mutated = mutate(freshAgents);
+    const [small, large] = [32768, 65536].map((size) => {
+      const padding = Buffer.alloc(size - mutated.length, 32);
+      padding[padding.length - 1] = 10;
+      writeFileSync(path.join(tempRoot, "AGENTS.md"), Buffer.concat([padding, mutated]));
+      return spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "doctor", "--root", tempRoot], { cwd: root, encoding: "utf8" });
+    });
+    assert(!small.stdout.includes("AGENTS.md 大小提醒:") && large.stdout.includes("AGENTS.md 大小提醒:"), `${label}: size advisory threshold drifted`);
+    assert(large.status === small.status && large.stdout.match(/^status:.*$/m)?.[0] === small.stdout.match(/^status:.*$/m)?.[0], `${label}: size advisory changed doctor exit code or status`);
+    assert(!/官方核心結束標記|Safety Baseline 標題|用戶規則入口/.test(large.stdout), `${label}: size advisory located positions without a single valid managed-core range`);
+  }
+  writeFileSync(path.join(tempRoot, "AGENTS.md"), freshAgents);
   assert(doctor.stdout.includes("status: passed"), "doctor output did not include status: passed");
   assert(doctor.stdout.includes("✅ 檢查通過"), "doctor output missing beginner-friendly passed message");
   assert(!doctor.stdout.includes("generated markdown governance checks"), "doctor must not claim a generated Markdown root-discovery check");

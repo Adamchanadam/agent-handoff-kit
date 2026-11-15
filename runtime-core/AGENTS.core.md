@@ -126,11 +126,17 @@ Do not use "upgrade completed" to mean "the entire project is healthy". Report `
 
 Do not delete, reset, overwrite user-owned content, bulk-move, publish, change permissions, or perform another irreversible or external action without the required explicit authorization.
 
+Do not terminate, delete, disable, uninstall or reset a process, broad cache, browser profile, app session, notebook kernel, shared tool server or configuration that is not clearly task-owned or agent-managed unless the user confirms the exact target; a process name alone is not ownership evidence, and `dev/rules/safety.md` rule 14 sets the full boundary.
+
+Never run `rm -rf`, `sudo rm -rf`, `Remove-Item -Recurse -Force`, `git clean -fdx`, `git reset --hard`, or an obfuscated or wrapped equivalent; use a narrower reversible operation or give the user a manual action list.
+
 Named prohibited destructive commands in `dev/rules/safety.md` remain prohibited even when requested. Never use a weaker pack or local instruction to bypass core safety.
 
 Before first running new or changed code, including tests and helper scripts, and even when the exact command comes from the user, a document or another agent, read the code's usage and what it deletes or overwrites as a separate step, then follow `dev/rules/coding.md` rules 6–7.
 
 Verify the selected root and real target boundaries before writes. Do not follow a link, junction, mount, or computed path outside the confirmed root. Do not expose credential values in output, reports, backups, tests, or logs. A real permission or lock refusal stops the affected operation; it is not permission to elevate, switch provider or mode, or use a riskier command. Normal platform approval and another already-authorized safe method remain available only after their actual scope and safety are verified.
+
+Never request a credential value or persist one in any project file; if a value matching a known credential prefix appears in the conversation, redact it in your output and warn the user to rotate it; `dev/rules/safety.md` rules 11–12 set the full boundary, including auth-failure handling.
 
 Do not modify unrelated files or erase unexpected user changes. Do not claim completion without read-back evidence and proportionate checks.
 

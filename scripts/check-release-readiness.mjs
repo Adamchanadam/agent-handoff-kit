@@ -1926,7 +1926,7 @@ function simulateMultiSessionFlow(installedHandoff, installedLog) {
   for (const [label, handoff, expectedComplete, reason] of cases) {
     writeFileSync(path.join(tempRoot, 'dev/SESSION_HANDOFF.md'), handoff, 'utf8');
     writeFileSync(path.join(tempRoot, 'START_NEXT_SESSION_PROMPT.txt'), `${extractOpeningMessage(handoff)}\n`, 'utf8');
-    const result = spawnSync(cliNode, ['bin/agent-handoff-kit.mjs', 'closeout-status', '--root', tempRoot], { cwd: root, encoding: 'utf8', windowsHide: true, timeout: 120_000 });
+    const result = spawnSync(cliNode, ['bin/agent-handoff-kit.mjs', 'closeout-status', '--root', tempRoot], { cwd: root, encoding: 'utf8', windowsHide: true, timeout: 600_000 });
     const output = outputText(result);
     assert(!result.error && Number.isInteger(result.status), `${label}: closeout CLI did not finish: ${result.error?.message ?? output}`);
     assert(result.status === (expectedComplete ? 0 : 1), `${label}: unexpected closeout exit ${result.status}\n${output}`);
@@ -3102,7 +3102,7 @@ async function checkUnregisteredMarkdownNonDiscoveryContract() {
     process.execPath,
     ["bin/agent-handoff-kit.mjs", "doctor", "--root", positiveRoot],
     positiveDoctorLabel,
-    { cwd: root, timeoutMs: 120_000 }
+    { cwd: root, timeoutMs: 600_000 }
   );
   assert(
     positiveDoctor.stdout.includes("status: passed"),

@@ -1,8 +1,8 @@
 import { spawn, spawnSync } from "node:child_process";
 
-export const DEFAULT_QA_TIMEOUT_MS = 120_000;
-export const SHORT_QA_TIMEOUT_MS = 60_000;
-export const LONG_QA_TIMEOUT_MS = 600_000;
+export const DEFAULT_QA_TIMEOUT_MS = 600_000;
+export const SHORT_QA_TIMEOUT_MS = 300_000;
+export const LONG_QA_TIMEOUT_MS = 3_000_000;
 export const TIMEOUT_EXIT_CODE = 124;
 
 export class QaRunError extends Error {

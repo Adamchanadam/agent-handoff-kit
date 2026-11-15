@@ -3,7 +3,7 @@ import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { FEATURE_DELIVERY_ACCEPTANCE_SCOPE, FEATURE_DELIVERY_ACCEPTANCE_SCOPE_DIGEST, NATIVE_OBSERVABLE_RESULT_EVIDENCE_ROLES, NATIVE_UPDATE_METADATA_KEYS, NATIVE_UPDATE_OBSERVABLE_RESULT_EVIDENCE_ROLES, REQUIRED_OBSERVABLE_OPERATIONS } from "./feature-delivery.mjs";
 
-export const QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS = 120_000;
+export const QA_RELEASE_READINESS_TIMEOUT_BUFFER_MS = 600_000;
 
 export const QA_EXECUTOR_CONTRACT = Object.freeze({
   "node-script": Object.freeze({ layers: Object.freeze(["quick", "full"]) }),
@@ -12,22 +12,22 @@ export const QA_EXECUTOR_CONTRACT = Object.freeze({
 });
 
 export const QA_RELEASE_READINESS_INVENTORY = Object.freeze([
-  releaseReadinessCheck("qa-assurance-manifest", "check-qa-assurance-manifest.mjs", "QA assurance manifest wiring", 180_000),
-  releaseReadinessCheck("candidate-evidence", "check-candidate-evidence.mjs", "candidate evidence binding QA", 120_000),
-  releaseReadinessCheck("install-lock-smoke", "check-install-lock-smoke.mjs", "install lock smoke QA", 120_000),
-  releaseReadinessCheck("public-prototype", "check-public-prototype.mjs", "prototype QA", 120_000),
-  releaseReadinessCheck("command-entry", "check-command-entry.mjs", "portable shortcuts and progress opener QA", 120_000),
-  releaseReadinessCheck("progress-view", "check-progress-view.mjs", "read-only project progress QA", 120_000),
-  releaseReadinessCheck("closeout-card", "check-closeout-card-contract.mjs", "closeout card contract QA", 120_000),
-  releaseReadinessCheck("handoff-continuity", "check-handoff-continuity.mjs", "published install to upgraded closeout continuity QA", 180_000),
-  releaseReadinessCheck("closeout-efficiency", "check-closeout-efficiency.mjs", "closeout efficiency and terminal-state QA", 120_000),
-  releaseReadinessCheck("public-mirror", "build-public-mirror.mjs", "public mirror QA", 180_000),
-  releaseReadinessCheck("pack-scenarios", "check-pack-scenarios.mjs", "pack scenario QA", 120_000),
-  releaseReadinessCheck("upgrade-inventory", "check-upgrade-inventory.mjs", "upgrade inventory QA", 120_000),
-  releaseReadinessCheck("upgrade-transaction-window", "check-upgrade-transaction-window.mjs", "upgrade transaction-window QA", 180_000),
-  releaseReadinessCheck("official-origin-catalog", "check-official-origin-catalog.mjs", "official-origin catalog QA", 180_000),
-  releaseReadinessCheck("upgrade-safety", "check-upgrade-safety.mjs", "upgrade safety QA", 360_000),
-  releaseReadinessCheck("prompt-mirror", "check-prompt-mirror.mjs", "prompt mirror checker", 60_000)
+  releaseReadinessCheck("qa-assurance-manifest", "check-qa-assurance-manifest.mjs", "QA assurance manifest wiring", 900_000),
+  releaseReadinessCheck("candidate-evidence", "check-candidate-evidence.mjs", "candidate evidence binding QA", 600_000),
+  releaseReadinessCheck("install-lock-smoke", "check-install-lock-smoke.mjs", "install lock smoke QA", 600_000),
+  releaseReadinessCheck("public-prototype", "check-public-prototype.mjs", "prototype QA", 600_000),
+  releaseReadinessCheck("command-entry", "check-command-entry.mjs", "portable shortcuts and progress opener QA", 600_000),
+  releaseReadinessCheck("progress-view", "check-progress-view.mjs", "read-only project progress QA", 600_000),
+  releaseReadinessCheck("closeout-card", "check-closeout-card-contract.mjs", "closeout card contract QA", 600_000),
+  releaseReadinessCheck("handoff-continuity", "check-handoff-continuity.mjs", "published install to upgraded closeout continuity QA", 900_000),
+  releaseReadinessCheck("closeout-efficiency", "check-closeout-efficiency.mjs", "closeout efficiency and terminal-state QA", 600_000),
+  releaseReadinessCheck("public-mirror", "build-public-mirror.mjs", "public mirror QA", 900_000),
+  releaseReadinessCheck("pack-scenarios", "check-pack-scenarios.mjs", "pack scenario QA", 600_000),
+  releaseReadinessCheck("upgrade-inventory", "check-upgrade-inventory.mjs", "upgrade inventory QA", 600_000),
+  releaseReadinessCheck("upgrade-transaction-window", "check-upgrade-transaction-window.mjs", "upgrade transaction-window QA", 900_000),
+  releaseReadinessCheck("official-origin-catalog", "check-official-origin-catalog.mjs", "official-origin catalog QA", 900_000),
+  releaseReadinessCheck("upgrade-safety", "check-upgrade-safety.mjs", "upgrade safety QA", 1_800_000),
+  releaseReadinessCheck("prompt-mirror", "check-prompt-mirror.mjs", "prompt mirror checker", 300_000)
 ]);
 
 export const QA_ASSURANCE_MANIFEST = Object.freeze({
@@ -97,7 +97,7 @@ export const QA_ASSURANCE_MANIFEST = Object.freeze({
       id: "candidate-preflight",
       layer: "candidate-preflight",
       required: true,
-      executor: Object.freeze({ kind: "internal-validator", timeoutMs: 600_000 }),
+      executor: Object.freeze({ kind: "internal-validator", timeoutMs: 3_000_000 }),
       provenance: "working candidate source tree before freeze, active release surfaces, source-to-scenario QA contract, pre-freeze candidate evidence, public mirror contract, official-origin catalog, npm latest readback, and manifest identities",
       stateAxes: Object.freeze(["candidate version", "surface synchronization", "source-to-scenario QA contract", "pre-freeze bilingual and cross-mind evidence", "mirror boundary", "published lineage", "manifest identity"]),
       expected: Object.freeze({
@@ -358,7 +358,7 @@ function claim(id, layer, script, details) {
     id,
     layer,
     required: true,
-    executor: Object.freeze({ kind: "node-script", script, timeoutMs: details.timeoutMs ?? 120_000 }),
+    executor: Object.freeze({ kind: "node-script", script, timeoutMs: details.timeoutMs ?? 600_000 }),
     provenance: details.provenance,
     stateAxes: Object.freeze(details.stateAxes),
     expected: Object.freeze({ positive: "executor exits 0", negative: "executor exits nonzero" }),

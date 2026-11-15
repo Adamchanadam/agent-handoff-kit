@@ -1,7 +1,7 @@
 {
   "name": "@adamchanadam/agent-handoff-kit",
-  "version": "0.4.6",
-  "description": "Lightweight agent harness for project memory, handoff, and multi-session continuity.",
+  "version": "0.4.7",
+  "description": "Your session relay baton for agentic AI — context engineering at its core, so supported AI tools can pick up where the last one left off.",
   "type": "module",
   "bin": {
     "agent-handoff-kit": "bin/agent-handoff-kit.mjs"

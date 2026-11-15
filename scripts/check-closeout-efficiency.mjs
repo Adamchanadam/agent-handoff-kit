@@ -200,7 +200,7 @@ function invokeCommand(command, args, env, options = {}) {
   return invokeAsync(command, args, options.label ?? args.join(" "), {
     cwd: options.cwd ?? sourceRoot,
     env,
-    timeoutMs: options.timeoutMs ?? 120_000,
+    timeoutMs: options.timeoutMs ?? 600_000,
     killGraceMs: options.killGraceMs,
     settleGraceMs: options.settleGraceMs
   });

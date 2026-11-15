@@ -3259,6 +3259,30 @@ async function runDoctor(root, version, options = {}) {
     console.log(`${row.ok ? "ok" : "missing"}  ${row.target}`);
   }
 
+  // This advisory is independent of doctor health and counts.
+  try {
+    const bytes = await readFile(path.join(root, "AGENTS.md"));
+    const limit = 32768;
+    if (bytes.length > limit) {
+      const start = bytes.indexOf(managedCoreStart);
+      const candidateEnd = start < 0 ? -1 : bytes.indexOf(managedCoreEnd, start + Buffer.byteLength(managedCoreStart));
+      const end = start >= 0 && start === bytes.lastIndexOf(managedCoreStart) && candidateEnd >= 0 && candidateEnd === bytes.indexOf(managedCoreEnd) && candidateEnd === bytes.lastIndexOf(managedCoreEnd) ? candidateEnd : -1;
+      const safety = end < 0 ? -1 : bytes.indexOf("## 3. Safety Baseline", start);
+      const entries = [
+        ["官方核心結束標記", end, managedCoreEnd],
+        ["Safety Baseline 標題", safety >= 0 && safety < end ? safety : -1, "## 3. Safety Baseline"],
+        ["用戶規則入口", end < 0 ? -1 : bytes.indexOf(FORMAL_USER_RULES_ENTRY_ANCHOR, end + Buffer.byteLength(managedCoreEnd)), FORMAL_USER_RULES_ENTRY_ANCHOR]
+      ];
+      const beyond = entries.filter(([, position, marker]) => position >= 0 && position + Buffer.byteLength(marker) > limit).map(([label]) => label);
+      console.log(`\nwarn: AGENTS.md 大小提醒: ${bytes.length} bytes；Codex 預設只讀取專案指引檔首 32,768 bytes，Claude Code 不受影響。`);
+      if (beyond.length) console.log(`  warn: 超出上限：${beyond.join("、")}。`);
+      console.log("  warn: 此檢查不計算子資料夾的 AGENTS.md。已調高上限可忽略。");
+      console.log("  warn: 可在個人 ~/.codex/config.toml（Windows: C:\\Users\\<用戶名>\\.codex\\config.toml）加入 project_doc_max_bytes = 65536；設定一次適用所有專案（包括未受信任專案），或縮短自己的內容。");
+    }
+  } catch {
+    // Missing or unreadable files remain the responsibility of existing checks.
+  }
+
   if (missing.length > 0) {
     const misplacedRulePacks = await findMisplacedRulePacks(root, missing);
     printMisplacedRulePackWarnings(misplacedRulePacks);

@@ -2,9 +2,9 @@
 
 [繁體中文](README.md) · [Introduction](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-intro.en.html) · [Command guide](https://adamchanadam.github.io/agent-handoff-kit/agent-handoff-kit-guide.en.html)
 
-**Your session relay baton.** Help the next AI conversation pick up your work: keep progress, key decisions, file locations and unfinished tasks.
+**Your session relay baton.** Context engineering at its core: keep progress, key decisions, file locations and unfinished tasks in your project folder, so supported AI tools can pick up where the last one left off.
 
-Code version covered: `v0.4.6`. This guide includes updates that have not been released yet. Features available to download depend on the published version.
+Code version covered: `v0.4.7`. This guide includes updates that have not been released yet. Features available to download depend on the published version.
 
 [![Agent Handoff Kit introduction video](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif)](https://youtu.be/RopbfBiSw1I)
 

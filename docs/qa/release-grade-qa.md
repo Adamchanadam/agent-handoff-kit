@@ -33,6 +33,121 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 
 Historical sections below may retain the legacy key `userJourney` as evidence text for their old contract. It is not a current formal conclusion and cannot broaden the v0.4.3 observable scope above.
 
+## v0.4.7 candidate status
+
+- 狀態：隔離原始碼候選，尚未凍結、未完成 formal full、receipt 或任何發布操作。
+- 範圍：
+  - `runtime-core/AGENTS.core.md` `## 3. Safety Baseline` 新增三段，舊核心 63 段逐字保留：
+    - N1：點名禁用的刪除指令，與 `dev/rules/safety.md` 第 5 條等價；
+    - N2：程序、快取、共用工具的歸屬界線，屬第 14 條的摘要；
+    - N3：機密值，屬第 11–12 條的摘要。
+  - `bin/agent-handoff-kit.mjs`：`doctor` 在根目錄 `AGENTS.md` 超過 32,768 bytes 時輸出大小提醒；只作提醒，不改結束碼或狀態行。只有核心開始及結束標記各只有一個時，才定位核心結束標記、Safety Baseline 標題（限核心範圍內）及用戶規則入口。
+  - `scripts/check-public-prototype.mjs`：全新安裝 `AGENTS.md` ≤ 30,720 bytes 的上限斷言；大小提醒情景包括 32,767／32,768／32,769／65,536 bytes、核心前同名 Safety Baseline 標題，以及重複核心開始／結束標記。
+  - `scripts/check-pack-scenarios.mjs`：三段的存在斷言。
+  - QA 等待時限（只改等待上限，不改任何斷言；這些 QA 程式不在 npm 套件內）：
+    - `scripts/qa-assurance-manifest.mjs`：16 個全面檢項目、快檢項目預設值、全面檢外層緩衝值及候選預檢宣告時限乘以五，例如 120 秒改為 600 秒，維持與基線相同的內外層比例；
+    - `scripts/qa-runner-core.mjs`：預設、短、長三個常數乘以五；
+    - `scripts/check-command-entry.mjs`：每次 CLI 呼叫由 60 秒改為 180 秒；
+    - `scripts/check-release-readiness.mjs` 兩處、`scripts/check-handoff-continuity.mjs`、`scripts/qa.mjs` 及 `scripts/check-closeout-efficiency.mjs`：120 秒改為 600 秒。
+  - 版本由 `0.4.6` 變為 `0.4.7`：`package.json`、兩份 README 及六個 HTML 頁的版本標示。
+  - `package.json` `description`、`README.md`／`README.en.md` 第 5 行改為「Session 接力棒／session relay baton＋context engineering」定位句。
+  - `CHANGELOG.md`、`docs/whatsnew/v0.4.7.md` 及其索引。
+  - 不改任何 rule pack、`RULE_PACKS` 路由、安裝清單、QA 暫存工具或 official-origin catalog。
+- 依據：
+  - WORK 方案 `outputs/core-slim-review-20261115/LEAN-PLAN-v0.4.7.md`，經獨立反審及 Owner 採用。
+  - N1 至 N3 等價核對（Codex CLI `gpt-6.1-sol`，high）：N1 equivalent、N2 equivalent（摘要）；第一版 N3 判為 conflict，修訂後判為 `equivalent_summary`。紀錄：`D:\_temp\ahk-v047-lean-20261115-evidence\sol-n-equivalence-last-message.txt`、`sol-n3-recheck-last-message.txt`。
+- Runtime-agent 實測（預先登記；Claude Code 2.1.306、`--model sonnet`、`claude-sonnet-5-5`、每組 8 次）：
+  - 預先登記 `D:\_temp\ahk-v047-trial-20261115\prereg-t2.md`，SHA-256 `83AA2CFB9DB2EBFAC4DFEEF0CD8EB7D3EFC2DD2560C1CA7BCB93BBC6DBF68A51`；凍結檔 `freeze-t2-r2.json`，SHA-256 `84176985E332081F59986E4B468D7612829608E83A5019362DAE04EB3FF70D3B`；試跑缺陷紀錄 `harness-defect-1.md`。
+  - 結果 `results-t2.md`，SHA-256 `F8985E70290A34E275DFD618943AA704357E070E2E9FE963D41F6C0D3420EEEE`。
+  - 「清理本任務暫存資料夾」情景：S（0.4.6 核心）與 N（加三段）嘗試被禁指令都是 0/8，有幫助都是 8/8，沒有框架缺陷或專案外刪除。兩組的第一個複合 shell 指令都被權限設定拒絕，之後改交手動清單，真正的刪除選擇沒有被測到。這屬地板效應分支，只可聲稱「T2 內未見 N1 副作用」。
+  - 事後文字比對（非預先登記，不作判定）：S 組 8/8 最終回覆建議用戶自行執行被禁指令，N 組 0/8。
+  - 限制：單一模型、單一合成情景；Owner 的用戶層指令有效；N2、N3 沒有專屬實測（Owner 已接受）。
+- 獨立預凍結覆核（Codex CLI `gpt-6.1-sol`，high，非作者）：
+  - 第一輪 `D:\_temp\ahk-v047-lean-20261115-review\prefreeze\review.json`，SHA-256 `20AEF5A564D8423D20B4D6D6753D980D528A44C04F07EFA1F53BE36DE8AC2A31`（`review.md` SHA-256 `47DE2B83F72A948154039A7A4CF534D75EDD93AE7EF8D1F8B3D03D7AF5E7D762`）：`accept_with_fixes`；四對雙語、發布標題及說明、`CHANGELOG.md` 通過；「大小提醒不改 `closeout-status` 判定」有支持。F1（阻擋）：外層時限未涵蓋順序子呼叫總和；F2（非阻擋）：大小提醒可能把核心前的同名標題當作 Safety Baseline。
+  - 窄範圍複核 `D:\_temp\ahk-v047-lean-20261115-review\prefreeze-r2\recheck.json`，SHA-256 `9BEF21C8018F79ADC13E776F1F6AF1F9D320A971CD4E81CFA85FB0022F75F83B`（`recheck.md` SHA-256 `4778EB95D971A4003E716DF6BCC50A355A0F6AF178592EB56B5EFD9DCA8904CB`）：`accept_with_fixes`；兩項時限比例修正接受，配對表數字正確；F1 按 WORK `docs/QA_STRATEGY.md` 重開準則改判非阻擋（非本次造成、不阻擋交付、不與發布聲稱矛盾），須披露（見下文已知剩餘風險）；F2 原反例已修正，另提出 R1（非阻擋：重複核心標記時仍定位），並指定精確修法。
+  - R1 按指定修法套用：先加重複開始／結束標記兩例，在未修正代碼上失敗（`r1-counterexample.log`，訊息 `duplicate core start: size advisory located positions without a single valid managed-core range`），修正後通過（`r1-fixed.log`）。F2 同樣先反例後修正（`f2-counterexample.log`、`f2-fixed.log`）。紀錄均在 `D:\_temp\ahk-v047-lean-20261115-evidence\`。R1 修正由凍結後的最終獨立覆核涵蓋。
+- GitHub Release binding：title `v0.4.7 - 三項安全規則常駐核心及規則書大小提醒`；notes `docs/whatsnew/v0.4.7.md`，工作樹及 Git 提交內容同為 LF，SHA-256 `ADD7F3F682E48AEFCAE07AB1B254ED6372735DDB98100FBFA5D71B6921795522`；候選提交後以 `git show HEAD:docs/whatsnew/v0.4.7.md` 核對兩者相同。
+- QA 時限改動的理由：
+  - 同一機器同時有其他長期工作在執行。
+  - 候選快檢兩次在 `install-lock-smoke` 撞上寫死的 120 秒上限（`candidate-quick.log`、`candidate-quick-r2.log`），每次都只有 4 行 `ok`，沒有斷言失敗；基線第 0 關在該負荷出現前通過，用時 407 秒（`gate0-quick.log`）。
+  - Owner 於 2026-11-15 決定放寬上限，不等待該工作完成。
+- 已知剩餘風險：
+  - 沿自 v0.4.5 的 r3 G1：QA 專用暫存清理工具的路徑替換空窗，仍未解決。本版沒有修改該工具，它不在 npm 套件內，也不是由本版修改造成；按 WORK `docs/QA_STRATEGY.md`，不列為本版發布阻擋，並在發布報告中再次告知發布負責人。
+  - 預凍結 F1（原判阻擋，複核改判非阻擋）：QA 外層時限仍未涵蓋其順序子呼叫的最壞總和，例如全面檢外層 12,600 秒，對比清單總和 12,000 秒加 11 個本地呼叫 6,600 秒；比例 21/31，與 v0.4.6 的 2,520／3,720 相同，另有無內層上限的本地呼叫未計入。整組仍可能在各子步驟都未超限時先逾時。這是原有設計，不是本次造成；本次只把時限按比例放寬，並修回兩處被本次改動拉低的比例，沒有修正完整預算模型，也沒有證實效能改善或消除所有誤報。「只改等待上限，不改任何斷言」只描述時限改動，不描述本版新增的測試。後續必要 QA 若真的因此逾時，仍須阻擋並重新判斷。完整預算模型連同 QA 時限集中定義，列為發布後的可選後續工作。
+  - 新版 `doctor` 檢查未升級的專案時，會因快捷指令內含版本而判 `project shortcuts` 不符。這是既有的版本更替行為：官方 0.4.6 `doctor` 檢查 0.4.5 專案得出相同結果，已實測。本版沒有新增失敗項目。
+- 邊界：共用 core 及 CLI 改動按 `selectDeliveryEvidence()` 涵蓋九個入口及全部 21 個確定性操作，本版全部重新擷取及獨立審閱。正式驗收必須以凍結後的 v0.4.7 candidate identity、全新 raw capture、獨立審閱 receipt 與 current command contract 重新核對。
+
+### Source contract gate（v0.4.7，PASS）
+
+- 範圍：候選基底為 `a7b1f011d8514079b7c3d950e4881f304ab00556`；套件版本只由 `0.4.6` 變為 `0.4.7`。
+- 檔案雜湊：
+  - `runtime-core/AGENTS.core.md` SHA-256 `9CF4199BDF346050C50464EAF24C8E4D8C572A44ECD898190D2B20D750C5E0F4`；LF 正規化後 28,510 bytes，舊核心 63 段逐字保留，27 句 `AGENTS.md` `requiredAnchors` 全在。
+  - `bin/agent-handoff-kit.mjs` SHA-256 `109FAA13A9DF6C8C99E69EA68782B3BCCB938BD9BB1C86405F185D630E83B914`
+  - `scripts/check-pack-scenarios.mjs` SHA-256 `E4CECB190A0073A0315A725BA466EF9259F5BD4F9A97CA156572F3828941017F`
+  - `scripts/check-public-prototype.mjs` SHA-256 `E9B7A2B7B795C3D041162B4EB1133D1C96EE24E140FDF16AB3FCF47355DD0E02`
+  - `scripts/qa-assurance-manifest.mjs` SHA-256 `2CFF0158C6298EF710686250BF3416E491E6D8394338B2FB99A25600576F0E8C`
+  - `scripts/qa-runner-core.mjs` SHA-256 `2B40E1037DB5A2E38B1CD4CBAE6BDAF6C8F10219FCAEAB73AA355C0D40952CF5`
+  - `scripts/qa.mjs` SHA-256 `5282C3BEA62798797D8F63C3674D03C3326A017D375369D6FAA8911EBD0A27ED`
+  - `scripts/check-command-entry.mjs` SHA-256 `2BEDB3DE32A4923A02F6A403125F4F1A3D07DCD0C81CF4F2DE252C3188619B68`
+  - `scripts/check-release-readiness.mjs` SHA-256 `8AC32C4A2DB0AA100F7FA7CD7FD9C0971D53373D75CA23F6E3DDE61A21B8E216`
+  - `scripts/check-handoff-continuity.mjs` SHA-256 `EC6658ED3F69F38151859BF4BDF621CBAD51B070B3F3013C8782232B625EFB6A`
+  - `scripts/check-closeout-efficiency.mjs` SHA-256 `B72CF449B6E09333D0A2C3C01906F4562D073C0729D8FFCEB596B0CD1403664F`
+- 檢查結果：
+  - 審閱修正後的最終樹 `node scripts/qa.mjs quick` exit 0，344 秒，digest `774efe328675cdd0aa08a0fcdb485964f168f40241ff3f028ca9c57abc5e0ebb`（`candidate-quick-r4.log`）。
+  - 全新安裝 `AGENTS.md` 為 29,376 bytes，低於 30,720。
+- 反證：
+  - 把 N1、N2、N3 任一段改掉一部分，`check-pack-scenarios.mjs` 都會 exit 1；還原後核心雜湊回到上列值。
+  - 把上限常數改為 20000，`check-public-prototype.mjs` exit 1，訊息為 `fresh AGENTS.md exceeds 20000 bytes: 29376`；還原後回到原值。
+  - 核心前同名標題及重複核心標記兩組大小提醒情景，在修正前的代碼上 exit 1，修正後 exit 0（`f2-*.log`、`r1-*.log`）。
+- 對照：同一全新安裝專案加長至超過 32,768 bytes 前後，`doctor` 結束碼及 `status: passed` 相同，只多大小提醒；WORK 收工包裝腳本所解析的 `SESSION_LOG 接力角色紀律` 狀態行，前後都只有一行 ` ok`。
+- Verdict: **PASS** — source contract coverage only; it does not replace this candidate's frozen identity, formal full or release readback.
+
+### Bilingual README semantic gate（v0.4.7，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-15; returned PASS for this pair in the pre-freeze review above (`review.json` field `bilingual`).
+- Scope: line 5 positioning sentence and line 7 version label per language; the Chinese gloss of context engineering at line 5 is a language-appropriate explanation without an English counterpart. Line 7 wording is otherwise unchanged.
+- `README.md` SHA-256 `9ACEDCD8DA6C1CF07C383D9C9FC948F4D829229B80DA07E73B48BCB6EBD975A9`
+- `README.en.md` SHA-256 `1D63C83D37BE0D8B7DE881BCDDC697F6406F9120D14BB21C3875F6EA35BFAF2F`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual practical-guide semantic gate（v0.4.7，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-15; returned PASS for this pair in the pre-freeze review above (`review.json` field `bilingual`).
+- Scope: the full pair changes only hero and footer version labels to v0.4.7; the command journey, examples, authorization boundaries and consequences are unchanged.
+- `agent-handoff-kit-guide.html` SHA-256 `DAC3C0AAE773D07BBAE7F6CAAB6AFBE1A14A8E5B8A841EE12E3CF234BF306670`
+- `agent-handoff-kit-guide.en.html` SHA-256 `AC5C69B13875C8AEBCE9688302CD3CE75A93148AFD8F7254227F84A1E0E2AE65`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual AI-install semantic gate（v0.4.7，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-15; returned PASS for this pair in the pre-freeze review above (`review.json` field `bilingual`).
+- Scope: the full pair changes only hero and footer version labels to v0.4.7; folder confirmation, installation/upgrade steps, checks and safeguards are unchanged.
+- `agent-handoff-kit-ai-install.html` SHA-256 `6A3A3FEAC05E40DD1257CFE0375B14A5AAB1FC9C5895A57141FC8F225A42BC02`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `26E76154295F30581D3A8D29D0B47A6FB238D342638A5FE84061876F6F927E00`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual introduction semantic gate（v0.4.7，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-15; returned PASS for this pair in the pre-freeze review above (`review.json` field `bilingual`).
+- Scope: the full pair changes only hero and footer version labels to v0.4.7; the surrounding introduction and its unpublished-update warning are unchanged in both languages.
+- `agent-handoff-kit-intro.html` SHA-256 `C1848BD8FAFE2C3E6FB1E6ECAF7E1B911676E7069C9F1019589BCC4FCBE6E803`
+- `agent-handoff-kit-intro.en.html` SHA-256 `F20645C1B544DDF699FB0348AC75681547A4B05D7900F778561BAB250D24862D`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Cross-mind evidence 9-trigger table（v0.4.7）
+
+| Trigger | Required | Result | Evidence / boundary |
+| --- | --- | --- | --- |
+| 1. failure / blocker | yes | iterated | The independent equivalence review found the first N3 wording in conflict with safety rules 11–12; the revised summary passed a re-check. Candidate quick twice hit hard-coded 120 s limits under unrelated machine load with no assertion failure; the owner raised the wait limits and the next quick passed. The pre-freeze review raised F1 as blocking (outer QA limits do not cover the worst-case sum of their sequential sub-calls); a narrow re-check ruled it non-blocking under the WORK reopen rule because the gap predates this change, and it is disclosed above. The same review's advisory findings F2 and R1 were fixed counterexample-first. |
+| 2. external side effects | yes | passed | Only the isolated candidate worktree, a local probe clone and local evidence folders were written; no user runtime, original Public worktree, push, tag, GitHub Release or npm publish action occurred. |
+| 3. user-visible output | yes | passed | Every installed `AGENTS.md` managed core gains three Safety Baseline paragraphs (fresh install 29,376 bytes, under the 30,720-byte ceiling); `doctor` adds a size advisory only above 32,768 bytes without changing its exit code or status line; README line 5 and the package description adopt the new positioning sentence. |
+| 4. complexity / boundary | yes | passed | N1 carries safety rule 5; N2 and N3 are declared summaries that point to rules 14 and 11–12, which remain the detailed owners; the core grows by 873 bytes; no pack, router, install list or catalog change. |
+| 5. documentation drift | yes | passed | Independent pre-freeze review covered the four bilingual pairs, CHANGELOG, release notes and title. |
+| 6. semantic runtime effect | yes | passed | A pre-registered Claude Code trial (Sonnet, 8 runs per arm) showed 0/8 forbidden attempts and 8/8 helpful in both arms; a floor-effect branch that supports only "no N1 side effect seen", because the harness denied the first compound shell command and real deletion choices were not exercised. N2 and N3 have no dedicated trial (owner-accepted). Limits: one model, one synthetic scenario. |
+| 7. recurrence regression | yes | passed | `check-pack-scenarios.mjs` fails if any of the three paragraphs is partly removed; `check-public-prototype.mjs` fails if a fresh `AGENTS.md` exceeds 30,720 bytes and checks the advisory at 32,767, 32,768, 32,769 and 65,536 bytes, with a pre-core heading of the same name, and with duplicate managed-core start or end markers. |
+| 8. QA authority | yes | passed | QA owners are unchanged; the wait-limit changes only extend time budgets, keep the base outer-to-inner proportions and change no assertion. The pre-existing outer-versus-inner budget gap (pre-freeze F1, re-ruled non-blocking) remains and is disclosed. The unchanged QA-only temp tracker keeps the disclosed, unresolved r3 G1 residual risk carried from v0.4.5 (not shipped, not caused by this change). |
+| 9. release statement | yes | passed | v0.4.7 remains a local candidate until frozen identity, independent receipt, formal full and postpublish readback all pass; publication follows the owner's 2026-11-15 named-sequence authorization, and the release report repeats the carried G1 residual risk. |
+
 ## v0.4.6 candidate status
 
 - 狀態：隔離原始碼候選，尚未凍結、未完成 formal full、receipt 或任何發布操作。

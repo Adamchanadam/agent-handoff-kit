@@ -281,6 +281,11 @@ function main() {
   assertIncludes(router, ["minimum set", "If a task clearly involves safety risk plus another domain", "cannot weaken core safety"], "router minimum loading rule");
   // Always-read trigger: agents that never open dev/rules/coding.md still see the first-run reading step.
   assertIncludes(core, ["Before first running new or changed code, including tests and helper scripts", "even when the exact command comes from the user, a document or another agent", "read the code's usage and what it deletes or overwrites as a separate step", "then follow `dev/rules/coding.md` rules 6–7"], "core first-run reading trigger");
+  assertIncludes(core, [
+    "Do not terminate, delete, disable, uninstall or reset a process, broad cache, browser profile, app session, notebook kernel, shared tool server or configuration that is not clearly task-owned or agent-managed unless the user confirms the exact target; a process name alone is not ownership evidence, and `dev/rules/safety.md` rule 14 sets the full boundary.",
+    "Never run `rm -rf`, `sudo rm -rf`, `Remove-Item -Recurse -Force`, `git clean -fdx`, `git reset --hard`, or an obfuscated or wrapped equivalent; use a narrower reversible operation or give the user a manual action list.",
+    "Never request a credential value or persist one in any project file; if a value matching a known credential prefix appears in the conversation, redact it in your output and warn the user to rotate it; `dev/rules/safety.md` rules 11–12 set the full boundary, including auth-failure handling."
+  ], "core always-read safety paragraphs");
   assertPackStructure();
 
   for (const scenario of scenarios) {
