@@ -6,7 +6,12 @@
 
 Code version covered: `v0.4.7`. This guide includes updates that have not been released yet. Features available to download depend on the published version.
 
-[![Agent Handoff Kit introduction video](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif)](https://youtu.be/RopbfBiSw1I)
+[![Agent Handoff Kit introduction video](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif)](https://youtu.be/pjarJTP6nY4)
+
+🎬 Introduction videos (in Chinese):
+
+- [Agent Handoff Kit: stable cross-session handoff for long-running agentic AI work](https://youtu.be/pjarJTP6nY4) (about 1 minute)
+- [AI has memory, so why does it still need a handoff log?](https://youtu.be/8GtcDDTk6RI) (about 12 minutes)
 
 ## How this tool helps your project
 

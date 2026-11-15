@@ -6,7 +6,12 @@
 
 文件對應程式版本：`v0.4.7`。這份說明包含尚未發布的更新；正式下載可用的功能，以已發布版本為準。
 
-[![Agent Handoff Kit 宣傳動畫](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif)](https://youtu.be/RopbfBiSw1I)
+[![Agent Handoff Kit 宣傳動畫](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif)](https://youtu.be/pjarJTP6nY4)
+
+🎬 介紹影片：
+
+- [\[開源\] Agent Handoff Kit - 令 Agentic AI 跨 Session 穩定地交接，長任務開發專用 (For Claude Code , Codex & more)](https://youtu.be/pjarJTP6nY4)（約 1 分鐘）
+- [(Agent Handoff Kit) AI 有記憶，點解仲要交接簿？｜嘆 AI 頻道 (03)](https://youtu.be/8GtcDDTk6RI)（約 12 分鐘）
 
 ## 這套工具怎樣幫你
 
