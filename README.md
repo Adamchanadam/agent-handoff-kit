@@ -4,7 +4,7 @@
 
 **Session 接力棒**。以 context engineering（為 AI 準備它需要知道的背景資料）為核心，把進度、重要決定、文件位置和未完事項留在專案資料夾，讓支援的 AI 工具接手繼續工作。
 
-文件對應程式版本：`v0.4.7`。這份說明包含尚未發布的更新；正式下載可用的功能，以已發布版本為準。
+文件對應程式版本：`v0.4.8`。這份說明包含尚未發布的更新；正式下載可用的功能，以已發布版本為準。
 
 [![Agent Handoff Kit 宣傳動畫](https://raw.githubusercontent.com/Adamchanadam/agent-handoff-kit/main/images/agent-handoff-kit-promo-30s.gif)](https://youtu.be/pjarJTP6nY4)
 

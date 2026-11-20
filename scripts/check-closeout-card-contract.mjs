@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import "./check-footprint.mjs";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,10 +29,22 @@ try {
   const complete = closeoutReadyHandoff(initial);
   writeFixtureHandoff(complete);
   const passed = invoke(["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], "complete closeout card");
+  assertFootprint(passed.stdout);
   assert(passed.stdout.includes(`Agent Handoff Kit v${version}`), "complete closeout card omitted verified version");
   assert(passed.stdout.includes("handoff saved"), "complete closeout card omitted success state");
   assert(passed.stdout.includes("status: complete"), "complete closeout card omitted machine-readable complete state");
   assert(!passed.stdout.includes("handoff blocked"), "complete closeout card showed a blocked state");
+
+  const lockDir = path.join(fixtureRoot, "dev", "governance_migrations");
+  mkdirSync(lockDir, { recursive: true });
+  const lockPath = path.join(lockDir, ".upgrade.lock");
+  writeFileSync(lockPath, "fixture");
+  const locked = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
+  // A present lock already blocks closeout through the fresh doctor read-back;
+  // the footprint must only report the skip and must not alter that outcome.
+  assert(!locked.error && locked.status === 1 && locked.stdout.includes("status: blocked") && locked.stdout.includes("fresh doctor read-back did not pass") && !locked.stdout.includes("handoff saved") && locked.stdout.includes("📦 Footprint: skipped (upgrade lock present)"), `upgrade lock changed the doctor-owned blocked outcome or was not reported\n${locked.stdout}${locked.stderr}`);
+  assertFootprint(locked.stdout);
+  rmSync(lockPath);
 
   const logPath = path.join(fixtureRoot, "dev", "SESSION_LOG.md");
   const originalLog = readFileSync(logPath, "utf8");
@@ -53,11 +66,12 @@ try {
     const result = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
     assert(!result.error && result.status === 0, `${label}: size-only advisory blocked closeout\n${result.stdout}`);
     assert(result.stdout.includes("status: complete") && !result.stdout.includes("handoff blocked"), `${label}: closeout state is wrong`);
+    assertFootprint(result.stdout);
     if (warning) {
       assert(result.stdout.includes("Maintenance reminder") && result.stdout.includes(warning), `${label}: final card hid the advisory`);
       if (warning.includes("entry count")) assertDeferredMaintenanceReminder(result.stdout, `${label}: complete card`);
     } else {
-      assert(result.stdout === passed.stdout, `${label}: no-advisory final card changed`);
+      assert(withoutFootprint(result.stdout) === withoutFootprint(passed.stdout), `${label}: no-advisory final card changed`);
     }
     assert(readFileSync(logPath).equals(Buffer.from(text, "utf8")), `${label}: read-only check changed log bytes`);
   }
@@ -86,6 +100,7 @@ try {
   writeFileSync(logPath, shortenedLog, "utf8");
   const preservationBlocked = spawnSync(process.execPath, ["bin/agent-handoff-kit.mjs", "closeout-status", "--root", fixtureRoot], { cwd: root, encoding: "utf8", env });
   assert(!preservationBlocked.error && preservationBlocked.status === 1 && preservationBlocked.stdout.includes("status: blocked") && preservationBlocked.stdout.includes("closeout outcome is not complete") && preservationBlocked.stdout.includes("project-required persistence is not complete or not required") && preservationBlocked.stdout.includes("Maintenance reminder") && preservationBlocked.stdout.includes("entry count = 11"), "preservation-unverified handoff was not refused or hid its advisory");
+  assertFootprint(preservationBlocked.stdout);
   assertDeferredMaintenanceReminder(preservationBlocked.stdout, "preservation-unverified blocked card");
   assert(!preservationBlocked.stdout.includes("handoff saved") && readFileSync(logPath).equals(Buffer.from(shortenedLog, "utf8")), "preservation-unverified refusal changed source bytes or falsely claimed success");
   writeFileSync(logPath, originalLog, "utf8");
@@ -528,4 +543,13 @@ function assertDeferredMaintenanceReminder(stdout, label) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function withoutFootprint(text) { return text.replace(/^📦 Footprint[^\r\n]*(?:\r?\n|$)/gm, ""); }
+function assertFootprint(text) {
+  const lines = text.split(/\r?\n/); const positions = lines.map((line, i) => line.startsWith("📦 Footprint") ? i : -1).filter(i => i >= 0);
+  assert(positions.length === 1 && /^📦 Footprint(?: \(apparent\): .+|: (?:skipped \(.+\)|unavailable))/.test(lines[positions[0]]), "expected one well-formed footprint line");
+  const maintenance = lines.findIndex(line => line.startsWith("⚠️ Maintenance reminder"));
+  assert(maintenance < 0 || positions[0] < maintenance, "footprint must precede maintenance");
+  assert(lines.filter(line => line.startsWith("⚠️ Blocker:")).every(line => !line.includes("📦 Footprint")), "footprint entered blocker line");
 }

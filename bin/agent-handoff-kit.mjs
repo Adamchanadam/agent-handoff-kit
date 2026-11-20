@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { runFootprintSupervised, formatFootprintLine } from "./footprint.mjs";
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
@@ -665,11 +666,17 @@ async function main() {
 }
 
 async function runCloseoutStatus(root, version) {
+  let footprint;
+  const measure = async (worktrees) => {
+    try { footprint = await runFootprintSupervised(root); return formatFootprintLine(footprint, { worktrees }); }
+    catch { return "📦 Footprint: unavailable"; }
+  };
   let handoffText = "";
   try {
     handoffText = await readFile(path.join(root, "dev", "SESSION_HANDOFF.md"), "utf8");
   } catch {
-    printCloseoutStatusCard(version, { ok: false, findings: ["current handoff is unreadable"] });
+    const footprintLine = await measure();
+    printCloseoutStatusCard(version, { ok: false, findings: ["current handoff is unreadable"], footprintLine });
     process.exitCode = 1;
     return;
   }
@@ -720,7 +727,8 @@ async function runCloseoutStatus(root, version) {
     ok: findings.length === 0,
     findings,
     details,
-    maintenanceWarnings: discipline.ok ? [] : discipline.warnings
+    maintenanceWarnings: discipline.ok ? [] : discipline.warnings,
+    footprintLine: await measure(workspaceHealth.git === "yes" ? (workspaceHealth.worktreesVerified ? workspaceHealth.worktreeCount : "unverified") : undefined)
   };
   printCloseoutStatusCard(version, result);
   if (!result.ok) process.exitCode = 1;
@@ -1336,6 +1344,7 @@ function printCloseoutStatusCard(version, result) {
     console.log("🔎 QC: fresh doctor and opening-message mirror passed");
     console.log("📌 Handoff: opening message ready; next-session reception and recovery still required");
     console.log("⚠️ Boundary: none");
+    if (result.footprintLine) console.log(result.footprintLine);
     for (const warning of result.maintenanceWarnings ?? []) console.log(`⚠️ Maintenance reminder: ${warning}`);
     return;
   }
@@ -1345,6 +1354,7 @@ function printCloseoutStatusCard(version, result) {
   console.log("status: blocked");
   console.log(`⚠️ Blocker: ${result.findings.join("; ")}`);
   for (const detail of result.details ?? []) console.log(`   ${detail}`);
+  if (result.footprintLine) console.log(result.footprintLine);
   for (const warning of result.maintenanceWarnings ?? []) console.log(`⚠️ Maintenance reminder: ${warning}`);
   console.log("💬 說明：這不是失敗；只是還有事未保存、未提交、未驗證或需要處理。先照 Blocker 行處理，不要把本輪當作已完成交接。");
   console.log("📌 Handoff: keep the current state resumable; do not call this closeout complete");

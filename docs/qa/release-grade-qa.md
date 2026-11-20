@@ -33,6 +33,108 @@ Candidate sections below are snapshot evidence from the source-preparation phase
 
 Historical sections below may retain the legacy key `userJourney` as evidence text for their old contract. It is not a current formal conclusion and cannot broaden the v0.4.3 observable scope above.
 
+## v0.4.8 candidate status
+
+- 狀態：隔離原始碼候選，尚未凍結、未完成 formal full、receipt 或任何發布操作。
+- 範圍：
+  - 新增 `bin/footprint.mjs`：`collectFootprint` 在子程序內作有時限、只讀目錄資料的走訪；`runFootprintSupervised` 在主程序監管，於 4,000 ms 加 750 ms 時以 SIGKILL 結束子程序，輸出上限 16 KB 並驗證結構；`formatFootprintLine` 產生一行不超過 300 字元的足跡行。
+  - `bin/agent-handoff-kit.mjs`：`closeout-status` 的完成及受阻兩種卡片（含讀不到交接檔的提早返回）都在維護提醒前印出足跡行；量度失敗只顯示 `unavailable`，不改狀態、阻礙、`handoff saved` 字眼或結束碼。
+  - `bin/installed-file-contract.mjs`：`bin/footprint.mjs` 歸入 installer 功能、套件安裝依賴及 `handoff-kit-close` 的原生依賴。
+  - `packs/coding.md` 新增第 8 條；`packs/closeout.md` 第 8 步觸發條件擴大，第 13 步及卡片範例加入足跡行說明；`runtime-core/SESSION_HANDOFF.md` 收工卡規則加入足跡量度。
+  - QA：新增 `scripts/check-footprint.mjs`；`scripts/check-closeout-card-contract.mjs`、`scripts/check-pack-scenarios.mjs`、`scripts/feature-delivery-cases.mjs` 隨改動更新；`scripts/qa-assurance-manifest.mjs` 套件檔案數 52 改為 53。
+  - 版本由 `0.4.7` 變為 `0.4.8`：`package.json`、兩份 README 及六個 HTML 頁的版本標示；`CHANGELOG.md`、`docs/whatsnew/v0.4.8.md` 及其索引。
+  - 不改 `runtime-core/AGENTS.core.md`、`RULE_PACKS` 路由、QA 暫存工具或 official-origin catalog。
+- 依據：用戶提交的提案第 1、2 項；WORK `outputs/resource-footprint-review-20261120/`（研究、試行、計劃、整合紀錄）。
+- 獨立審閱（Codex CLI `gpt-6.1-sol`，high，非作者）：r1 reject、r2 reject、r3 `accept_with_fixes`（M1、M2），r4 只覆核 M1／M2，`accept`、`fixableDefectRemains: false`。紀錄在 `D:\_temp\ahk-v048-footprint-20261120-review\`。
+- r4 之後的改動（第 5 輪，主線實作，Owner 2026-11-20 決定）：時限 2,500 ms 改為 4,000 ms；子程序被拒（EPERM／EACCES）時顯示 `unavailable (helper process not permitted)`；位於其他裝置的資料夾不下鑽，計入 `other filesystems skipped`；沒有任何頂層資料夾時不印空白的 `largest:`。掛載測試先在抽走修正的副本上失敗（`0 !== 1`），修正後通過。
+- 平台實測：
+  - Windows 11、Node 24.22.1：`check-footprint` 34 PASS、1 SKIP（只限 POSIX 的 SIGTERM 情景）。
+  - WSL2 Ubuntu（Linux 6.18）、官方 Node 18.20.8 及 24.22.3：各 35 PASS、0 SKIP；`check-closeout-card-contract` exit 0。
+  - 量度：145,883 檔的 NTFS 專案兩次分別 2.54 秒及 2.26 秒 complete（`D:_tempahk-v048-footprint-20261120-dispatch
+tfs-measure-r5.log`，綁定 `bin/footprint.mjs` SHA-256 `707A48E89FF07DD13EA01B710FB33D467821B4B4899E2C915D9571C169E954F9`）；Linux 核心版本及兩個 Node 檔案的 SHA-256 核對見 `D:_tempahk-v048-footprint-20261120-wslarchives.log`；WSL `/usr` 修正前因走進由 Windows 掛載的 `/usr/lib/wsl` 而要 4 秒以上，修正後約 0.9 秒 complete，並報告 4 個其他檔案系統。
+- 已知剩餘風險：
+  - 走訪不是原子快照：偵測到項目消失或類型、身份改變時顯示 incomplete；沒有偵測到不代表沒有變動，同類型的大小改變或新增項目可能不被發現；到時限時顯示 partial；最後的檢查至使用之間仍有空窗。
+  - dev／ino 身份核對只在提供穩定 inode 的檔案系統上可靠；入列時及開啟前再核對的 inode 都是 0 時，無法核對 inode 是否被替換，計入 `identityUnchecked`，但 dev 相等、類型／連結核對及子目錄 realpath 核對仍然適用。
+  - 只排除不同裝置的資料夾；同一裝置上的 bind mount 仍會被走訪（r5 R1，屬剩餘限制）。
+  - 子程序終止依賴作業系統；名稱遮蓋屬啟發式。
+  - 不准開子程序的環境只顯示 unavailable；不提供同一程序內的退回方案（會令 r1 F3 重現）。
+  - 大專案或機器忙碌時可能只顯示下限。
+  - macOS、真正卡住的檔案系統呼叫及冷快取未測試。
+  - 沿自 v0.4.5 的 r3 G1 及 v0.4.7 預凍結 F1 仍未解決，本版沒有修改相關工具。
+- 邊界：CLI 及 runtime-core 改動按 `selectDeliveryEvidence()` 決定的入口重新擷取及獨立審閱。正式驗收必須以凍結後的 v0.4.8 candidate identity、全新 raw capture、獨立審閱 receipt 與 current command contract 重新核對。
+- GitHub Release binding：title `v0.4.8 - 收工卡顯示專案大小及臨時檔規則`；notes `docs/whatsnew/v0.4.8.md`，工作樹內容為 LF，SHA-256 `85F24DC0269EEEA90C318BAA4D4BC467C2F3436F6AA2FBEAE40588756076296C`；Git 提交內容的綁定待候選提交後以 `git show HEAD:docs/whatsnew/v0.4.8.md` 讀回核對。
+
+### Source contract gate（v0.4.8，PASS）
+
+- 範圍：候選基底為 `264de506af55920d67b22bb282536a5e6343b1c0`；套件版本只由 `0.4.7` 變為 `0.4.8`。
+- 檔案雜湊：
+  - `runtime-core/AGENTS.core.md` SHA-256 `9CF4199BDF346050C50464EAF24C8E4D8C572A44ECD898190D2B20D750C5E0F4`（與 v0.4.7 相同，核心不變）
+  - `bin/footprint.mjs` SHA-256 `707A48E89FF07DD13EA01B710FB33D467821B4B4899E2C915D9571C169E954F9`
+  - `bin/agent-handoff-kit.mjs` SHA-256 `D18BFE625F687D2AAE85396224E0652EC79C76B3290A4E1FA849AFB8A750B0BC`
+  - `bin/installed-file-contract.mjs` SHA-256 `1DD89361BA040EB766CB0EFAFDA378596E1E58892FD42941880BFD9E2685FFB4`
+  - `packs/coding.md` SHA-256 `07BD6E1E5C5634CA8B55FB82D27A1E2B7042A6C81A292386C1A5D8158D7F89DC`
+  - `packs/closeout.md` SHA-256 `056D701BCE03A60C6ABBE3442BEE44FCD8EE164DC02D647C556E0E64D5708D77`
+  - `runtime-core/SESSION_HANDOFF.md` SHA-256 `4B175BDA19693D905C7C1AA22243082C299F85C1BBD48B92A09E97CFC526A528`
+  - `scripts/check-footprint.mjs` SHA-256 `A077F13362A21A886B151D05AEAF5F778865622B6E10B5C595786864010B6BF7`
+  - `scripts/check-closeout-card-contract.mjs` SHA-256 `95B054DA8A69893567F09D543DEDFD1C94A819478F573ADBE37A4E66A5AD3F05`
+  - `scripts/check-pack-scenarios.mjs` SHA-256 `DE4B3B155E764A9FEC4E5BD20DAE92BCFCFEF216465AB38DBAD8D606D01A4A53`
+  - `scripts/feature-delivery-cases.mjs` SHA-256 `B6CDEFD1CB49C7CB3EA8FFCD568A223278BF6F55B4FDD0A2DAD7FEF9C86F2FCB`
+  - `scripts/qa-assurance-manifest.mjs` SHA-256 `CC8424C2377D672C7FAE19ADCE393D655A3034D0DB55CFDCE6900E7AE11859C9`
+- 檢查結果（Windows 11、Node 24.22.1，沙盒外）：
+  - 第 5 輪程式改動後 `node scripts/qa.mjs quick` exit 0，216 秒（`quick-r7.log`）；版本標示及文件改動在其後，由候選預檢及正式全面檢涵蓋。
+  - `check-footprint` 34 PASS、1 SKIP；`check-closeout-card-contract`、`check-closeout-efficiency` exit 0。
+  - 由官方 0.4.7 全新安裝預演升級：merge 2（`dev/rules/coding.md`、`dev/rules/closeout.md`，保留本機附錄）、conflict 0，`dev/SESSION_HANDOFF.md` 不變。
+- 反證：
+  - 抽走掛載判斷的副本令 `mounted directory on another device is skipped` 失敗（`0 !== 1`），還原後通過。
+  - r3 的祖先替換、同前綴兄弟目錄、零 inode 但 dev 改變等反例，在 r4 已確認會拒絕下鑽；第 5 輪後同一組測試仍通過。
+- Verdict: **PASS** — source contract coverage only; it does not replace this candidate's frozen identity, formal full or release readback.
+
+### Bilingual README semantic gate（v0.4.8，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:_tempahk-v048-footprint-20261120-review5sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
+- Scope: only the version label per language changes to v0.4.8.
+- `README.md` SHA-256 `34EC989A7976C7A3F83235CA6B57F384B1193D3308CC61E2F6F7DC8F8E6FE5F0`
+- `README.en.md` SHA-256 `2871BFCA8412012CDADB4542A8324204DA474BC2C72D96417DDED9D8A76E2050`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual practical-guide semantic gate（v0.4.8，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:_tempahk-v048-footprint-20261120-review5sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
+- Scope: only the hero and footer version labels change to v0.4.8.
+- `agent-handoff-kit-guide.html` SHA-256 `477BC21EC6AD5EA702CBE26C07EB943D33654CA4D6706D3113CF91967CB976ED`
+- `agent-handoff-kit-guide.en.html` SHA-256 `8E62857BB1E88750F1FB328E0CCA6BFFBE4AE12F6F3386D1F0C98C62C27BB83B`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual AI-install semantic gate（v0.4.8，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:_tempahk-v048-footprint-20261120-review5sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
+- Scope: only the hero and footer version labels change to v0.4.8.
+- `agent-handoff-kit-ai-install.html` SHA-256 `98795003B5F44AFC9DC127E3DD27389A6685ABA7DEFFBF3305F2A807E5C970DB`
+- `agent-handoff-kit-ai-install.en.html` SHA-256 `9BBBFB1153A34DFEC1243A227C1CC8810631C1F2AFEA48E72B088809D477CF57`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Bilingual introduction semantic gate（v0.4.8，PASS）
+
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:_tempahk-v048-footprint-20261120-review5sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
+- Scope: only the hero and footer version labels change to v0.4.8.
+- `agent-handoff-kit-intro.html` SHA-256 `E41509713537253F11BB31C037D4631391A64ED398270E3ABF6E9E8531309756`
+- `agent-handoff-kit-intro.en.html` SHA-256 `13AA03F1D224F8F009DD3B2C3C102B4304DB7B22824308B355A13239B9AE4731`
+- Verdict: **PASS** — independent semantic delta review; no functional, full-check, or release-readiness claim.
+
+### Cross-mind evidence 9-trigger table（v0.4.8）
+
+| Trigger | Required | Result | Evidence / boundary |
+| --- | --- | --- | --- |
+| 1. failure / blocker | yes | iterated | Sol r1 and r2 rejected the collector (unbounded memory, a forced exit that did not end native work, missing containment); r3 accepted with fixes M1 and M2, both resolved in r4. Linux testing then showed that the walk descended into a host-backed WSL mount; the owner chose to skip other filesystems, and the fix was added counterexample-first. |
+| 2. external side effects | yes | passed | Only the isolated candidate worktree, local evidence folders and a WSL temporary folder (two official Node archives, verified by SHA-256) were written; no user runtime, original Public worktree, push, tag, GitHub Release or npm publish action occurred. |
+| 3. user-visible output | yes | passed | Both closeout cards gain one advisory footprint line of at most 300 characters; status, findings, `handoff saved` wording and exit code are unchanged, as checked by `check-closeout-card-contract.mjs`. |
+| 4. complexity / boundary | yes | passed | One new shipped module (`bin/footprint.mjs`; package file count 52 to 53); the core is unchanged; coding rule 8 grants no new deletion authority. |
+| 5. documentation drift | yes | iterated | The round-5 independent review (accept_with_fixes) passed the four bilingual pairs and found six wording or evidence gaps in CHANGELOG, release notes and this record (P1–P6); all six were corrected and the missing measurement and archive logs were added. |
+| 6. semantic runtime effect | yes | passed | Coding rule 8 and the closeout step 8 trigger are agent instructions with no behaviour trial; no effectiveness claim is made. |
+| 7. recurrence regression | yes | passed | `check-footprint.mjs` covers containment, deadlines, handle limits, termination, output validation, redaction, the denied-spawn reason and mount skipping; `check-closeout-card-contract.mjs` requires exactly one well-formed footprint line without status change. |
+| 8. QA authority | yes | passed | QA owners are unchanged; the new check is registered through the existing manifest. The carried r3 G1 and v0.4.7 pre-freeze F1 remain disclosed and unresolved. |
+| 9. release statement | yes | passed | v0.4.8 remains a local candidate until frozen identity, independent receipt, formal full and postpublish readback all pass; publication needs the owner's separate sequence authorization. |
+
 ## v0.4.7 candidate status
 
 - 狀態：隔離原始碼候選，尚未凍結、未完成 formal full、receipt 或任何發布操作。

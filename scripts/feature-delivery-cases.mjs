@@ -150,7 +150,7 @@ export function checkFeatureDeliveryEvidence({root,evidencePath,evidenceSha256,f
  const historical=write('historical.tgz','old package');
  const sourceFiles=[
   {path:'bin/commands.mjs',sha256:'c'.repeat(64)},{path:'runtime-core/AGENTS.core.md',sha256:'d'.repeat(64)},
-  {path:'bin/agent-handoff-kit.mjs',sha256:'e'.repeat(64)},{path:'bin/official-origin-catalog.mjs',sha256:'f'.repeat(64)},
+  {path:'bin/agent-handoff-kit.mjs',sha256:'e'.repeat(64)},{path:'bin/footprint.mjs',sha256:'a'.repeat(64)},{path:'bin/official-origin-catalog.mjs',sha256:'f'.repeat(64)},
   {path:'bin/migration-baselines/catalog.json',sha256:'1'.repeat(64)},{path:'bin/upgrade-inventory.mjs',sha256:'2'.repeat(64)},
   {path:'bin/user-rules-router.mjs',sha256:'3'.repeat(64)},{path:'bin/handoff-read.mjs',sha256:'4'.repeat(64)},
   {path:'bin/prompt-mirror-core.mjs',sha256:'5'.repeat(64)},{path:'bin/progress/launch.mjs',sha256:'6'.repeat(64)},

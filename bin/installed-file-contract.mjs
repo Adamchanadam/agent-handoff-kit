@@ -8,7 +8,7 @@ import { commands, commandFiles } from './commands.mjs';
 // Source-to-delivery routing. Unknown new shipped modules must receive an owner.
 // QA stages/evidence are defined by the existing assurance gate, not runtime doctor.
 export const deliveredFeatureContracts = Object.freeze([
- {id:'installer',sources:['package.json','bin/agent-handoff-kit.mjs','bin/installed-file-contract.mjs','bin/official-origin-catalog.mjs','bin/migration-baselines/','bin/upgrade-inventory.mjs','bin/user-rules-router.mjs']},
+ {id:'installer',sources:['package.json','bin/agent-handoff-kit.mjs','bin/footprint.mjs','bin/installed-file-contract.mjs','bin/official-origin-catalog.mjs','bin/migration-baselines/','bin/upgrade-inventory.mjs','bin/user-rules-router.mjs']},
  {id:'shortcuts',sources:['bin/commands.mjs'],hosts:['claude','gemini','codex','antigravity'],nativeAcceptanceHosts:['codex'],nativeInvocationEntries:commands.map(({name})=>name)},
  {id:'dashboard',sources:['bin/progress/']},
  {id:'continuity',sources:['runtime-core/','bin/handoff-read.mjs','bin/prompt-mirror-core.mjs']},
@@ -18,7 +18,7 @@ export const deliveredFeatureContracts = Object.freeze([
 // These are delivery dependencies, not runtime ownership. They decide whether
 // a historical shortcut raw case can still describe the current package.
 export const packageInstallDependencyRoots=Object.freeze([
- 'package.json','bin/agent-handoff-kit.mjs','bin/commands.mjs','bin/installed-file-contract.mjs',
+ 'package.json','bin/agent-handoff-kit.mjs','bin/footprint.mjs','bin/commands.mjs','bin/installed-file-contract.mjs',
  'bin/official-origin-catalog.mjs','bin/migration-baselines/','bin/upgrade-inventory.mjs','bin/user-rules-router.mjs',
  'bin/handoff-read.mjs','bin/prompt-mirror-core.mjs','bin/progress/','runtime-core/','packs/'
 ]);
@@ -46,7 +46,7 @@ export function shortcutEntryDependencyRoots(entry){
 const sharedNativeShortcutRoots=Object.freeze(['bin/commands.mjs','runtime-core/','bin/installed-file-contract.mjs']);
 const shortcutEntryNativeRoots=Object.freeze({
  'handoff-kit-start':Object.freeze(['bin/handoff-read.mjs','packs/onboarding.md']),
- 'handoff-kit-close':Object.freeze(['bin/agent-handoff-kit.mjs','bin/prompt-mirror-core.mjs','packs/closeout.md','packs/safety.md']),
+ 'handoff-kit-close':Object.freeze(['bin/agent-handoff-kit.mjs','bin/footprint.mjs','bin/prompt-mirror-core.mjs','packs/closeout.md','packs/safety.md']),
  'handoff-kit-progress':Object.freeze(['bin/progress/']),
  'handoff-kit-align':Object.freeze(['packs/agent-governance.md']),
  'handoff-kit-onboard':Object.freeze(['packs/onboarding.md']),

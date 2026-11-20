@@ -287,6 +287,11 @@ function main() {
     "Never request a credential value or persist one in any project file; if a value matching a known credential prefix appears in the conversation, redact it in your output and warn the user to rotate it; `dev/rules/safety.md` rules 11–12 set the full boundary, including auth-failure handling."
   ], "core always-read safety paragraphs");
   assertPackStructure();
+  const codingRule8 = packs.coding.split(/\r?\n/).find(line => line.startsWith("8. Create disposable by-products"));
+  const closeoutStep8 = packs.closeout.split(/\r?\n/).find(line => line.startsWith("8. If the session used external tools"));
+  assert(codingRule8 && codingRule8.includes("temporary location the tool owns") && codingRule8.includes("grants no new deletion authority"), "coding rule 8 missing");
+  assert(closeoutStep8 && closeoutStep8.includes("tools, tests or scripts that can leave disposable by-products") && closeoutStep8.includes("Close only task-owned resources"), "closeout step 8 trigger missing");
+  for (const line of [codingRule8, closeoutStep8]) assert(!/may delete|authorized to remove/i.test(line), "new deletion permission wording");
 
   for (const scenario of scenarios) {
     assertIncludes(router, scenario.route, `${scenario.name} router`);
