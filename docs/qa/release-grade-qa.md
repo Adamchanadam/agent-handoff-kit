@@ -50,8 +50,7 @@ Historical sections below may retain the legacy key `userJourney` as evidence te
 - 平台實測：
   - Windows 11、Node 24.22.1：`check-footprint` 34 PASS、1 SKIP（只限 POSIX 的 SIGTERM 情景）。
   - WSL2 Ubuntu（Linux 6.18）、官方 Node 18.20.8 及 24.22.3：各 35 PASS、0 SKIP；`check-closeout-card-contract` exit 0。
-  - 量度：145,883 檔的 NTFS 專案兩次分別 2.54 秒及 2.26 秒 complete（`D:_tempahk-v048-footprint-20261120-dispatch
-tfs-measure-r5.log`，綁定 `bin/footprint.mjs` SHA-256 `707A48E89FF07DD13EA01B710FB33D467821B4B4899E2C915D9571C169E954F9`）；Linux 核心版本及兩個 Node 檔案的 SHA-256 核對見 `D:_tempahk-v048-footprint-20261120-wslarchives.log`；WSL `/usr` 修正前因走進由 Windows 掛載的 `/usr/lib/wsl` 而要 4 秒以上，修正後約 0.9 秒 complete，並報告 4 個其他檔案系統。
+  - 量度：145,883 檔的 NTFS 專案兩次分別 2.54 秒及 2.26 秒 complete（`D:\_temp\ahk-v048-footprint-20261120-dispatch\ntfs-measure-r5.log`，綁定 `bin/footprint.mjs` SHA-256 `707A48E89FF07DD13EA01B710FB33D467821B4B4899E2C915D9571C169E954F9`）；Linux 核心版本及兩個 Node 檔案的 SHA-256 核對見 `D:\_temp\ahk-v048-footprint-20261120-wsl\archives.log`；WSL `/usr` 修正前因走進由 Windows 掛載的 `/usr/lib/wsl` 而要 4 秒以上，修正後約 0.9 秒 complete，並報告 4 個其他檔案系統。
 - 已知剩餘風險：
   - 走訪不是原子快照：偵測到項目消失或類型、身份改變時顯示 incomplete；沒有偵測到不代表沒有變動，同類型的大小改變或新增項目可能不被發現；到時限時顯示 partial；最後的檢查至使用之間仍有空窗。
   - dev／ino 身份核對只在提供穩定 inode 的檔案系統上可靠；入列時及開啟前再核對的 inode 都是 0 時，無法核對 inode 是否被替換，計入 `identityUnchecked`，但 dev 相等、類型／連結核對及子目錄 realpath 核對仍然適用。
@@ -91,7 +90,7 @@ tfs-measure-r5.log`，綁定 `bin/footprint.mjs` SHA-256 `707A48E89FF07DD13EA01B
 
 ### Bilingual README semantic gate（v0.4.8，PASS）
 
-- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:_tempahk-v048-footprint-20261120-review5sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:\_temp\ahk-v048-footprint-20261120-review\r5\sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
 - Scope: only the version label per language changes to v0.4.8.
 - `README.md` SHA-256 `34EC989A7976C7A3F83235CA6B57F384B1193D3308CC61E2F6F7DC8F8E6FE5F0`
 - `README.en.md` SHA-256 `2871BFCA8412012CDADB4542A8324204DA474BC2C72D96417DDED9D8A76E2050`
@@ -99,7 +98,7 @@ tfs-measure-r5.log`，綁定 `bin/footprint.mjs` SHA-256 `707A48E89FF07DD13EA01B
 
 ### Bilingual practical-guide semantic gate（v0.4.8，PASS）
 
-- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:_tempahk-v048-footprint-20261120-review5sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:\_temp\ahk-v048-footprint-20261120-review\r5\sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
 - Scope: only the hero and footer version labels change to v0.4.8.
 - `agent-handoff-kit-guide.html` SHA-256 `477BC21EC6AD5EA702CBE26C07EB943D33654CA4D6706D3113CF91967CB976ED`
 - `agent-handoff-kit-guide.en.html` SHA-256 `8E62857BB1E88750F1FB328E0CCA6BFFBE4AE12F6F3386D1F0C98C62C27BB83B`
@@ -107,7 +106,7 @@ tfs-measure-r5.log`，綁定 `bin/footprint.mjs` SHA-256 `707A48E89FF07DD13EA01B
 
 ### Bilingual AI-install semantic gate（v0.4.8，PASS）
 
-- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:_tempahk-v048-footprint-20261120-review5sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:\_temp\ahk-v048-footprint-20261120-review\r5\sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
 - Scope: only the hero and footer version labels change to v0.4.8.
 - `agent-handoff-kit-ai-install.html` SHA-256 `98795003B5F44AFC9DC127E3DD27389A6685ABA7DEFFBF3305F2A807E5C970DB`
 - `agent-handoff-kit-ai-install.en.html` SHA-256 `9BBBFB1153A34DFEC1243A227C1CC8810631C1F2AFEA48E72B088809D477CF57`
@@ -115,7 +114,7 @@ tfs-measure-r5.log`，綁定 `bin/footprint.mjs` SHA-256 `707A48E89FF07DD13EA01B
 
 ### Bilingual introduction semantic gate（v0.4.8，PASS）
 
-- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:_tempahk-v048-footprint-20261120-review5sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
+- Reviewer: independent non-author Codex CLI `gpt-6.1-sol` (high reasoning), 2026-11-20; returned PASS for this pair in the round-5 pre-freeze review (`D:\_temp\ahk-v048-footprint-20261120-review\r5\sol-r5.json` SHA-256 `63A61C407DD70AE12CA5B0588273B101025BF260B03B0A559C3CFEA1A034C515`, field `bilingual`).
 - Scope: only the hero and footer version labels change to v0.4.8.
 - `agent-handoff-kit-intro.html` SHA-256 `E41509713537253F11BB31C037D4631391A64ED398270E3ABF6E9E8531309756`
 - `agent-handoff-kit-intro.en.html` SHA-256 `13AA03F1D224F8F009DD3B2C3C102B4304DB7B22824308B355A13239B9AE4731`
@@ -125,7 +124,7 @@ tfs-measure-r5.log`，綁定 `bin/footprint.mjs` SHA-256 `707A48E89FF07DD13EA01B
 
 | Trigger | Required | Result | Evidence / boundary |
 | --- | --- | --- | --- |
-| 1. failure / blocker | yes | iterated | Sol r1 and r2 rejected the collector (unbounded memory, a forced exit that did not end native work, missing containment); r3 accepted with fixes M1 and M2, both resolved in r4. Linux testing then showed that the walk descended into a host-backed WSL mount; the owner chose to skip other filesystems, and the fix was added counterexample-first. |
+| 1. failure / blocker | yes | iterated | Sol r1 and r2 rejected the collector (unbounded memory, a forced exit that did not end native work, missing containment); r3 accepted with fixes M1 and M2, both resolved in r4. Linux testing then showed that the walk descended into a host-backed WSL mount; the owner chose to skip other filesystems, and the fix was added counterexample-first. The first final review (`gpt-6.2-sol`) rejected the frozen record at `7e4ae8c` because six evidence paths in this section had lost their backslashes; they were repaired, every path in this section was checked to resolve, and evidence was recaptured for the new commit. |
 | 2. external side effects | yes | passed | Only the isolated candidate worktree, local evidence folders and a WSL temporary folder (two official Node archives, verified by SHA-256) were written; no user runtime, original Public worktree, push, tag, GitHub Release or npm publish action occurred. |
 | 3. user-visible output | yes | passed | Both closeout cards gain one advisory footprint line of at most 300 characters; status, findings, `handoff saved` wording and exit code are unchanged, as checked by `check-closeout-card-contract.mjs`. |
 | 4. complexity / boundary | yes | passed | One new shipped module (`bin/footprint.mjs`; package file count 52 to 53); the core is unchanged; coding rule 8 grants no new deletion authority. |
